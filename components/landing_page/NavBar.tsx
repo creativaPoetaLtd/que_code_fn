@@ -3,13 +3,19 @@
 import { useState } from "react";
 import { Button } from "antd";
 import { MenuOutlined, CloseOutlined } from "@ant-design/icons";
+import { useRouter } from "next/navigation";
 
 const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const router = useRouter();
 
   const toggleMenu = () => {
     setMenuOpen(!menuOpen);
   };
+
+  const handleNavigate = () => {
+    router?.push("/auth/login");
+  }
 
   return (
     <nav className="flex fixed top-0 left-0 w-full justify-between items-center h-16 py-4 px-6 lg:px-[16%] bg-[#013f47] text-white z-50">
@@ -36,7 +42,7 @@ const Navbar = () => {
       </div>
 
       <div className="hidden md:flex">
-        <Button className="border-white text-white" ghost>
+        <Button onClick={handleNavigate} className="border-white text-white" ghost>
           Sign In
         </Button>
       </div>
