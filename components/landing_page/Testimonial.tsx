@@ -1,6 +1,5 @@
 import React from "react";
 import Image from "next/image";
-import { HiOutlineArrowRight } from "react-icons/hi";
 import { PiQuotesFill } from "react-icons/pi";
 import { MdArrowOutward } from "react-icons/md";
 
@@ -12,7 +11,7 @@ interface Testimonial {
   message: string;
   rating: number;
   avatar: string;
-  bgColor: string; // Add background color to differentiate the middle card
+  bgColor: string; 
 }
 
 const testimonials: Testimonial[] = [
