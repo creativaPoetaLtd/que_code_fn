@@ -78,7 +78,7 @@ const Navbar = () => {
           <a href="#" className="hover:text-green-500">
             Help
           </a>
-          <Button className="border-white text-white w-fit" ghost>
+          <Button onClick={handleNavigate} className="border-white text-white w-fit" ghost>
             Sign In
           </Button>
         </div>
