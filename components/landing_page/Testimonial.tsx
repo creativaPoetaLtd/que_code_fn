@@ -58,22 +58,18 @@ const Testimonials: React.FC = () => {
           </h2>
         </div>
 
-        {/* Testimonials Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-black ">
           {testimonials.map((testimonial) => (
             <div
               key={testimonial.id}
               className={`p-6 rounded-lg shadow-lg ${testimonial.bgColor}`}
             >
-              {/* Quote Icon */}
               <div className="text-3xl text-green-600 mb-4">
                 <PiQuotesFill />
               </div>
 
-              {/* Testimonial Message */}
               <p className="text-lg mb-6">{testimonial.message}</p>
 
-              {/* User Info */}
               <div className="flex items-center space-x-4">
                 <Image
                   src={testimonial.avatar}
@@ -88,7 +84,6 @@ const Testimonials: React.FC = () => {
                 </div>
               </div>
 
-              {/* Rating */}
               <div className="mt-4">
                 {Array(testimonial.rating)
                   .fill(0)
@@ -102,7 +97,6 @@ const Testimonials: React.FC = () => {
           ))}
         </div>
 
-        {/* View More Button */}
         <div className="text-center mt-16 w-full items-center flex justify-center ">
         <div className="relative flex items-center">
           <button className="bg-white border border-[#00B512] hover:bg-[#e7e5e5] text-black font-semibold py-4 px-8 rounded-full flex items-center justify-between space-x-4 transition duration-300 ease-in-out">

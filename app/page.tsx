@@ -8,6 +8,7 @@ import TrustSecurityPage from '@/components/landing_page/TrustSecurityPage';
 import Testimonials from '@/components/landing_page/Testimonial';
 import Other from '@/components/landing_page/Other';
 import Footer from '@/components/landing_page/Footer';
+import Services from '@/components/landing_page/Services';
 
 export default function Home() {
   return (
@@ -21,6 +22,7 @@ export default function Home() {
       <Navbar />
       <HeroSection />
       <AboutUs />
+      <Services />
       <FeaturePage />
       <TrustSecurityPage />
       <Testimonials />
