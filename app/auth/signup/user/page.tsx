@@ -1,26 +1,129 @@
 'use client'
+import { Button, notification } from 'antd';
+import { GoogleOutlined } from '@ant-design/icons';
+import { useRouter } from 'next/navigation';
 import React, { useState } from 'react';
+import axios from 'axios';
 import ImageSection from '../../ImageSection';
+import type { NotificationArgsProps } from 'antd';
+import baseUrl from '@/helpers/baseUrl';
 
-const MultiStepForm: React.FC = () => {
-    const [currentStep, setCurrentStep] = useState(0);
+type NotificationPlacement = NotificationArgsProps['placement'];
 
-    // Proceed to the next step
-    const nextStep = () => {
-        setCurrentStep(currentStep + 1);
+const UserRegister: React.FC = () => {
+    const [formData, setFormData] = useState({
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        country: '',
+        province: '',
+        district: '',
+        sector: '',
+        gender: '',
+        password: '',
+        confirmPassword: '',
+        national_id: null as File | null,
+    });
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { id, value } = e.target;
+        setFormData({ ...formData, [id]: value });
     };
 
-    // Go back to the previous step
-    const prevStep = () => {
-        setCurrentStep(currentStep - 1);
+    const validatePasswordWithRegex = (password: string) => {
+        const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@#$%^&*()!]{8,}$/;
+        return passwordRegex.test(password);
     };
 
-    // Form contents for each step
-    const steps = [
-        {
-            title: 'Contact details',
-            content: (
-                <div className="space-y-4">
+    const router = useRouter();
+    const [loading, setLoading] = useState(false);
+    
+    const submitForm = async () => {
+        if (!validatePasswordWithRegex(formData.password)) {
+            notification.error({
+                message: 'Error',
+                description: 'Password must contain at least 8 characters, one letter, and one number.',
+                placement: 'topRight' as NotificationPlacement,
+            });
+            return;
+        }
+
+        // Check if passwords match
+        if (formData.password !== formData.confirmPassword) {
+            notification.error({
+                message: 'Error',
+                description: 'Passwords do not match',
+                placement: 'topRight' as NotificationPlacement,
+            });
+            return;
+        }
+
+        setLoading(true);
+        const formPayload = new FormData();
+        formPayload.append('firstName', formData.firstName);
+        formPayload.append('lastName', formData.lastName);
+        formPayload.append('email', formData.email);
+        formPayload.append('phone', formData.phone);
+        formPayload.append('country', formData.country);
+        formPayload.append('province', formData.province);
+        formPayload.append('district', formData.district);
+        formPayload.append('sector', formData.sector);
+        formPayload.append('gender', formData.gender);
+        formPayload.append('password', formData.password);
+    
+        if (formData.national_id) {
+            formPayload.append('national_id', formData.national_id);
+        }
+    
+        try {
+            await axios.post(
+                `${baseUrl}/users/register`,
+                formPayload,
+                {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                    },
+                }
+            );
+            router.push('/auth/otp');
+            notification.success({
+                message: 'Success',
+                description: 'User registered successfully',
+                placement: 'topRight' as NotificationPlacement,
+            });
+        } catch (error) {
+            if (axios.isAxiosError(error) && error.response) {
+                const errorMessage = error.response.data.message || 'An error occurred';
+                notification.error({
+                    message: 'Error',
+                    description: errorMessage,
+                    placement: 'topRight' as NotificationPlacement,
+                });
+            } else {
+                notification.error({
+                    message: 'Error',
+                    description: 'An unexpected error occurred',
+                    placement: 'topRight' as NotificationPlacement,
+                });
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    
+
+    return (
+        <div className="flex h-screen">
+            <div className="flex flex-col justify-center lg:w-1/2 w-full md:px-32 px-4">
+                <h1 className="text-3xl font-bold">
+                    Welcome Back <span role="img" aria-label="wave">👋</span>
+                </h1>
+                <p className="mt-2 text-gray-600">
+                    Today is a new day. {`It's`} your day. You shape it.
+                </p>
+                <form className="space-y-4 mt-8">
                     <div className="flex gap-4">
                         <div className="w-full">
                             <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
@@ -29,6 +132,8 @@ const MultiStepForm: React.FC = () => {
                             <input
                                 type="text"
                                 id="firstName"
+                                value={formData.firstName}
+                                onChange={handleInputChange}
                                 placeholder="John"
                                 className="mt-1 p-2 block w-full border outline-none border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500"
                             />
@@ -40,193 +145,109 @@ const MultiStepForm: React.FC = () => {
                             <input
                                 type="text"
                                 id="lastName"
+                                value={formData.lastName}
+                                onChange={handleInputChange}
                                 placeholder="Doe"
-                                className="mt-1 p-2 block w-full border outline-none border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500"
-                            />
-                        </div>
-                    </div>
-                    <div>
-                        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                            Email
-                        </label>
-                        <input
-                            type="email"
-                            id="email"
-                            placeholder="johndoe@example.com"
-                            className="mt-1 p-2 block w-full border outline-none border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500"
-                        />
-                    </div>
-                    <div>
-                        <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-                            Phone
-                        </label>
-                        <input
-                            type="text"
-                            id="phone"
-                            placeholder="+250"
-                            className="mt-1 p-2 block w-full border outline-none border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500"
-                        />
-                    </div>
-                </div>
-            ),
-        },
-        {
-            title: 'Address',
-            content: (
-                <div className="space-y-4">
-                    <div className="flex gap-4">
-                        <div className="w-full">
-                            <label htmlFor="country" className="block text-sm font-medium text-gray-700">
-                                Country
-                            </label>
-                            <input
-                                type="text"
-                                id="country"
-                                placeholder="Rwanda"
-                                className="mt-1 p-2 block w-full border outline-none border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500"
-                            />
-                        </div>
-                        <div className="w-full">
-                            <label htmlFor="city" className="block text-sm font-medium text-gray-700">
-                                City
-                            </label>
-                            <input
-                                type="text"
-                                id="city"
-                                placeholder="Kigali"
                                 className="mt-1 p-2 block w-full border outline-none border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500"
                             />
                         </div>
                     </div>
                     <div className="flex gap-4">
                         <div className="w-full">
-                            <label htmlFor="district" className="block text-sm font-medium text-gray-700">
-                                District
+                            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                                Email
                             </label>
                             <input
-                                type="text"
-                                id="district"
-                                placeholder="Nyarugenge"
+                                type="email"
+                                id="email"
+                                value={formData.email}
+                                onChange={handleInputChange}
+                                placeholder="john@gmail.com"
                                 className="mt-1 p-2 block w-full border outline-none border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500"
                             />
                         </div>
                         <div className="w-full">
-                            <label htmlFor="postalCode" className="block text-sm font-medium text-gray-700">
-                                Postal Code
+                            <label htmlFor="gender" className="block text-sm font-medium text-gray-700">
+                                Gender
+                            </label>
+                            <select
+                                id="gender"
+                                className='mt-1 p-2 block w-full border outline-none border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500'
+                                onChange={handleInputChange}
+                                value={formData.gender}
+                            >
+                                <option value="">Select your Gender</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div className="flex gap-4">
+                        <div className="w-full">
+                            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                                Password
+                            </label>
+                        <input
+                            type="password"
+                            id="password"
+                            value={formData.password}
+                            onChange={handleInputChange}
+                            onBlur={() => {
+                                if (!validatePasswordWithRegex(formData.password)) {
+                                    notification.error({
+                                        message: 'Error',
+                                        description: 'Password must contain at least 8 characters, one letter, and one number.',
+                                        placement: 'topRight' as NotificationPlacement,
+                                    });
+                                }
+                            }}
+                            placeholder="Password"
+                            className="mt-1 p-2 block w-full border outline-none border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500"
+                        />
+                        </div>
+                        <div className="w-full">
+                            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+                                Confirm Password
                             </label>
                             <input
-                                type="text"
-                                id="postalCode"
-                                placeholder="Doe"
+                                type="password"
+                                id="confirmPassword"
+                                value={formData.confirmPassword}
+                                onChange={handleInputChange}
+                                placeholder="******"
                                 className="mt-1 p-2 block w-full border outline-none border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500"
                             />
                         </div>
                     </div>
-                    <div>
-                        <label htmlFor="street" className="block text-sm font-medium text-gray-700">
-                            Street
-                        </label>
-                        <input
-                            type="text"
-                            id="street"
-                            placeholder="KN 255"
-                            className="mt-1 p-2 block w-full border outline-none border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500"
-                        />
+                    <Button
+                        type="primary"
+                        onClick={submitForm}
+                        disabled={loading || !formData.firstName || !formData.lastName || !formData.email || !formData?.password || !formData?.confirmPassword}
+                        className={`w-full mt-8 bg-green-500 border-none hover:bg-green-600 ${
+                            loading || !formData.firstName || !formData.lastName || !formData.email || !formData?.password || !formData?.confirmPassword
+                             ? 'cursor-not-allowed opacity-40' : ''}`}
+                    >
+                        Sign in
+                    </Button>
+                    <div className="flex items-center justify-between my-6">
+                        <hr className="w-1/3 border-gray-300" />
+                        <span className="text-sm text-gray-400">Or</span>
+                        <hr className="w-1/3 border-gray-300" />
                     </div>
-                </div>
-            ),
-        },
-        {
-            title: 'Documents',
-            content: (
-                <div className="space-y-4">
-                    <label className="block text-sm font-medium text-gray-700">
-                        Upload National ID or Driving license Document
-                    </label>
-                    <div className="flex justify-center items-center px-6 pt-5 pb-6 border-2 border-dashed rounded-md">
-                        <input type="file" className="hidden" id="file" />
-                        <label htmlFor="file" className="cursor-pointer">
-                            <span className="flex items-center  justify-center h-12 w-full rounded-full bg-gray-100">
-                                📁
-                            </span>
-                            <p className="mt-1 text-sm text-gray-600">
-                                Select a file or drag and drop here (PDF, JPG, PNG)
-                            </p>
-                        </label>
-                    </div>
-                </div>
-            ),
-        },
-    ];
-
-    return (
-        <div className="flex h-screen">
-            <div className=" lg:w-1/2 md:px-16 px-4 flex flex-col my-auto justify-center bg-white h-full rounded-lg shadow-lg">
-                <div className="mb-6">
-                    <div className="flex justify-between items-center">
-                        {steps.map((step, index) => (
-                            <div key={index} className="flex items-center">
-                                <div
-                                    className={`w-10 h-10 rounded-full text-center my-auto flex justify-center items-center font-bold text-white ${currentStep === index
-                                        ? 'bg-green-500'
-                                        : index < currentStep
-                                            ? 'bg-green-300'
-                                            : 'bg-gray-300'
-                                        }`}
-                                >
-                                    {index + 1}
-                                </div>
-                                {index < steps.length - 1 && (
-                                    <div className="w-16 border-t-2 border-gray-300"></div>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Step content */}
-                <div className="mb-6">
-                    <h2 className="text-xl font-semibold mb-4">{steps[currentStep].title}</h2>
-                    {steps[currentStep].content}
-                </div>
-
-                {/* Navigation buttons */}
-                <div className="flex justify-between">
-                    {currentStep > 0 && (
-                        <button
-                            onClick={prevStep}
-                            className="bg-green-500 text-white py-2 px-4 rounded-md"
-                        >
-                            Previous
-                        </button>
-                    )}
-                    {currentStep < steps.length - 1 ? (
-                        <button
-                            onClick={nextStep}
-                            className="bg-green-500 text-white py-2 px-4 rounded-md"
-                        >
-                            Next Step
-                        </button>
-                    ) : (
-                        <button
-                            onClick={() => alert('Form submitted')}
-                            className="bg-green-500 text-white py-2 px-4 rounded-md"
-                        >
-                            Submit
-                        </button>
-                    )}
-                </div>
-                <div className='mt-6 text-sm text-center'>
-                    Already have an account? <a href='/auth/login' className='text-green-500 hover:underline'>Sign in</a>
-                </div>
-                <div className='absolute bottom-8 left-56 text-sm text-center'>
-                    © 2024 creativa poeta. All rights reserved.
-                </div>
-
+                    <Button
+                        icon={<GoogleOutlined />}
+                        className="w-full flex justify-center items-center border-gray-300 text-gray-700 hover:bg-gray-100"
+                    >
+                        Sign in with Google
+                    </Button>
+                    <p className="mt-6 text-sm text-center">
+                        {`Don't`} have an account? <a href="/auth/signup" className="text-green-500 hover:underline">Sign up</a>
+                    </p>
+                </form>
             </div>
-            <ImageSection url="/art2.png" />
+            <ImageSection url="/art3.png" />
         </div>
     );
 };
 
-export default MultiStepForm;
+export default UserRegister;

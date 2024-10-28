@@ -1,16 +1,134 @@
-// pages/login.tsx
-'use client'
-import { Input, Button } from 'antd';
+'use client';
+import { Input, Button, notification } from 'antd';
 import { GoogleOutlined } from '@ant-design/icons';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import axios from 'axios';
 import ImageSection from '../ImageSection';
+import baseUrl, { mainUrl } from '@/helpers/baseUrl';
 
 const LoginPage: React.FC = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const handleNavigate = () => {
-    router?.push('/auth/signup')
-  }
+
+  const handleLogin = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.post(`${baseUrl}/auth/login`, { email, password });
+      const { token, user } = response.data;
+      localStorage.setItem('authToken', token);
+      notification.success({
+        message: 'Login Successful',
+        description: `Welcome back, ${user?.data?.dataValues?.email}`,
+        placement: 'topRight',
+      });
+      router.push('/dashboard');
+    } catch (error) { 
+      if (axios.isAxiosError(error) && error.response) {
+        const status = error.response.status;
+        const errorMessage = error.response.data.message || 'An error occurred during login';
+
+        if (status === 404) {
+          notification.error({
+            message: 'Login Failed',
+            description: 'User not found. Please check your email.',
+            placement: 'topRight',
+          });
+        } else if (status === 401) {
+          notification.error({
+            message: 'Invalid Credentials',
+            description: 'Incorrect password. Please try again.',
+            placement: 'topRight',
+          });
+        } else {
+          notification.error({
+            message: 'Error',
+            description: errorMessage,
+            placement: 'topRight',
+          });
+        }
+      } else {
+        console.error('Unexpected error:', error);
+        notification.error({
+          message: 'Error',
+          description: 'An unexpected error occurred during login.',
+          placement: 'topRight',
+        });
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  
+  const handleGoogleLogin = () => {
+    const width = 500;
+    const height = 600;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+    const popup = window.open(
+      `${baseUrl}/auth/google`,
+      'GoogleLogin',
+      `width=${width},height=${height},left=${left},top=${top}`
+    );
+
+    if (!popup) {
+      notification.error({
+        message: 'Popup Blocked',
+        description: 'Please allow popups for this website to use Google login.',
+        placement: 'topRight',
+      });
+      return;
+    }
+
+    const checkPopupClosed = setInterval(() => {
+      if (popup.closed) {
+        clearInterval(checkPopupClosed);
+        if (!localStorage.getItem('authToken')) {
+          notification.warning({
+            message: 'Login Cancelled',
+            description: 'Google login was cancelled or unsuccessful.',
+            placement: 'topRight',
+          });
+        }
+      }
+    }, 1000);
+  };
+
+  useEffect(() => {
+    const handleTokenMessage = (event: MessageEvent) => {
+      if (event.origin !== mainUrl) {
+        console.error('Received message from unauthorized origin:', event.origin);
+        return;
+      }
+
+      try {
+        if (event.data && event.data.token) {
+          console.log('Token received from Google login');
+          localStorage.setItem('authToken', event.data.token);
+          notification.success({
+            message: 'Login Successful',
+            description: 'You have been logged in with Google.',
+            placement: 'topRight',
+          });
+          router.replace('/dashboard');
+        }
+      } catch (error) {
+        console.error('Error processing message:', error);
+        notification.error({
+          message: 'Login Error',
+          description: 'An error occurred during Google login.',
+          placement: 'topRight',
+        });
+      }
+    };
+
+    window.addEventListener('message', handleTokenMessage);
+    return () => window.removeEventListener('message', handleTokenMessage);
+  }, [router]);
+
   return (
     <div className="flex h-screen">
       <div className="flex flex-col justify-center lg:w-1/2 w-full md:px-32 px-4">
@@ -20,20 +138,22 @@ const LoginPage: React.FC = () => {
         <p className="mt-2 text-gray-600">
           Today is a new day. {`It's`} your day. You shape it.
         </p>
-
-        <form className="mt-6">
+        <form className="mt-6" onSubmit={(e) => e.preventDefault()}>
           <div className="mb-4">
             <label htmlFor="email" className="block text-sm font-semibold text-gray-700">Email</label>
             <Input
               type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               placeholder="Example@email.com"
               className="mt-1 p-2 rounded-md"
             />
           </div>
-
           <div className="mb-4">
             <label htmlFor="password" className="block text-sm font-semibold text-gray-700">Password</label>
             <Input.Password
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               placeholder="At least 8 characters"
               className="mt-1 p-2 rounded-md"
             />
@@ -45,8 +165,11 @@ const LoginPage: React.FC = () => {
 
           <Button
             type="primary"
-            onClick={handleNavigate}
-            className="w-full mt-4 bg-green-500 border-none hover:bg-green-600"
+            onClick={handleLogin}
+            className={`w-full mt-4 bg-green-500 border-none hover:bg-green-600 
+              ${loading || !email || !password ? 'opacity-70 cursor-not-allowed' : ''}`}
+            loading={loading}
+            disabled={!email || !password || loading}
           >
             Sign in
           </Button>
@@ -57,9 +180,11 @@ const LoginPage: React.FC = () => {
           <span className="text-sm text-gray-400">Or</span>
           <hr className="w-1/3 border-gray-300" />
         </div>
+
         <Button
           icon={<GoogleOutlined />}
           className="w-full flex justify-center items-center border-gray-300 text-gray-700 hover:bg-gray-100"
+          onClick={handleGoogleLogin}
         >
           Sign in with Google
         </Button>
