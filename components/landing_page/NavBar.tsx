@@ -42,7 +42,11 @@ const Navbar = () => {
       </div>
 
       <div className="hidden md:flex">
-        <Button onClick={handleNavigate} className="border-white text-white" ghost>
+        <Button 
+          onClick={handleNavigate} 
+          className="border-[#00B512] px-8 py-4 text-md text-white transition-colors duration-500 ease-in-out hover:bg-[#1fd331]" 
+          ghost
+        >
           Sign In
         </Button>
       </div>

@@ -8,7 +8,7 @@ const Other: React.FC = () => {
        
         <div className="md:w-1/2 md:pl-12">
        
-          <h1 className="text-4xl md:text-5xl font-bold mb-6">
+          <h1 className="text-4xl text-white md:text-5xl font-bold mb-6">
           Are you ready to start?
           </h1>
           <p className="mb-8 text-gray-300">

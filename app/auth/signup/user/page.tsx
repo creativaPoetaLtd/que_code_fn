@@ -1,10 +1,11 @@
 'use client'
-import { Button, notification } from 'antd';
+import { notification } from 'antd';
 import { GoogleOutlined } from '@ant-design/icons';
 import { useRouter } from 'next/navigation';
 import React, { useState } from 'react';
 import axios from 'axios';
 import ImageSection from '../../ImageSection';
+import Button from '@/components/ui/Button';
 import type { NotificationArgsProps } from 'antd';
 import baseUrl from '@/helpers/baseUrl';
 
@@ -38,7 +39,7 @@ const UserRegister: React.FC = () => {
 
     const router = useRouter();
     const [loading, setLoading] = useState(false);
-    
+
     const submitForm = async () => {
         if (!validatePasswordWithRegex(formData.password)) {
             notification.error({
@@ -71,11 +72,11 @@ const UserRegister: React.FC = () => {
         formPayload.append('sector', formData.sector);
         formPayload.append('gender', formData.gender);
         formPayload.append('password', formData.password);
-    
+
         if (formData.national_id) {
             formPayload.append('national_id', formData.national_id);
         }
-    
+
         try {
             await axios.post(
                 `${baseUrl}/users/register`,
@@ -112,7 +113,7 @@ const UserRegister: React.FC = () => {
         }
     };
 
-    
+
 
     return (
         <div className="flex h-screen">
@@ -187,23 +188,23 @@ const UserRegister: React.FC = () => {
                             <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                                 Password
                             </label>
-                        <input
-                            type="password"
-                            id="password"
-                            value={formData.password}
-                            onChange={handleInputChange}
-                            onBlur={() => {
-                                if (!validatePasswordWithRegex(formData.password)) {
-                                    notification.error({
-                                        message: 'Error',
-                                        description: 'Password must contain at least 8 characters, one letter, and one number.',
-                                        placement: 'topRight' as NotificationPlacement,
-                                    });
-                                }
-                            }}
-                            placeholder="Password"
-                            className="mt-1 p-2 block w-full border outline-none border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500"
-                        />
+                            <input
+                                type="password"
+                                id="password"
+                                value={formData.password}
+                                onChange={handleInputChange}
+                                onBlur={() => {
+                                    if (!validatePasswordWithRegex(formData.password)) {
+                                        notification.error({
+                                            message: 'Error',
+                                            description: 'Password must contain at least 8 characters, one letter, and one number.',
+                                            placement: 'topRight' as NotificationPlacement,
+                                        });
+                                    }
+                                }}
+                                placeholder="Password"
+                                className="mt-1 p-2 block w-full border outline-none border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500"
+                            />
                         </div>
                         <div className="w-full">
                             <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
@@ -223,9 +224,8 @@ const UserRegister: React.FC = () => {
                         type="primary"
                         onClick={submitForm}
                         disabled={loading || !formData.firstName || !formData.lastName || !formData.email || !formData?.password || !formData?.confirmPassword}
-                        className={`w-full mt-8 bg-green-500 border-none hover:bg-green-600 ${
-                            loading || !formData.firstName || !formData.lastName || !formData.email || !formData?.password || !formData?.confirmPassword
-                             ? 'cursor-not-allowed opacity-40' : ''}`}
+                        className={`w-full mt-8 text-white border-none ${loading || !formData.firstName || !formData.lastName || !formData.email || !formData?.password || !formData?.confirmPassword
+                            ? 'cursor-not-allowed opacity-40' : ''}`}
                     >
                         Sign in
                     </Button>
@@ -236,7 +236,7 @@ const UserRegister: React.FC = () => {
                     </div>
                     <Button
                         icon={<GoogleOutlined />}
-                        className="w-full flex justify-center items-center border-gray-300 text-gray-700 hover:bg-gray-100"
+                        className="w-full flex justify-center items-center border-gray-300 bg-gray-100 text-gray-700 hover:text-white"
                     >
                         Sign in with Google
                     </Button>

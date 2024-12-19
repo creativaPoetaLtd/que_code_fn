@@ -1,11 +1,15 @@
 'use client';
-import { Input, Button, notification } from 'antd';
+import { notification } from 'antd';
 import { GoogleOutlined } from '@ant-design/icons';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import ImageSection from '../ImageSection';
 import baseUrl, { mainUrl } from '@/helpers/baseUrl';
+import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
+import InputPassword from '@/components/ui/InputPassword';
+import Label from '@/components/ui/Label';
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -25,7 +29,7 @@ const LoginPage: React.FC = () => {
         placement: 'topRight',
       });
       router.push('/dashboard');
-    } catch (error) { 
+    } catch (error) {
       if (axios.isAxiosError(error) && error.response) {
         const status = error.response.status;
         const errorMessage = error.response.data.message || 'An error occurred during login';
@@ -62,7 +66,7 @@ const LoginPage: React.FC = () => {
     }
   };
 
-  
+
   const handleGoogleLogin = () => {
     const width = 500;
     const height = 600;
@@ -140,33 +144,32 @@ const LoginPage: React.FC = () => {
         </p>
         <form className="mt-6" onSubmit={(e) => e.preventDefault()}>
           <div className="mb-4">
-            <label htmlFor="email" className="block text-sm font-semibold text-gray-700">Email</label>
+            <Label htmlFor='email'>Email</Label>
             <Input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Example@email.com"
-              className="mt-1 p-2 rounded-md"
+              className="p-4 rounded-md"
             />
           </div>
           <div className="mb-4">
-            <label htmlFor="password" className="block text-sm font-semibold text-gray-700">Password</label>
-            <Input.Password
+            <Label htmlFor='password'>Password</Label>
+            <InputPassword
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="At least 8 characters"
-              className="mt-1 p-2 rounded-md"
             />
           </div>
 
-          <a href="forgot-password" className="text-sm text-green-500 hover:underline">
+          <a href="forgot-password" className="text-sm text-[#00B512] hover:underline">
             Forgot Password?
           </a>
 
           <Button
             type="primary"
             onClick={handleLogin}
-            className={`w-full mt-4 bg-green-500 border-none hover:bg-green-600 
+            className={`w-full !mt-4 !py-6 text-lg rounded-lg border-none text-white hover:bg-[#2dc93d] hover:text-white 
               ${loading || !email || !password ? 'opacity-70 cursor-not-allowed' : ''}`}
             loading={loading}
             disabled={!email || !password || loading}
@@ -183,14 +186,14 @@ const LoginPage: React.FC = () => {
 
         <Button
           icon={<GoogleOutlined />}
-          className="w-full flex justify-center items-center border-gray-300 text-gray-700 hover:bg-gray-100"
+          className="w-full flex justify-center text-lg py-6 items-center bg-gray-100 border-gray-300 text-gray-700 hover:text-white"
           onClick={handleGoogleLogin}
         >
           Sign in with Google
         </Button>
 
         <p className="mt-6 text-sm text-center">
-          {`Don't`} you have an account? <a href="/auth/signup" className="text-green-500 hover:underline">Sign up</a>
+          {`Don't`} you have an account? <a href="/auth/signup" className="text-[#00B512] hover:underline">Sign up</a>
         </p>
       </div>
       <ImageSection url="/art1.png" />
