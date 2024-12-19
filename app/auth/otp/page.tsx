@@ -41,8 +41,8 @@ const OTPVerification: React.FC = () => {
                 placement: 'topRight' as NotificationPlacement,
             });
             router.push('/auth/login');
-        } catch (error:unknown) {
-                        if (axios.isAxiosError(error) && error.response?.status === 404) {
+        } catch (error: unknown) {
+            if (axios.isAxiosError(error) && error.response?.status === 404) {
                 notification.error({
                     message: 'Error',
                     description: error?.response?.data?.message,
@@ -52,12 +52,12 @@ const OTPVerification: React.FC = () => {
             }
             if (axios.isAxiosError(error)) {
 
-            notification.error({
-                message: 'Verification Failed',
-                description: error?.response?.data?.message,
-                placement: 'topRight' as NotificationPlacement,
-            });
-        }
+                notification.error({
+                    message: 'Verification Failed',
+                    description: error?.response?.data?.message,
+                    placement: 'topRight' as NotificationPlacement,
+                });
+            }
         } finally {
             setLoading(false);
         }
@@ -65,7 +65,7 @@ const OTPVerification: React.FC = () => {
 
     const resendOTP = async () => {
         setLoading(true);
-        if(!email) {
+        if (!email) {
             notification.error({
                 message: 'Error',
                 description: 'Please enter your email to resend OTP.',
@@ -81,7 +81,7 @@ const OTPVerification: React.FC = () => {
                 description: 'A new OTP has been sent to your email.',
                 placement: 'topRight' as NotificationPlacement,
             });
-        } catch (error:unknown) {
+        } catch (error: unknown) {
             if (axios.isAxiosError(error) && error.response) {
                 notification.error({
                     message: 'Failed to Resend OTP',
@@ -156,7 +156,7 @@ const OTPVerification: React.FC = () => {
                     </Button>
                 </form>
             </div>
-            <ImageSection url="/art3.png" />
+            <ImageSection url="/Images/art3.png" />
         </div>
     );
 };

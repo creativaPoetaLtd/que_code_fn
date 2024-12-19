@@ -46,7 +46,7 @@ const RegisterPage: React.FC = () => {
         </p>
 
       </div>
-      <ImageSection url="/art1.png" />
+      <ImageSection url="/Images/art1.png" />
       <footer className="  justify-center mt-12 absolute text-sm bottom-8 left-[14%] w-1/2 text-gray-400">
         © 2024 creativa poeta. All rights reserved.
       </footer>

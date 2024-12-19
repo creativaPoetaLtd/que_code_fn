@@ -29,7 +29,7 @@ const HeroSection = () => {
 
         <div className="mt-5 md:mt-0 lg:block h-[50vh] md:h-[70%] hidden">
           <Image
-            src="/homeImg.png"
+            src="/Images/homeImg.png"
             alt="Phone and Card"
             className="h-full"
             width={500}
@@ -41,42 +41,42 @@ const HeroSection = () => {
       <div className="w-full bg-[#04684C] py-8 px-[6%] md:px-[13%] ">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-6 px-4">
           <Image
-            src="/spherule.png"
+            src="/Images/spherule.png"
             alt="Spherule"
             className="h-8 mx-auto"
             width={120}
             height={100}
           />
           <Image
-            src="/samsung.png"
+            src="/Images/samsung.png"
             alt="Samsung Pay"
             className="h-8 mx-auto"
             width={120}
             height={100}
           />
           <Image
-            src="/visa.png"
+            src="/Images/visa.png"
             alt="Visa"
             className="h-8 mx-auto"
             width={120}
             height={100}
           />
           <Image
-            src="/amazon.png"
+            src="/Images/amazon.png"
             alt="Amazon Pay"
             className="h-8 mx-auto"
             width={120}
             height={100}
           />
           <Image
-            src="/paypal.png"
+            src="/Images/Paypal.png"
             alt="PayPal"
             className="h-8 mx-auto"
             width={120}
             height={100}
           />
           <Image
-            src="/alipay.png"
+            src="/Images/alipay.png"
             alt="Alipay"
             className="h-8 mx-auto"
             width={120}

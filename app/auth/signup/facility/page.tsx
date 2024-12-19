@@ -287,7 +287,7 @@ const MultiStepFormFacility = () => {
             )}
           </div>
         </div>
-        <ImageSection url="/art3.png" />
+        <ImageSection url="/Images/art3.png" />
       </div>
     </div>
   );

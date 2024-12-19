@@ -21,7 +21,7 @@ const Navbar = () => {
     <nav className="flex fixed top-0 left-0 w-full justify-between items-center h-16 py-4 px-6 lg:px-[16%] bg-[#013f47] text-white z-50">
       <div className="text-2xl font-bold">
         <Image
-          src="/logo.png"
+          src="/Images/logo.png"
           alt="Logo"
           width={180}
           height={130}

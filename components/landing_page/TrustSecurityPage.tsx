@@ -9,7 +9,7 @@ const TrustSecurityPage: React.FC = () => {
         <div className="md:w-1/2 md:mb-0">
           <Image
             alt="Trust security image"
-            src="/trustImg.png"
+            src="/Images/trustImg.png"
             width={500}
             height={500}
             className="rounded-3xl shadow-xl w-full max-w-md "

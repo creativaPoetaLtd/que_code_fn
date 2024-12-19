@@ -196,7 +196,7 @@ const LoginPage: React.FC = () => {
           {`Don't`} you have an account? <a href="/auth/signup" className="text-[#00B512] hover:underline">Sign up</a>
         </p>
       </div>
-      <ImageSection url="/art1.png" />
+      <ImageSection url="/Images/art1.png" />
     </div>
   );
 };

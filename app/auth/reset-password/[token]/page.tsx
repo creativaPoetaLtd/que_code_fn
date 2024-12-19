@@ -22,7 +22,7 @@ const ResetPasswordPage: React.FC = () => {
         newPassword,
       });
       message.success(response.data.message);
-      navigate.push('/auth/login'); 
+      navigate.push('/auth/login');
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
         message.error(error.response?.data?.message || 'An error occurred');
@@ -34,43 +34,43 @@ const ResetPasswordPage: React.FC = () => {
 
   return (
     <div className="flex h-screen">
-    <div className="flex flex-col justify-center lg:w-1/2 w-full md:px-32 px-4">
-      <h1 className="text-3xl font-bold">
-        {`Don't worry about it`} <span role="img" aria-label="wave">👋</span>
-      </h1>
-      <p className="mt-2 text-gray-600">
-      Reset Your Password
-      </p>
-      <div className="w-full max-w-md p-8 space-y-6 bg-white shadow-md rounded-lg">
-        <form onSubmit={handleResetPassword}>
-          <div className="mb-4">
-            <label htmlFor="newPassword" className="block text-sm font-semibold text-gray-700">
-              New Password
-            </label>
-            <Input.Password
-              id="newPassword"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Enter your new password"
-              required
-              className="mt-1 p-2 rounded-md w-full"
+      <div className="flex flex-col justify-center lg:w-1/2 w-full md:px-32 px-4">
+        <h1 className="text-3xl font-bold">
+          {`Don't worry about it`} <span role="img" aria-label="wave">👋</span>
+        </h1>
+        <p className="mt-2 text-gray-600">
+          Reset Your Password
+        </p>
+        <div className="w-full max-w-md p-8 space-y-6 bg-white shadow-md rounded-lg">
+          <form onSubmit={handleResetPassword}>
+            <div className="mb-4">
+              <label htmlFor="newPassword" className="block text-sm font-semibold text-gray-700">
+                New Password
+              </label>
+              <Input.Password
+                id="newPassword"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Enter your new password"
+                required
+                className="mt-1 p-2 rounded-md w-full"
               // validate password
 
-              
-            />
-          </div>
-          <Button
-            type="primary"
-            htmlType="submit"
-            loading={loading}
-            className="w-full bg-green-500 border-none hover:bg-green-600"
-          >
-            Reset Password
-          </Button>
-        </form>
+
+              />
+            </div>
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={loading}
+              className="w-full bg-green-500 border-none hover:bg-green-600"
+            >
+              Reset Password
+            </Button>
+          </form>
+        </div>
       </div>
-    </div>
-    <ImageSection url="/art1.png" />
+      <ImageSection url="/Images/art1.png" />
     </div>
   );
 };
