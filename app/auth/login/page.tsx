@@ -1,27 +1,52 @@
+/* eslint-disable */
 'use client';
-import { notification } from 'antd';
 import { GoogleOutlined } from '@ant-design/icons';
-import React, { useEffect, useState } from 'react';
+import { notification } from 'antd';
+import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import axios from 'axios';
+import { useForm, Controller } from 'react-hook-form';
 import ImageSection from '../ImageSection';
-import baseUrl, { mainUrl } from '@/helpers/baseUrl';
+import { mainUrl } from '@/helpers/baseUrl';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
 import InputPassword from '@/components/ui/InputPassword';
-import Label from '@/components/ui/Label';
+import Input from 'antd/es/input';
+import { useLoginMutation } from '@/states/authentication';
+import { ClipLoader } from 'react-spinners';
 
+interface LoginFormInputs {
+  email: string;
+  password: string;
+}
+
+interface APIError {
+  status: number;
+  data: {
+    message?: string;
+  };
+}
 const LoginPage: React.FC = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const [login, { isLoading }] = useLoginMutation();
 
-  const handleLogin = async () => {
-    setLoading(true);
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginFormInputs>({
+    mode: 'onChange',
+    defaultValues: {
+      email: '',
+      password: '',
+    },
+  });
+
+  const onSubmit = async (data: LoginFormInputs) => {
     try {
-      const response = await axios.post(`${baseUrl}/auth/login`, { email, password });
-      const { token, user } = response.data;
+      const response = await login(data).unwrap();
+      console.log("Response", response);
+
+      const { token, user } = response;
+
       localStorage.setItem('authToken', token);
       notification.success({
         message: 'Login Successful',
@@ -30,42 +55,31 @@ const LoginPage: React.FC = () => {
       });
       router.push('/dashboard');
     } catch (error) {
-      if (axios.isAxiosError(error) && error.response) {
-        const status = error.response.status;
-        const errorMessage = error.response.data.message || 'An error occurred during login';
+      const err = error as APIError;
+      const status = err?.status;
+      const errorMessage = err?.data?.message || 'An error occurred during login';
 
-        if (status === 404) {
-          notification.error({
-            message: 'Login Failed',
-            description: 'User not found. Please check your email.',
-            placement: 'topRight',
-          });
-        } else if (status === 401) {
-          notification.error({
-            message: 'Invalid Credentials',
-            description: 'Incorrect password. Please try again.',
-            placement: 'topRight',
-          });
-        } else {
-          notification.error({
-            message: 'Error',
-            description: errorMessage,
-            placement: 'topRight',
-          });
-        }
+      if (status === 404) {
+        notification.error({
+          message: 'Login Failed',
+          description: 'User not found. Please check your email.',
+          placement: 'topRight',
+        });
+      } else if (status === 401) {
+        notification.error({
+          message: 'Invalid Credentials',
+          description: 'Incorrect password. Please try again.',
+          placement: 'topRight',
+        });
       } else {
-        console.error('Unexpected error:', error);
         notification.error({
           message: 'Error',
-          description: 'An unexpected error occurred during login.',
+          description: errorMessage,
           placement: 'topRight',
         });
       }
-    } finally {
-      setLoading(false);
     }
   };
-
 
   const handleGoogleLogin = () => {
     const width = 500;
@@ -73,7 +87,7 @@ const LoginPage: React.FC = () => {
     const left = window.screenX + (window.outerWidth - width) / 2;
     const top = window.screenY + (window.outerHeight - height) / 2;
     const popup = window.open(
-      `${baseUrl}/auth/google`,
+      `${process.env.NEXT_PUBLIC_API_URL}/auth/google`,
       'GoogleLogin',
       `width=${width},height=${height},left=${left},top=${top}`
     );
@@ -142,24 +156,57 @@ const LoginPage: React.FC = () => {
         <p className="mt-2 text-gray-600">
           Today is a new day. {`It's`} your day. You shape it.
         </p>
-        <form className="mt-6" onSubmit={(e) => e.preventDefault()}>
+        <form className="mt-6" method='POST' onSubmit={handleSubmit(onSubmit)}>
           <div className="mb-4">
-            <Label htmlFor='email'>Email</Label>
-            <Input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Example@email.com"
-              className="p-4 rounded-md"
+            <label className="block text-sm font-medium mb-2">Email</label>
+            <Controller
+              name="email"
+              control={control}
+              rules={{
+                required: 'Email is required',
+                pattern: {
+                  value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                  message: 'Invalid email address',
+                },
+              }}
+              render={({ field }) => (
+                <Input
+                  {...field}
+                  size="large"
+                  placeholder="Example@email.com"
+                  status={errors.email ? 'error' : ''}
+                  className="p-4 rounded-md"
+                />
+              )}
             />
+            {errors.email && (
+              <p className="mt-1 text-sm text-red-500">{errors.email.message}</p>
+            )}
           </div>
+
           <div className="mb-4">
-            <Label htmlFor='password'>Password</Label>
-            <InputPassword
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="At least 8 characters"
+            <label className="block text-sm font-medium mb-2">Password</label>
+            <Controller
+              name="password"
+              control={control}
+              rules={{
+                required: 'Password is required',
+                minLength: {
+                  value: 8,
+                  message: 'Password must be at least 8 characters',
+                },
+              }}
+              render={({ field }) => (
+                <InputPassword
+                  {...field}
+                  placeholder="At least 8 characters"
+                  className={errors.password ? 'border-red-500' : ''}
+                />
+              )}
             />
+            {errors.password && (
+              <p className="mt-1 text-sm text-red-500">{errors.password.message}</p>
+            )}
           </div>
 
           <a href="forgot-password" className="text-sm text-[#00B512] hover:underline">
@@ -167,14 +214,18 @@ const LoginPage: React.FC = () => {
           </a>
 
           <Button
+            htmlType="submit"
             type="primary"
-            onClick={handleLogin}
-            className={`w-full !mt-4 !py-6 text-lg rounded-lg border-none text-white hover:bg-[#2dc93d] hover:text-white 
-              ${loading || !email || !password ? 'opacity-70 cursor-not-allowed' : ''}`}
-            loading={loading}
-            disabled={!email || !password || loading}
+            className="w-full !mt-4"
           >
-            Sign in
+            {isLoading ? (
+              <div className="flex items-center justify-center">
+                <ClipLoader color='#fffff' size={20} />
+                Signing in...
+              </div>
+            ) : (
+              'Sign in'
+            )}
           </Button>
         </form>
 
@@ -186,7 +237,7 @@ const LoginPage: React.FC = () => {
 
         <Button
           icon={<GoogleOutlined />}
-          className="w-full flex justify-center text-lg py-6 items-center bg-gray-100 border-gray-300 text-gray-700 hover:text-white"
+          className="w-full flex justify-center items-center bg-gray-100 border-gray-300 text-gray-700 hover:text-white"
           onClick={handleGoogleLogin}
         >
           Sign in with Google
