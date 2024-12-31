@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useForm, Controller } from 'react-hook-form';
-import { notification, Upload } from 'antd';
+import { notification, Upload, UploadFile } from 'antd';
 import { GoogleOutlined, InboxOutlined } from '@ant-design/icons';
 import { useRouter } from 'next/navigation';
 import ImageSection from '../../ImageSection';
@@ -22,6 +22,7 @@ type FormValues = {
     gender: string;
     password: string;
     confirmPassword: string;
+    // national_id?: UploadFile[];
 };
 
 const steps = [
@@ -33,10 +34,6 @@ const steps = [
         title: 'Security',
         description: 'Set up your account security.'
     },
-    {
-        title: 'Documents ',
-        description: 'Upload National ID or Driving license Document'
-    }
 ];
 
 const StepIndicator: React.FC<{ currentStep: number }> = ({ currentStep }) => (
@@ -74,7 +71,7 @@ const UserRegister: React.FC = () => {
     const [currentStep, setCurrentStep] = useState(0);
     const [registerUser, { isLoading }] = useRegisterUserMutation();
     const { handleSubmit, control, setError } = useForm<FormValues>();
-
+    // const [fileList, setFileList] = useState<UploadFile[]>([]);
     const onSubmit = async (data: FormValues) => {
         if (currentStep < steps.length - 1) {
             setCurrentStep(currentStep + 1);
@@ -87,13 +84,25 @@ const UserRegister: React.FC = () => {
         }
 
         try {
-            await registerUser(data).unwrap();
+            const formData = new FormData();
+            Object.keys(data).forEach((key) => {
+                // Add type assertion to key
+                const typedKey = key as keyof FormValues;
+                if (typedKey !== 'confirmPassword') {
+                    formData.append(typedKey, data[typedKey] as string);
+                }
+            });
+
+            // if (fileList[0]?.originFileObj) {
+            //     formData.append('national_id', fileList[0].originFileObj);
+            // }
+            await registerUser(formData).unwrap();
             notification.success({
                 message: 'Success',
                 description: 'User registered successfully',
                 placement: 'topRight',
             });
-            router.push('/auth/otp');
+            // router.push('/auth/otp');
         } catch (error: any) {
             const errorMessage = error.data?.message || 'An error occurred';
             notification.error({
@@ -232,43 +241,42 @@ const UserRegister: React.FC = () => {
         </>
     );
 
-    const DocumentUploadStep = (
-        <div className="w-full">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-                Upload National ID or Driving License
-            </label>
-            <Upload.Dragger
-                name="file"
-                multiple={false}
-                accept=".pdf,.jpg,.png"
-                action="/api/upload" // Replace with your actual upload endpoint
-                onChange={(info) => {
-                    const { status } = info.file;
-                    if (status === 'done') {
-                        notification.success({
-                            message: 'Upload Successful',
-                            description: `${info.file.name} file uploaded successfully.`,
-                        });
-                    } else if (status === 'error') {
-                        notification.error({
-                            message: 'Upload Failed',
-                            description: `${info.file.name} file upload failed.`,
-                        });
-                    }
-                }}
-            >
-                <p className="ant-upload-drag-icon">
-                    <InboxOutlined />
-                </p>
-                <p className="ant-upload-text">
-                    Click or drag file to this area to upload
-                </p>
-                <p className="ant-upload-hint">
-                    Support for a single upload. Only .pdf, .jpg, or .png files are allowed.
-                </p>
-            </Upload.Dragger>
-        </div>
-    );
+    // const DocumentUploadStep = (
+    //     <div className="w-full">
+    //         <label className="block text-sm font-medium text-gray-700 mb-2">
+    //             Upload National ID or Driving License
+    //         </label>
+    //         <Upload.Dragger
+    //             name="file"
+    //             multiple={false}
+    //             accept=".pdf,.jpg,.png"
+    //             fileList={fileList}
+    //             beforeUpload={() => false}
+    //             onChange={({ fileList: newFileList }) => {
+    //                 setFileList(newFileList);
+    //             }}
+    //             maxCount={1}
+    //         >
+    //             <p className="ant-upload-drag-icon">
+    //                 <InboxOutlined />
+    //             </p>
+    //             <p className="ant-upload-text">
+    //                 Click or drag file to this area to upload
+    //             </p>
+    //             <p className="ant-upload-hint">
+    //                 Support for a single upload. Only .pdf, .jpg, or .png files allowed.
+    //                 Maximum file size: 5MB
+    //             </p>
+    //         </Upload.Dragger>
+    //         {fileList.length > 0 && (
+    //             <div className="mt-2">
+    //                 <p className="text-sm text-gray-500">
+    //                     Selected file: {fileList[0].name}
+    //                 </p>
+    //             </div>
+    //         )}
+    //     </div>
+    // );
 
     const SecurityStep = (
         <>
@@ -328,7 +336,7 @@ const UserRegister: React.FC = () => {
     const stepContent = [
         ContactDetailsStep,
         SecurityStep,
-        DocumentUploadStep,
+        // DocumentUploadStep,
     ];
 
     return (
