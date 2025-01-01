@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "antd";
 import { MenuOutlined, CloseOutlined } from "@ant-design/icons";
 import { useRouter } from "next/navigation";
-
+import Image from "next/image";
 const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const router = useRouter();
@@ -20,7 +20,13 @@ const Navbar = () => {
   return (
     <nav className="flex fixed top-0 left-0 w-full justify-between items-center h-16 py-4 px-6 lg:px-[16%] bg-[#013f47] text-white z-50">
       <div className="text-2xl font-bold">
-        <img src="/logo.png" alt="Logo" />
+        <Image
+          src="/Images/logo.png"
+          alt="Logo"
+          width={180}
+          height={130}
+          className="cursor-pointer"
+        />
       </div>
 
       <div className="hidden md:flex items-center space-x-8">
@@ -42,7 +48,11 @@ const Navbar = () => {
       </div>
 
       <div className="hidden md:flex">
-        <Button onClick={handleNavigate} className="border-white text-white" ghost>
+        <Button
+          onClick={handleNavigate}
+          className="border-[#00B512] px-8 py-4 text-md text-white transition-colors duration-500 ease-in-out hover:bg-[#1fd331]"
+          ghost
+        >
           Sign In
         </Button>
       </div>

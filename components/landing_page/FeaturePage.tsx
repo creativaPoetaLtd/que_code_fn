@@ -5,7 +5,7 @@ import { MdArrowOutward } from 'react-icons/md';
 const FeaturePage: React.FC = () => {
   return (
     <section className="flex flex-col md:flex-row items-center justify-between w-full h-screen mx-auto py-6 px-[15%] space-y-6 md:space-y-0 bg-white">
-      
+
       <div className="md:w-[50%] w-[90%] mx-auto text-left">
         <span className="text-black font-semibold mb-4 inline-block">
           &#128293; FEATURED
@@ -38,7 +38,7 @@ const FeaturePage: React.FC = () => {
       {/* Right Image Section */}
       <div className="w-full md:w-[50%] max-w-xl mx-auto flex justify-center">
         <Image
-          src="/featureimg.png"
+          src="/Images/featureimg.png"
           alt="Phone image"
           width={600}
           height={900}

@@ -1,8 +1,9 @@
 import { MdArrowOutward } from "react-icons/md";
+import Image from "next/image";
 
 const HeroSection = () => {
   return (
-    <section className="bg-[#013f47] text-white min-h-screen flex flex-col pt-16 md:pt-24"> 
+    <section className="bg-[#013f47] text-white min-h-screen flex flex-col pt-16 md:pt-24">
       <div className="flex flex-col md:flex-row items-center justify-around w-full flex-grow px-[10%] py-5">
         <div className="flex flex-col space-y-6 max-w-lg">
           <span className="inline-block bg-[#2e565e] py-1 w-fit px-3 rounded-full text-center text-md">
@@ -27,22 +28,62 @@ const HeroSection = () => {
         </div>
 
         <div className="mt-5 md:mt-0 lg:block h-[50vh] md:h-[70%] hidden">
-          <img src="/homeImg.png" alt="Phone and Card" className="h-full" />
+          <Image
+            src="/Images/homeImg.png"
+            alt="Phone and Card"
+            className="h-full"
+            width={500}
+            height={500}
+          />
         </div>
       </div>
 
       <div className="w-full bg-[#04684C] py-8 px-[6%] md:px-[13%] ">
-  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-6  px-4">
-    <img src="/spherule.png" alt="Spherule" className="h-8 mx-auto" />
-    <img src="/samsung.png" alt="Samsung Pay" className="h-8 mx-auto" />
-    <img src="/visa.png" alt="Visa" className="h-8 mx-auto" />
-    <img src="/amazon.png" alt="Amazon Pay" className="h-8 mx-auto" />
-    <img src="/paypal.png" alt="PayPal" className="h-8 mx-auto" />
-    <img src="/alipay.png" alt="Alipay" className="h-8 mx-auto" />
-  </div>
-</div>
-
-
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-6 px-4">
+          <Image
+            src="/Images/spherule.png"
+            alt="Spherule"
+            className="h-8 mx-auto"
+            width={120}
+            height={100}
+          />
+          <Image
+            src="/Images/samsung.png"
+            alt="Samsung Pay"
+            className="h-8 mx-auto"
+            width={120}
+            height={100}
+          />
+          <Image
+            src="/Images/visa.png"
+            alt="Visa"
+            className="h-8 mx-auto"
+            width={120}
+            height={100}
+          />
+          <Image
+            src="/Images/amazon.png"
+            alt="Amazon Pay"
+            className="h-8 mx-auto"
+            width={120}
+            height={100}
+          />
+          <Image
+            src="/Images/Paypal.png"
+            alt="PayPal"
+            className="h-8 mx-auto"
+            width={120}
+            height={100}
+          />
+          <Image
+            src="/Images/alipay.png"
+            alt="Alipay"
+            className="h-8 mx-auto"
+            width={120}
+            height={100}
+          />
+        </div>
+      </div>
     </section>
   );
 };

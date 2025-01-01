@@ -1,14 +1,17 @@
 import React from 'react';
 import { MdArrowOutward } from 'react-icons/md';
+import Image from 'next/image';
 
 const TrustSecurityPage: React.FC = () => {
   return (
     <div className="bg-[#00313A] text-white min-h-screen flex items-center px-[15%]">
       <div className="container py-12 md:py-24 flex flex-col md:flex-row items-center justify-between">
         <div className="md:w-1/2 md:mb-0">
-          <img
-            src="/trustImg.png"
+          <Image
             alt="Trust security image"
+            src="/Images/trustImg.png"
+            width={500}
+            height={500}
             className="rounded-3xl shadow-xl w-full max-w-md "
           />
         </div>

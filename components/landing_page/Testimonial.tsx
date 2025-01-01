@@ -11,7 +11,7 @@ interface Testimonial {
   message: string;
   rating: number;
   avatar: string;
-  bgColor: string; 
+  bgColor: string;
 }
 
 const testimonials: Testimonial[] = [
@@ -21,7 +21,7 @@ const testimonials: Testimonial[] = [
     role: "CEO of Initech",
     message: `I like getting the SMS & knowing the jobs done. I often refer to it, “hope you get a ping today!” because my product.`,
     rating: 5,
-    avatar: "/avatar1.png",
+    avatar: "/Images/avatar1.png",
     bgColor: "bg-white",
   },
   {
@@ -30,7 +30,7 @@ const testimonials: Testimonial[] = [
     role: "Marketing Manager of Upnow",
     message: `We have successfully sold digital product and have happy with the results & look forward to using it again this.`,
     rating: 5,
-    avatar: "/avatar2.png",
+    avatar: "/Images/avatar2.png",
     bgColor: "bg-[#004852] text-white",
   },
   {
@@ -39,7 +39,7 @@ const testimonials: Testimonial[] = [
     role: "Barellon NSW",
     message: `Design Monks offers producers a cost-effective selling tool. Having the ability to post prices that you want on an exchange visible.`,
     rating: 5,
-    avatar: "/avatar3.png",
+    avatar: "/Images/avatar3.png",
     bgColor: "bg-white",
   },
 ];
@@ -104,14 +104,14 @@ const Testimonials: React.FC = () => {
 
         {/* View More Button */}
         <div className="text-center mt-16 w-full items-center flex justify-center ">
-        <div className="relative flex items-center">
-          <button className="bg-white border border-[#00B512] hover:bg-[#e7e5e5] text-black font-semibold py-4 px-8 rounded-full flex items-center justify-between space-x-4 transition duration-300 ease-in-out">
-            <span>View More</span>
-            <div className="w-6 h-6 bg-[#00B512] text-white rounded-full flex items-center justify-center transform rotate-150 transition duration-300 ease-in-out">
-              <MdArrowOutward className="text-xl" />
-            </div>
-          </button>
-        </div>
+          <div className="relative flex items-center">
+            <button className="bg-white border border-[#00B512] hover:bg-[#e7e5e5] text-black font-semibold py-4 px-8 rounded-full flex items-center justify-between space-x-4 transition duration-300 ease-in-out">
+              <span>View More</span>
+              <div className="w-6 h-6 bg-[#00B512] text-white rounded-full flex items-center justify-center transform rotate-150 transition duration-300 ease-in-out">
+                <MdArrowOutward className="text-xl" />
+              </div>
+            </button>
+          </div>
         </div>
       </div>
     </section>

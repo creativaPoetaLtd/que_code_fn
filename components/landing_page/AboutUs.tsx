@@ -8,7 +8,7 @@ const AboutUs: React.FC = () => {
       <div className="w-full md:w-1/3">
         <div className="rounded-lg shadow-lg bg-[#F5F5F5] px-10 py-16 overflow-hidden justify-center flex items-center">
           <Image
-            src="/chart1.png"
+            src="/Images/chart1.png"
             alt="Savings Chart"
             width={500}
             height={500}

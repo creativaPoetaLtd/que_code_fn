@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { notification } from 'antd';
 import type { NotificationArgsProps } from 'antd';
 import baseUrl from '@/helpers/baseUrl';
+import { useRegisterOrganizationMutation } from '@/states/authentication';
 
 type NotificationPlacement = NotificationArgsProps['placement'];
 
@@ -49,6 +50,7 @@ const MultiStepFormFacility = () => {
     password: '',
   });
   const router = useRouter();
+  const [registerOrganization, { isLoading }] = useRegisterOrganizationMutation();
   const nextStep = () => setStep(step + 1);
   const prevStep = () => setStep(step - 1);
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -81,7 +83,7 @@ const MultiStepFormFacility = () => {
       });
       return;
     }
-    setLoading(true);
+
     const data = new FormData();
     Object.keys(formData).forEach((key) => {
       if (key === 'logo' || key === 'operationalDocument') {
@@ -92,29 +94,21 @@ const MultiStepFormFacility = () => {
         data.append(key, formData[key as keyof FormData] as string);
       }
     });
+
     try {
-      await axios.post(`${baseUrl}/organizations/register`, data, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      await registerOrganization(data).unwrap();
       router.push('/auth/login');
-      setLoading(false);
       notification.success({
         message: 'Success',
         description: 'Organization registered successfully',
         placement: 'topRight' as NotificationPlacement,
       });
-    } catch (error: unknown) {
-      if (axios.isAxiosError(error) && error.response) {
-        const errorMessage = error.response.data.message || 'An error occurred';
-        notification.error({
-          message: 'Error',
-          description: errorMessage,
-          placement: 'topRight' as NotificationPlacement,
-        });
-      }
-      setLoading(false);
+    } catch (error: any) {
+      notification.error({
+        message: 'Error',
+        description: error?.data?.message || 'An error occurred',
+        placement: 'topRight' as NotificationPlacement,
+      });
     }
   };
 
@@ -129,9 +123,8 @@ const MultiStepFormFacility = () => {
             {[1, 2, 3].map((item) => (
               <div key={item} className="flex mx-auto justify-center  w-full items-center">
                 <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-white ${
-                    step >= item ? 'bg-green-500' : 'bg-gray-300'
-                  }`}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-white ${step >= item ? 'bg-green-500' : 'bg-gray-300'
+                    }`}
                 >
                   {item}
                 </div>
@@ -156,7 +149,7 @@ const MultiStepFormFacility = () => {
                   onChange={handleInputChange}
                   className="border p-2 rounded-lg w-full outline-none"
                 />
-                   <input
+                <input
                   type="password"
                   name="password"
                   placeholder="Password"
@@ -277,17 +270,17 @@ const MultiStepFormFacility = () => {
               </button>
             ) : (
               <button
-              disabled={loading}
-               onClick={handleSubmit} className={`bg-green-500 text-white px-4 py-2 rounded-lg 
-                ${loading ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'}`}>
-                {
-                  loading ? 'Loading...' : 'Submit'
-                }
+                disabled={isLoading}
+                onClick={handleSubmit}
+                className={`bg-green-500 text-white px-4 py-2 rounded-lg 
+                  ${isLoading ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'}`}
+              >
+                {isLoading ? 'Loading...' : 'Submit'}
               </button>
             )}
           </div>
         </div>
-        <ImageSection url="/art3.png" />
+        <ImageSection url="/Images/art3.png" />
       </div>
     </div>
   );
