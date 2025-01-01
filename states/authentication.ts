@@ -20,6 +20,16 @@ export const authenticationSlice = apiSlice.injectEndpoints({
                 }
             })
         }),
+        registerOrganization: builder.mutation({
+            query: (formData) => ({
+                url: '/organizations/register',
+                method: 'POST',
+                body: formData,
+                headers: {
+                    Accept: 'application/json',
+                }
+            })
+        }),
         verifyOtp: builder.mutation({
             query: (data) => ({
                 url: '/users/verify-otp',
@@ -42,6 +52,7 @@ export const authenticationSlice = apiSlice.injectEndpoints({
 export const {
     useLoginMutation,
     useRegisterUserMutation,
+    useRegisterOrganizationMutation,
     useVerifyOtpMutation,
     useResendOtpMutation
 } = authenticationSlice;
