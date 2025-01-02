@@ -10,10 +10,9 @@ const config: Config = {
   important: true,
   theme: {
     extend: {
-      colors: {
-        background: "var(--background)",
-        foreground: "var(--foreground)",
-      },
+      fontFamily: {
+        poppins: ["Poppins", "sans-serif"],
+      }
     },
   },
   plugins: [],
