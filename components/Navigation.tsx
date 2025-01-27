@@ -1,0 +1,159 @@
+"use client";
+import React, { useState } from "react";
+import { House, ChartNoAxesColumn, Settings, LogOut, Calendar, ChevronRight, ChevronLeft, Mail, CreditCard, User, ScanLine } from "lucide-react";
+import Image from "next/image";
+
+export const Navigation = () => {
+    const [isExpanded, setIsExpanded] = useState(true);
+    const [activeItem, setActiveItem] = useState("Statistics");
+
+    const mobileNavItems = [
+        { id: "Home", icon: <House size={24} />, label: "Home" },
+        { id: "Statistics", icon: <ChartNoAxesColumn size={24} />, label: "Statistics" },
+        { id: "Scan", icon: <ScanLine size={24} />, label: "Scan" },
+        { id: "Payment", icon: <CreditCard size={24} />, label: "Payment" },
+        { id: "Profile", icon: <User size={24} />, label: "Profile" },
+    ];
+
+    // Original sidebar items
+    const mainMenuItems = [
+        { id: "Home", icon: <House size={24} />, label: "Home" },
+        { id: "Statistics", icon: <ChartNoAxesColumn size={24} />, label: "Statistics" },
+        { id: "Calendar", icon: <Calendar size={24} />, label: "Calendar" },
+        { id: "Message", icon: <Mail size={24} />, label: "Message" },
+    ];
+
+    const bottomMenuItems = [
+        { id: "Settings", icon: <Settings size={24} />, label: "Settings" },
+        { id: "Logout", icon: <LogOut size={24} />, label: "Logout" },
+    ];
+
+    const handleClick = (id: string) => {
+        setActiveItem(id);
+    };
+
+    // Desktop Sidebar
+    const SidebarContent = () => (
+        <aside
+            className={`${isExpanded ? "w-64" : "w-20"
+                } bg-[#00313A] fixed top-0 left-0 h-screen flex-col justify-between transition-all duration-300 hidden lg:flex`}
+        >
+            <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="absolute -right-3 top-8 bg-[#00313A] text-white rounded-full p-1 hover:bg-[#003D52] z-10"
+            >
+                {isExpanded ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
+            </button>
+
+            <div className="flex flex-col h-full">
+                <div className="flex items-center justify-center py-6 border-b border-[#003D52]">
+                    {isExpanded ? (
+                        <Image
+                            src="/Images/logo.png"
+                            alt="Logo"
+                            width={130}
+                            height={130}
+                            className="h-auto"
+                        />
+                    ) : (
+                        <Image
+                            src="/Images/ShortenLogo.png"
+                            alt="Short Logo"
+                            width={30}
+                            height={30}
+                            className="h-auto"
+                        />
+                    )}
+                </div>
+
+                <nav className="flex-grow">
+                    <div className="flex flex-col items-center pt-8">
+                        {mainMenuItems.map((item) => (
+                            <button
+                                key={item.id}
+                                onClick={() => handleClick(item.id)}
+                                className={`w-[80%] flex items-center px-4 py-3 transition-colors mb-2 ${isExpanded ? "justify-start" : "justify-center"
+                                    } ${activeItem === item.id
+                                        ? "bg-[#00B512] text-white rounded-r-full"
+                                        : "text-white hover:bg-[#003D52]"
+                                    }`}
+                            >
+                                <span className="inline-flex items-center justify-center">
+                                    {item.icon}
+                                </span>
+                                {isExpanded && (
+                                    <span className="ml-4 whitespace-nowrap">{item.label}</span>
+                                )}
+                            </button>
+                        ))}
+                    </div>
+                </nav>
+
+                <div className="border-t border-[#003D52] pt-4 pb-8">
+                    {bottomMenuItems.map((item) => (
+                        <button
+                            key={item.id}
+                            onClick={() => handleClick(item.id)}
+                            className={`w-[80%] mx-auto flex items-center px-4 py-3 transition-colors mb-2 ${isExpanded ? "justify-start" : "justify-center"
+                                } ${activeItem === item.id
+                                    ? "bg-[#00B512] text-white rounded-r-full"
+                                    : "text-white hover:bg-[#003D52]"
+                                }`}
+                        >
+                            <span className="inline-flex items-center justify-center">
+                                {item.icon}
+                            </span>
+                            {isExpanded && (
+                                <span className="ml-4 whitespace-nowrap">{item.label}</span>
+                            )}
+                        </button>
+                    ))}
+                </div>
+            </div>
+        </aside>
+    );
+
+    const BottomNavContent = () => (
+        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-8 lg:hidden">
+            <div className="flex justify-between items-center max-w-md mx-auto relative">
+                {mobileNavItems.map((item) => {
+                    const isScan = item.id === "Scan";
+                    const isActive = activeItem === item.id;
+
+                    return (
+                        <button
+                            key={item.id}
+                            onClick={() => handleClick(item.id)}
+                            className={`flex flex-col items-center relative ${isScan ? "-mt-6" : ""}`}
+                        >
+                            {isActive && (
+                                <span
+                                    className={`absolute ${isScan ? "-top-6 w-16 h-16" : "-top-4 w-12 h-12"
+                                        } bg-[#00B512] rounded-full flex items-center justify-center z-0`}
+                                ></span>
+                            )}
+                            <span
+                                className={`relative z-10 ${isScan ? "text-5xl" : "text-lg"} transition-colors ${isActive
+                                    ? "text-white"
+                                    : "text-gray-500"
+                                    }`}
+                            >
+                                {item.icon}
+                            </span>
+                        </button>
+                    );
+                })}
+            </div>
+        </nav>
+    );
+
+
+    return (
+        <>
+            <SidebarContent />
+            <BottomNavContent />
+        </>
+    );
+};
+
+export default Navigation;
