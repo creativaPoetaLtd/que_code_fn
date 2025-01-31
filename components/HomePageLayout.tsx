@@ -6,7 +6,7 @@ import { RecentMessages } from "./RecentMessages";
 import { RecentTransactions } from "./RecentTransactions";
 import { Navigation } from "./Navigation";
 
-export const DashboardLayout = () => {
+export const HomePageLayout = () => {
     return (
         <div className="flex flex-col min-h-screen bg-gray-50">
             {/* Desktop Sidebar */}
