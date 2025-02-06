@@ -88,8 +88,15 @@ export const Navigation = () => {
     );
 
     const BottomNavContent = () => (
-        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-8 lg:hidden">
-            <div className="flex justify-between items-center max-w-md mx-auto relative">
+        <nav className="fixed bottom-0 left-0 right-0 px-4 lg:hidden">
+            {/* SVG background with increased container height only */}
+            <div className="absolute inset-0 -ml-2 -z-10 h-[120px]">
+                <svg className="h-full w-full" width="375" height="102" viewBox="0 0 375 102" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M155.02 52.2956C147.614 41.4396 137.433 30 124.292 30H1V102H376V30H252.708C239.567 30 229.386 41.4396 221.98 52.2956C214.689 62.9834 202.414 70 188.5 70C174.586 70 162.311 62.9834 155.02 52.2956Z" fill="blue" />
+                </svg>
+            </div>
+
+            <div className="flex justify-between items-center max-w-md mx-auto relative py-10">
                 {mobileNavItems.map((item) => {
                     const isScan = item.id === "Scan";
                     const isActive = activeItem === item.id;
@@ -98,16 +105,15 @@ export const Navigation = () => {
                         <button
                             key={item.id}
                             onClick={() => handleClick(item.id, item.path)}
-                            className={`flex flex-col items-center relative ${isScan ? "-mt-6" : ""}`}
+                            className={`flex flex-col items-center relative ${isScan ? "-mt-10" : ""}`}
                         >
-                            {isActive && (
-                                <span
-                                    className={`absolute ${isScan ? "-top-6 w-16 h-16" : "-top-4 w-12 h-12"} 
-                                        bg-[#00B512] rounded-full flex items-center justify-center z-0`}
-                                ></span>
+                            {isScan && (
+                                <span className="absolute -top-8 w-20 h-20 bg-[#00B512] rounded-full flex items-center justify-center z-0" />
                             )}
-                            <span className={`relative z-10 ${isScan ? "text-5xl" : "text-lg"} transition-colors 
-                                ${isActive ? "text-white" : "text-gray-500"}`}>
+                            <span
+                                className={`relative z-10 ${isScan ? "text-5xl" : "text-lg top-4"} transition-colors 
+                      ${isActive || isScan ? "text-white" : "text-gray-500"}`}
+                            >
                                 {item.icon}
                             </span>
                         </button>
@@ -116,6 +122,10 @@ export const Navigation = () => {
             </div>
         </nav>
     );
+
+
+
+
 
     return (
         <>
