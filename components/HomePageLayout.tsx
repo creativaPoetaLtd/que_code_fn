@@ -1,12 +1,12 @@
 import React from "react";
 import { AccountInfo } from "./AccountInfo";
 import { Header } from "./Header";
-import { RecentActions } from "./RecentActions";
 import { RecentMessages } from "./RecentMessages";
 import { RecentTransactions } from "./RecentTransactions";
 import { Navigation } from "./Navigation";
+import RecentActions from "./RecentActions";
 
-export const DashboardLayout = () => {
+export const HomePageLayout = () => {
     return (
         <div className="flex flex-col min-h-screen bg-gray-50">
             {/* Desktop Sidebar */}

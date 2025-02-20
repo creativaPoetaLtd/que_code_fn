@@ -1,38 +1,39 @@
 "use client";
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { House, ChartNoAxesColumn, Settings, LogOut, Calendar, ChevronRight, ChevronLeft, Mail, CreditCard, User, ScanLine } from "lucide-react";
 import Image from "next/image";
 
 export const Navigation = () => {
     const [isExpanded, setIsExpanded] = useState(true);
     const [activeItem, setActiveItem] = useState("Statistics");
+    const router = useRouter();
 
-    const mobileNavItems = [
-        { id: "Home", icon: <House size={24} />, label: "Home" },
-        { id: "Statistics", icon: <ChartNoAxesColumn size={24} />, label: "Statistics" },
-        { id: "Scan", icon: <ScanLine size={24} />, label: "Scan" },
-        { id: "Payment", icon: <CreditCard size={24} />, label: "Payment" },
-        { id: "Profile", icon: <User size={24} />, label: "Profile" },
+    const navigationItems = [
+        { id: "Home", icon: <House size={24} />, label: "Home", path: "/home" },
+        { id: "Statistics", icon: <ChartNoAxesColumn size={24} />, label: "Statistics", path: "/statistics" },
+        { id: "Scan", icon: <ScanLine size={24} />, label: "Scan", path: "", isCenterButton: true },
+        { id: "Payment", icon: <CreditCard size={24} />, label: "Payment", path: "" },
+        { id: "Profile", icon: <User size={24} />, label: "Profile", path: "" },
     ];
 
-    // Original sidebar items
     const mainMenuItems = [
-        { id: "Home", icon: <House size={24} />, label: "Home" },
-        { id: "Statistics", icon: <ChartNoAxesColumn size={24} />, label: "Statistics" },
-        { id: "Calendar", icon: <Calendar size={24} />, label: "Calendar" },
-        { id: "Message", icon: <Mail size={24} />, label: "Message" },
+        { id: "Home", icon: <House size={24} />, label: "Home", path: "/home" },
+        { id: "Statistics", icon: <ChartNoAxesColumn size={24} />, label: "Statistics", path: "/statistics" },
+        { id: "Calendar", icon: <Calendar size={24} />, label: "Calendar", path: "" },
+        { id: "Message", icon: <Mail size={24} />, label: "Message", path: "" },
     ];
 
     const bottomMenuItems = [
-        { id: "Settings", icon: <Settings size={24} />, label: "Settings" },
-        { id: "Logout", icon: <LogOut size={24} />, label: "Logout" },
+        { id: "Settings", icon: <Settings size={24} />, label: "Settings", path: "" },
+        { id: "Logout", icon: <LogOut size={24} />, label: "Logout", path: "/logout" },
     ];
 
-    const handleClick = (id: string) => {
+    const handleClick = (id: string, path: string) => {
         setActiveItem(id);
+        if (path) router.push(path);
     };
 
-    // Desktop Sidebar
     const SidebarContent = () => (
         <aside
             className={`${isExpanded ? "w-64" : "w-20"
@@ -48,21 +49,9 @@ export const Navigation = () => {
             <div className="flex flex-col h-full">
                 <div className="flex items-center justify-center py-6 border-b border-[#003D52]">
                     {isExpanded ? (
-                        <Image
-                            src="/Images/logo.png"
-                            alt="Logo"
-                            width={130}
-                            height={130}
-                            className="h-auto"
-                        />
+                        <Image src="/Images/logo.png" alt="Logo" width={130} height={130} className="h-auto" />
                     ) : (
-                        <Image
-                            src="/Images/ShortenLogo.png"
-                            alt="Short Logo"
-                            width={30}
-                            height={30}
-                            className="h-auto"
-                        />
+                        <Image src="/Images/ShortenLogo.png" alt="Short Logo" width={30} height={30} className="h-auto" />
                     )}
                 </div>
 
@@ -71,19 +60,15 @@ export const Navigation = () => {
                         {mainMenuItems.map((item) => (
                             <button
                                 key={item.id}
-                                onClick={() => handleClick(item.id)}
+                                onClick={() => handleClick(item.id, item.path)}
                                 className={`w-[80%] flex items-center px-4 py-3 transition-colors mb-2 ${isExpanded ? "justify-start" : "justify-center"
                                     } ${activeItem === item.id
                                         ? "bg-[#00B512] text-white rounded-r-full"
                                         : "text-white hover:bg-[#003D52]"
                                     }`}
                             >
-                                <span className="inline-flex items-center justify-center">
-                                    {item.icon}
-                                </span>
-                                {isExpanded && (
-                                    <span className="ml-4 whitespace-nowrap">{item.label}</span>
-                                )}
+                                <span className="inline-flex items-center justify-center">{item.icon}</span>
+                                {isExpanded && <span className="ml-4 whitespace-nowrap">{item.label}</span>}
                             </button>
                         ))}
                     </div>
@@ -93,19 +78,15 @@ export const Navigation = () => {
                     {bottomMenuItems.map((item) => (
                         <button
                             key={item.id}
-                            onClick={() => handleClick(item.id)}
+                            onClick={() => handleClick(item.id, item.path)}
                             className={`w-[80%] mx-auto flex items-center px-4 py-3 transition-colors mb-2 ${isExpanded ? "justify-start" : "justify-center"
                                 } ${activeItem === item.id
                                     ? "bg-[#00B512] text-white rounded-r-full"
                                     : "text-white hover:bg-[#003D52]"
                                 }`}
                         >
-                            <span className="inline-flex items-center justify-center">
-                                {item.icon}
-                            </span>
-                            {isExpanded && (
-                                <span className="ml-4 whitespace-nowrap">{item.label}</span>
-                            )}
+                            <span className="inline-flex items-center justify-center">{item.icon}</span>
+                            {isExpanded && <span className="ml-4 whitespace-nowrap">{item.label}</span>}
                         </button>
                     ))}
                 </div>
@@ -114,29 +95,39 @@ export const Navigation = () => {
     );
 
     const BottomNavContent = () => (
-        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-8 lg:hidden">
-            <div className="flex justify-between items-center max-w-md mx-auto relative">
-                {mobileNavItems.map((item) => {
-                    const isScan = item.id === "Scan";
+        <nav className="fixed bottom-0 left-0 right-0 px-4 lg:hidden">
+            <div className="absolute inset-0 -z-10">
+                <svg
+                    className="w-full h-[140px]"
+                    viewBox="0 0 375 102"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    preserveAspectRatio="none"
+                >
+                    <path
+                        d="M155.02 52.2956C147.614 41.4396 137.433 30 124.292 30H1V102H376V30H252.708C239.567 30 229.386 41.4396 221.98 52.2956C214.689 62.9834 202.414 70 188.5 70C174.586 70 162.311 62.9834 155.02 52.2956Z"
+                        fill="#00313A"
+                    />
+                </svg>
+            </div>
+
+            <div className="flex justify-between items-center max-w-md md:max-w-2xl mx-auto relative py-8">
+                {navigationItems.map((item) => {
+                    const isCenterButton = item.isCenterButton;
                     const isActive = activeItem === item.id;
 
                     return (
                         <button
                             key={item.id}
-                            onClick={() => handleClick(item.id)}
-                            className={`flex flex-col items-center relative ${isScan ? "-mt-6" : ""}`}
+                            onClick={() => handleClick(item.id, item.path)}
+                            className={`flex flex-col items-center relative ${isCenterButton ? "-mt-10" : ""}`}
                         >
-                            {isActive && (
-                                <span
-                                    className={`absolute ${isScan ? "-top-6 w-16 h-16" : "-top-4 w-12 h-12"
-                                        } bg-[#00B512] rounded-full flex items-center justify-center z-0`}
-                                ></span>
+                            {isCenterButton && (
+                                <span className="absolute -top-4 w-16 h-16 bg-[#00B512] rounded-full flex items-center justify-center shadow-lg" />
                             )}
                             <span
-                                className={`relative z-10 ${isScan ? "text-5xl" : "text-lg"} transition-colors ${isActive
-                                    ? "text-white"
-                                    : "text-gray-500"
-                                    }`}
+                                className={`relative z-10 mt-4 ${isCenterButton ? "text-4xl -top-3" : "text-2xl"} transition-colors 
+                                ${isActive || isCenterButton ? "text-white" : "text-gray-400 hover:text-white"}`}
                             >
                                 {item.icon}
                             </span>
@@ -146,7 +137,6 @@ export const Navigation = () => {
             </div>
         </nav>
     );
-
 
     return (
         <>
