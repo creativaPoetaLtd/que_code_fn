@@ -1,10 +1,10 @@
 import React from "react";
 import { AccountInfo } from "./AccountInfo";
 import { Header } from "./Header";
-import { RecentActions } from "./RecentActions";
 import { RecentMessages } from "./RecentMessages";
 import { RecentTransactions } from "./RecentTransactions";
 import { Navigation } from "./Navigation";
+import RecentActions from "./RecentActions";
 
 export const HomePageLayout = () => {
     return (

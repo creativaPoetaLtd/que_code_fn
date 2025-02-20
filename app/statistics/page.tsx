@@ -3,7 +3,7 @@ import Dashboard from '@/components/Dashboard/Dashboard'
 
 import { Header } from '@/components/Header'
 import Navigation from '@/components/Navigation'
-import RecentActions from '@/components/RecentActions'
+// import RecentActions from '@/components/RecentActions'
 import RecentMessages from '@/components/RecentMessages'
 import RecentTransactions from '@/components/RecentTransactions'
 

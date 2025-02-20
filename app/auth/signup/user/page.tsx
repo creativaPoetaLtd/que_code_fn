@@ -99,7 +99,7 @@ const UserRegister: React.FC = () => {
             await registerUser(formData).unwrap();
             notification.success({
                 message: 'Success',
-                description: 'User registered successfully',
+                description: 'User registered successfully Check your email inbox to verify your account',
                 placement: 'topRight',
             });
             // router.push('/auth/otp');
