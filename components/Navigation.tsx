@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { House, ChartNoAxesColumn, Settings, LogOut, Calendar, ChevronRight, ChevronLeft, Mail, CreditCard, User, ScanLine } from "lucide-react";
+import { House, ChartNoAxesColumn, Settings, LogOut, Captions, ChevronRight, ChevronLeft, Mail, CreditCard, User, ScanLine } from "lucide-react";
 import Image from "next/image";
 
 export const Navigation = () => {
@@ -13,14 +13,14 @@ export const Navigation = () => {
         { id: "Home", icon: <House size={24} />, label: "Home", path: "/home" },
         { id: "Statistics", icon: <ChartNoAxesColumn size={24} />, label: "Statistics", path: "/statistics" },
         { id: "Scan", icon: <ScanLine size={24} />, label: "Scan", path: "", isCenterButton: true },
-        { id: "Payment", icon: <CreditCard size={24} />, label: "Payment", path: "" },
+        { id: "Actions", icon: <Captions size={24} />, label: "Actions", path: "/action" },
         { id: "Profile", icon: <User size={24} />, label: "Profile", path: "" },
     ];
 
     const mainMenuItems = [
         { id: "Home", icon: <House size={24} />, label: "Home", path: "/home" },
         { id: "Statistics", icon: <ChartNoAxesColumn size={24} />, label: "Statistics", path: "/statistics" },
-        { id: "Calendar", icon: <Calendar size={24} />, label: "Calendar", path: "" },
+        { id: "Actions", icon: <Captions size={24} />, label: "Action", path: "/action" },
         { id: "Message", icon: <Mail size={24} />, label: "Message", path: "" },
     ];
 
@@ -30,8 +30,13 @@ export const Navigation = () => {
     ];
 
     const handleClick = (id: string, path: string) => {
+        // Always update the active item
         setActiveItem(id);
-        if (path) router.push(path);
+
+        // Navigate only if there's a valid path
+        if (path) {
+            router.push(path);
+        }
     };
 
     const SidebarContent = () => (
