@@ -1,4 +1,5 @@
-import ActionPageLayout from '@/components/ActionPageLayout'
+
+import ActionPageLayout from '@/components/ActionPage/ActionPageLayout'
 import { Header } from '@/components/Header'
 import Navigation from '@/components/Navigation'
 import React from 'react'

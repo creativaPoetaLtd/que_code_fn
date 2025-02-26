@@ -2,9 +2,17 @@ import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Modal, Table } from 'antd';
 import { ExpenseData } from '@/types/dashboard';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 
 interface ExpenseStatsProps {
     data: ExpenseData[];
+}
+
+interface DetailedExpenseItem {
+    key: number;
+    date: string;
+    description: string;
+    amount: number;
 }
 
 export const ExpenseStats = ({ data }: ExpenseStatsProps) => {
@@ -41,7 +49,7 @@ export const ExpenseStats = ({ data }: ExpenseStatsProps) => {
     ];
 
     // Sample detailed data for each category
-    const detailedData: any = {
+    const detailedData: Record<string, DetailedExpenseItem[]> = {
         Entertainment: [
             { key: 1, date: '2025-02-01', description: 'Movie Tickets', amount: 50 },
             { key: 2, date: '2025-02-05', description: 'Concert', amount: 150 },
@@ -60,35 +68,105 @@ export const ExpenseStats = ({ data }: ExpenseStatsProps) => {
         ],
     };
 
+    // Create summary data for the modal pie chart
+    const getModalPieData = (categoryName: string) => {
+        if (!categoryName) return [];
+
+        const categoryItems = detailedData[categoryName];
+        if (!categoryItems) return [];
+
+        // Group by description
+        const groupedData = categoryItems.reduce((acc, item) => {
+            const existingItem = acc.find(i => i.description === item.description);
+            if (existingItem) {
+                existingItem.amount += item.amount;
+            } else {
+                acc.push({
+                    description: item.description,
+                    amount: item.amount
+                });
+            }
+            return acc;
+        }, [] as { description: string; amount: number }[]);
+
+        return groupedData;
+    };
+
+    // Calculate total for selected category
+    const getSelectedCategoryTotal = (categoryName: string) => {
+        if (!categoryName) return 0;
+        const categoryItems = detailedData[categoryName];
+        if (!categoryItems) return 0;
+        return categoryItems.reduce((total, item) => total + item.amount, 0);
+    };
+
+    // Custom renderer for pie chart labels
+    const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index, name }: any) => {
+        const RADIAN = Math.PI / 180;
+        const radius = 25 + innerRadius + (outerRadius - innerRadius);
+        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+        return percent > 0.05 ? (
+            <text
+                x={x}
+                y={y}
+                fill="#000"
+                textAnchor={x > cx ? 'start' : 'end'}
+                dominantBaseline="central"
+                fontSize={12}
+            >
+                {`${(percent * 100).toFixed(0)}%`}
+            </text>
+        ) : null;
+    };
+
+    // Custom click handler for pie chart
+    const onPieClick = (data: any, index: number) => {
+        if (data && data.name) {
+            const selectedItem = data.data.find((item: ExpenseData) => item.name === data.name);
+            if (selectedItem) {
+                handleSegmentClick(selectedItem);
+            }
+        }
+    };
+
     return (
         <Card className="p-6">
             <h2 className="text-xl font-semibold mb-6">Expense Statistics</h2>
             <div className="flex justify-center mb-6">
-                <div className="relative w-48 h-48">
-                    <svg viewBox="0 0 100 100" className="transform -rotate-90">
-                        {data.reduce((acc, item, index) => {
-                            const prevTotal = index === 0 ? 0 : data
-                                .slice(0, index)
-                                .reduce((sum, curr) => sum + curr.value, 0);
-
-                            return [
-                                ...acc,
-                                <circle
-                                    key={item.name}
-                                    cx="50"
-                                    cy="50"
-                                    r="40"
-                                    fill="none"
-                                    stroke={item.color}
-                                    strokeWidth="20"
-                                    strokeDasharray={`${item.value * 2.51} 251`}
-                                    strokeDashoffset={-prevTotal * 2.51}
-                                    className="transition-all duration-1000 cursor-pointer"
-                                    onClick={() => handleSegmentClick(item)}
-                                />,
-                            ];
-                        }, [] as JSX.Element[])}
-                    </svg>
+                <div className="w-full h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                            <Pie
+                                data={data}
+                                cx="50%"
+                                cy="50%"
+                                labelLine={false}
+                                label={renderCustomizedLabel}
+                                innerRadius={60}
+                                outerRadius={90}
+                                paddingAngle={4}
+                                dataKey="value"
+                                nameKey="name"
+                                onClick={(data, index) => {
+                                    const item = data as unknown as ExpenseData;
+                                    handleSegmentClick(item);
+                                }}
+                                cursor="pointer"
+                            >
+                                {data.map((entry, index) => (
+                                    <Cell
+                                        key={`cell-${index}`}
+                                        fill={entry.color}
+                                    />
+                                ))}
+                            </Pie>
+                            <Tooltip
+                                formatter={(value) => [`${value}%`, 'Percentage']}
+                            />
+                        </PieChart>
+                    </ResponsiveContainer>
                 </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -105,15 +183,59 @@ export const ExpenseStats = ({ data }: ExpenseStatsProps) => {
             </div>
             <Modal
                 title={`${selectedCategory?.name} Details`}
-                open={isModalOpen} // Updated from 'visible' to 'open'
+                open={isModalOpen}
                 onCancel={handleModalClose}
                 footer={null}
+                width={700}
             >
-                <Table
-                    columns={columns}
-                    dataSource={selectedCategory ? detailedData[selectedCategory.name] : []}
-                    pagination={false}
-                />
+                {selectedCategory && (
+                    <div className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <h3 className="text-lg font-semibold mb-2">Summary</h3>
+                                <div className="h-64 w-full">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie
+                                                data={getModalPieData(selectedCategory.name)}
+                                                cx="50%"
+                                                cy="50%"
+                                                innerRadius={50}
+                                                outerRadius={80}
+                                                paddingAngle={5}
+                                                dataKey="amount"
+                                                nameKey="description"
+                                                label={({ description }) => description}
+                                            >
+                                                {getModalPieData(selectedCategory.name).map((entry, index) => (
+                                                    <Cell
+                                                        key={`cell-${index}`}
+                                                        fill={index % 2 === 0 ? selectedCategory.color : `${selectedCategory.color}99`}
+                                                    />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip
+                                                formatter={(value) => [`$${Number(value).toFixed(2)}`, 'Amount']}
+                                            />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </div>
+                                <div className="text-center mt-2">
+                                    <p className="text-gray-500">Total: ${getSelectedCategoryTotal(selectedCategory.name).toFixed(2)}</p>
+                                </div>
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-semibold mb-2">Transactions</h3>
+                                <Table
+                                    columns={columns}
+                                    dataSource={detailedData[selectedCategory.name] || []}
+                                    pagination={false}
+                                    size="small"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                )}
             </Modal>
         </Card>
     );
