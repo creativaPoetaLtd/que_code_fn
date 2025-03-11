@@ -3,6 +3,8 @@ import { Input, Button, message } from "antd";
 import { Send, Paperclip, Smile, Image as ImageIcon } from "lucide-react";
 import OptionsDropdown from "./OptionsDropdown";
 import SendMoneyModal, { SendMoneyData } from "./SendMoneyModal";
+import DocumentModal from "./DocumentModal";
+import type { UploadFile } from "antd/es/upload/interface";
 
 interface MessageInputProps {
     onSendMessage?: (message: string) => void;
@@ -16,6 +18,7 @@ const MessageInput: FC<MessageInputProps> = ({
     const [messageText, setMessageText] = useState<string>("");
     const [showOptions, setShowOptions] = useState<boolean>(false);
     const [showSendMoneyModal, setShowSendMoneyModal] = useState<boolean>(false);
+    const [showDocumentModal, setShowDocumentModal] = useState<boolean>(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     // Close dropdown when clicking outside
@@ -43,15 +46,21 @@ const MessageInput: FC<MessageInputProps> = ({
         onAttachmentSelect(option);
         setShowOptions(false);
 
-        // Show the SendMoneyModal if "Send Money" is selected
-        if (option === "Send Money") {
-            setShowSendMoneyModal(true);
+        // Show the appropriate modal based on selection
+        switch (option) {
+            case "Send Money":
+                setShowSendMoneyModal(true);
+                break;
+            case "Document":
+                setShowDocumentModal(true);
+                break;
+            default:
+                message.info(`Selected: ${option}`);
         }
     };
 
     const handleSendMoney = (data: SendMoneyData) => {
         message.success(`$${data.amount.toFixed(2)} sent to ${data.recipient}`);
-        // In a real app, you would handle the payment process here
 
         // Optionally send a message about the transaction
         if (data.note) {
@@ -59,6 +68,16 @@ const MessageInput: FC<MessageInputProps> = ({
         } else {
             setMessageText(`Sent $${data.amount.toFixed(2)} to ${data.recipient}`);
         }
+    };
+
+    const handleDocumentUpload = (files: UploadFile[], title: string, category: string) => {
+        message.success(`${files.length} document(s) uploaded successfully`);
+
+        // Generate file names list
+        const fileNames = files.map(file => file.name).join(", ");
+
+        // Add message about the document upload
+        setMessageText(`Shared document: "${title}" (${category}) - ${fileNames}`);
     };
 
     return (
@@ -121,6 +140,13 @@ const MessageInput: FC<MessageInputProps> = ({
                 isOpen={showSendMoneyModal}
                 onClose={() => setShowSendMoneyModal(false)}
                 onSend={handleSendMoney}
+            />
+
+            {/* Document Upload Modal */}
+            <DocumentModal
+                isOpen={showDocumentModal}
+                onClose={() => setShowDocumentModal(false)}
+                onUpload={handleDocumentUpload}
             />
         </>
     );
