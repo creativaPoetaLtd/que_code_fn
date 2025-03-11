@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { House, ChartNoAxesColumn, Settings, LogOut, Captions, ChevronRight, ChevronLeft, Mail, CreditCard, User, ScanLine } from "lucide-react";
+import { House, ChartNoAxesColumn, Settings, LogOut, Captions, ChevronRight, ChevronLeft, Mail, MessageCircle, User, ScanLine } from "lucide-react";
 import Image from "next/image";
 
 export const Navigation = () => {
@@ -14,14 +14,14 @@ export const Navigation = () => {
         { id: "Statistics", icon: <ChartNoAxesColumn size={24} />, label: "Statistics", path: "/statistics" },
         { id: "Scan", icon: <ScanLine size={24} />, label: "Scan", path: "", isCenterButton: true },
         { id: "Actions", icon: <Captions size={24} />, label: "Actions", path: "/action" },
-        { id: "Profile", icon: <User size={24} />, label: "Profile", path: "" },
+        { id: "Chat", icon: <MessageCircle size={24} />, label: "Chat", path: "/chat" },
     ];
 
     const mainMenuItems = [
         { id: "Home", icon: <House size={24} />, label: "Home", path: "/home" },
         { id: "Statistics", icon: <ChartNoAxesColumn size={24} />, label: "Statistics", path: "/statistics" },
         { id: "Actions", icon: <Captions size={24} />, label: "Action", path: "/action" },
-        { id: "Message", icon: <Mail size={24} />, label: "Message", path: "" },
+        { id: "Chat", icon: <MessageCircle size={24} />, label: "Chat", path: "/chat" },
     ];
 
     const bottomMenuItems = [
@@ -42,7 +42,7 @@ export const Navigation = () => {
     const SidebarContent = () => (
         <aside
             className={`${isExpanded ? "w-64" : "w-20"
-                } bg-[#00313A] fixed top-0 left-0 h-screen flex-col justify-between transition-all duration-300 hidden lg:flex`}
+                } bg-[#00313A] fixed top-0 left-0 h-screen flex-col justify-between transition-all duration-300 hidden lg:flex z-20`}
         >
             <button
                 onClick={() => setIsExpanded(!isExpanded)}
