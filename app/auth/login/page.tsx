@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useForm, Controller } from 'react-hook-form';
 import ImageSection from '../ImageSection';
 import { mainUrl } from '@/helpers/baseUrl';
-import Button from '@/components/ui/Button';
+import Button from '../../../components/ui/Button-ant';
 import InputPassword from '@/components/ui/InputPassword';
 import Input from 'antd/es/input';
 import { useLoginMutation } from '@/states/authentication';

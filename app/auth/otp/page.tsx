@@ -6,7 +6,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import ImageSection from '../ImageSection';
 import type { NotificationArgsProps } from 'antd';
 import { useResendOtpMutation, useVerifyOtpMutation } from '@/states/authentication';
-import Button from '@/components/ui/Button';
+import Button from '@/components/ui/Button-ant';
 
 type NotificationPlacement = NotificationArgsProps['placement'];
 

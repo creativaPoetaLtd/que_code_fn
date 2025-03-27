@@ -3,8 +3,9 @@ import { AccountInfo } from "./AccountInfo";
 import { Header } from "./Header";
 import { RecentMessages } from "./RecentMessages";
 import { RecentTransactions } from "./RecentTransactions";
-import { Navigation } from "./Navigation";
+
 import RecentActions from "./RecentActions";
+import Navigation from "./Navigation";
 
 export const HomePageLayout = () => {
     return (

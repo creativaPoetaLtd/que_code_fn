@@ -1,20 +1,21 @@
-import React, { FC } from "react";
-import { FileText, DollarSign, MapPin, Calendar } from "lucide-react";
+"use client"
 
-export interface OptionItem {
-    icon: React.ReactNode;
-    label: string;
-    color: string;
-    action: () => void;
-}
+import { FileText, DollarSign, MapPin, Calendar } from 'lucide-react'
 
 interface OptionsDropdownProps {
     isOpen: boolean;
     onOptionSelect: (option: string) => void;
 }
 
-const OptionsDropdown: FC<OptionsDropdownProps> = ({ isOpen, onOptionSelect }) => {
-    const options: OptionItem[] = [
+interface DropdownOption {
+    icon: React.ReactNode;
+    label: string;
+    color: string;
+    action: () => void;
+}
+
+export default function OptionsDropdown({ isOpen, onOptionSelect }: OptionsDropdownProps) {
+    const options: DropdownOption[] = [
         {
             icon: <FileText size={18} />,
             label: "Document",
@@ -39,9 +40,9 @@ const OptionsDropdown: FC<OptionsDropdownProps> = ({ isOpen, onOptionSelect }) =
             color: "text-purple-500",
             action: () => onOptionSelect("Schedule"),
         },
-    ];
+    ]
 
-    if (!isOpen) return null;
+    if (!isOpen) return null
 
     return (
         <div className="absolute bottom-16 left-0 z-50 min-w-48">
@@ -53,34 +54,12 @@ const OptionsDropdown: FC<OptionsDropdownProps> = ({ isOpen, onOptionSelect }) =
                         onClick={option.action}
                         role="button"
                         tabIndex={0}
-                        aria-label={`Select ${option.label}`}
                     >
-                        <div className={`${option.color} mr-3 flex items-center justify-center`}>
-                            {option.icon}
-                        </div>
+                        <div className={`${option.color} mr-3 flex items-center justify-center`}>{option.icon}</div>
                         <span className="text-sm font-medium text-gray-700">{option.label}</span>
                     </div>
                 ))}
             </div>
-
-            <style jsx>{`
-                @keyframes dropdownOpen {
-                    from {
-                        opacity: 0;
-                        transform: scale(0.95) translateY(-10px);
-                    }
-                    to {
-                        opacity: 1;
-                        transform: scale(1) translateY(0);
-                    }
-                }
-
-                .animate-dropdown {
-                    animation: dropdownOpen 0.2s ease-out forwards;
-                }
-            `}</style>
         </div>
-    );
-};
-
-export default OptionsDropdown;
+    )
+}

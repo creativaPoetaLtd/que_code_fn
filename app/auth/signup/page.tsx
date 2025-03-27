@@ -1,6 +1,6 @@
 // pages/register.tsx
 'use client'
-import Button from '@/components/ui/Button';
+import Button from '@/components/ui/Button-ant';
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import ImageSection from '../ImageSection';

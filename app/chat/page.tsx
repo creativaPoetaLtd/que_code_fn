@@ -1,4 +1,5 @@
-import ChatPage from "@/components/ChatPage/ChatPage"
+import ChatPage from "@/components/chat/chat-page";
+
 
 
 const page = () => {
