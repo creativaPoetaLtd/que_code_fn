@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react"
 import { Layout } from "antd"
-
 import ConversationList from "@/components/chat/conversation-list"
 import ChatArea from "@/components/chat/chat-area"
 import SendMoneyModal from "@/components/chat/send-money-modal"
@@ -12,6 +11,7 @@ import AddContactModal from "@/components/chat/add-contact-modal"
 import UserProfileModal from "@/components/chat/user-profile-modal"
 import GroupProfileModal from "@/components/chat/group-profile-modal"
 import type { Conversation, Message, Contact, Group } from "@/types"
+import ContactRequestModal from "./contact-request"
 import Navigation from "../Navigation"
 
 const { Content } = Layout
@@ -151,6 +151,7 @@ export default function ChatPage() {
     const [activeConversation, setActiveConversation] = useState<Conversation>(SAMPLE_CONVERSATIONS[0])
     const [showMobileConversationList, setShowMobileConversationList] = useState<boolean>(true)
     const [isMobile, setIsMobile] = useState<boolean>(false)
+    const [isTablet, setIsTablet] = useState<boolean>(false)
 
     // Modal states
     const [isSendMoneyModalOpen, setIsSendMoneyModalOpen] = useState<boolean>(false)
@@ -160,6 +161,7 @@ export default function ChatPage() {
     const [isAddContactModalOpen, setIsAddContactModalOpen] = useState<boolean>(false)
     const [isUserProfileModalOpen, setIsUserProfileModalOpen] = useState<boolean>(false)
     const [isGroupProfileModalOpen, setIsGroupProfileModalOpen] = useState<boolean>(false)
+    const [isContactRequestModalOpen, setIsContactRequestModalOpen] = useState<boolean>(false)
 
     // Selected recipient for money operations
     const [selectedRecipient, setSelectedRecipient] = useState<string>("")
@@ -167,6 +169,12 @@ export default function ChatPage() {
     useEffect(() => {
         const handleResize = () => {
             setIsMobile(window.innerWidth < 768)
+            setIsTablet(window.innerWidth >= 768 && window.innerWidth < 1024)
+
+            // On larger screens, always show both panels
+            if (window.innerWidth >= 768) {
+                setShowMobileConversationList(true)
+            }
         }
 
         handleResize()
@@ -204,38 +212,49 @@ export default function ChatPage() {
         }
     }
 
+    const handleAddContact = () => {
+        setIsAddContactModalOpen(true)
+    }
+
+    const handleViewContactRequests = () => {
+        setIsContactRequestModalOpen(true)
+    }
+
     return (
-        <Layout className="min-h-screen bg-gray-50">
-            {/* Desktop Sidebar */}
-            <Navigation />
+        <Layout className="min-h-screen bg-gray-50 mobile-bottom-padding">
+            <div className="flex min-h-screen">
+                <Navigation />
+                {/* Main Content */}
+                <main className="flex-1 lg:ml-20 w-full max-w-full overflow-x-hidden flex-1 flex flex-col transition-all duration-300">
 
-            {/* Main Content */}
-            <Content className="flex-1 flex flex-col lg:ml-20 transition-all duration-300">
-                <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-                    {/* Conversation List */}
-                    <ConversationList
-                        conversations={SAMPLE_CONVERSATIONS}
-                        activeConversation={activeConversation}
-                        onConversationSelect={handleConversationSelect}
-                        showOnMobile={showMobileConversationList}
-                        onAddContact={() => setIsAddContactModalOpen(true)}
-                        onCreateGroup={() => handleCreateGroup(false)}
-                        onCreateContributionGroup={() => handleCreateGroup(true)}
-                        onQuickSendMoney={(conversation) => handleSendMoney(conversation.name)}
-                    />
+                    <div className="flex-1 flex flex-col md:flex-row overflow-hidden h-[calc(100vh-100px)] md:h-screen">
+                        {/* Conversation List */}
+                        <ConversationList
+                            conversations={SAMPLE_CONVERSATIONS}
+                            activeConversation={activeConversation}
+                            onConversationSelect={handleConversationSelect}
+                            showOnMobile={showMobileConversationList}
+                            onAddContact={() => setIsAddContactModalOpen(true)}
+                            onViewContactRequests={handleViewContactRequests}
+                            onCreateGroup={() => handleCreateGroup(false)}
+                            onCreateContributionGroup={() => handleCreateGroup(true)}
+                            onQuickSendMoney={(conversation) => handleSendMoney(conversation.name)}
+                        />
 
-                    {/* Chat Area */}
-                    <ChatArea
-                        conversation={activeConversation}
-                        messages={SAMPLE_MESSAGES}
-                        showOnMobile={!showMobileConversationList}
-                        onBackClick={() => setShowMobileConversationList(true)}
-                        onSendMoney={() => handleSendMoney()}
-                        onRequestMoney={handleRequestMoney}
-                        onViewProfile={handleViewProfile}
-                    />
-                </div>
-            </Content>
+                        {/* Chat Area */}
+                        <ChatArea
+                            conversation={activeConversation}
+                            messages={SAMPLE_MESSAGES}
+                            showOnMobile={!showMobileConversationList}
+                            onBackClick={() => setShowMobileConversationList(true)}
+                            onSendMoney={() => handleSendMoney()}
+                            onRequestMoney={handleRequestMoney}
+                            onViewProfile={handleViewProfile}
+                        />
+                    </div>
+
+                </main>
+            </div>
 
             {/* Modals */}
             <SendMoneyModal
@@ -276,7 +295,8 @@ export default function ChatPage() {
                 onClose={() => setIsGroupProfileModalOpen(false)}
                 group={activeConversation.isGroup ? (activeConversation as Group) : null}
             />
+
+            <ContactRequestModal isOpen={isContactRequestModalOpen} onClose={() => setIsContactRequestModalOpen(false)} />
         </Layout>
     )
 }
-

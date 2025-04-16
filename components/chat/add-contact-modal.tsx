@@ -2,12 +2,13 @@
 
 import { useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import Input from "../ui/Input-ant"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
-import { UserPlus, Search, User, Mail, Phone } from "lucide-react"
+import { UserPlus, Search, User, Mail, Phone, QrCode } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { Input } from "../ui/input"
+import QRCodeScanner from "./qr-code-scanner"
 
 interface AddContactModalProps {
     isOpen: boolean
@@ -28,6 +29,7 @@ export default function AddContactModal({ isOpen, onClose }: AddContactModalProp
     const [phone, setPhone] = useState<string>("")
     const [step, setStep] = useState<number>(1)
     const [searchResults, setSearchResults] = useState<ContactSearchResult[]>([])
+    const [isQRScannerOpen, setIsQRScannerOpen] = useState<boolean>(false)
 
     // Mock search function
     const handleSearch = () => {
@@ -97,121 +99,147 @@ export default function AddContactModal({ isOpen, onClose }: AddContactModalProp
         onClose()
     }
 
-    return (
-        <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-            <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                    <div className="flex items-center">
-                        <div className="bg-blue-100 p-2 rounded-full mr-3">
-                            <UserPlus size={20} className="text-blue-600" />
-                        </div>
-                        <DialogTitle>Add Contact</DialogTitle>
-                    </div>
-                </DialogHeader>
+    const handleScanComplete = (result: string) => {
+        // In a real app, you would parse the result and fetch user details
+        // For this example, we'll set some dummy data
+        setName("John Doe (via QR)")
+        setEmail("john.doe@example.com")
+        setPhone("+1 555-987-6543")
+        setStep(2)
+    }
 
-                {step === 1 ? (
-                    <div className="py-4">
-                        <div className="mb-6">
-                            <div className="relative">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" size={18} />
+    return (
+        <>
+            <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <div className="flex items-center">
+                            <div className="bg-blue-100 p-2 rounded-full mr-3">
+                                <UserPlus size={20} className="text-blue-600" />
+                            </div>
+                            <DialogTitle>Add Contact</DialogTitle>
+                        </div>
+                    </DialogHeader>
+
+                    {step === 1 ? (
+                        <div className="py-4">
+                            <div className="mb-6">
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" size={18} />
+                                    <Input
+                                        placeholder="Search by name, email or phone"
+                                        className="pl-10"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                                    />
+                                </div>
+                                <div className="flex justify-end mt-2">
+                                    <Button onClick={handleSearch}>Search</Button>
+                                </div>
+                            </div>
+
+                            <div className="text-center mt-6 mb-4">
+                                <p className="text-sm text-gray-500 mb-2">Scan QR code or enter invitation link</p>
+                                <Button onClick={() => setIsQRScannerOpen(true)}>
+                                    <QrCode size={16} className="mr-2" />
+                                    Scan QR Code
+                                </Button>
+                            </div>
+
+                            {searchResults.length > 0 && (
+                                <div className="mb-6">
+                                    <h3 className="text-sm font-medium text-gray-700 mb-2">Search Results</h3>
+                                    <div className="space-y-2">
+                                        {searchResults.map((contact) => (
+                                            <div
+                                                key={contact.id}
+                                                className="flex items-center p-3 rounded-md cursor-pointer hover:bg-gray-50 border border-gray-200"
+                                                onClick={() => selectContact(contact)}
+                                            >
+                                                <Avatar className="mr-3">
+                                                    <AvatarFallback>{contact.name.charAt(0)}</AvatarFallback>
+                                                </Avatar>
+                                                <div>
+                                                    <p className="font-medium">{contact.name}</p>
+                                                    <p className="text-sm text-gray-500">{contact.email}</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            <Separator className="my-4" />
+
+                            <div className="text-center">
+                                <p className="text-sm text-gray-500 mb-2">Can't find who you're looking for?</p>
+                                <Button onClick={handleAddManually}>Add Contact Manually</Button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="py-4">
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    <div className="flex items-center">
+                                        <User size={16} className="mr-2" />
+                                        <span>Name</span>
+                                    </div>
+                                </label>
+                                <Input placeholder="Enter contact name" value={name} onChange={(e) => setName(e.target.value)} />
+                            </div>
+
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    <div className="flex items-center">
+                                        <Mail size={16} className="mr-2" />
+                                        <span>Email</span>
+                                    </div>
+                                </label>
                                 <Input
-                                    placeholder="Search by name, email or phone"
-                                    className="pl-10"
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                                    type="email"
+                                    placeholder="Enter email address"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
                                 />
                             </div>
-                            <div className="flex justify-end mt-2">
-                                <Button onClick={handleSearch}>Search</Button>
+
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    <div className="flex items-center">
+                                        <Phone size={16} className="mr-2" />
+                                        <span>Phone</span>
+                                    </div>
+                                </label>
+                                <Input placeholder="Enter phone number" value={phone} onChange={(e) => setPhone(e.target.value)} />
                             </div>
-                        </div>
-
-                        {searchResults.length > 0 && (
-                            <div className="mb-6">
-                                <h3 className="text-sm font-medium text-gray-700 mb-2">Search Results</h3>
-                                <div className="space-y-2">
-                                    {searchResults.map((contact) => (
-                                        <div
-                                            key={contact.id}
-                                            className="flex items-center p-3 rounded-md cursor-pointer hover:bg-gray-50 border border-gray-200"
-                                            onClick={() => selectContact(contact)}
-                                        >
-                                            <Avatar className="mr-3">
-                                                <AvatarFallback>{contact.name.charAt(0)}</AvatarFallback>
-                                            </Avatar>
-                                            <div>
-                                                <p className="font-medium">{contact.name}</p>
-                                                <p className="text-sm text-gray-500">{contact.email}</p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        <Separator className="my-4" />
-
-                        <div className="text-center">
-                            <p className="text-sm text-gray-500 mb-2">Can't find who you're looking for?</p>
-                            <Button onClick={handleAddManually}>Add Contact Manually</Button>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="py-4">
-                        <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                <div className="flex items-center">
-                                    <User size={16} className="mr-2" />
-                                    <span>Name</span>
-                                </div>
-                            </label>
-                            <Input placeholder="Enter contact name" value={name} onChange={(e) => setName(e.target.value)} />
-                        </div>
-
-                        <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                <div className="flex items-center">
-                                    <Mail size={16} className="mr-2" />
-                                    <span>Email</span>
-                                </div>
-                            </label>
-                            <Input
-                                type="email"
-                                placeholder="Enter email address"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                            />
-                        </div>
-
-                        <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                <div className="flex items-center">
-                                    <Phone size={16} className="mr-2" />
-                                    <span>Phone</span>
-                                </div>
-                            </label>
-                            <Input placeholder="Enter phone number" value={phone} onChange={(e) => setPhone(e.target.value)} />
-                        </div>
-                    </div>
-                )}
-
-                <DialogFooter>
-                    {step === 1 ? (
-                        <Button variant="outline" onClick={handleClose}>
-                            Cancel
-                        </Button>
-                    ) : (
-                        <div className="flex justify-between w-full">
-                            <Button variant="outline" onClick={() => setStep(1)}>
-                                Back
-                            </Button>
-                            <Button onClick={handleSubmit}>Add Contact</Button>
                         </div>
                     )}
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+
+                    <DialogFooter>
+                        {step === 1 ? (
+                            <Button variant="outline" onClick={handleClose}>
+                                Cancel
+                            </Button>
+                        ) : (
+                            <div className="flex justify-between w-full">
+                                <Button variant="outline" onClick={() => setStep(1)}>
+                                    Back
+                                </Button>
+                                <Button onClick={handleSubmit}>Add Contact</Button>
+                            </div>
+                        )}
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* QR Code Scanner Modal */}
+            <QRCodeScanner
+                isOpen={isQRScannerOpen}
+                onClose={() => setIsQRScannerOpen(false)}
+                onScanComplete={handleScanComplete}
+                title="Scan Contact QR Code"
+            />
+        </>
     )
 }
-

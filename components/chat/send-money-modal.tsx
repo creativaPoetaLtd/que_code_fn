@@ -2,13 +2,12 @@
 
 import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import Input from "../ui/Input-ant"
 import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { DollarSign, X, ArrowRight, CreditCard, Building, Send, Search } from "lucide-react"
+import { DollarSign, X, ArrowRight, Send, Search } from "lucide-react"
 import type { Conversation, ContactOption } from "@/types"
 import { toast } from "@/hooks/use-toast"
+import Input from "../ui/Input-ant"
 
 interface SendMoneyModalProps {
     isOpen: boolean
@@ -21,11 +20,11 @@ export default function SendMoneyModal({ isOpen, onClose, recipient = "", curren
     // State for form fields
     const [amount, setAmount] = useState<number>(0)
     const [selectedRecipient, setSelectedRecipient] = useState<string>(recipient)
-    const [paymentMethod, setPaymentMethod] = useState<string>("card")
     const [note, setNote] = useState<string>("")
     const [step, setStep] = useState<number>(1)
     const [searching, setSearching] = useState<boolean>(false)
     const [animateAmount, setAnimateAmount] = useState<boolean>(false)
+    const [pin, setPin] = useState<string>("")
 
     // Reset form when modal opens
     useEffect(() => {
@@ -89,9 +88,18 @@ export default function SendMoneyModal({ isOpen, onClose, recipient = "", curren
     }
 
     const handleSubmit = () => {
+        if (!pin || pin.length !== 4) {
+            toast({
+                title: "Error",
+                description: "Please enter your 4-digit PIN",
+                variant: "destructive",
+            })
+            return
+        }
+
         toast({
             title: "Money sent",
-            description: `$${amount.toFixed(2)} sent to ${selectedRecipient}`,
+            description: `${amount.toFixed(2)} sent to ${selectedRecipient}`,
         })
         onClose()
     }
@@ -177,7 +185,7 @@ export default function SendMoneyModal({ isOpen, onClose, recipient = "", curren
                             </Avatar>
                         ) : (
                             <Avatar className="mr-3">
-                                <AvatarImage src={contact.avatar} alt={contact.name} />
+                                <AvatarImage src={contact.avatar || "/placeholder.svg"} alt={contact.name} />
                                 <AvatarFallback>{contact.name.charAt(0)}</AvatarFallback>
                             </Avatar>
                         )}
@@ -191,8 +199,8 @@ export default function SendMoneyModal({ isOpen, onClose, recipient = "", curren
     const renderStep3 = () => (
         <div className="flex flex-col py-4">
             <div className="text-center mb-6">
-                <h3 className="text-xl font-semibold mb-1">Review and complete</h3>
-                <p className="text-gray-500">Confirm the details below</p>
+                <h3 className="text-xl font-semibold mb-1">Review and verify</h3>
+                <p className="text-gray-500">Confirm the details and enter your PIN</p>
             </div>
 
             <div className="bg-gray-50 rounded-lg p-4 mb-6 animate-fadeIn">
@@ -214,26 +222,17 @@ export default function SendMoneyModal({ isOpen, onClose, recipient = "", curren
             </div>
 
             <div className="mb-4">
-                <p className="text-sm font-medium mb-1 text-gray-700">Payment Method</p>
-                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                    <SelectTrigger>
-                        <SelectValue placeholder="Select payment method" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="card">
-                            <div className="flex items-center">
-                                <CreditCard size={16} className="mr-2 text-blue-500" />
-                                <span>Credit/Debit Card</span>
-                            </div>
-                        </SelectItem>
-                        <SelectItem value="bank">
-                            <div className="flex items-center">
-                                <Building size={16} className="mr-2 text-green-500" />
-                                <span>Bank Transfer</span>
-                            </div>
-                        </SelectItem>
-                    </SelectContent>
-                </Select>
+                <p className="text-sm font-medium mb-1 text-gray-700">Enter your PIN to confirm</p>
+                <div className="flex justify-center">
+                    <Input
+                        type="password"
+                        maxLength={4}
+                        placeholder="• • • •"
+                        value={pin}
+                        onChange={(e) => setPin(e.target.value)}
+                        className="w-32 text-center text-xl tracking-widest"
+                    />
+                </div>
             </div>
 
             <div className="mb-4">
@@ -288,7 +287,11 @@ export default function SendMoneyModal({ isOpen, onClose, recipient = "", curren
                             Next
                         </Button>
                     ) : (
-                        <Button onClick={handleSubmit} className="bg-green-600 hover:bg-green-700 flex items-center">
+                        <Button
+                            onClick={handleSubmit}
+                            disabled={pin.length !== 4}
+                            className="bg-green-600 hover:bg-green-700 flex items-center"
+                        >
                             <Send size={16} className="mr-1" />
                             Send Money
                         </Button>
@@ -298,4 +301,3 @@ export default function SendMoneyModal({ isOpen, onClose, recipient = "", curren
         </Dialog>
     )
 }
-
