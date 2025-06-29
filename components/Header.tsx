@@ -1,22 +1,35 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { Bell, Eye, EyeOff, User } from "lucide-react";
+import { Eye, EyeOff, User, Wifi, WifiOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
+import Image from "next/image";
 import baseUrl from "@/helpers/baseUrl";
 import { getWalletBalance } from '@/helpers/api';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useNotifications } from "@/context/NotificationContext";
+import NotificationDropdown from "./notifications/NotificationDropdown";
+import { useAuthToken } from "@/hooks/use-auth-token";
+
 
 export const Header = () => {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isBalanceVisible, setIsBalanceVisible] = useState(true);
     const [profileImage, setProfileImage] = useState<string | null>(null);
     const [userId, setUserId] = useState<string>("");
+    const [balance, setBalance] = useState<number | null>(null);
+    const [balanceLoading, setBalanceLoading] = useState(true);
+    const [balanceError, setBalanceError] = useState<string | null>(null);
+
     const router = useRouter();
+    const { isConnected } = useNotifications();
+    const { getToken } = useAuthToken();
+
+    console.log("Connection Status:", isConnected);
 
     // Fetch userId from token and then fetch user profile
     React.useEffect(() => {
-        const authToken = localStorage.getItem("authToken");
+        const authToken = getToken();
         if (authToken) {
             try {
                 const base64Url = authToken.split(".")[1];
@@ -25,46 +38,46 @@ export const Header = () => {
                 const id = payload?.userId || payload?.id || payload?.sub;
                 if (id) setUserId(id);
             } catch (e) {
-                // ignore
+                console.error("Error parsing token:", e);
             }
         }
-    }, []);
+    }, [getToken]);
 
+    // Fetch user profile
     React.useEffect(() => {
         if (!userId) return;
         const fetchUser = async () => {
             try {
-                const authToken = localStorage.getItem("authToken");
+                const authToken = getToken();
                 const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {};
                 const res = await axios.get(`${baseUrl}/users/${userId}`, { headers });
                 const data = res.data;
                 setProfileImage(data.profileImage || null);
             } catch (err) {
-                // ignore
+                console.error("Error fetching user profile:", err);
             }
         };
         fetchUser();
-    }, [userId]);
-        const [balance, setBalance] = useState<number | null>(null);
-        const [balanceLoading, setBalanceLoading] = useState(true);
-        const [balanceError, setBalanceError] = useState<string | null>(null);
+    }, [userId, getToken]);
 
-        useEffect(() => {
-            if (!userId) return;
-            const fetchBalance = async () => {
-                setBalanceLoading(true);
-                setBalanceError(null);
-                try {
-                    const data = await getWalletBalance(userId);
-                    setBalance(Number(data.balance));
-                } catch (err) {
-                    setBalanceError('Could not fetch balance');
-                } finally {
-                    setBalanceLoading(false);
-                }
-            };
-            fetchBalance();
-        }, [userId]);
+    // Fetch wallet balance
+    useEffect(() => {
+        if (!userId) return;
+        const fetchBalance = async () => {
+            setBalanceLoading(true);
+            setBalanceError(null);
+            try {
+                const data = await getWalletBalance(userId);
+                setBalance(Number(data.balance));
+            } catch (err) {
+                setBalanceError('Could not fetch balance');
+                console.error("Error fetching balance:", err);
+            } finally {
+                setBalanceLoading(false);
+            }
+        };
+        fetchBalance();
+    }, [userId]);
 
     const toggleDropdown = () => {
         setIsDropdownOpen(!isDropdownOpen);
@@ -72,6 +85,11 @@ export const Header = () => {
 
     const toggleBalanceVisibility = () => {
         setIsBalanceVisible(!isBalanceVisible);
+    };
+
+    const handleNavigation = (path: string) => {
+        setIsDropdownOpen(false);
+        router.push(path);
     };
 
     return (
@@ -82,10 +100,10 @@ export const Header = () => {
                     {balanceLoading
                         ? 'Loading...'
                         : balanceError
-                        ? balanceError
-                        : isBalanceVisible
-                        ? `RWF ${balance?.toLocaleString()}`
-                        : '••••••••••'}
+                            ? balanceError
+                            : isBalanceVisible
+                                ? `RWF ${balance?.toLocaleString()}`
+                                : '••••••••••'}
                 </h2>
                 <button
                     onClick={toggleBalanceVisibility}
@@ -96,15 +114,25 @@ export const Header = () => {
                 </button>
             </div>
 
-            {/* Right Section: Notification & User Profile */}
+            {/* Right Section: Connection Status, Notification & User Profile */}
             <div className="flex items-center space-x-4">
-                {/* Notification Button */}
-                <button
-                    className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition"
-                    aria-label="Notifications"
-                >
-                    <Bell size={20} />
-                </button>
+                {/* Connection Status Indicator */}
+                <div className="flex items-center space-x-1">
+                    {isConnected ? (
+                        <div className="flex items-center space-x-1 text-green-600">
+                            <Wifi size={16} />
+                            <span className="text-xs hidden sm:inline">Connected</span>
+                        </div>
+                    ) : (
+                        <div className="flex items-center space-x-1 text-red-600">
+                            <WifiOff size={16} />
+                            <span className="text-xs hidden sm:inline">Offline</span>
+                        </div>
+                    )}
+                </div>
+
+                {/* Notification Dropdown */}
+                <NotificationDropdown />
 
                 {/* User Profile with Dropdown */}
                 <div className="relative">
@@ -114,12 +142,22 @@ export const Header = () => {
                         onClick={toggleDropdown}
                         aria-label="User Profile"
                     >
-                        <Avatar className="w-10 h-10">
-                            <AvatarImage src={profileImage || undefined} alt="User profile" />
-                            <AvatarFallback>
-                                <User size={24} className="text-gray-600" />
-                            </AvatarFallback>
-                        </Avatar>
+                        {profileImage ? (
+                            <Avatar className="w-10 h-10">
+                                <AvatarImage src={profileImage} alt="User profile" />
+                                <AvatarFallback>
+                                    <User size={24} className="text-gray-600" />
+                                </AvatarFallback>
+                            </Avatar>
+                        ) : (
+                            <Image
+                                src="/Images/Profile.png"
+                                alt="Profile"
+                                className="h-full"
+                                width={40}
+                                height={40}
+                            />
+                        )}
                     </button>
 
                     {/* Dropdown Menu */}
@@ -128,7 +166,7 @@ export const Header = () => {
                             <ul className="text-sm text-gray-700">
                                 <li>
                                     <button
-                                        onClick={() => router.push('/profile')}
+                                        onClick={() => handleNavigation('/profile')}
                                         className="block w-full text-left px-4 py-2 hover:bg-gray-100"
                                     >
                                         Profile
@@ -136,7 +174,7 @@ export const Header = () => {
                                 </li>
                                 <li>
                                     <button
-                                        onClick={() => router.push('/settings')}
+                                        onClick={() => handleNavigation('/settings')}
                                         className="block w-full text-left px-4 py-2 hover:bg-gray-100"
                                     >
                                         Settings
@@ -144,7 +182,15 @@ export const Header = () => {
                                 </li>
                                 <li>
                                     <button
-                                        onClick={() => router.push('/logout')}
+                                        onClick={() => handleNavigation('/notifications')}
+                                        className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                                    >
+                                        Notifications
+                                    </button>
+                                </li>
+                                <li>
+                                    <button
+                                        onClick={() => handleNavigation('/logout')}
                                         className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-500"
                                     >
                                         Logout

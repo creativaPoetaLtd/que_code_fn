@@ -14,34 +14,24 @@ export const HomePageLayout = () => {
     const [userId, setUserId] = useState<string>("");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string>("");
-    
+
     useEffect(() => {
         const getUserId = () => {
             try {
                 // First try to get from URL params
                 let currentUserId = params.userId as string;
-                
-                console.log('HomePageLayout - URL params:', params);
-                console.log('HomePageLayout - userId from params:', currentUserId);
-                
                 // If userId is not in URL params or is undefined, try to get it from token
                 if (!currentUserId || currentUserId === 'undefined') {
                     const authToken = localStorage.getItem('authToken');
-                    console.log('HomePageLayout - Auth token exists:', !!authToken);
-                    
+
                     if (authToken) {
                         try {
                             const base64Url = authToken.split('.')[1];
                             const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
                             const payload = JSON.parse(atob(base64));
                             currentUserId = payload?.userId || payload?.id || payload?.sub;
-                            
-                            console.log('HomePageLayout - Token payload:', payload);
-                            console.log('HomePageLayout - userId from token:', currentUserId);
-                            
                             // If we got userId from token but URL doesn't have it, redirect to proper URL
                             if (currentUserId && (window.location.pathname === '/home/' || window.location.pathname === '/home')) {
-                                console.log('HomePageLayout - Redirecting to proper URL with userId');
                                 router.replace(`/home/${currentUserId}`);
                                 return;
                             }
@@ -55,15 +45,11 @@ export const HomePageLayout = () => {
                             return;
                         }
                     } else {
-                        console.log('HomePageLayout - No auth token, redirecting to login');
                         router.push('/auth/login');
                         return;
                     }
                 }
-                
-                // If still no userId after trying both methods
                 if (!currentUserId) {
-                    console.log('HomePageLayout - No userId found, redirecting to login');
                     setError('User ID not found. Please log in again.');
                     setTimeout(() => {
                         localStorage.removeItem('authToken');
@@ -71,10 +57,10 @@ export const HomePageLayout = () => {
                     }, 2000);
                     return;
                 }
-                
+
                 setUserId(currentUserId);
                 setLoading(false);
-                
+
             } catch (error) {
                 console.error('HomePageLayout - Error in getUserId:', error);
                 setError('An error occurred while loading user data.');
@@ -84,10 +70,10 @@ export const HomePageLayout = () => {
                 }, 2000);
             }
         };
-        
+
         getUserId();
     }, [params, router]);
-    
+
     // Show loading state while determining userId
     if (loading) {
         return (
@@ -101,7 +87,7 @@ export const HomePageLayout = () => {
             </div>
         );
     }
-    
+
     // Show error state
     if (error) {
         return (
@@ -115,9 +101,6 @@ export const HomePageLayout = () => {
             </div>
         );
     }
-    
-    console.log('HomePageLayout - Final userId:', userId);
-    
     return (
         <div className="flex flex-col min-h-screen bg-gray-50">
             {/* Desktop Sidebar */}

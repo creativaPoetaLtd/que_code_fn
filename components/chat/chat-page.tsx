@@ -2,21 +2,24 @@
 
 import { useState, useEffect } from "react"
 import { Layout } from "antd"
-import ConversationList from "@/components/chat/conversation-list"
 import ChatArea from "@/components/chat/chat-area"
 import SendMoneyModal from "@/components/chat/send-money-modal"
 import RequestMoneyModal from "@/components/chat/request-money-modal"
-import CreateGroupModal from "@/components/chat/create-group-modal"
 import AddContactModal from "@/components/chat/add-contact-modal"
 import UserProfileModal from "@/components/chat/user-profile-modal"
 import GroupProfileModal from "@/components/chat/group-profile-modal"
 import type { Conversation, Message, Contact, Group } from "@/types"
-import ContactRequestModal from "./contact-request"
-import Navigation from "../Navigation"
+import ContactRequestModal from "@/components/chat/contact-request"
+import Navigation from "@/components/Navigation"
+import { useAuthToken } from "@/hooks/use-auth-token"
+import { toast } from "@/hooks/use-toast"
+import InviteToGroupModal from "@/components/chat/invite-to-group-modal"
+import JoinGroupByLinkModal from "@/components/chat/join-group-by-link-modal" // Import new modal
+import ConversationListWithFilters from "./conversation-list"
 
 const { Content } = Layout
 
-// Sample data for conversations
+// Updated sample data - removed isContributionGroup distinction
 export const SAMPLE_CONVERSATIONS: Conversation[] = [
     {
         id: 1,
@@ -37,18 +40,14 @@ export const SAMPLE_CONVERSATIONS: Conversation[] = [
         id: 2,
         name: "Marketing Campaign",
         isGroup: true,
-        isContributionGroup: true,
+        isContributionGroup: false, // Treated as regular group now
         lastMessage: "I've shared the social media calendar",
         timestamp: "Yesterday",
         unread: 0,
         avatar: "/placeholder.svg?height=40&width=40",
         members: 6,
         online: 2,
-        contributionProgress: 50, // Example: 50% of contributions collected
-        targetAmount: 2000,
-        collectedAmount: 1000,
-        deadline: "2023-12-31",
-        description: "Group for Q4 marketing campaign budget contributions",
+        description: "Group for Q4 marketing campaign planning",
         createdAt: "2023-09-01",
         createdBy: "Maya Rodriguez",
     },
@@ -71,18 +70,14 @@ export const SAMPLE_CONVERSATIONS: Conversation[] = [
         id: 4,
         name: "Product Launch",
         isGroup: true,
-        isContributionGroup: true,
+        isContributionGroup: false,
         lastMessage: "The MVP is ready for testing",
         timestamp: "Monday",
         unread: 0,
         avatar: "/placeholder.svg?height=40&width=40",
         members: 12,
         online: 7,
-        contributionProgress: 75, // Example: 75% of contributions collected
-        targetAmount: 5000,
-        collectedAmount: 3750,
-        deadline: "2023-11-30",
-        description: "Group for new product launch expenses",
+        description: "Group for new product launch coordination",
         createdAt: "2023-08-15",
         createdBy: "John Smith",
     },
@@ -121,33 +116,10 @@ export const SAMPLE_MESSAGES: Message[] = [
         isMe: true,
         avatar: "/placeholder.svg?height=40&width=40",
     },
-    {
-        id: 3,
-        sender: "David Wong",
-        message: "I've already accepted the invitation. Looking forward to working with everyone!",
-        timestamp: "10:35 AM",
-        isMe: false,
-        avatar: "/placeholder.svg?height=40&width=40",
-    },
-    {
-        id: 4,
-        sender: "You",
-        message: "Great! Let's start brainstorming some ideas before the meeting.",
-        timestamp: "10:36 AM",
-        isMe: true,
-        avatar: "/placeholder.svg?height=40&width=40",
-    },
-    {
-        id: 5,
-        sender: "Sarah Johnson",
-        message: "Perfect! I'll prepare an agenda and share it with everyone.",
-        timestamp: "10:40 AM",
-        isMe: false,
-        avatar: "/placeholder.svg?height=40&width=40",
-    },
 ]
 
-export default function ChatPage() {
+export default function ChatPageImproved() {
+    const [conversations, setConversations] = useState<Conversation[]>(SAMPLE_CONVERSATIONS)
     const [activeConversation, setActiveConversation] = useState<Conversation>(SAMPLE_CONVERSATIONS[0])
     const [showMobileConversationList, setShowMobileConversationList] = useState<boolean>(true)
     const [isMobile, setIsMobile] = useState<boolean>(false)
@@ -156,12 +128,15 @@ export default function ChatPage() {
     // Modal states
     const [isSendMoneyModalOpen, setIsSendMoneyModalOpen] = useState<boolean>(false)
     const [isRequestMoneyModalOpen, setIsRequestMoneyModalOpen] = useState<boolean>(false)
-    const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState<boolean>(false)
-    const [isCreateContributionGroupModalOpen, setIsCreateContributionGroupModalOpen] = useState<boolean>(false)
     const [isAddContactModalOpen, setIsAddContactModalOpen] = useState<boolean>(false)
     const [isUserProfileModalOpen, setIsUserProfileModalOpen] = useState<boolean>(false)
     const [isGroupProfileModalOpen, setIsGroupProfileModalOpen] = useState<boolean>(false)
     const [isContactRequestModalOpen, setIsContactRequestModalOpen] = useState<boolean>(false)
+    const [isInviteToGroupModalOpen, setIsInviteToGroupModalOpen] = useState<boolean>(false)
+    const [isJoinGroupByLinkModalOpen, setIsJoinGroupByLinkModalOpen] = useState<boolean>(false) // New state
+
+    const { getToken } = useAuthToken()
+    const token: string | null = getToken()
 
     // Selected recipient for money operations
     const [selectedRecipient, setSelectedRecipient] = useState<string>("")
@@ -170,13 +145,11 @@ export default function ChatPage() {
         const handleResize = () => {
             setIsMobile(window.innerWidth < 768)
             setIsTablet(window.innerWidth >= 768 && window.innerWidth < 1024)
-
             // On larger screens, always show both panels
             if (window.innerWidth >= 768) {
                 setShowMobileConversationList(true)
             }
         }
-
         handleResize()
         window.addEventListener("resize", handleResize)
         return () => window.removeEventListener("resize", handleResize)
@@ -187,6 +160,78 @@ export default function ChatPage() {
         if (isMobile) setShowMobileConversationList(false)
     }
 
+    const handleStartNewChat = (contact: any) => {
+        // Create a new conversation from the contact
+        const newConversation: Conversation = {
+            id: Date.now(), // In real app, this would come from backend
+            name: `${contact.contactUser.firstName} ${contact.contactUser.lastName}`,
+            isGroup: false,
+            isContributionGroup: false,
+            lastMessage: "",
+            timestamp: "Now",
+            unread: 0,
+            avatar: "/placeholder.svg?height=40&width=40",
+            online: false,
+            email: contact.contactUser.email,
+            phone: contact.contactUser.phone || "",
+            address: contact.contactUser.address || "",
+            joinedAt: contact.respondedAt || contact.invitedAt,
+        }
+
+        // Add to conversations list if not already exists
+        const existingConv = conversations.find((conv) => !conv.isGroup && conv.name === newConversation.name)
+
+        if (!existingConv) {
+            setConversations((prev) => [newConversation, ...prev])
+        }
+
+        // Select the conversation
+        setActiveConversation(existingConv || newConversation)
+
+        if (isMobile) setShowMobileConversationList(false)
+
+        toast({
+            title: "Chat Started",
+            description: `Started a new conversation with ${newConversation.name}`,
+        })
+    }
+
+    const handleJoinGroup = (group: any) => {
+        // Create a new conversation from the group
+        const newConversation: Conversation = {
+            id: Date.now(), // In real app, this would come from backend
+            name: group.name,
+            isGroup: true,
+            isContributionGroup: false,
+            lastMessage: "",
+            timestamp: "Now",
+            unread: 0,
+            avatar: group.avatar || "/placeholder.svg?height=40&width=40",
+            members: group.memberCount || 0,
+            online: 0,
+            description: group.description,
+            createdAt: group.createdAt,
+            createdBy: group.createdBy,
+        }
+
+        // Add to conversations list if not already exists
+        const existingConv = conversations.find((conv) => conv.isGroup && conv.name === newConversation.name)
+
+        if (!existingConv) {
+            setConversations((prev) => [newConversation, ...prev])
+        }
+
+        // Select the conversation
+        setActiveConversation(existingConv || newConversation)
+
+        if (isMobile) setShowMobileConversationList(false)
+
+        toast({
+            title: "Joined Group",
+            description: `You have joined ${newConversation.name}`,
+        })
+    }
+
     const handleSendMoney = (recipient?: string) => {
         setSelectedRecipient(recipient || activeConversation.name)
         setIsSendMoneyModalOpen(true)
@@ -194,14 +239,6 @@ export default function ChatPage() {
 
     const handleRequestMoney = () => {
         setIsRequestMoneyModalOpen(true)
-    }
-
-    const handleCreateGroup = (isContribution = false) => {
-        if (isContribution) {
-            setIsCreateContributionGroupModalOpen(true)
-        } else {
-            setIsCreateGroupModalOpen(true)
-        }
     }
 
     const handleViewProfile = () => {
@@ -220,25 +257,30 @@ export default function ChatPage() {
         setIsContactRequestModalOpen(true)
     }
 
+    const handleInviteToGroup = () => {
+        if (activeConversation.isGroup) {
+            setIsInviteToGroupModalOpen(true)
+        }
+    }
+
     return (
         <Layout className="min-h-screen bg-gray-50 mobile-bottom-padding">
             <div className="flex min-h-screen">
                 <Navigation />
                 {/* Main Content */}
                 <main className="flex-1 lg:ml-20 w-full max-w-full overflow-x-hidden flex-1 flex flex-col transition-all duration-300">
-
                     <div className="flex-1 flex flex-col md:flex-row overflow-hidden h-[calc(100vh-100px)] md:h-screen">
-                        {/* Conversation List */}
-                        <ConversationList
-                            conversations={SAMPLE_CONVERSATIONS}
+                        {/* Conversation List with Filters */}
+                        <ConversationListWithFilters
+                            conversations={conversations}
                             activeConversation={activeConversation}
                             onConversationSelect={handleConversationSelect}
                             showOnMobile={showMobileConversationList}
-                            onAddContact={() => setIsAddContactModalOpen(true)}
+                            onAddContact={handleAddContact}
                             onViewContactRequests={handleViewContactRequests}
-                            onCreateGroup={() => handleCreateGroup(false)}
-                            onCreateContributionGroup={() => handleCreateGroup(true)}
                             onQuickSendMoney={(conversation) => handleSendMoney(conversation.name)}
+                            onStartNewChat={handleStartNewChat}
+                            onJoinGroup={handleJoinGroup}
                         />
 
                         {/* Chat Area */}
@@ -250,9 +292,9 @@ export default function ChatPage() {
                             onSendMoney={() => handleSendMoney()}
                             onRequestMoney={handleRequestMoney}
                             onViewProfile={handleViewProfile}
+                            onInviteToGroup={handleInviteToGroup}
                         />
                     </div>
-
                 </main>
             </div>
 
@@ -263,40 +305,34 @@ export default function ChatPage() {
                 recipient={selectedRecipient}
                 currentConversation={activeConversation}
             />
-
             <RequestMoneyModal
                 isOpen={isRequestMoneyModalOpen}
                 onClose={() => setIsRequestMoneyModalOpen(false)}
                 conversation={activeConversation}
             />
-
-            <CreateGroupModal
-                isOpen={isCreateGroupModalOpen}
-                onClose={() => setIsCreateGroupModalOpen(false)}
-                isContributionGroup={false}
-            />
-
-            <CreateGroupModal
-                isOpen={isCreateContributionGroupModalOpen}
-                onClose={() => setIsCreateContributionGroupModalOpen(false)}
-                isContributionGroup={true}
-            />
-
             <AddContactModal isOpen={isAddContactModalOpen} onClose={() => setIsAddContactModalOpen(false)} />
-
             <UserProfileModal
                 isOpen={isUserProfileModalOpen}
                 onClose={() => setIsUserProfileModalOpen(false)}
                 user={activeConversation.isGroup ? null : (activeConversation as Contact)}
             />
-
             <GroupProfileModal
                 isOpen={isGroupProfileModalOpen}
                 onClose={() => setIsGroupProfileModalOpen(false)}
                 group={activeConversation.isGroup ? (activeConversation as Group) : null}
             />
-
             <ContactRequestModal isOpen={isContactRequestModalOpen} onClose={() => setIsContactRequestModalOpen(false)} />
+            <InviteToGroupModal
+                isOpen={isInviteToGroupModalOpen}
+                onClose={() => setIsInviteToGroupModalOpen(false)}
+                group={activeConversation.isGroup ? activeConversation : null}
+                token={token}
+            />
+            <JoinGroupByLinkModal
+                isOpen={isJoinGroupByLinkModalOpen}
+                onClose={() => setIsJoinGroupByLinkModalOpen(false)}
+                onGroupJoined={handleJoinGroup}
+            />
         </Layout>
     )
 }
