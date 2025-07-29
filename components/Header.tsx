@@ -2,10 +2,49 @@
 import React, { useState } from "react";
 import { Bell, Eye, EyeOff, User } from "lucide-react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import axios from "axios";
+import baseUrl from "@/helpers/baseUrl";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export const Header = () => {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isBalanceVisible, setIsBalanceVisible] = useState(true);
+    const [profileImage, setProfileImage] = useState<string | null>(null);
+    const [userId, setUserId] = useState<string>("");
+    const router = useRouter();
+
+    // Fetch userId from token and then fetch user profile
+    React.useEffect(() => {
+        const authToken = localStorage.getItem("authToken");
+        if (authToken) {
+            try {
+                const base64Url = authToken.split(".")[1];
+                const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+                const payload = JSON.parse(atob(base64));
+                const id = payload?.userId || payload?.id || payload?.sub;
+                if (id) setUserId(id);
+            } catch (e) {
+                // ignore
+            }
+        }
+    }, []);
+
+    React.useEffect(() => {
+        if (!userId) return;
+        const fetchUser = async () => {
+            try {
+                const authToken = localStorage.getItem("authToken");
+                const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {};
+                const res = await axios.get(`${baseUrl}/users/${userId}`, { headers });
+                const data = res.data;
+                setProfileImage(data.profileImage || null);
+            } catch (err) {
+                // ignore
+            }
+        };
+        fetchUser();
+    }, [userId]);
 
     const toggleDropdown = () => {
         setIsDropdownOpen(!isDropdownOpen);
@@ -49,14 +88,12 @@ export const Header = () => {
                         onClick={toggleDropdown}
                         aria-label="User Profile"
                     >
-                        <Image
-                            src="/Images/Profile.png"
-                            alt="Phone and Card"
-                            className="h-full"
-                            width={130}
-                            height={130}
-                        />
-                        {/* <User size={24} className="text-gray-600" /> */}
+                        <Avatar className="w-10 h-10">
+                            <AvatarImage src={profileImage || undefined} alt="User profile" />
+                            <AvatarFallback>
+                                <User size={24} className="text-gray-600" />
+                            </AvatarFallback>
+                        </Avatar>
                     </button>
 
                     {/* Dropdown Menu */}
@@ -64,28 +101,28 @@ export const Header = () => {
                         <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
                             <ul className="text-sm text-gray-700">
                                 <li>
-                                    <a
-                                        href="#profile"
-                                        className="block px-4 py-2 hover:bg-gray-100"
+                                    <button
+                                        onClick={() => router.push('/profile')}
+                                        className="block w-full text-left px-4 py-2 hover:bg-gray-100"
                                     >
                                         Profile
-                                    </a>
+                                    </button>
                                 </li>
                                 <li>
-                                    <a
-                                        href="#settings"
-                                        className="block px-4 py-2 hover:bg-gray-100"
+                                    <button
+                                        onClick={() => router.push('/settings')}
+                                        className="block w-full text-left px-4 py-2 hover:bg-gray-100"
                                     >
                                         Settings
-                                    </a>
+                                    </button>
                                 </li>
                                 <li>
-                                    <a
-                                        href="#logout"
-                                        className="block px-4 py-2 hover:bg-gray-100 text-red-500"
+                                    <button
+                                        onClick={() => router.push('/logout')}
+                                        className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-500"
                                     >
                                         Logout
-                                    </a>
+                                    </button>
                                 </li>
                             </ul>
                         </div>

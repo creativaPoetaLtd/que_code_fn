@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "antd";
 import { MenuOutlined, CloseOutlined } from "@ant-design/icons";
 import { useRouter } from "next/navigation";
@@ -8,14 +8,37 @@ import Image from "next/image";
 const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const router = useRouter();
-
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userId, setUserId] = useState("");
+  useEffect(() => {
+    const authToken = localStorage.getItem("authToken");
+    setIsLoggedIn(!!authToken);
+  }, []);
+console.log("igor");
   const toggleMenu = () => {
     setMenuOpen(!menuOpen);
   };
 
   const handleNavigate = () => {
-    router?.push("/auth/login");
-  }
+    const authToken = localStorage.getItem("authToken");
+  
+    if (authToken) {
+      try {
+        const base64Url = authToken.split(".")[1];
+        const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+        const payload = JSON.parse(atob(base64));
+        const id = payload?.userId || payload?.id || payload?.sub || "";
+        if (id) {
+          router.push(`/home/${id}`);
+          return;
+        }
+      } catch (e) {
+        // fall through to login
+      }
+    }
+  
+    router.push("/auth/login");
+  };
 
   return (
     <nav className="flex fixed top-0 left-0 w-full justify-between items-center h-16 py-4 px-6 lg:px-[16%] bg-[#013f47] text-white z-50">
@@ -53,7 +76,7 @@ const Navbar = () => {
           className="border-[#00B512] px-8 py-4 text-md text-white transition-colors duration-500 ease-in-out hover:bg-[#1fd331]"
           ghost
         >
-          Sign In
+          {isLoggedIn ? "Dashboard" : "Sign In"}
         </Button>
       </div>
 
@@ -89,7 +112,7 @@ const Navbar = () => {
             Help
           </a>
           <Button onClick={handleNavigate} className="border-white text-white w-fit" ghost>
-            Sign In
+            {isLoggedIn ? "Dashboard" : "Sign In"}
           </Button>
         </div>
       )}
