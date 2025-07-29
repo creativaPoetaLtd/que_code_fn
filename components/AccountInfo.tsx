@@ -1,14 +1,26 @@
 "use client";
 import React from "react";
+import { useRouter } from 'next/navigation';
 import { Share2, Copy, Send, CreditCard } from "lucide-react";
 
 export const AccountInfo = () => {
+    const router = useRouter();
+    
     return (
         <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 md:p-8">
             {/* Greeting and User Name Section */}
             <div className="mb-6 sm:mb-8">
                 <p className="text-sm sm:text-md font-medium text-[#00313A]">Good morning 👋</p>
                 <h3 className="text-xl sm:text-2xl font-bold text-[#00313A] mt-1">Raisa Adriana</h3>
+                
+                {/* Balance Display */}
+                <div className="mt-4 p-4 bg-gradient-to-r from-[#00313A] to-[#00252e] rounded-lg">
+                    <p className="text-sm text-gray-300 mb-1">Available Balance</p>
+                    <h4 className="text-2xl font-bold text-white">RWF 30,000</h4>
+                    <div className="flex items-center space-x-1 mt-1">
+                        <span className="text-xs text-green-400">+12.5% this month</span>
+                    </div>
+                </div>
             </div>
 
             {/* Main Content Container */}
@@ -57,7 +69,10 @@ export const AccountInfo = () => {
 
                 {/* Send and Top Up Buttons */}
                 <div className="flex justify-center gap-8 sm:gap-12 mt-6 sm:mt-8">
-                    <button className="flex flex-col items-center group">
+                    <button 
+                    onClick={() => router.push('/home/transfer')}
+                    className="flex flex-col items-center group"
+                    >
                         <span className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-2 group-hover:bg-green-200 transition-colors">
                             <Send size={24} className="text-green-600" />
                         </span>
