@@ -308,9 +308,13 @@ const LoginPage: React.FC = () => {
             )}
           </div>
 
-          <a href="forgot-password" className="text-sm text-[#00B512] hover:underline">
+          <button 
+            type="button"
+            onClick={() => router.push('/auth/forgot-password')} 
+            className="text-sm text-[#00B512] hover:underline"
+          >
             Forgot Password?
-          </a>
+          </button>
 
           <Button
             htmlType="submit"

@@ -9,12 +9,21 @@ import baseUrl from '@/helpers/baseUrl';
 
 const ResetPasswordPage: React.FC = () => {
   const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const { token } = useParams<{ token: string }>();
   const navigate = useRouter();
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!newPassword || !confirmPassword) {
+      message.error('Please fill in both password fields.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      message.error('Passwords do not match.');
+      return;
+    }
     setLoading(true);
     try {
       const response = await axios.post(`${baseUrl}/auth/reset-password`, {
@@ -54,9 +63,19 @@ const ResetPasswordPage: React.FC = () => {
                 placeholder="Enter your new password"
                 required
                 className="mt-1 p-2 rounded-md w-full"
-              // validate password
-
-
+              />
+            </div>
+            <div className="mb-4">
+              <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-700">
+                Confirm New Password
+              </label>
+              <Input.Password
+                id="confirmPassword"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Re-enter your new password"
+                required
+                className="mt-1 p-2 rounded-md w-full"
               />
             </div>
             <Button

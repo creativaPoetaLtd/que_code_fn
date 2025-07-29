@@ -15,16 +15,40 @@ const ForgotPasswordPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Basic email validation
+    if (!email || !email.trim()) {
+      message.error('Please enter your email address');
+      return;
+    }
+    
+    const emailRegex = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
+    if (!emailRegex.test(email)) {
+      message.error('Please enter a valid email address');
+      return;
+    }
+    
     setLoading(true);
     try {
-      const response = await axios.post(`${baseUrl}/auth/forgot-password`, { email });
-      message.success(response.data.message);
+      const response = await axios.post(`${baseUrl}/auth/forgot-password`, { email: email.trim() });
+      message.success(response.data.message || 'Password reset email sent successfully');
       setIsModalVisible(true);  
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
-        message.error(error.response?.data?.message || 'An error occurred');
+        const status = error.response?.status;
+        const errorMessage = error.response?.data?.message;
+        
+        if (status === 404) {
+          message.error('Email not found. Please check your email address.');
+        } else if (status === 429) {
+          message.error('Too many requests. Please try again later.');
+        } else if (status === 500) {
+          message.error('Server error. Please try again later.');
+        } else {
+          message.error(errorMessage || 'An error occurred while sending reset email');
+        }
       } else {
-        message.error('An error occurred');
+        message.error('Network error. Please check your connection and try again.');
       }
     } finally {
       setLoading(false);
@@ -59,6 +83,12 @@ const ForgotPasswordPage: React.FC = () => {
               placeholder="Example@email.com"
               className="mt-1 p-2 rounded-md"
               required
+              disabled={loading}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter' && !loading) {
+                  handleSubmit(e);
+                }
+              }}
             />
           </div>
           <Button
