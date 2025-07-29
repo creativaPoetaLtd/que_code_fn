@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -14,19 +14,138 @@ import Input from "@/components/ui/Input-ant"
 import Label from "@/components/ui/Label"
 import { Layout } from "antd"
 import Navigation from "@/components/Navigation"
+import React from "react"
+import axios from "axios"
+import baseUrl from '@/helpers/baseUrl';
 
 export default function SettingsPage() {
+    // Personal Info State
+    const [userId, setUserId] = useState("");
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
+    const [firstName, setFirstName] = useState("");
+    const [lastName, setLastName] = useState("");
+    const [email, setEmail] = useState("");
+    const [phone, setPhone] = useState("");
+    const [address, setAddress] = useState("");
+    const [profileImage, setProfileImage] = useState<string | null>(null);
+    const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
+    const [profileImagePreview, setProfileImagePreview] = useState<string | null>(null);
+    // Add state for status message
+    const [statusMessage, setStatusMessage] = useState("");
+
+    // Add state for welcome page visibility
+    const [showPhoneOnWelcome, setShowPhoneOnWelcome] = useState(true);
+    const [showProfileImageOnWelcome, setShowProfileImageOnWelcome] = useState(true);
+    const [showStatusMessageOnWelcome, setShowStatusMessageOnWelcome] = useState(true);
+
+    // Extract userId from JWT
+    useEffect(() => {
+        const authToken = localStorage.getItem('authToken');
+        if (authToken) {
+            try {
+                const base64Url = authToken.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const payload = JSON.parse(atob(base64));
+                const id = payload?.userId || payload?.id || payload?.sub;
+                if (id) setUserId(id);
+            } catch (e) {
+                setError('Invalid authentication token. Please log in again.');
+            }
+        } else {
+            setError('Not authenticated. Please log in.');
+        }
+    }, []);
+
+    // Fetch user data
+    useEffect(() => {
+        if (!userId) return;
+        const fetchUser = async () => {
+            setLoading(true);
+            setError("");
+            try {
+                const authToken = localStorage.getItem('authToken');
+                const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {};
+                const res = await axios.get(`${baseUrl}/users/${userId}`, { headers });
+                const data = res.data;
+                setFirstName(data.firstName || "");
+                setLastName(data.lastName || "");
+                setEmail(data.email || "");
+                setPhone(data.phone || "");
+                setAddress(data.address || "");
+                setProfileImage(data.profileImage || null);
+                setProfileImagePreview(data.profileImage || null);
+                // In fetchUser, set the new fields from API response
+                setShowPhoneOnWelcome(data.showPhoneOnWelcome !== undefined ? data.showPhoneOnWelcome : true);
+                setShowProfileImageOnWelcome(data.showProfileImageOnWelcome !== undefined ? data.showProfileImageOnWelcome : true);
+                setShowStatusMessageOnWelcome(data.showStatusMessageOnWelcome !== undefined ? data.showStatusMessageOnWelcome : true);
+                // Set status message from API
+                setStatusMessage(data.statusMessage || "");
+            } catch (err) {
+                setError('Failed to load user data.');
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchUser();
+    }, [userId]);
+
+    // Handle image select
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setProfileImageFile(file);
+            setProfileImagePreview(URL.createObjectURL(file));
+        }
+    };
+
+    // Save profile handler
+    const handleSaveProfile = async () => {
+        if (!userId) return;
+        setLoading(true);
+        setError("");
+        try {
+            const authToken = localStorage.getItem('authToken');
+            // Only set Authorization header, do NOT set Content-Type for FormData
+            const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {};
+            const formData = new FormData();
+            formData.append('firstName', firstName);
+            formData.append('lastName', lastName);
+            formData.append('email', email);
+            formData.append('phone', phone);
+            formData.append('address', address);
+            // Add statusMessage to formData
+            formData.append('statusMessage', statusMessage);
+            if (profileImageFile && profileImageFile instanceof File) {
+                console.log('Uploading file:', profileImageFile);
+                formData.append('profileImage', profileImageFile);
+            } else {
+                console.log('No new profile image selected or not a File:', profileImageFile);
+            }
+            formData.append('showPhoneOnWelcome', String(showPhoneOnWelcome));
+            formData.append('showProfileImageOnWelcome', String(showProfileImageOnWelcome));
+            formData.append('showStatusMessageOnWelcome', String(showStatusMessageOnWelcome));
+            await axios.put(`${baseUrl}/users/${userId}`, formData, { headers });
+            toast({
+                title: "Profile updated",
+                description: "Your profile information has been updated successfully.",
+            });
+        } catch (err: any) {
+            if (err.response && err.response.data && err.response.data.message) {
+                setError('Failed to update profile: ' + err.response.data.message);
+            } else {
+                setError('Failed to update profile.');
+            }
+            console.error('Update profile error:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const [showPassword, setShowPassword] = useState(false)
     const [currentPassword, setCurrentPassword] = useState("")
     const [newPassword, setNewPassword] = useState("")
     const [confirmPassword, setConfirmPassword] = useState("")
-
-    const handleSaveProfile = () => {
-        toast({
-            title: "Profile updated",
-            description: "Your profile information has been updated successfully.",
-        })
-    }
 
     const handleChangePassword = () => {
         if (newPassword !== confirmPassword) {
@@ -83,6 +202,11 @@ export default function SettingsPage() {
 
                         {/* Profile Tab */}
                         <TabsContent value="profile">
+                            {loading ? (
+                                <div className="py-8 text-center">Loading...</div>
+                            ) : error ? (
+                                <div className="py-8 text-center text-red-500">{error}</div>
+                            ) : (
                             <div className="grid gap-6 md:grid-cols-5">
                                 <Card className="md:col-span-3">
                                     <CardHeader>
@@ -93,29 +217,51 @@ export default function SettingsPage() {
                                         <div className="grid gap-4 sm:grid-cols-2">
                                             <div className="space-y-2">
                                                 <Label htmlFor="first-name">First name</Label>
-                                                <Input id="first-name" defaultValue="John" />
+                                                <Input id="first-name" value={firstName} onChange={e => setFirstName(e.target.value)} />
                                             </div>
                                             <div className="space-y-2">
                                                 <Label htmlFor="last-name">Last name</Label>
-                                                <Input id="last-name" defaultValue="Doe" />
+                                                <Input id="last-name" value={lastName} onChange={e => setLastName(e.target.value)} />
                                             </div>
                                         </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="email">Email</Label>
-                                            <Input id="email" type="email" defaultValue="john.doe@example.com" />
+                                            <Input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} />
                                         </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="phone">Phone number</Label>
-                                            <Input id="phone" type="tel" defaultValue="+1 (555) 123-4567" />
+                                            <Input id="phone" type="tel" value={phone} onChange={e => setPhone(e.target.value)} />
                                         </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="address">Address</Label>
-                                            <Input id="address" defaultValue="123 Main St, San Francisco, CA 94105" />
+                                            <Input id="address" value={address} onChange={e => setAddress(e.target.value)} />
+                                        </div>
+                                        {/* Status Message input */}
+                                        <div className="space-y-2">
+                                            <Label htmlFor="status-message">Status Message</Label>
+                                            <Input id="status-message" value={statusMessage} onChange={e => setStatusMessage(e.target.value)} placeholder="Enter your status message" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Welcome Page Visibility</Label>
+                                            <div className="flex flex-col gap-2">
+                                                <label className="flex items-center gap-2">
+                                                    <input type="checkbox" checked={showPhoneOnWelcome} onChange={e => setShowPhoneOnWelcome(e.target.checked)} />
+                                                    Show phone on welcome page
+                                                </label>
+                                                <label className="flex items-center gap-2">
+                                                    <input type="checkbox" checked={showProfileImageOnWelcome} onChange={e => setShowProfileImageOnWelcome(e.target.checked)} />
+                                                    Show profile image on welcome page
+                                                </label>
+                                                <label className="flex items-center gap-2">
+                                                    <input type="checkbox" checked={showStatusMessageOnWelcome} onChange={e => setShowStatusMessageOnWelcome(e.target.checked)} />
+                                                    Show status message on welcome page
+                                                </label>
+                                            </div>
                                         </div>
                                     </CardContent>
                                     <CardFooter className="flex justify-end">
-                                        <Button onClick={handleSaveProfile} className="bg-[#00B512] hover:bg-[#009E10]">
-                                            Save changes
+                                        <Button onClick={handleSaveProfile} className="bg-[#00B512] hover:bg-[#009E10]" disabled={loading}>
+                                            {loading ? 'Saving...' : 'Save changes'}
                                         </Button>
                                     </CardFooter>
                                 </Card>
@@ -127,21 +273,24 @@ export default function SettingsPage() {
                                     </CardHeader>
                                     <CardContent className="flex flex-col items-center space-y-4">
                                         <Avatar className="h-24 w-24 border-2 border-gray-200">
-                                            <AvatarImage src="/placeholder.svg?height=96&width=96" alt="Profile" />
-                                            <AvatarFallback>JD</AvatarFallback>
+                                            <AvatarImage src={profileImagePreview || "/placeholder.svg?height=96&width=96"} alt="Profile" />
+                                            <AvatarFallback>{firstName?.[0]}{lastName?.[0]}</AvatarFallback>
                                         </Avatar>
                                         <div className="flex flex-col items-center gap-2">
-                                            <Button variant="outline" className="w-full">
-                                                <Upload size={16} className="mr-2" />
-                                                Upload new image
-                                            </Button>
-                                            <Button variant="ghost" className="text-red-500 hover:text-red-600 hover:bg-red-50 w-full">
+                                            <input type="file" accept="image/*" id="profile-image-upload" style={{ display: 'none' }} onChange={handleImageChange} />
+                                            <label htmlFor="profile-image-upload">
+                                                <Button variant="outline" className="w-full" asChild>
+                                                    <span><Upload size={16} className="mr-2" />Upload new image</span>
+                                                </Button>
+                                            </label>
+                                            <Button variant="ghost" className="text-red-500 hover:text-red-600 hover:bg-red-50 w-full" onClick={() => { setProfileImageFile(null); setProfileImagePreview(null); }}>
                                                 Remove
                                             </Button>
                                         </div>
                                     </CardContent>
                                 </Card>
                             </div>
+                            )}
 
                             <Card className="mt-6">
                                 <CardHeader>

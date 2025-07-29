@@ -2,8 +2,8 @@
 
 import type React from "react"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
+import { useRouter, useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
     Home,
@@ -27,37 +27,86 @@ interface NavigationItem {
 }
 
 export default function Navigation() {
-    const [isExpanded, setIsExpanded] = useState<boolean>(true)
-    const [activeItem, setActiveItem] = useState<string>("Chat")
+    const [isExpanded, setIsExpanded] = useState<boolean>(false)
+    const [activeItem, setActiveItem] = useState<string>("Home")
+    const [userId, setUserId] = useState<string>("")
+    const [isReady, setIsReady] = useState<boolean>(false)
     const router = useRouter()
+    const params = useParams() 
+
+    // Get userId from URL params or token
+    useEffect(() => {
+        const getUserId = () => {
+            let currentUserId = params.userId as string;
+            
+            // If userId is not in URL, try to get it from token
+            if (!currentUserId || currentUserId === 'undefined') {
+                const authToken = localStorage.getItem('authToken');
+                if (authToken) {
+                    try {
+                        const base64Url = authToken.split('.')[1];
+                        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                        const payload = JSON.parse(atob(base64));
+                        currentUserId = payload?.userId || payload?.id || payload?.sub;
+                    } catch (error) {
+                        console.error('Error decoding token:', error);
+                    }
+                }
+            }
+            
+            setUserId(currentUserId || "");
+            setIsReady(true);
+        };
+        
+        getUserId();
+    }, [params]);
+
+    // Don't render navigation items until we have userId
+    if (!isReady) {
+        return null;
+    }
 
     const navigationItems: NavigationItem[] = [
-        { id: "Home", icon: <Home size={24} />, label: "Home", path: "/home" },
-        { id: "Statistics", icon: <BarChart2 size={24} />, label: "Statistics", path: "/statistics" },
+        { id: "Home", icon: <Home size={24} />, label: "Home", path: userId ? `/home/${userId}` : '/home' },
+        { id: "Statistics", icon: <BarChart2 size={24} />, label: "Statistics", path: userId ? `/statistics/${userId}` : '/statistics' },
         { id: "Scan", icon: <ScanLine size={24} />, label: "Scan", path: "", isCenterButton: true },
-        { id: "Actions", icon: <FileText size={24} />, label: "Actions", path: "/action" },
-        { id: "Chat", icon: <MessageCircle size={24} />, label: "Chat", path: "/chat" },
+        { id: "Actions", icon: <FileText size={24} />, label: "Actions", path: userId ? `/action/${userId}` : '/action' },
+        { id: "Chat", icon: <MessageCircle size={24} />, label: "Chat", path: userId ? `/chat/${userId}` : '/chat' },
     ]
 
     const mainMenuItems: NavigationItem[] = [
-        { id: "Home", icon: <Home size={24} />, label: "Home", path: "/home" },
-        { id: "Statistics", icon: <BarChart2 size={24} />, label: "Statistics", path: "/statistics" },
-        { id: "Actions", icon: <FileText size={24} />, label: "Action", path: "/action" },
-        { id: "Chat", icon: <MessageCircle size={24} />, label: "Chat", path: "/chat" },
+        { id: "Home", icon: <Home size={24} />, label: "Home", path: userId ? `/home/${userId}` : '/home' },
+        { id: "Statistics", icon: <BarChart2 size={24} />, label: "Statistics", path: userId ? `/statistics/${userId}` : '/statistics' },
+        { id: "Actions", icon: <FileText size={24} />, label: "Action", path: userId ? `/action/${userId}` : '/action' },
+        { id: "Chat", icon: <MessageCircle size={24} />, label: "Chat", path: userId ? `/chat/${userId}` : '/chat' },
     ]
 
     const bottomMenuItems: NavigationItem[] = [
-        { id: "Settings", icon: <Settings size={24} />, label: "Settings", path: "/settings" },
+        { id: "Settings", icon: <Settings size={24} />, label: "Settings", path: userId ? `/settings/${userId}` : '/settings' },
         { id: "Logout", icon: <LogOut size={24} />, label: "Logout", path: "/logout" },
     ]
 
     const handleClick = (id: string, path: string) => {
-        // Always update the active item
-        setActiveItem(id)
+        // Handle logout separately
+        if (id === "Logout") {
+            localStorage.removeItem('authToken');
+            router.push('/auth/login');
+            return;
+        }
 
-        // Navigate only if there's a valid path
+        // Handle scan button (no navigation)
+        if (id === "Scan") {
+            setActiveItem(id);
+            // Add scan functionality here
+            return;
+        }
+
+        // Always update the active item
+        setActiveItem(id);
+
+        // Navigate if there's a valid path
         if (path) {
-            router.push(path)
+            router.push(path);
         }
     }
 
@@ -174,4 +223,3 @@ export default function Navigation() {
         </>
     )
 }
-
