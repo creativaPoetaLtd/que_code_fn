@@ -48,6 +48,9 @@ const LoginPage: React.FC = () => {
       const { token, user } = response;
 
       localStorage.setItem('authToken', token);
+      if (user) {
+        localStorage.setItem('user', JSON.stringify(user));
+      }
       notification.success({
         message: 'Login Successful',
         description: `Welcome back, ${user?.data?.dataValues?.email}`,

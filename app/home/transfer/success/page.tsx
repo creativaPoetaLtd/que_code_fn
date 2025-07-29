@@ -15,16 +15,16 @@ interface TransferData {
 
 const SuccessPage = () => {
   const router = useRouter();
-  const [transferData, setTransferData] = useState<TransferData | null>(null);
+  const [transferResult, setTransferResult] = useState<any>(null);
 
   useEffect(() => {
-    // Get transfer data from session storage
-    const storedData = sessionStorage.getItem('transferData');
-    if (storedData) {
+    // Get transfer result from session storage
+    const storedResult = sessionStorage.getItem('transferResult');
+    if (storedResult) {
       try {
-        setTransferData(JSON.parse(storedData));
+        setTransferResult(JSON.parse(storedResult));
       } catch (error) {
-        console.error('Error parsing transfer data:', error);
+        console.error('Error parsing transfer result:', error);
         router.push('/home');
       }
     } else {
@@ -34,7 +34,7 @@ const SuccessPage = () => {
   }, [router]);
 
   // Show loading while getting data
-  if (!transferData) {
+  if (!transferResult) {
     return (
       <div className="min-h-screen bg-[#00313A] text-white flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-500"></div>
@@ -44,9 +44,13 @@ const SuccessPage = () => {
 
   return (
     <TransferSuccess
-      amount={transferData.amount}
-      recipient={transferData.recipient}
-      transactionId={"TXN" + Date.now()}
+      amount={transferResult.transaction.amount}
+      recipient={{
+        name: transferResult.transaction.description,
+        id: transferResult.transaction.receiverId,
+        avatar: '', // Optionally fetch avatar if available
+      }}
+      transactionId={transferResult.transaction.transactionId}
     />
   );
 };

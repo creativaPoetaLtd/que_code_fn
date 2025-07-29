@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Navigation from "./Navigation";
 import { ArrowLeft, Scan, QrCode, Users, CreditCard, Search, Plus, Send, Smartphone } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { getWalletBalance, getCurrentUserId } from "@/helpers/api";
 
 interface Contact {
   id: string;
@@ -25,6 +26,27 @@ const TransferPageLayout = () => {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [balance, setBalance] = useState<number | null>(null);
+  const [balanceLoading, setBalanceLoading] = useState(true);
+  const [balanceError, setBalanceError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchBalance = async () => {
+      setBalanceLoading(true);
+      setBalanceError(null);
+      try {
+        const userId = getCurrentUserId();
+        if (!userId) throw new Error('User not found');
+        const data = await getWalletBalance(userId);
+        setBalance(Number(data.balance));
+      } catch (err: any) {
+        setBalanceError('Could not fetch balance');
+      } finally {
+        setBalanceLoading(false);
+      }
+    };
+    fetchBalance();
+  }, []);
 
   // Mock recent contacts
   const recentContacts: Contact[] = [
@@ -92,7 +114,9 @@ const TransferPageLayout = () => {
         <div className="bg-gradient-to-r from-[#00313A] to-[#00252e] rounded-3xl p-6 mb-8 text-white relative overflow-hidden">
           <div className="relative z-10">
             <p className="text-sm opacity-80 mb-1">Available Balance</p>
-            <h2 className="text-3xl font-bold mb-4">RWF 30,000</h2>
+            <h2 className="text-3xl font-bold mb-4">
+              {balanceLoading ? 'Loading...' : balanceError ? balanceError : `RWF ${balance?.toLocaleString()}`}
+            </h2>
             <div className="flex items-center space-x-2">
               <div className="bg-green-500/20 px-3 py-1 rounded-full">
                 <span className="text-green-300 text-sm font-medium">+12.5% this month</span>

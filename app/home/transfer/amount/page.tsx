@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { ArrowLeft, Check, Shield, AlertCircle, Eye, EyeOff } from "lucide-react";
 import Navigation from "@/components/Navigation";
+import { getWalletBalance, getCurrentUserId } from "@/helpers/api";
 
 interface Recipient {
   id: string;
@@ -23,8 +24,10 @@ const AmountPage = () => {
   const [error, setError] = useState("");
   const [recipient, setRecipient] = useState<Recipient | null>(null);
   const [step, setStep] = useState(1);
+  const [currentBalance, setCurrentBalance] = useState<number | null>(null);
+  const [balanceLoading, setBalanceLoading] = useState(true);
+  const [balanceError, setBalanceError] = useState<string | null>(null);
 
-  const currentBalance = 30000;
   const quickAmounts = [500, 1000, 2500, 5000, 10000, 25000];
 
   useEffect(() => {
@@ -36,6 +39,22 @@ const AmountPage = () => {
       // If no recipient, redirect back
       router.push('/home/transfer');
     }
+    // Fetch balance
+    const fetchBalance = async () => {
+      setBalanceLoading(true);
+      setBalanceError(null);
+      try {
+        const userId = getCurrentUserId();
+        if (!userId) throw new Error('User not found');
+        const data = await getWalletBalance(userId);
+        setCurrentBalance(Number(data.balance));
+      } catch (err: any) {
+        setBalanceError('Could not fetch balance');
+      } finally {
+        setBalanceLoading(false);
+      }
+    };
+    fetchBalance();
   }, [router]);
 
   const handleAmountSelect = (value: number) => {
@@ -63,7 +82,7 @@ const AmountPage = () => {
       return;
     }
 
-    if (numAmount > currentBalance) {
+    if (currentBalance !== null && numAmount > currentBalance) {
       setError("Insufficient balance");
       return;
     }
@@ -155,7 +174,7 @@ const AmountPage = () => {
             {/* Balance Display */}
             <div className="bg-gradient-to-r from-[#00313A] to-[#00252e] rounded-3xl p-6 mb-6 text-white">
               <p className="text-sm opacity-80 mb-1">Available Balance</p>
-              <h2 className="text-2xl font-bold">RWF {currentBalance.toLocaleString()}</h2>
+              <h2 className="text-2xl font-bold">RWF {balanceLoading ? 'Loading...' : balanceError ? balanceError : `RWF ${currentBalance?.toLocaleString()}`}</h2>
             </div>
 
             {/* Amount Input */}
@@ -183,11 +202,11 @@ const AmountPage = () => {
                   <button
                     key={quickAmount}
                     onClick={() => handleAmountSelect(quickAmount)}
-                    disabled={quickAmount > currentBalance}
+                    disabled={quickAmount > (currentBalance || 0)}
                     className={`py-3 px-4 rounded-xl font-medium transition ${
                       amount === quickAmount.toString()
                         ? 'bg-green-600 text-white'
-                        : quickAmount > currentBalance
+                        : (quickAmount > (currentBalance || 0))
                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}

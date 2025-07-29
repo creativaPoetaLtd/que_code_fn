@@ -5,6 +5,7 @@ import Navigation from "@/components/Navigation";
 import { ArrowLeft, CheckCircle, Shield, Clock, CreditCard, Smartphone } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { getCurrentUserId, transferMoney, getWalletBalance } from "@/helpers/api";
 
 interface Recipient {
   id: string;
@@ -19,6 +20,10 @@ const ConfirmationPage = () => {
   const [amount, setAmount] = useState("5000");
   const [recipient, setRecipient] = useState<Recipient | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [currentBalance, setCurrentBalance] = useState<number | null>(null);
+  const [balanceLoading, setBalanceLoading] = useState(true);
+  const [balanceError, setBalanceError] = useState<string | null>(null);
+  const [transferError, setTransferError] = useState<string | null>(null);
 
   useEffect(() => {
     // Get transfer data from session storage
@@ -32,27 +37,47 @@ const ConfirmationPage = () => {
     } else {
       router.push('/home/transfer');
     }
+    // Fetch balance
+    const fetchBalance = async () => {
+      setBalanceLoading(true);
+      setBalanceError(null);
+      try {
+        const userId = getCurrentUserId();
+        if (!userId) throw new Error('User not found');
+        const data = await getWalletBalance(userId);
+        setCurrentBalance(Number(data.balance));
+      } catch (err: any) {
+        setBalanceError('Could not fetch balance');
+      } finally {
+        setBalanceLoading(false);
+      }
+    };
+    fetchBalance();
   }, [router]);
 
-  const currentBalance = 30000;
   const transferAmount = parseFloat(amount);
-  const remainingBalance = currentBalance - transferAmount;
+  const remainingBalance = currentBalance ? currentBalance - transferAmount : 0;
 
   const handleConfirm = async () => {
     setIsLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      // Store transfer data for success page
-      sessionStorage.setItem('transferData', JSON.stringify({
-        amount: amount,
-        recipient: recipient
-      }));
-      
-      // Redirect to success page
-      router.push("/home/transfer/success");
+    setTransferError(null);
+    try {
+      const senderId = getCurrentUserId();
+      if (!senderId || !recipient) throw new Error('User or recipient not found');
+      const result = await transferMoney({
+        senderId,
+        receiverId: recipient.id,
+        amount: Number(amount),
+        description: 'Payment',
+      });
+      // Store transfer result for success page
+      sessionStorage.setItem('transferResult', JSON.stringify(result));
+      router.push('/home/transfer/success');
+    } catch (err: any) {
+      setTransferError(err?.response?.data?.message || 'Transfer failed');
+    } finally {
       setIsLoading(false);
-    }, 2000);
+    }
   };
 
   return (
@@ -148,7 +173,7 @@ const ConfirmationPage = () => {
           <div className="space-y-3">
             <div className="flex justify-between items-center">
               <span className="text-gray-600">Current Balance</span>
-              <span className="font-medium text-gray-900">RWF {currentBalance.toLocaleString()}</span>
+              <span className="font-medium text-gray-900">RWF {currentBalance?.toLocaleString() || "Loading..."}</span>
             </div>
             
             <div className="flex justify-between items-center">
@@ -170,6 +195,7 @@ const ConfirmationPage = () => {
         </div> */}
 
         {/* Confirm Button */}
+        {transferError && <div className="text-red-500 text-center mb-4">{transferError}</div>}
         <button
           onClick={handleConfirm}
           disabled={isLoading}
