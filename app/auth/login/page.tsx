@@ -2,7 +2,7 @@
 'use client';
 import { GoogleOutlined } from '@ant-design/icons';
 import { notification } from 'antd';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, Controller } from 'react-hook-form';
 import ImageSection from '../ImageSection';
@@ -24,9 +24,11 @@ interface APIError {
     message?: string;
   };
 }
+
 const LoginPage: React.FC = () => {
   const router = useRouter();
   const [login, { isLoading }] = useLoginMutation();
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
   const {
     control,
@@ -40,28 +42,153 @@ const LoginPage: React.FC = () => {
     },
   });
 
+  // Check if user is already logged in
+  useEffect(() => {
+    const checkAuthStatus = () => {
+      const authToken = localStorage.getItem('authToken');
+      if (authToken) {
+        try {
+          const base64Url = authToken.split('.')[1];
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const payload = JSON.parse(atob(base64));
+          
+          // Check if token is not expired
+          if (payload.exp && payload.exp * 1000 > Date.now()) {
+            const userId = payload?.userId || payload?.id || payload?.sub;
+            if (userId) {
+              router.replace(`/home/${userId}`);
+            } else {
+              router.replace('/home');
+            }
+            return;
+          } else {
+            // Token is expired, remove it
+            localStorage.removeItem('authToken');
+          }
+        } catch (error) {
+          console.error('Invalid token:', error);
+          localStorage.removeItem('authToken');
+        }
+      }
+      setCheckingAuth(false);
+    };
+    
+    checkAuthStatus();
+  }, [router]);
+
+  useEffect(() => {
+    const handleTokenMessage = (event: MessageEvent) => {
+      if (event.origin !== mainUrl) {
+        console.error('Received message from unauthorized origin:', event.origin);
+        return;
+      }
+
+      try {
+        if (event.data && event.data.token) {
+          console.log('Token received from Google login');
+          localStorage.setItem('authToken', event.data.token);
+          
+          // Decode Google token to get user ID
+          const decodeToken = (token: string) => {
+            try {
+              const base64Url = token.split('.')[1];
+              const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+              const payload = JSON.parse(atob(base64));
+              return payload;
+            } catch (error) {
+              console.error("Error decoding token:", error);
+              return null;
+            }
+          };
+
+          const payload = decodeToken(event.data.token);
+          const userId = payload?.userId || payload?.id || payload?.sub;
+          const userName = payload?.name || payload?.firstName || 'User';
+          
+          
+          
+          // Redirect to home with userId for Google login too
+          if (userId) {
+            router.replace(`/home/${userId}`);
+          } else {
+            console.warn('No userId found in Google token, redirecting to generic home');
+            router.replace('/home');
+          }
+
+          notification.success({
+            message: 'Login Successful',
+            description: `Welcome back, ${userName}!`,
+            placement: 'topRight',
+          });
+        }
+      } catch (error) {
+        console.error('Error processing message:', error);
+        notification.error({
+          message: 'Login Error',
+          description: 'An error occurred during Google login.',
+          placement: 'topRight',
+        });
+      }
+    };
+
+    window.addEventListener('message', handleTokenMessage);
+    return () => window.removeEventListener('message', handleTokenMessage);
+  }, [router]);
+
+  if (checkingAuth) {
+    return null; // Or a loading spinner if you want
+  }
+
   const onSubmit = async (data: LoginFormInputs) => {
     try {
       const response = await login(data).unwrap();
       console.log("Response", response);
-
-      const { token, user } = response;
-
-      localStorage.setItem('authToken', token);
-      if (user) {
-        localStorage.setItem('user', JSON.stringify(user));
+      const { token } = response;
+  
+      // Decode the JWT token to extract the user's name and ID
+      const decodeToken = (token: string) => {
+        try {
+          const base64Url = token.split('.')[1];
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const payload = JSON.parse(atob(base64));
+          return payload;
+        } catch (error) {
+          console.error("Error decoding token:", error);
+          return null;
+        }
+      };
+  
+      const payload = decodeToken(token);
+      if (!payload) {
+        throw new Error('Invalid token received');
       }
+      
+      const userName = payload?.name || payload?.firstName || 'User';
+      const userId = payload?.userId || payload?.id || payload?.sub;
+  
+      console.log('Login successful - User ID:', userId);
+      console.log('Login successful - User Name:', userName);
+      
+      localStorage.setItem('authToken', token);
       notification.success({
         message: 'Login Successful',
-        description: `Welcome back, ${user?.data?.dataValues?.email}`,
+        description: `Welcome back, ${userName}!`,
         placement: 'topRight',
       });
-      router.push('/dashboard');
+  
+      // Redirect to home with userId as a parameter
+      if (userId) {
+        router.push(`/home/${userId}`);
+      } else {
+        console.warn('No userId found in token, redirecting to generic home');
+        router.push('/home');
+      }
     } catch (error) {
+      console.error('Login error:', error);
       const err = error as APIError;
       const status = err?.status;
       const errorMessage = err?.data?.message || 'An error occurred during login';
-
+  
       if (status === 404) {
         notification.error({
           message: 'Login Failed',
@@ -76,7 +203,7 @@ const LoginPage: React.FC = () => {
         });
       } else {
         notification.error({
-          message: 'Error',
+          message: 'Login Error',
           description: errorMessage,
           placement: 'topRight',
         });
@@ -118,38 +245,6 @@ const LoginPage: React.FC = () => {
     }, 1000);
   };
 
-  useEffect(() => {
-    const handleTokenMessage = (event: MessageEvent) => {
-      if (event.origin !== mainUrl) {
-        console.error('Received message from unauthorized origin:', event.origin);
-        return;
-      }
-
-      try {
-        if (event.data && event.data.token) {
-          console.log('Token received from Google login');
-          localStorage.setItem('authToken', event.data.token);
-          notification.success({
-            message: 'Login Successful',
-            description: 'You have been logged in with Google.',
-            placement: 'topRight',
-          });
-          router.replace('/dashboard');
-        }
-      } catch (error) {
-        console.error('Error processing message:', error);
-        notification.error({
-          message: 'Login Error',
-          description: 'An error occurred during Google login.',
-          placement: 'topRight',
-        });
-      }
-    };
-
-    window.addEventListener('message', handleTokenMessage);
-    return () => window.removeEventListener('message', handleTokenMessage);
-  }, [router]);
-
   return (
     <div className="flex h-screen">
       <div className="flex flex-col justify-center lg:w-1/2 w-full md:px-32 px-4">
@@ -157,7 +252,7 @@ const LoginPage: React.FC = () => {
           Welcome Back <span role="img" aria-label="wave">👋</span>
         </h1>
         <p className="mt-2 text-gray-600">
-          Today is a new day. {`It's`} your day. You shape it.
+          Today is a new day. It's your day. You shape it.
         </p>
         <form className="mt-6" method='POST' onSubmit={handleSubmit(onSubmit)}>
           <div className="mb-4">
@@ -220,11 +315,12 @@ const LoginPage: React.FC = () => {
             htmlType="submit"
             type="primary"
             className="w-full !mt-4"
+            disabled={isLoading}
           >
             {isLoading ? (
               <div className="flex items-center justify-center">
-                <ClipLoader color='#fffff' size={20} />
-                Signing in...
+                <ClipLoader color='#ffffff' size={20} />
+                <span className="ml-2">Signing in...</span>
               </div>
             ) : (
               'Sign in'
@@ -242,12 +338,13 @@ const LoginPage: React.FC = () => {
           icon={<GoogleOutlined />}
           className="w-full flex justify-center items-center bg-gray-100 border-gray-300 text-gray-700 hover:text-white"
           onClick={handleGoogleLogin}
+          disabled={isLoading}
         >
           Sign in with Google
         </Button>
 
         <p className="mt-6 text-sm text-center">
-          {`Don't`} you have an account? <a href="/auth/signup" className="text-[#00B512] hover:underline">Sign up</a>
+          Don't you have an account? <a href="/auth/signup" className="text-[#00B512] hover:underline">Sign up</a>
         </p>
       </div>
       <ImageSection url="/Images/art1.png" />
