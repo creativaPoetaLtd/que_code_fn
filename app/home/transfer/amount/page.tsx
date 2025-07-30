@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { ArrowLeft, Check, Shield, AlertCircle, Eye, EyeOff } from "lucide-react";
 import Navigation from "@/components/Navigation";
-import { getWalletBalance, getCurrentUserId } from "@/helpers/api";
+import { getWalletBalance, getCurrentUserId, transferMoney } from "@/helpers/api";
 
 interface Recipient {
   id: string;
@@ -27,6 +27,7 @@ const AmountPage = () => {
   const [currentBalance, setCurrentBalance] = useState<number | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(true);
   const [balanceError, setBalanceError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const quickAmounts = [500, 1000, 2500, 5000, 10000, 25000];
 
@@ -95,7 +96,7 @@ const AmountPage = () => {
     setStep(2);
   };
 
-  const handleConfirm = (e: React.FormEvent) => {
+  const handleConfirm = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (pin.length !== 4) {
@@ -103,14 +104,30 @@ const AmountPage = () => {
       return;
     }
 
-    // Store transfer data
-    sessionStorage.setItem('transferAmount', amount);
-    sessionStorage.setItem('transferData', JSON.stringify({
-      amount: amount,
-      recipient: recipient
-    }));
+    if (!recipient) {
+      setError("Recipient not found");
+      return;
+    }
 
-    router.push("/home/transfer/confirmation");
+    setLoading(true);
+    setError("");
+    try {
+      const senderId = getCurrentUserId();
+      if (!senderId) throw new Error("User not found");
+      const result = await transferMoney({
+        senderId,
+        receiverId: recipient.id,
+        amount: Number(amount),
+        description: "Payment",
+      });
+      // Optionally store result for success page
+      sessionStorage.setItem('transferResult', JSON.stringify(result));
+      router.push("/home/transfer/success");
+    } catch (err: any) {
+      setError(err?.response?.data?.message || err?.message || 'Transfer failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!recipient) {
@@ -301,10 +318,10 @@ const AmountPage = () => {
 
                 <button
                   type="submit"
-                  disabled={pin.length !== 4}
+                  disabled={pin.length !== 4 || loading}
                   className="w-full mt-6 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold py-4 rounded-2xl transition text-lg"
                 >
-                  Confirm Transfer
+                  {loading ? 'Processing...' : 'Confirm Transfer'}
                 </button>
               </form>
             </div>

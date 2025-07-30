@@ -5,7 +5,7 @@ import Navigation from "./Navigation";
 import { ArrowLeft, Scan, QrCode, Users, CreditCard, Search, Plus, Send, Smartphone } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { getWalletBalance, getCurrentUserId } from "@/helpers/api";
+import { getWalletBalance, getCurrentUserId, getAllUsers } from "@/helpers/api";
 
 interface Contact {
   id: string;
@@ -26,6 +26,9 @@ const TransferPageLayout = () => {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [contactsLoading, setContactsLoading] = useState(true);
+  const [contactsError, setContactsError] = useState<string | null>(null);
   const [balance, setBalance] = useState<number | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(true);
   const [balanceError, setBalanceError] = useState<string | null>(null);
@@ -46,15 +49,31 @@ const TransferPageLayout = () => {
       }
     };
     fetchBalance();
-  }, []);
 
-  // Mock recent contacts
-  const recentContacts: Contact[] = [
-    { id: "1", name: "John Doe", phone: "+250 788 123 456", avatar: "/Images/Profile.png", isOnline: true },
-    { id: "2", name: "Sarah Wilson", phone: "+250 788 654 321", avatar: "/Images/Profile.png", isOnline: false },
-    { id: "3", name: "Mike Johnson", phone: "+250 788 987 654", avatar: "/Images/Profile.png", isOnline: true },
-    { id: "4", name: "Emma Davis", phone: "+250 788 456 789", avatar: "/Images/Profile.png", isOnline: false },
-  ];
+    const fetchContacts = async () => {
+      setContactsLoading(true);
+      setContactsError(null);
+      try {
+        const users = await getAllUsers();
+        // Optionally filter out the current user
+        const userId = getCurrentUserId();
+        const filtered = users.filter((u: any) => u.id !== userId);
+        // Map to Contact type
+        setContacts(filtered.map((u: any) => ({
+          id: u.id,
+          name: `${u.firstName} ${u.lastName}`,
+          phone: u.phone,
+          avatar: u.profileImage || "/Images/Profile.png",
+          isOnline: !!u.isOnline // or use a real field if available
+        })));
+      } catch (err: any) {
+        setContactsError('Could not fetch contacts');
+      } finally {
+        setContactsLoading(false);
+      }
+    };
+    fetchContacts();
+  }, []);
 
   const quickActions: QuickAction[] = [
     { 
@@ -90,7 +109,7 @@ const TransferPageLayout = () => {
     router.push("/home/transfer/amount");
   };
 
-  const filteredContacts = recentContacts.filter(contact =>
+  const filteredContacts = contacts.filter(contact =>
     contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     contact.phone.includes(searchQuery)
   );
@@ -113,7 +132,7 @@ const TransferPageLayout = () => {
         {/* Balance Card */}
         <div className="bg-gradient-to-r from-[#00313A] to-[#00252e] rounded-3xl p-6 mb-8 text-white relative overflow-hidden">
           <div className="relative z-10">
-            <p className="text-sm opacity-80 mb-1">Available Balance</p>
+            <p className="text-sm opacity-80 mb-1">Available Balancee</p>
             <h2 className="text-3xl font-bold mb-4">
               {balanceLoading ? 'Loading...' : balanceError ? balanceError : `RWF ${balance?.toLocaleString()}`}
             </h2>
@@ -169,7 +188,17 @@ const TransferPageLayout = () => {
           </div>
 
           <div className="space-y-3">
-            {filteredContacts.length > 0 ? (
+            {contactsLoading ? (
+              <div className="text-center py-12">
+                <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500">Loading contacts...</p>
+              </div>
+            ) : contactsError ? (
+              <div className="text-center py-12">
+                <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                <p className="text-red-500">{contactsError}</p>
+              </div>
+            ) : filteredContacts.length > 0 ? (
               filteredContacts.map((contact) => (
                 <button
                   key={contact.id}
@@ -191,14 +220,12 @@ const TransferPageLayout = () => {
                         <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
                       )}
                     </div>
-                    
                     <div className="flex-1 text-left">
                       <h4 className="font-medium text-gray-900 group-hover:text-green-600 transition">
                         {contact.name}
                       </h4>
                       <p className="text-sm text-gray-500">{contact.phone}</p>
                     </div>
-                    
                     <div className="w-8 h-8 bg-gray-50 rounded-full flex items-center justify-center group-hover:bg-green-100 transition">
                       <Send className="w-4 h-4 text-gray-400 group-hover:text-green-600" />
                     </div>
@@ -216,7 +243,7 @@ const TransferPageLayout = () => {
             ) : (
               <div className="text-center py-12">
                 <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500">No recent contacts</p>
+                <p className="text-gray-500">No contacts found</p>
                 <button className="mt-2 text-green-600 font-medium hover:text-green-700 transition">
                   Add your first contact
                 </button>

@@ -4,6 +4,7 @@ import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import { Copy, CreditCard, Send, Share2 } from 'lucide-react';
 import baseUrl from '@/helpers/baseUrl';
+import { getWalletBalance } from '@/helpers/api';
 
 interface AccountInfoProps {
     userId: string;
@@ -15,6 +16,9 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
     const [user, setUser] = useState({ firstName: '', lastName: '', qrCode: '' });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [balance, setBalance] = useState<number | null>(null);
+    const [balanceLoading, setBalanceLoading] = useState(true);
+    const [balanceError, setBalanceError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchUserData = async () => {
@@ -50,6 +54,20 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
                 return;
             }
             await fetchUserDataById(userId);
+            // Fetch wallet balance
+            setBalanceLoading(true);
+            setBalanceError(null);
+            try {
+                console.log('AccountInfo - fetching balance for userId:', userId);
+                const data = await getWalletBalance(userId);
+                console.log('AccountInfo - balance data received:', data);
+                setBalance(Number(data.balance));
+            } catch (err) {
+                console.error('AccountInfo - balance fetch error:', err);
+                setBalanceError('Could not fetch balance');
+            } finally {
+                setBalanceLoading(false);
+            }
         };
 
         const fetchUserDataById = async (id: string) => {
@@ -173,7 +191,9 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
                 {/* Balance Display */}
                 <div className="mt-4 p-4 bg-gradient-to-r from-[#00313A] to-[#00252e] rounded-lg">
                     <p className="text-sm text-gray-300 mb-1">Available Balance</p>
-                    <h4 className="text-2xl font-bold text-white">RWF 30,000</h4>
+                    <h4 className="text-2xl font-bold text-white">
+                        {balanceLoading ? 'Loading...' : balanceError ? balanceError : `RWF ${balance?.toLocaleString()}`}
+                    </h4>
                     <div className="flex items-center space-x-1 mt-1">
                         <span className="text-xs text-green-400">+12.5% this month</span>
                     </div>
