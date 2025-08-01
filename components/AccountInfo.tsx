@@ -1,17 +1,24 @@
 "use client"
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { useRouter } from 'next/navigation';
 import { Copy, CreditCard, Send, Share2 } from 'lucide-react';
 import baseUrl from '@/helpers/baseUrl';
+import { getWalletBalance } from '@/helpers/api';
 
 interface AccountInfoProps {
     userId: string;
 }
 
 const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
+        const router = useRouter();
+    
     const [user, setUser] = useState({ firstName: '', lastName: '', qrCode: '' });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [balance, setBalance] = useState<number | null>(null);
+    const [balanceLoading, setBalanceLoading] = useState(true);
+    const [balanceError, setBalanceError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchUserData = async () => {
@@ -47,6 +54,20 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
                 return;
             }
             await fetchUserDataById(userId);
+            // Fetch wallet balance
+            setBalanceLoading(true);
+            setBalanceError(null);
+            try {
+                console.log('AccountInfo - fetching balance for userId:', userId);
+                const data = await getWalletBalance(userId);
+                console.log('AccountInfo - balance data received:', data);
+                setBalance(Number(data.balance));
+            } catch (err) {
+                console.error('AccountInfo - balance fetch error:', err);
+                setBalanceError('Could not fetch balance');
+            } finally {
+                setBalanceLoading(false);
+            }
         };
 
         const fetchUserDataById = async (id: string) => {
@@ -166,6 +187,17 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
                 <h3 className="text-xl sm:text-2xl font-bold text-[#00313A] mt-1">
                     {user.firstName} {user.lastName}
                 </h3>
+                
+                {/* Balance Display */}
+                <div className="mt-4 p-4 bg-gradient-to-r from-[#00313A] to-[#00252e] rounded-lg">
+                    <p className="text-sm text-gray-300 mb-1">Available Balance</p>
+                    <h4 className="text-2xl font-bold text-white">
+                        {balanceLoading ? 'Loading...' : balanceError ? balanceError : `RWF ${balance?.toLocaleString()}`}
+                    </h4>
+                    <div className="flex items-center space-x-1 mt-1">
+                        <span className="text-xs text-green-400">+12.5% this month</span>
+                    </div>
+                </div>
             </div>
 
             <div className="max-w-md mx-auto">
@@ -218,7 +250,10 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
                 </div>
 
                 <div className="flex justify-center gap-8 sm:gap-12 mt-6 sm:mt-8">
-                    <button className="flex flex-col items-center group">
+                    <button 
+                    onClick={() => router.push('/home/transfer')}
+                    className="flex flex-col items-center group"
+                    >
                         <span className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-2 group-hover:bg-green-200 transition-colors">
                             <Send size={24} className="text-green-600" />
                         </span>

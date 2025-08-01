@@ -1,10 +1,10 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Bell, Eye, EyeOff, User } from "lucide-react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import baseUrl from "@/helpers/baseUrl";
+import { getWalletBalance } from '@/helpers/api';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export const Header = () => {
@@ -45,6 +45,26 @@ export const Header = () => {
         };
         fetchUser();
     }, [userId]);
+        const [balance, setBalance] = useState<number | null>(null);
+        const [balanceLoading, setBalanceLoading] = useState(true);
+        const [balanceError, setBalanceError] = useState<string | null>(null);
+
+        useEffect(() => {
+            if (!userId) return;
+            const fetchBalance = async () => {
+                setBalanceLoading(true);
+                setBalanceError(null);
+                try {
+                    const data = await getWalletBalance(userId);
+                    setBalance(Number(data.balance));
+                } catch (err) {
+                    setBalanceError('Could not fetch balance');
+                } finally {
+                    setBalanceLoading(false);
+                }
+            };
+            fetchBalance();
+        }, [userId]);
 
     const toggleDropdown = () => {
         setIsDropdownOpen(!isDropdownOpen);
@@ -59,7 +79,13 @@ export const Header = () => {
             {/* Left Section: Amount */}
             <div className="flex items-center space-x-2">
                 <h2 className="text-md lg:text-2xl font-bold text-[#00313A]">
-                    {isBalanceVisible ? "RWF 200,000" : "•••••••••"}
+                    {balanceLoading
+                        ? 'Loading...'
+                        : balanceError
+                        ? balanceError
+                        : isBalanceVisible
+                        ? `RWF ${balance?.toLocaleString()}`
+                        : '••••••••••'}
                 </h2>
                 <button
                     onClick={toggleBalanceVisibility}

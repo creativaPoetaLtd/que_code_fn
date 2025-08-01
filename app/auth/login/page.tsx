@@ -170,7 +170,6 @@ const LoginPage: React.FC = () => {
       console.log('Login successful - User Name:', userName);
       
       localStorage.setItem('authToken', token);
-  
       notification.success({
         message: 'Login Successful',
         description: `Welcome back, ${userName}!`,
