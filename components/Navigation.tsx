@@ -17,6 +17,7 @@ import {
     ScanLine,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useAuthToken } from "@/hooks/use-auth-token"
 
 interface NavigationItem {
     id: string
@@ -31,17 +32,18 @@ export default function Navigation() {
     const [activeItem, setActiveItem] = useState<string>("Home")
     const [userId, setUserId] = useState<string>("")
     const [isReady, setIsReady] = useState<boolean>(false)
+    const { getToken } = useAuthToken()
     const router = useRouter()
-    const params = useParams() 
+    const params = useParams()
 
     // Get userId from URL params or token
     useEffect(() => {
         const getUserId = () => {
             let currentUserId = params.userId as string;
-            
+
             // If userId is not in URL, try to get it from token
             if (!currentUserId || currentUserId === 'undefined') {
-                const authToken = localStorage.getItem('authToken');
+                const authToken = getToken();
                 if (authToken) {
                     try {
                         const base64Url = authToken.split('.')[1];
@@ -53,11 +55,11 @@ export default function Navigation() {
                     }
                 }
             }
-            
+
             setUserId(currentUserId || "");
             setIsReady(true);
         };
-        
+
         getUserId();
     }, [params]);
 
@@ -71,14 +73,14 @@ export default function Navigation() {
         { id: "Statistics", icon: <BarChart2 size={24} />, label: "Statistics", path: userId ? `/statistics/${userId}` : '/statistics' },
         { id: "Scan", icon: <ScanLine size={24} />, label: "Scan", path: "", isCenterButton: true },
         { id: "Actions", icon: <FileText size={24} />, label: "Actions", path: userId ? `/action/${userId}` : '/action' },
-        { id: "Chat", icon: <MessageCircle size={24} />, label: "Chat", path: userId ? `/chat/${userId}` : '/chat' },
+        { id: "Chat", icon: <MessageCircle size={24} />, label: "Chat", path: userId ? `/chat` : '/chat' },
     ]
 
     const mainMenuItems: NavigationItem[] = [
         { id: "Home", icon: <Home size={24} />, label: "Home", path: userId ? `/home/${userId}` : '/home' },
         { id: "Statistics", icon: <BarChart2 size={24} />, label: "Statistics", path: userId ? `/statistics/${userId}` : '/statistics' },
         { id: "Actions", icon: <FileText size={24} />, label: "Action", path: userId ? `/action/${userId}` : '/action' },
-        { id: "Chat", icon: <MessageCircle size={24} />, label: "Chat", path: userId ? `/chat/${userId}` : '/chat' },
+        { id: "Chat", icon: <MessageCircle size={24} />, label: "Chat", path: userId ? `/chat` : '/chat' },
     ]
 
     const bottomMenuItems: NavigationItem[] = [
@@ -109,6 +111,7 @@ export default function Navigation() {
             router.push(path);
         }
     }
+
 
     return (
         <>

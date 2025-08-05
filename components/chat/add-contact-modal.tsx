@@ -6,9 +6,12 @@ import Input from "../ui/Input-ant"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
-import { UserPlus, Search, User, Mail, Phone, QrCode } from "lucide-react"
+import { UserPlus, Search, User, Mail, Phone, QrCode, Link, Loader2 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import QRCodeScanner from "./qr-code-scanner"
+import { useInviteContactMutation } from "@/states/contactSlice"
+import { useAuthToken } from "@/hooks/use-auth-token"
+import { extractPublicIdFromLink, validatePublicId } from "@/utils/profile-link"
 
 interface AddContactModalProps {
     isOpen: boolean
@@ -24,14 +27,21 @@ interface ContactSearchResult {
 
 export default function AddContactModal({ isOpen, onClose }: AddContactModalProps) {
     const [searchTerm, setSearchTerm] = useState<string>("")
+    const [profileLink, setProfileLink] = useState<string>("")
     const [name, setName] = useState<string>("")
     const [email, setEmail] = useState<string>("")
     const [phone, setPhone] = useState<string>("")
     const [step, setStep] = useState<number>(1)
     const [searchResults, setSearchResults] = useState<ContactSearchResult[]>([])
     const [isQRScannerOpen, setIsQRScannerOpen] = useState<boolean>(false)
+    const [extractedPublicId, setExtractedPublicId] = useState<string>("")
 
-    // Mock search function
+    // Redux hooks
+    const [inviteContact, { isLoading: isInviting }] = useInviteContactMutation()
+    const { getToken } = useAuthToken()
+    const token = getToken();
+
+    // Mock search function (you can replace this with actual search API)
     const handleSearch = () => {
         if (searchTerm.length < 3) {
             toast({
@@ -41,12 +51,71 @@ export default function AddContactModal({ isOpen, onClose }: AddContactModalProp
             })
             return
         }
-
         // Simulate search results
         setSearchResults([
             { id: 101, name: "John Smith", email: "john.smith@example.com", phone: "+1 555-123-4567" },
             { id: 102, name: "Jane Doe", email: "jane.doe@example.com", phone: "+1 555-987-6543" },
         ])
+    }
+
+    const handleProfileLinkSubmit = () => {
+        if (!profileLink.trim()) {
+            toast({
+                title: "Error",
+                description: "Please enter a profile link or public ID",
+                variant: "destructive",
+            })
+            return
+        }
+
+        const publicId = extractPublicIdFromLink(profileLink.trim())
+
+        if (!publicId || !validatePublicId(publicId)) {
+            toast({
+                title: "Invalid Link",
+                description: "Please enter a valid profile link or public ID",
+                variant: "destructive",
+            })
+            return
+        }
+
+        setExtractedPublicId(publicId)
+        handleInviteByPublicId(publicId)
+    }
+
+    const handleInviteByPublicId = async (publicId: string) => {
+        if (!token) {
+            toast({
+                title: "Authentication Error",
+                description: "Please log in to send invitations",
+                variant: "destructive",
+            })
+            return
+        }
+
+        try {
+            const result = await inviteContact({
+                invitationData: { publicId },
+                token,
+            }).unwrap()
+
+            toast({
+                title: "Invitation Sent",
+                description: `Invitation sent successfully to ${result.data.inviteeName}`,
+            })
+
+            handleClose()
+        } catch (error: any) {
+            console.error("Invitation error:", error)
+
+            const errorMessage = error?.data?.message || error?.message || "Failed to send invitation"
+
+            toast({
+                title: "Invitation Failed",
+                description: errorMessage,
+                variant: "destructive",
+            })
+        }
     }
 
     const selectContact = (contact: ContactSearchResult) => {
@@ -73,39 +142,48 @@ export default function AddContactModal({ isOpen, onClose }: AddContactModalProp
             return
         }
 
+        // For manual entry, you might want to implement a different endpoint
+        // or handle this differently based on your backend requirements
         toast({
-            title: "Contact added",
-            description: `${name} has been added to your contacts`,
+            title: "Manual Entry",
+            description: "Manual contact entry is not yet implemented. Please use profile links or QR codes.",
+            variant: "destructive",
         })
-
-        // Reset and close
-        setSearchTerm("")
-        setName("")
-        setEmail("")
-        setPhone("")
-        setStep(1)
-        setSearchResults([])
-        onClose()
     }
 
     const handleClose = () => {
         // Reset state when closing
         setSearchTerm("")
+        setProfileLink("")
         setName("")
         setEmail("")
         setPhone("")
         setStep(1)
         setSearchResults([])
+        setExtractedPublicId("")
         onClose()
     }
 
     const handleScanComplete = (result: string) => {
-        // In a real app, you would parse the result and fetch user details
-        // For this example, we'll set some dummy data
-        setName("John Doe (via QR)")
-        setEmail("john.doe@example.com")
-        setPhone("+1 555-987-6543")
-        setStep(2)
+        setIsQRScannerOpen(false)
+
+        // The QR code should contain a profile link
+        const publicId = extractPublicIdFromLink(result)
+
+        if (!publicId || !validatePublicId(publicId)) {
+            toast({
+                title: "Invalid QR Code",
+                description: "The scanned QR code does not contain a valid profile link",
+                variant: "destructive",
+            })
+            return
+        }
+
+        setExtractedPublicId(publicId)
+        setProfileLink(result)
+
+        // Automatically send invitation
+        handleInviteByPublicId(publicId)
     }
 
     return (
@@ -121,114 +199,59 @@ export default function AddContactModal({ isOpen, onClose }: AddContactModalProp
                         </div>
                     </DialogHeader>
 
-                    {step === 1 ? (
-                        <div className="py-4">
-                            <div className="mb-6">
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" size={18} />
-                                    <Input
-                                        placeholder="Search by name, email or phone"
-                                        className="pl-10"
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                        onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                                    />
+
+                    <div className="py-4">
+                        {/* Profile Link Input Section */}
+                        <div className="mb-6">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                <div className="flex items-center">
+                                    <Link size={16} className="mr-2" />
+                                    <span>Profile Link or Public ID</span>
                                 </div>
-                                <div className="flex justify-end mt-2">
-                                    <Button onClick={handleSearch}>Search</Button>
-                                </div>
-                            </div>
-
-                            <div className="text-center mt-6 mb-4">
-                                <p className="text-sm text-gray-500 mb-2">Scan QR code or enter invitation link</p>
-                                <Button onClick={() => setIsQRScannerOpen(true)}>
-                                    <QrCode size={16} className="mr-2" />
-                                    Scan QR Code
-                                </Button>
-                            </div>
-
-                            {searchResults.length > 0 && (
-                                <div className="mb-6">
-                                    <h3 className="text-sm font-medium text-gray-700 mb-2">Search Results</h3>
-                                    <div className="space-y-2">
-                                        {searchResults.map((contact) => (
-                                            <div
-                                                key={contact.id}
-                                                className="flex items-center p-3 rounded-md cursor-pointer hover:bg-gray-50 border border-gray-200"
-                                                onClick={() => selectContact(contact)}
-                                            >
-                                                <Avatar className="mr-3">
-                                                    <AvatarFallback>{contact.name.charAt(0)}</AvatarFallback>
-                                                </Avatar>
-                                                <div>
-                                                    <p className="font-medium">{contact.name}</p>
-                                                    <p className="text-sm text-gray-500">{contact.email}</p>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            <Separator className="my-4" />
-
-                            <div className="text-center">
-                                <p className="text-sm text-gray-500 mb-2">Can't find who you're looking for?</p>
-                                <Button onClick={handleAddManually}>Add Contact Manually</Button>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="py-4">
-                            <div className="mb-4">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    <div className="flex items-center">
-                                        <User size={16} className="mr-2" />
-                                        <span>Name</span>
-                                    </div>
-                                </label>
-                                <Input placeholder="Enter contact name" value={name} onChange={(e) => setName(e.target.value)} />
-                            </div>
-
-                            <div className="mb-4">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    <div className="flex items-center">
-                                        <Mail size={16} className="mr-2" />
-                                        <span>Email</span>
-                                    </div>
-                                </label>
+                            </label>
+                            <div className="space-y-2">
                                 <Input
-                                    type="email"
-                                    placeholder="Enter email address"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
+                                    placeholder="Enter profile link or public ID (e.g., b92d32fae059)"
+                                    value={profileLink}
+                                    onChange={(e) => setProfileLink(e.target.value)}
+                                    onKeyDown={(e) => e.key === "Enter" && handleProfileLinkSubmit()}
                                 />
-                            </div>
-
-                            <div className="mb-4">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    <div className="flex items-center">
-                                        <Phone size={16} className="mr-2" />
-                                        <span>Phone</span>
-                                    </div>
-                                </label>
-                                <Input placeholder="Enter phone number" value={phone} onChange={(e) => setPhone(e.target.value)} />
-                            </div>
-                        </div>
-                    )}
-
-                    <DialogFooter>
-                        {step === 1 ? (
-                            <Button variant="outline" onClick={handleClose}>
-                                Cancel
-                            </Button>
-                        ) : (
-                            <div className="flex justify-between w-full">
-                                <Button variant="outline" onClick={() => setStep(1)}>
-                                    Back
+                                <Button
+                                    onClick={handleProfileLinkSubmit}
+                                    disabled={isInviting || !profileLink.trim()}
+                                    className="w-full"
+                                >
+                                    {isInviting ? (
+                                        <>
+                                            <Loader2 size={16} className="mr-2 animate-spin" />
+                                            Sending Invitation...
+                                        </>
+                                    ) : (
+                                        "Send Invitation"
+                                    )}
                                 </Button>
-                                <Button onClick={handleSubmit}>Add Contact</Button>
                             </div>
-                        )}
+                            {extractedPublicId && (
+                                <p className="text-xs text-green-600 mt-1">Extracted Public ID: {extractedPublicId}</p>
+                            )}
+                        </div>
+
+                        <Separator className="my-4" />
+
+                        {/* QR Code Scanner Section */}
+                        <div className="text-center mb-6">
+                            <p className="text-sm text-gray-500 mb-3">Or scan a QR code</p>
+                            <Button onClick={() => setIsQRScannerOpen(true)} variant="outline" disabled={isInviting}>
+                                <QrCode size={16} className="mr-2" />
+                                Scan QR Code
+                            </Button>
+                        </div>
+                    </div>
+                    <DialogFooter>
+
+                        <Button variant="outline" onClick={handleClose} disabled={isInviting}>
+                            Cancel
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
