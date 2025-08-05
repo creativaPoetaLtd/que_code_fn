@@ -102,8 +102,8 @@ export default function GroupsModal({ isOpen, onClose, onJoinGroup, existingConv
         onClose()
         setSearchTerm("")
         toast({
-            title: "Joined Group",
-            description: `You have joined ${group.name}`,
+            title: "Send Join Request",
+            description: `You are about to join the group. Please wait for approval.`,
         })
     }
 

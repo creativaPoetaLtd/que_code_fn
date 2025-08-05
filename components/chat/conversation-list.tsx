@@ -45,8 +45,6 @@ export default function ConversationListWithFilters({
 
     // Filter conversations based on search term and active filter
     const filteredConversations = conversations.filter((conv) => {
-        console.log(`Filtering conversation: ${conv.name} with search term: ${searchTerm} and active filter: ${activeFilter}`);
-
         const matchesSearch = (conv.name || "").toLowerCase().includes(searchTerm.toLowerCase())
 
 
