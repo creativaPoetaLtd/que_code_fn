@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { notification } from 'antd';
 import { ClipLoader } from 'react-spinners';
@@ -7,7 +7,7 @@ import axios from 'axios';
 import baseUrl from '@/helpers/baseUrl';
 import ImageSection from '../ImageSection';
 
-const VerifyPage = () => {
+const VerifyPageContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
@@ -153,6 +153,21 @@ const VerifyPage = () => {
       </div>
       <ImageSection url="/Images/art1.png" />
     </div>
+  );
+};
+
+const VerifyPage = () => {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <ClipLoader color="#00B512" size={50} />
+          <p className="mt-4 text-lg text-gray-600">Loading...</p>
+        </div>
+      </div>
+    }>
+      <VerifyPageContent />
+    </Suspense>
   );
 };
 

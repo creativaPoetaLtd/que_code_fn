@@ -1,8 +1,8 @@
 'use client';
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-const VerifyRedirectPage = () => {
+const VerifyRedirectContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
@@ -24,6 +24,21 @@ const VerifyRedirectPage = () => {
         <p className="mt-4 text-gray-600">Redirecting...</p>
       </div>
     </div>
+  );
+};
+
+const VerifyRedirectPage = () => {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00B512] mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    }>
+      <VerifyRedirectContent />
+    </Suspense>
   );
 };
 
