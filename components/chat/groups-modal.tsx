@@ -1,7 +1,7 @@
-"use client"
+'use client'
 
 import { useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -23,21 +23,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import {
-    Search,
-    Users,
-    MessageCircle,
-    Loader2,
-    AlertCircle,
-    Calendar,
-    User,
-    LogOut,
-    Info,
-    Bell,
-    BellOff,
-    MoreVertical,
-    Trash2,
-} from "lucide-react"
+import { Search, Users, MessageCircle, Loader2, AlertCircle, Calendar, User, LogOut, Info, Bell, BellOff, MoreVertical, Trash2, PlusCircle, UserPlus } from 'lucide-react'
 import { toast } from "@/hooks/use-toast"
 import {
     useGetGroupsQuery,
@@ -48,6 +34,8 @@ import {
 import { useAuthToken } from "@/hooks/use-auth-token"
 import type { Conversation } from "@/types"
 import GroupJoinRequestsModal from "./group-join-requests-modal"
+import InviteToGroupModal from "./invite-to-group-modal" // Import the invite modal
+import CreateGroupModalUpdated from "./create-group-modal"
 
 interface GroupsModalProps {
     isOpen: boolean
@@ -64,6 +52,9 @@ export default function GroupsModal({ isOpen, onClose, onJoinGroup, existingConv
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
     const [isJoinRequestsModalOpen, setIsJoinRequestsModalOpen] = useState(false)
     const [selectedGroupForRequests, setSelectedGroupForRequests] = useState<{ id: string; name: string } | null>(null)
+    const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false) // State for Create Group Modal
+    const [isInviteToGroupModalOpen, setIsInviteToGroupModalOpen] = useState(false) // State for Invite to Group Modal
+    const [selectedGroupForInvite, setSelectedGroupForInvite] = useState<any>(null) // State to hold group for invite modal
 
     const { getToken } = useAuthToken()
     const token = getToken()
@@ -82,10 +73,6 @@ export default function GroupsModal({ isOpen, onClose, onJoinGroup, existingConv
     const [requestToJoinGroup, { isLoading: isRequestingJoin }] = useRequestToJoinGroupMutation()
 
     const groups = Array.isArray(groupsData?.data?.groups) ? groupsData.data.groups : []
-    // Assuming the backend might return these properties on the group object
-    // group.userHasPendingRequest: boolean
-    // group.pendingRequestsCount: number
-    // group.userRole: 'owner' | 'admin' | 'member' | 'pending' | 'none'
 
     // Filter groups based on search term
     const filteredGroups = Array.isArray(groups)
@@ -116,15 +103,12 @@ export default function GroupsModal({ isOpen, onClose, onJoinGroup, existingConv
             })
             return
         }
-
         try {
             await leaveGroup({ groupId, token }).unwrap()
-
             toast({
                 title: "Left Group",
                 description: `You have left ${groupName}`,
             })
-
             // Refetch groups to update the list
             refetch()
             setIsLeaveDialogOpen(false)
@@ -148,15 +132,12 @@ export default function GroupsModal({ isOpen, onClose, onJoinGroup, existingConv
             })
             return
         }
-
         try {
             await deleteGroup({ groupId, token }).unwrap()
-
             toast({
                 title: "Group Deleted",
                 description: `You have successfully deleted ${groupName}`,
             })
-
             // Refetch groups to update the list
             refetch()
             setIsDeleteDialogOpen(false)
@@ -230,6 +211,10 @@ export default function GroupsModal({ isOpen, onClose, onJoinGroup, existingConv
                     description: `Notifications for ${group.name} have been enabled`,
                 })
                 break
+            case "invite": // New action for invite
+                setSelectedGroupForInvite(group)
+                setIsInviteToGroupModalOpen(true)
+                break
             default:
                 break
         }
@@ -272,7 +257,6 @@ export default function GroupsModal({ isOpen, onClose, onJoinGroup, existingConv
                             )}
                         </DialogTitle>
                     </DialogHeader>
-
                     <div className="flex-1 overflow-hidden flex flex-col">
                         {/* Search Bar */}
                         <div className="relative mb-4">
@@ -308,11 +292,9 @@ export default function GroupsModal({ isOpen, onClose, onJoinGroup, existingConv
                                                 console.warn("Invalid group object:", group)
                                                 return null
                                             }
-
                                             const isAlreadyInConversations = existingConversations.some(
                                                 (conv) => conv.isGroup && conv.name === group.name,
                                             )
-
                                             return (
                                                 <div
                                                     key={group.id}
@@ -378,9 +360,13 @@ export default function GroupsModal({ isOpen, onClose, onJoinGroup, existingConv
                                                                 className="whitespace-nowrap"
                                                             >
                                                                 {isRequestingJoin ? (
-                                                                    <Loader2 size={14} className="mr-2 animate-spin" />
+                                                                    <>
+                                                                        <Loader2 size={14} className="mr-2 animate-spin" />
+                                                                    </>
                                                                 ) : (
-                                                                    <Users size={14} className="mr-2" />
+                                                                    <>
+                                                                        <Users size={14} className="mr-2" />
+                                                                    </>
                                                                 )}
                                                                 Request to Join
                                                             </Button>
@@ -388,7 +374,7 @@ export default function GroupsModal({ isOpen, onClose, onJoinGroup, existingConv
                                                             <Button
                                                                 variant="outline"
                                                                 size="sm"
-                                                                onClick={() => handleJoinGroup(group)}
+                                                                onClick={() => onJoinGroup(group)} // Use onJoinGroup from props
                                                                 className="whitespace-nowrap"
                                                             >
                                                                 <MessageCircle size={14} className="mr-2" />
@@ -414,7 +400,6 @@ export default function GroupsModal({ isOpen, onClose, onJoinGroup, existingConv
                                                                 )}
                                                             </Button>
                                                         ) : null}
-
                                                         {/* Group Management Dropdown */}
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>
@@ -427,6 +412,12 @@ export default function GroupsModal({ isOpen, onClose, onJoinGroup, existingConv
                                                                     <Info size={16} className="mr-2" />
                                                                     Group Info
                                                                 </DropdownMenuItem>
+                                                                {(group.userRole === "member" || group.userRole === "owner" || group.userRole === "admin") && (
+                                                                    <DropdownMenuItem onClick={() => handleManageAction("invite", group)}>
+                                                                        <UserPlus size={16} className="mr-2" />
+                                                                        Invite Members
+                                                                    </DropdownMenuItem>
+                                                                )}
                                                                 <DropdownMenuItem onClick={() => handleManageAction("mute", group)}>
                                                                     <BellOff size={16} className="mr-2" />
                                                                     Mute Notifications
@@ -436,7 +427,7 @@ export default function GroupsModal({ isOpen, onClose, onJoinGroup, existingConv
                                                                     Unmute Notifications
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuSeparator />
-                                                                {group.userRole === "owner" ? (
+                                                                {group.userRole === "owner" ? ( // Only show for owner
                                                                     <DropdownMenuItem
                                                                         onClick={() => handleManageAction("delete", group)}
                                                                         className="text-red-600 focus:text-red-600"
@@ -475,6 +466,12 @@ export default function GroupsModal({ isOpen, onClose, onJoinGroup, existingConv
                             )}
                         </div>
                     </div>
+                    <DialogFooter className="flex justify-end">
+                        <Button onClick={() => setIsCreateGroupModalOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+                            <PlusCircle size={16} className="mr-2" />
+                            Create Group
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
 
@@ -556,6 +553,26 @@ export default function GroupsModal({ isOpen, onClose, onJoinGroup, existingConv
                     groupId={selectedGroupForRequests.id}
                     groupName={selectedGroupForRequests.name}
                     token={token as string}
+                />
+            )}
+
+            {/* Create Group Modal */}
+            <CreateGroupModalUpdated
+                isOpen={isCreateGroupModalOpen}
+                onClose={() => {
+                    setIsCreateGroupModalOpen(false)
+                    refetch() // Refetch groups after creating a new one
+                }}
+                token={token}
+            />
+
+            {/* Invite To Group Modal */}
+            {selectedGroupForInvite && (
+                <InviteToGroupModal
+                    isOpen={isInviteToGroupModalOpen}
+                    onClose={() => setIsInviteToGroupModalOpen(false)}
+                    group={selectedGroupForInvite}
+                    token={token}
                 />
             )}
         </>

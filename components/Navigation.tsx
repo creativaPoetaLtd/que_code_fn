@@ -32,7 +32,7 @@ export default function Navigation() {
     const [activeItem, setActiveItem] = useState<string>("Home")
     const [userId, setUserId] = useState<string>("")
     const [isReady, setIsReady] = useState<boolean>(false)
-    const { getToken } = useAuthToken()
+    const { getToken, removeToken } = useAuthToken()
     const router = useRouter()
     const params = useParams()
 
@@ -91,7 +91,7 @@ export default function Navigation() {
     const handleClick = (id: string, path: string) => {
         // Handle logout separately
         if (id === "Logout") {
-            localStorage.removeItem('authToken');
+            removeToken();
             router.push('/auth/login');
             return;
         }

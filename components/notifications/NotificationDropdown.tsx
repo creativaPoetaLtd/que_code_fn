@@ -8,7 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useGetNotificationsQuery, useMarkNotificationReadMutation } from "@/states/notificationSlice"
 import { formatDistanceToNow } from "date-fns"
-import { useRespondToJoinRequestMutation } from "@/states/groupSlice"
+import { useRespondToJoinRequestMutation, useRespondToGroupInvitationMutation } from "@/states/groupSlice"
 import { useAuthToken } from "@/hooks/use-auth-token"
 import { toast } from "@/hooks/use-toast"
 import type { Notification } from "@/types/notification.types"
@@ -36,6 +36,7 @@ const NotificationDropdown: React.FC = () => {
 
     const [markNotificationRead] = useMarkNotificationReadMutation()
     const [respondToJoinRequest] = useRespondToJoinRequestMutation()
+    const [respondToGroupInvitation] = useRespondToGroupInvitationMutation()
     const [isOpen, setIsOpen] = useState(false)
     const [isRefreshing, setIsRefreshing] = useState(false)
 
@@ -111,7 +112,7 @@ const NotificationDropdown: React.FC = () => {
         }
     }
 
-    const handleNotificationAction = async (notificationId: string, actionUrl: string) => {
+    const handleJoinRequestAction = async (notificationId: string, actionUrl: string) => {
         try {
             const url = new URL(actionUrl)
             const pathSegments = url.pathname.split("/")
@@ -138,12 +139,90 @@ const NotificationDropdown: React.FC = () => {
                 description: `Group join request ${action === "approve" ? "approved" : "rejected"}.`,
             })
         } catch (error: any) {
-            console.error("Failed to perform notification action:", error)
+            console.error("Failed to perform join request action:", error)
             toast({
                 title: "Error",
                 description: error?.data?.message || error?.message || "Failed to perform action.",
                 variant: "destructive",
             })
+        }
+    }
+
+    const handleGroupInvitationAction = async (notificationId: string, actionUrl: string) => {
+        try {
+            const url = new URL(actionUrl)
+            const membershipId = url.searchParams.get("membershipId")
+            const action = url.searchParams.get("action")
+
+            if (!membershipId || !action) {
+                throw new Error("Invalid action URL for group invitation.")
+            }
+
+            await respondToGroupInvitation({
+                membershipId,
+                responseData: { action: action as "accept" | "reject" },
+                token,
+            }).unwrap()
+
+            // Mark notification as read and refresh
+            await handleMarkAsRead(notificationId)
+
+            toast({
+                title: "Action Successful",
+                description: `Group invitation ${action === "accept" ? "accepted" : "declined"}.`,
+            })
+        } catch (error: any) {
+            console.error("Failed to perform invitation action:", error)
+            toast({
+                title: "Error",
+                description: error?.data?.message || error?.message || "Failed to perform action.",
+                variant: "destructive",
+            })
+        }
+    }
+
+    const handleNotificationAction = async (notificationId: string, actionUrl: string, notificationType: string) => {
+        const lowerType = notificationType.toLowerCase()
+
+        if (lowerType === "group_join_request") {
+            await handleJoinRequestAction(notificationId, actionUrl)
+        } else if (lowerType === "group_invitation") {
+            await handleGroupInvitationAction(notificationId, actionUrl)
+        }
+    }
+
+    const shouldShowActions = (notification: Notification) => {
+        const type = notification.type.toLowerCase()
+        return (
+            !notification.isRead &&
+            notification.data?.actions &&
+            (type === "group_join_request" || type === "group_invitation")
+        )
+    }
+
+    const getActionButtonStyle = (actionType: string, notificationType: string) => {
+        const isApprove = actionType === "approve" || actionType === "accept"
+        const baseClasses = "h-7 text-xs"
+
+        if (isApprove) {
+            return `${baseClasses} bg-green-600 hover:bg-green-700 text-white`
+        } else {
+            return `${baseClasses} bg-red-50 text-red-700 hover:bg-red-100 border border-red-200`
+        }
+    }
+
+    const getActionLabel = (actionType: string) => {
+        switch (actionType) {
+            case "approve":
+                return "Approve"
+            case "reject":
+                return "Reject"
+            case "accept":
+                return "Accept"
+            case "decline":
+                return "Decline"
+            default:
+                return actionType.charAt(0).toUpperCase() + actionType.slice(1)
         }
     }
 
@@ -262,29 +341,24 @@ const NotificationDropdown: React.FC = () => {
                                                     </Button>
                                                 )}
                                             </div>
-                                            {notification.type.toLowerCase() === "group_join_request" &&
-                                                !notification.isRead &&
-                                                notification.data?.actions && (
-                                                    <div className="flex gap-2 mt-3">
-                                                        {notification.data.actions.map((action) => (
-                                                            <Button
-                                                                key={action.type}
-                                                                variant={action.type === "approve" ? "default" : "outline"}
-                                                                size="sm"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation()
-                                                                    handleNotificationAction(notification.id, action.url)
-                                                                }}
-                                                                className={`h-7 text-xs ${action.type === "approve"
-                                                                        ? "bg-green-600 hover:bg-green-700"
-                                                                        : "bg-red-50 text-red-700 hover:bg-red-100"
-                                                                    }`}
-                                                            >
-                                                                {action.label}
-                                                            </Button>
-                                                        ))}
-                                                    </div>
-                                                )}
+                                            {shouldShowActions(notification) && (
+                                                <div className="flex gap-2 mt-3">
+                                                    {notification.data?.actions?.map((action) => (
+                                                        <Button
+                                                            key={action.type}
+                                                            variant={action.type === "approve" || action.type === "accept" ? "default" : "outline"}
+                                                            size="sm"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                handleNotificationAction(notification.id, action.url, notification.type)
+                                                            }}
+                                                            className={getActionButtonStyle(action.type, notification.type)}
+                                                        >
+                                                            {getActionLabel(action.type)}
+                                                        </Button>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>

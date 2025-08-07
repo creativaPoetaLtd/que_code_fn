@@ -63,8 +63,8 @@ export default function CreateGroupModalUpdated({
         skip: !token
     })
 
+    console.log("Contacts Data:", contactsData);
     const contacts: Contact[] = contactsData?.data || []
-    console.log("Contacts Data:", contacts);
 
     useEffect(() => {
         if (isOpen) {
