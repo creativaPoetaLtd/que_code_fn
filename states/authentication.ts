@@ -44,6 +44,7 @@ export const authenticationSlice = apiSlice.injectEndpoints({
                 body: data,
             }),
         }),
+
     }),
     overrideExisting: false,
 });

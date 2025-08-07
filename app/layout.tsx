@@ -33,7 +33,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={` antialiased`}
+        className={`${poppins.className} ${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ClientProvider>{children}</ClientProvider>
         <Toaster />

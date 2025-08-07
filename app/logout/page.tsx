@@ -1,13 +1,15 @@
 "use client";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useAuthToken } from "@/hooks/use-auth-token";
 
 const LogoutPage = () => {
   const router = useRouter();
+  const { removeToken } = useAuthToken();
   useEffect(() => {
-    localStorage.removeItem("authToken");
+    removeToken();
     router.replace("/");
-  }, [router]);
+  }, [router, removeToken]);
   return null;
 };
 
