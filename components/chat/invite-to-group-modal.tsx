@@ -71,17 +71,17 @@ export default function InviteToGroupModal({ isOpen, onClose, group, token }: In
         )
     }
 
+
     const handleSelectAll = () => {
         if (selectedContacts.length === filteredContacts.length) {
             setSelectedContacts([])
         } else {
-            const allPublicIds = filteredContacts
-                .map((contact) => contact.contactUser.publicId)
-                .filter((id): id is string => Boolean(id))
+            // Use publicId instead of contactUser.id
+
+            const allPublicIds = filteredContacts.map((contact) => contact.contactUser.publicId!)
             setSelectedContacts(allPublicIds)
         }
     }
-
     const handleInvite = async () => {
         if (!group || !token) {
             toast({
@@ -105,19 +105,40 @@ export default function InviteToGroupModal({ isOpen, onClose, group, token }: In
             const result = await inviteToGroup({
                 inviteData: {
                     groupId: group.id.toString(),
-                    memberIds: selectedContacts,
+                    memberPublicIds: selectedContacts,
                 },
                 token,
             }).unwrap()
 
-            toast({
-                title: "Invitations Sent",
-                description: `Successfully sent ${selectedContacts.length} invitation${selectedContacts.length > 1 ? "s" : ""} to ${group.name}`,
-            })
+            // Handle the response with detailed feedback
+            if (result.data) {
+                const { successful, failed, totalInvited } = result.data
+
+                if (failed && failed.length > 0) {
+                    // Some invitations failed
+                    toast({
+                        title: "Partially Successful",
+                        description: `${totalInvited} invitation${totalInvited > 1 ? "s" : ""} sent successfully. ${failed.length} failed.`,
+                        variant: "default",
+                    })
+                } else {
+                    // All successful
+                    toast({
+                        title: "Invitations Sent",
+                        description: `Successfully sent ${totalInvited} invitation${totalInvited > 1 ? "s" : ""} to ${group.name}`,
+                    })
+                }
+            } else {
+                // Fallback message
+                toast({
+                    title: "Invitations Sent",
+                    description: `Successfully sent ${selectedContacts.length} invitation${selectedContacts.length > 1 ? "s" : ""} to ${group.name}`,
+                })
+            }
 
             onClose()
         } catch (error: any) {
-            console.error("Invite error:", error)
+            console.error("Invite error:", error.message || error)
             const errorMessage = error?.data?.message || error?.message || "Failed to send invitations"
             toast({
                 title: "Error",
@@ -222,18 +243,14 @@ export default function InviteToGroupModal({ isOpen, onClose, group, token }: In
                                 {/* Contact List */}
                                 {filteredContacts.map((contact) => (
                                     <div
-                                        key={contact.id}
+                                        key={contact.contactUser.publicId!}
                                         className="flex items-center p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors"
-                                        onClick={() => contact.contactUser.publicId && toggleContact(contact.contactUser.publicId)}
+                                        onClick={() => toggleContact(contact.contactUser.publicId!)} // Use publicId for selection
                                     >
                                         <Checkbox
-                                            id={`contact-${contact.id}`}
-                                            checked={
-                                                contact.contactUser.publicId ? selectedContacts.includes(contact.contactUser.publicId) : false
-                                            }
-                                            onCheckedChange={() =>
-                                                contact.contactUser.publicId && toggleContact(contact.contactUser.publicId)
-                                            }
+                                            id={`contact-${contact.contactUser.publicId!}`}
+                                            checked={selectedContacts.includes(contact.contactUser.publicId!)}
+                                            onCheckedChange={() => toggleContact(contact.contactUser.publicId!)}
                                             className="mr-3"
                                         />
                                         <Avatar className="h-10 w-10 mr-3">
@@ -252,7 +269,7 @@ export default function InviteToGroupModal({ isOpen, onClose, group, token }: In
                                             </p>
                                             <p className="text-sm text-gray-500">{contact.contactUser.email}</p>
                                         </div>
-                                        {selectedContacts.includes(contact.contactUser.publicId || "") && (
+                                        {selectedContacts.includes(contact.contactUser.publicId!) && (
                                             <Badge variant="default" className="bg-blue-600">
                                                 Selected
                                             </Badge>

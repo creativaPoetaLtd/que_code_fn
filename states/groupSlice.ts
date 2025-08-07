@@ -58,13 +58,16 @@ export const groupSlice = apiSlice.injectEndpoints({
             },
             invalidatesTags: ["Group"],
         }),
-
-        inviteToGroup: builder.mutation<{ message: string }, { inviteData: InviteToGroupRequest; token: string }>({
+        
+        inviteToGroup: builder.mutation<{ message: string; data: { successful: any[]; failed: any[]; totalInvited: number } }, { inviteData: InviteToGroupRequest; token: string }>({
             query: ({ inviteData, token }) => {
                 return {
-                    url: `/groups/${inviteData.groupId}/invite`,
+                    url: "/groups/invite",
                     method: "POST",
-                    body: { memberIds: inviteData.memberIds },
+                    body: {
+                        groupId: inviteData.groupId,
+                        memberIds: inviteData.memberPublicIds // Changed from memberIds to memberPublicIds
+                    },
                     headers: {
                         Accept: "application/json",
                         Authorization: `Bearer ${token}`,

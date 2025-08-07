@@ -33,7 +33,7 @@ export interface JoinGroupRequest {
 
 export interface InviteToGroupRequest {
     groupId: string
-    memberIds: string[]
+    memberPublicIds: string[]
 }
 
 export interface GroupJoinRequest {

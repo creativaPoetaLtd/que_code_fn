@@ -1,10 +1,10 @@
-"use client"
+'use client'
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Search, UserPlus, Users, Send, MessageCirclePlus, Link } from "lucide-react"
+import { Search, UserPlus, Users, Send, MessageCirclePlus, Link } from 'lucide-react'
 import ConversationItem from "./conversation-item"
 import GroupsModal from "./groups-modal"
 import JoinGroupByLinkModal from "./join-group-by-link-modal" // Import new modal
@@ -46,8 +46,6 @@ export default function ConversationListWithFilters({
     // Filter conversations based on search term and active filter
     const filteredConversations = conversations.filter((conv) => {
         const matchesSearch = (conv.name || "").toLowerCase().includes(searchTerm.toLowerCase())
-
-
         switch (activeFilter) {
             case "users":
                 return matchesSearch && !conv.isGroup
@@ -78,7 +76,6 @@ export default function ConversationListWithFilters({
             address: contact.contactUser.address || "",
             joinedAt: contact.respondedAt || contact.invitedAt,
         }
-
         if (onStartNewChat) {
             onStartNewChat(contact)
         }
@@ -101,7 +98,6 @@ export default function ConversationListWithFilters({
             createdAt: group.createdAt,
             createdBy: group.createdBy,
         }
-
         if (onJoinGroup) {
             onJoinGroup(group)
         }
@@ -136,41 +132,50 @@ export default function ConversationListWithFilters({
                 {/* Quick Actions Section */}
                 <div className="mb-4">
                     <p className="text-xs font-medium text-gray-600 uppercase tracking-wide mb-2">Quick Actions</p>
-                    <div className="flex gap-2 mb-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setIsStartChatModalOpen(true)}
-                            className="flex-1 h-8 text-xs bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
-                        >
-                            <MessageCirclePlus size={14} className="mr-1.5" />
-                            New Chat
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={onAddContact} className="flex-1 h-8 text-xs bg-transparent">
-                            <UserPlus size={14} className="mr-1.5" />
-                            Add Contact
-                        </Button>
+
+                    {/* User Features */}
+                    <div className="mb-3">
+                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">User Features</p>
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setIsStartChatModalOpen(true)}
+                                className="w-full h-9 text-xs bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                            >
+                                <MessageCirclePlus size={14} className="mr-1.5" />
+                                New Chat
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={onAddContact} className="w-full h-9 text-xs bg-transparent">
+                                <UserPlus size={14} className="mr-1.5" />
+                                Add Contact
+                            </Button>
+                        </div>
                     </div>
 
-                    <div className="flex gap-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setIsGroupsModalOpen(true)}
-                            className="flex-1 h-8 text-xs bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
-                        >
-                            <Users size={14} className="mr-1.5" />
-                            My Groups
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setIsJoinGroupByLinkModalOpen(true)}
-                            className="flex-1 h-8 text-xs bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100"
-                        >
-                            <Link size={14} className="mr-1.5" />
-                            Join Group
-                        </Button>
+                    {/* Group Features */}
+                    <div>
+                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Group Features</p>
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setIsGroupsModalOpen(true)}
+                                className="w-full h-9 text-xs bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
+                            >
+                                <Users size={14} className="mr-1.5" />
+                                My Groups
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setIsJoinGroupByLinkModalOpen(true)}
+                                className="w-full h-9 text-xs bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100"
+                            >
+                                <Link size={14} className="mr-1.5" />
+                                Join Group
+                            </Button>
+                        </div>
                     </div>
                 </div>
 
@@ -218,7 +223,6 @@ export default function ConversationListWithFilters({
                                 </p>
                             </div>
                         )}
-
                         {filteredConversations.map((conversation) => (
                             <div key={conversation.id} className="relative group">
                                 <ConversationItem
@@ -284,44 +288,44 @@ export default function ConversationListWithFilters({
                                         <p className="text-sm text-gray-400 text-center mb-4">Join a group to get started</p>
                                     </>
                                 )}
+                                <div className="space-y-2 w-full max-w-48">
+                                    {(activeFilter === "all" || activeFilter === "users") && (
+                                        <Button variant="default" onClick={() => setIsStartChatModalOpen(true)} className="w-full" size="sm">
+                                            <MessageCirclePlus size={16} className="mr-2" />
+                                            Start New Chat
+                                        </Button>
+                                    )}
+                                    {(activeFilter === "all" || activeFilter === "groups") && (
+                                        <>
+                                            <Button
+                                                variant="outline"
+                                                onClick={() => setIsGroupsModalOpen(true)}
+                                                className="w-full bg-transparent"
+                                                size="sm"
+                                            >
+                                                <Users size={16} className="mr-2" />
+                                                My Groups
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                onClick={() => setIsJoinGroupByLinkModalOpen(true)}
+                                                className="w-full bg-transparent"
+                                                size="sm"
+                                            >
+                                                <Link size={16} className="mr-2" />
+                                                Join Group
+                                            </Button>
+                                        </>
+                                    )}
+                                    {activeFilter === "all" && (
+                                        <Button variant="outline" onClick={onAddContact} className="w-full bg-transparent" size="sm">
+                                            <UserPlus size={16} className="mr-2" />
+                                            Add Contact
+                                        </Button>
+                                    )}
+                                </div>
                             </>
                         )}
-                        <div className="space-y-2 w-full max-w-48">
-                            {(activeFilter === "all" || activeFilter === "users") && (
-                                <Button variant="default" onClick={() => setIsStartChatModalOpen(true)} className="w-full" size="sm">
-                                    <MessageCirclePlus size={16} className="mr-2" />
-                                    Start New Chat
-                                </Button>
-                            )}
-                            {(activeFilter === "all" || activeFilter === "groups") && (
-                                <>
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => setIsGroupsModalOpen(true)}
-                                        className="w-full bg-transparent"
-                                        size="sm"
-                                    >
-                                        <Users size={16} className="mr-2" />
-                                        My Groups
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => setIsJoinGroupByLinkModalOpen(true)}
-                                        className="w-full bg-transparent"
-                                        size="sm"
-                                    >
-                                        <Link size={16} className="mr-2" />
-                                        Join Group
-                                    </Button>
-                                </>
-                            )}
-                            {activeFilter === "all" && (
-                                <Button variant="outline" onClick={onAddContact} className="w-full bg-transparent" size="sm">
-                                    <UserPlus size={16} className="mr-2" />
-                                    Add Contact
-                                </Button>
-                            )}
-                        </div>
                     </div>
                 )}
             </div>
@@ -333,14 +337,12 @@ export default function ConversationListWithFilters({
                 onStartChat={handleStartNewChat}
                 existingConversations={conversations}
             />
-
             <GroupsModal
                 isOpen={isGroupsModalOpen}
                 onClose={() => setIsGroupsModalOpen(false)}
                 onJoinGroup={handleJoinGroup}
                 existingConversations={conversations}
             />
-
             <JoinGroupByLinkModal
                 isOpen={isJoinGroupByLinkModalOpen}
                 onClose={() => setIsJoinGroupByLinkModalOpen(false)}
