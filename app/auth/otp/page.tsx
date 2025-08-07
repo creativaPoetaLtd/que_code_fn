@@ -15,6 +15,7 @@ const OTPVerification: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [timeLeft, setTimeLeft] = useState(120);
     const [canResend, setCanResend] = useState(true);
+    const [email, setEmail] = useState<string>('');
     const router = useRouter();
 
     const inputRefs = Array(6).fill(0).map(() => useRef<HTMLInputElement>(null));
@@ -23,6 +24,13 @@ const OTPVerification: React.FC = () => {
     const [resendOtp] = useResendOtpMutation();
 
     useEffect(() => {
+        // Get email from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const emailParam = urlParams.get('email');
+        if (emailParam) {
+            setEmail(emailParam);
+        }
+
         if (timeLeft > 0 && !canResend) {
             const timer = setInterval(() => {
                 setTimeLeft(prev => prev - 1);
@@ -32,6 +40,20 @@ const OTPVerification: React.FC = () => {
             setCanResend(true);
         }
     }, [timeLeft, canResend]);
+
+    // Show success message when coming from registration
+    useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const emailParam = urlParams.get('email');
+        
+        if (emailParam) {
+            // notification.success({
+            //     message: 'Registration Successful',
+            //     description: 'Please check your email for the verification code.',
+            //     placement: 'topRight' as NotificationPlacement,
+            // });
+        }
+    }, []);
 
     const handlePaste = (e: React.ClipboardEvent) => {
         e.preventDefault();
@@ -81,10 +103,13 @@ const OTPVerification: React.FC = () => {
         }
         const urlParams = new URLSearchParams(window.location.search);
         const token = urlParams.get('token');
-        if (!token) {
+        const userId = urlParams.get('userId');
+        const orgId = urlParams.get('orgId');
+        
+        if (!token && !email) {
             notification.error({
                 message: 'Verification Failed',
-                description: 'Missing verification token. Please try again.',
+                description: 'Missing verification token or email. Please try again.',
                 placement: 'topRight',
             });
             return;
@@ -92,7 +117,18 @@ const OTPVerification: React.FC = () => {
 
         setLoading(true);
         try {
-            const response = await verifyOtp({ otp, token }).unwrap();
+            let response;
+            
+            if (token) {
+                // Use token-based verification
+                response = await verifyOtp({ otp, token }).unwrap();
+            } else if (email) {
+                // Use email-based verification (if backend supports it)
+                response = await verifyOtp({ otp, email }).unwrap();
+            } else {
+                throw new Error('No token or email available for verification');
+            }
+            
             notification.success({
                 message: 'OTP Verified',
                 description: response.message || 'Your account has been successfully verified.',
@@ -115,11 +151,30 @@ const OTPVerification: React.FC = () => {
     const resendOTP = async () => {
         const urlParams = new URLSearchParams(window.location.search);
         const token = urlParams.get('token');
-        if (!token || !canResend) return;
+        const userId = urlParams.get('userId');
+        const orgId = urlParams.get('orgId');
+        
+        if (!canResend) return;
 
         setLoading(true);
         try {
-            const response = await resendOtp({ token }).unwrap();
+            let response;
+            
+            if (token) {
+                // Use token-based resend
+                response = await resendOtp({ token }).unwrap();
+            } else if (email) {
+                // Try to resend using email (if backend supports it)
+                response = await resendOtp({ email }).unwrap();
+            } else {
+                notification.error({
+                    message: 'Failed to Resend OTP',
+                    description: 'No token or email available for resending OTP.',
+                    placement: 'topRight' as NotificationPlacement,
+                });
+                return;
+            }
+            
             setTimeLeft(120);
             setCanResend(false);
             setOtpValues(['', '', '', '', '', '']);
@@ -148,6 +203,11 @@ const OTPVerification: React.FC = () => {
                         <h1 className="text-3xl font-bold text-gray-900">Verify Your Account</h1>
                         <p className="mt-3 text-gray-600">
                             Enter the 6-digit code sent to your email to complete verification.
+                            {email && (
+                                <span className="block mt-1 text-sm text-gray-500">
+                                    Code sent to: {email}
+                                </span>
+                            )}
                         </p>
                     </div>
 

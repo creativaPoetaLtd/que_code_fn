@@ -96,13 +96,20 @@ const MultiStepFormFacility = () => {
     });
 
     try {
-      await registerOrganization(data).unwrap();
-      router.push('/auth/login');
-      notification.success({
-        message: 'Success',
-        description: 'Organization registered successfully',
-        placement: 'topRight' as NotificationPlacement,
+      const response = await registerOrganization(data).unwrap();
+      // notification.success({
+      //   message: 'Success',
+      //   description: 'Organization registered successfully. Please check your email for verification.',
+      //   placement: 'topRight' as NotificationPlacement,
+      // });
+      // Redirect to OTP page with email parameter and any organization data from response
+      const orgData = response?.organization || response?.data || {};
+      const queryParams = new URLSearchParams({
+        email: formData.email,
+        ...(orgData.id && { orgId: orgData.id }),
+        ...(orgData.token && { token: orgData.token })
       });
+      router.push(`/auth/otp?${queryParams.toString()}`);
     } catch (error: any) {
       notification.error({
         message: 'Error',

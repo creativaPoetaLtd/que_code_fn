@@ -96,13 +96,20 @@ const UserRegister: React.FC = () => {
             // if (fileList[0]?.originFileObj) {
             //     formData.append('national_id', fileList[0].originFileObj);
             // }
-            await registerUser(formData).unwrap();
+            const response = await registerUser(formData).unwrap();
             notification.success({
                 message: 'Success',
                 description: 'User registered successfully Check your email inbox to verify your account',
                 placement: 'topRight',
             });
-            // router.push('/auth/otp');
+            // Redirect to OTP page with email parameter and any user data from response
+            const userData = response?.user || response?.data || {};
+            const queryParams = new URLSearchParams({
+                email: data.email,
+                ...(userData.id && { userId: userData.id }),
+                ...(userData.token && { token: userData.token })
+            });
+            router.push(`/auth/otp?${queryParams.toString()}`);
         } catch (error: any) {
             const errorMessage = error.data?.message || 'An error occurred';
             notification.error({
@@ -114,7 +121,7 @@ const UserRegister: React.FC = () => {
     };
 
     const ContactDetailsStep = (
-        <>
+        <div key="contact-details-step">
             <div className="flex flex-col sm:flex-row gap-4">
                 <Controller
                     name="firstName"
@@ -122,11 +129,11 @@ const UserRegister: React.FC = () => {
                     rules={{ required: 'First Name is required' }}
                     render={({ field, fieldState }) => (
                         <div className="w-full">
-                            <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
+                            <label htmlFor="user-first-name" className="block text-sm font-medium text-gray-700">
                                 First Name
                             </label>
                             <Input
-                                id="firstName"
+                                id="user-first-name"
                                 placeholder="John"
                                 {...field}
                                 status={fieldState.error ? 'error' : ''}
@@ -143,11 +150,11 @@ const UserRegister: React.FC = () => {
                     rules={{ required: 'Last Name is required' }}
                     render={({ field, fieldState }) => (
                         <div className="w-full">
-                            <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
+                            <label htmlFor="user-last-name" className="block text-sm font-medium text-gray-700">
                                 Last Name
                             </label>
                             <Input
-                                id="lastName"
+                                id="user-last-name"
                                 placeholder="Doe"
                                 {...field}
                                 status={fieldState.error ? 'error' : ''}
@@ -171,11 +178,12 @@ const UserRegister: React.FC = () => {
                 }}
                 render={({ field, fieldState }) => (
                     <div className="w-full">
-                        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                        <label htmlFor="user-email" className="block text-sm font-medium text-gray-700">
                             Email
                         </label>
                         <Input
-                            id="email"
+                            id="user-email"
+                            type="email"
                             placeholder="john@gmail.com"
                             {...field}
                             status={fieldState.error ? 'error' : ''}
@@ -192,7 +200,7 @@ const UserRegister: React.FC = () => {
                 rules={{ required: 'Phone number is required' }}
                 render={({ field, fieldState }) => (
                     <div className="w-full">
-                        <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+                        <label htmlFor="user-phone" className="block text-sm font-medium text-gray-700">
                             Phone Number
                         </label>
                         <PhoneInput
@@ -218,11 +226,11 @@ const UserRegister: React.FC = () => {
                 rules={{ required: 'Gender is required' }}
                 render={({ field, fieldState }) => (
                     <div className="w-full">
-                        <label htmlFor="gender" className="block text-sm font-medium text-gray-700">
+                        <label htmlFor="user-gender" className="block text-sm font-medium text-gray-700">
                             Gender
                         </label>
                         <Select
-                            id="gender"
+                            id="user-gender"
                             {...field}
                             placeholder="Select Gender"
                             className={`w-full ${fieldState.error ? 'border-red-500' : 'border-gray-300'}`}
@@ -238,7 +246,7 @@ const UserRegister: React.FC = () => {
                     </div>
                 )}
             />
-        </>
+        </div>
     );
 
     // const DocumentUploadStep = (
@@ -279,7 +287,7 @@ const UserRegister: React.FC = () => {
     // );
 
     const SecurityStep = (
-        <>
+        <div key="security-step">
             <Controller
                 name="password"
                 control={control}
@@ -292,11 +300,11 @@ const UserRegister: React.FC = () => {
                 }}
                 render={({ field, fieldState }) => (
                     <div className="w-full">
-                        <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                        <label htmlFor="user-password" className="block text-sm font-medium text-gray-700">
                             Password
                         </label>
                         <Input
-                            id="password"
+                            id="user-password"
                             type="password"
                             placeholder="Password"
                             {...field}
@@ -314,11 +322,11 @@ const UserRegister: React.FC = () => {
                 rules={{ required: 'Confirm Password is required' }}
                 render={({ field, fieldState }) => (
                     <div className="w-full">
-                        <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+                        <label htmlFor="user-confirm-password" className="block text-sm font-medium text-gray-700">
                             Confirm Password
                         </label>
                         <Input
-                            id="confirmPassword"
+                            id="user-confirm-password"
                             type="password"
                             placeholder="******"
                             {...field}
@@ -330,7 +338,7 @@ const UserRegister: React.FC = () => {
                     </div>
                 )}
             />
-        </>
+        </div>
     );
 
     const stepContent = [
@@ -352,7 +360,9 @@ const UserRegister: React.FC = () => {
                 <StepIndicator currentStep={currentStep} />
 
                 <form className="space-y-6 mt-8 transition-opacity duration-500" onSubmit={handleSubmit(onSubmit)} >
-                    {stepContent[currentStep]}
+                    <div key={`step-${currentStep}`}>
+                        {stepContent[currentStep]}
+                    </div>
 
                     <div className="flex gap-4">
                         {currentStep > 0 && (
