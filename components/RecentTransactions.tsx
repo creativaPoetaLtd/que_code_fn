@@ -53,8 +53,8 @@ export const RecentTransactions: React.FC = () => {
   if (error) {
     return <div className="bg-white rounded-xl shadow-sm p-6 text-red-500">{error}</div>;
   }
-
-  if (transactions.length === 0) {
+  const displayedTransactions = transactions.slice(0, 5);
+  if (displayedTransactions.length === 0) {
     return (
       <div className="bg-white rounded-xl shadow-sm p-6">
         <h3 className="text-xl sm:text-2xl text-[#00313A] font-semibold mb-4">Recent Transactions</h3>
@@ -90,14 +90,14 @@ export const RecentTransactions: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {transactions.map((transaction) => {
+            {displayedTransactions.map((transaction) => {
               const { amount, displayName, transactionType, isOutgoing } = getTransactionDisplayInfo(transaction);
               return (
                 <tr key={transaction.id} className="border-t border-gray-100 hover:bg-gray-50 transition-colors duration-200">
                   <td className="px-6 py-4">
                     <div className="flex items-center space-x-3">
                       <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
-                        <span className="text-gray-400">{isOutgoing ? '📤' : '�'}</span>
+                        <span className="text-gray-400">{isOutgoing ? '📤' : '📥'}</span>
                       </div>
                       <div>
                         <p className="font-medium text-gray-900">{displayName}</p>
@@ -121,14 +121,14 @@ export const RecentTransactions: React.FC = () => {
       </div>
       {/* Mobile List View */}
       <div className="sm:hidden divide-y divide-gray-100">
-        {transactions.map((transaction) => {
+        {displayedTransactions.map((transaction) => {
           const { amount, displayName, transactionType, isOutgoing } = getTransactionDisplayInfo(transaction);
           return (
             <div key={transaction.id} className="p-4 hover:bg-gray-50 transition-colors duration-200">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
-                    <span className="text-gray-400">{isOutgoing ? '�' : '📥'}</span>
+                    <span className="text-gray-400">{isOutgoing ? '📤' : '📥'}</span>
                   </div>
                   <div>
                     <p className="font-medium text-gray-900">{displayName}</p>

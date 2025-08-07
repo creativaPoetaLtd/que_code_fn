@@ -47,12 +47,18 @@ export const getTransactionHistory = async (userId: string, params?: {
   limit?: number;
   type?: string;
   status?: string;
+  search?: string;
+  startDate?: string;
+  endDate?: string;
 }) => {
   const queryParams = new URLSearchParams();
   if (params?.page) queryParams.append('page', params.page.toString());
   if (params?.limit) queryParams.append('limit', params.limit.toString());
   if (params?.type) queryParams.append('type', params.type);
   if (params?.status) queryParams.append('status', params.status);
+  if (params?.search) queryParams.append('search', params.search);
+  if (params?.startDate) queryParams.append('startDate', params.startDate);
+  if (params?.endDate) queryParams.append('endDate', params.endDate);
   
   const url = `${baseUrl}/transactions/history/${userId}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
   const res = await axios.get(url);
