@@ -89,6 +89,15 @@ export const TransactionList = ({ transactions: propTransactions }: TransactionL
       };
     });
     const ws = XLSX.utils.json_to_sheet(data, { header: headers });
+    ws['!cols'] = [
+      { wch: 20 },
+      { wch: 20 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 30 },
+      { wch: 12 }, 
+    ];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Transactions');
     XLSX.writeFile(wb, 'transactions.xlsx');
@@ -235,6 +244,26 @@ export const TransactionList = ({ transactions: propTransactions }: TransactionL
             {searchTerm ? 'No transactions found matching your search.' : 'No transactions found.'}
           </div>
         )}
+      </div>
+      {/* Pagination controls */}
+      <div className="flex justify-between items-center mt-4">
+        <div className="text-sm text-gray-600">Page {page}</div>
+        <div className="space-x-2">
+          <button
+            onClick={() => setPage(page - 1)}
+            disabled={page === 1}
+            className="px-3 py-1 bg-gray-200 text-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-300"
+          >
+            Previous
+          </button>
+          <button
+            onClick={() => setPage(page + 1)}
+            disabled={transactions.length < 10}
+            className="px-3 py-1 bg-gray-200 text-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-300"
+          >
+            Next
+          </button>
+        </div>
       </div>
     </Card>
   );
