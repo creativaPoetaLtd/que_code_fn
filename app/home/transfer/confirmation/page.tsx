@@ -5,7 +5,9 @@ import Navigation from "@/components/Navigation";
 import { ArrowLeft, CheckCircle, Shield, Clock, CreditCard, Smartphone } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { getCurrentUserId, transferMoney, getWalletBalance } from "@/helpers/api";
+import { transferMoney, getWalletBalance } from "@/helpers/api";
+import { useAuthToken } from "@/hooks/use-auth-token";
+import { getUserIdFromToken, isTokenExpired } from "@/utils/jwtUtils";
 
 interface Recipient {
   id: string;
@@ -20,6 +22,7 @@ const ConfirmationPage = () => {
   const [amount, setAmount] = useState("5000");
   const [recipient, setRecipient] = useState<Recipient | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const { getToken } = useAuthToken();
   const [currentBalance, setCurrentBalance] = useState<number | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(true);
   const [balanceError, setBalanceError] = useState<string | null>(null);
@@ -42,7 +45,11 @@ const ConfirmationPage = () => {
       setBalanceLoading(true);
       setBalanceError(null);
       try {
-        const userId = getCurrentUserId();
+        const token = getToken();
+        let userId: string | null | undefined;
+        if (token && !isTokenExpired(token)) {
+          userId = getUserIdFromToken(token);
+        }
         if (!userId) throw new Error('User not found');
         const data = await getWalletBalance(userId);
         setCurrentBalance(Number(data.balance));
@@ -62,10 +69,13 @@ const ConfirmationPage = () => {
     setIsLoading(true);
     setTransferError(null);
     try {
-      const senderId = getCurrentUserId();
+      const token = getToken();
+      let senderId: string | null | undefined;
+      if (token && !isTokenExpired(token)) {
+        senderId = getUserIdFromToken(token);
+      }
       if (!senderId || !recipient) throw new Error('User or recipient not found');
-      const result = await transferMoney({
-        senderId,
+      const result = await transferMoney({ senderId,
         receiverId: recipient.id,
         amount: Number(amount),
         description: 'Payment',

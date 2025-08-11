@@ -23,13 +23,25 @@ export const transferMoney = async ({ senderId, receiverId, amount, description 
 
 export const getCurrentUserId = (): string | null => {
   try {
-    const authToken = localStorage.getItem('authToken');
-
+  // Retrieve token, first check sessionStorage then localStorage
+  const raw = sessionStorage.getItem('token') ?? localStorage.getItem('token');
+    if (!raw) return null;
+    let authToken: string | null;
+    try {
+      authToken = JSON.parse(raw).value;
+    } catch {
+      authToken = raw;
+    }
     if (!authToken) return null;
-    const base64Url = authToken.split('.')[1];
+    const parts = authToken.split('.');
+    if (parts.length < 2) return null;
+    const base64Url = parts[1];
     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const payload = JSON.parse(atob(base64));
-    const userId = payload?.userId || payload?.id || payload?.sub || null;
+  const payload = JSON.parse(atob(base64));
+    let userId = payload?.userId || payload?.id || payload?.sub || null;
+    if (userId === 'undefined') {
+      return null;
+    }
     return userId;
   } catch (error) {
     console.error('getCurrentUserId error:', error);

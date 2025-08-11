@@ -1,8 +1,10 @@
 import Image from "next/image";
 import { useEffect, useState } from 'react';
-import { getTransactionHistory, getCurrentUserId } from '@/helpers/api';
+import { getTransactionHistory } from '@/helpers/api';
 import { Transaction } from '@/types/dashboard';
 import { useRouter } from 'next/navigation';
+import { useAuthToken } from '@/hooks/use-auth-token';
+import { getUserIdFromToken, isTokenExpired } from '@/utils/jwtUtils';
 
 export const RecentTransactions: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -10,13 +12,18 @@ export const RecentTransactions: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const router = useRouter();
+  const { getToken } = useAuthToken();
 
   useEffect(() => {
     const fetchTransactions = async () => {
       setLoading(true);
       setError(null);
       try {
-        const userId = getCurrentUserId();
+  const token = getToken();
+        let userId: string | null | undefined;
+        if (token && !isTokenExpired(token)) {
+          userId = getUserIdFromToken(token);
+        }
         console.log('RecentTransactions - userId:', userId);
         if (!userId) throw new Error('User not found');
         

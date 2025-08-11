@@ -4,14 +4,17 @@ import { Search, Eye, Download } from 'lucide-react';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Transaction } from '@/types/dashboard';
 import * as XLSX from 'xlsx';
-import { getTransactionHistory, getCurrentUserId } from '@/helpers/api';
+import { getTransactionHistory } from '@/helpers/api';
+import { useAuthToken } from '@/hooks/use-auth-token';
+import { getUserIdFromToken, isTokenExpired } from '@/utils/jwtUtils';
 
 interface TransactionListProps {
   transactions?: Transaction[];
 }
 
 export const TransactionList = ({ transactions: propTransactions }: TransactionListProps) => {
-  const [transactions, setTransactions] = useState<Transaction[]>(propTransactions || []);
+  const { getToken } = useAuthToken();
+   const [transactions, setTransactions] = useState<Transaction[]>(propTransactions || []);
   const [loading, setLoading] = useState(!propTransactions);
   const [error, setError] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -34,20 +37,23 @@ export const TransactionList = ({ transactions: propTransactions }: TransactionL
   }, [propTransactions, page, debouncedSearch, startDate, endDate]);
 
   const fetchTransactions = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const userId = getCurrentUserId();
+     setLoading(true);
+     setError(null);
+     try {
+      const token = getToken();
+      let userId: string | null | undefined;
+      if (token && !isTokenExpired(token)) {
+        userId = getUserIdFromToken(token);
+      }
       if (!userId) throw new Error('User not found');
-      
       setCurrentUserId(userId);
-      const response = await getTransactionHistory(userId, {
-        page,
-        limit: 10,
-        search: debouncedSearch || undefined,
-        startDate,
-        endDate
-      });
+const response = await getTransactionHistory(userId, {
+  page,
+  limit: 10,
+  search: debouncedSearch || undefined,
+  startDate,
+  endDate
+});
       setTransactions(response.transactions || []);
     } catch (err) {
       console.error('TransactionList - fetch error:', err);

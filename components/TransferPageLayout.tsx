@@ -2,10 +2,12 @@
 
 import React, { useState, useEffect } from "react";
 import Navigation from "./Navigation";
-import { ArrowLeft, Scan, QrCode, Users, CreditCard, Search, Plus, Send, Smartphone } from "lucide-react";
+import { ArrowLeft, QrCode, Users, CreditCard, Search, Plus, Send, Smartphone } from "lucide-react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { getWalletBalance, getCurrentUserId, getAllUsers } from "@/helpers/api";
+import { useRouter, useParams } from "next/navigation";
+import { getWalletBalance, getAllUsers } from "@/helpers/api";
+import { useAuthToken } from "@/hooks/use-auth-token";
+import { getUserIdFromToken, isTokenExpired } from "@/utils/jwtUtils";
 
 interface Contact {
   id: string;
@@ -24,6 +26,9 @@ interface QuickAction {
 
 const TransferPageLayout = () => {
   const router = useRouter();
+  const { getToken } = useAuthToken();
+  const params = useParams();
+  const paramUserId = params?.userId as string | undefined;
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -34,15 +39,26 @@ const TransferPageLayout = () => {
   const [balanceError, setBalanceError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchBalance = async () => {
+  const fetchBalance = async () => {
       setBalanceLoading(true);
       setBalanceError(null);
       try {
-        const userId = getCurrentUserId();
-        if (!userId) throw new Error('User not found');
-        const data = await getWalletBalance(userId);
-        setBalance(Number(data.balance));
+        const token = getToken();
+        let userId: string | null | undefined = undefined;
+        if (token && !isTokenExpired(token)) {
+          userId = getUserIdFromToken(token);
+        }
+        if (!userId) {
+          userId = paramUserId;
+        }
+        if (!userId) {
+          console.warn('No userId available, skipping balance fetch');
+        } else {
+          const data = await getWalletBalance(userId);
+          setBalance(Number(data.balance));
+        }
       } catch (err: any) {
+        console.error('TransferPageLayout.fetchBalance error:', err);
         setBalanceError('Could not fetch balance');
       } finally {
         setBalanceLoading(false);
@@ -55,11 +71,7 @@ const TransferPageLayout = () => {
       setContactsError(null);
       try {
         const users = await getAllUsers();
-        // Optionally filter out the current user
-        const userId = getCurrentUserId();
-        const filtered = users.filter((u: any) => u.id !== userId);
-        // Map to Contact type
-        setContacts(filtered.map((u: any) => ({
+        setContacts(users.map((u: any) => ({
           id: u.id,
           name: `${u.firstName} ${u.lastName}`,
           phone: u.phone,
@@ -132,7 +144,7 @@ const TransferPageLayout = () => {
         {/* Balance Card */}
         <div className="bg-gradient-to-r from-[#00313A] to-[#00252e] rounded-3xl p-6 mb-8 text-white relative overflow-hidden">
           <div className="relative z-10">
-            <p className="text-sm opacity-80 mb-1">Available Balancee</p>
+            <p className="text-sm opacity-80 mb-1">Available Balance</p>
             <h2 className="text-3xl font-bold mb-4">
               {balanceLoading ? 'Loading...' : balanceError ? balanceError : `RWF ${balance?.toLocaleString()}`}
             </h2>
