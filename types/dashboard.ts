@@ -1,9 +1,26 @@
 export interface Transaction {
-  id: number;
-  name: string;
-  date: string;
+  id: string;
+  senderId: string;
+  receiverId: string;
   amount: number;
+  fee: number;
+  description?: string;
+  type: string;
   status: string;
+  createdAt: string;
+  processedAt?: string;
+  // Legacy fields for backward compatibility
+  name?: string;
+  date?: string;
+}
+
+export interface TransactionResponse {
+  transactions: Transaction[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+  };
 }
 
 export interface AnalyticsData {
