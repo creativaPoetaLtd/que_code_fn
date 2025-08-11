@@ -21,12 +21,6 @@ const Dashboard = () => {
   ];
 
 
-  const transactions = [
-    { id: 1, name: 'Spotify', date: 'Sat,20 Apr 2020', amount: 80.09, status: 'Deposited' },
-    { id: 2, name: 'PayPal', date: 'Fri,19 Apr 2020', amount: 7.03, status: 'Deposited' },
-    { id: 3, name: 'Spotify', date: 'tue,19 Apr 2020', amount: 30.09, status: 'Deposited' },
-  ];
-
   const expenseData = [
     { name: 'Entertainment', value: 30, color: '#1e40af' },
     { name: 'Bill Expense', value: 15, color: '#f97316' },
@@ -49,7 +43,7 @@ const Dashboard = () => {
               <StatCard title="Total Outcome" amount="632,000" percentage={1.29} type="outcome" />
             </div>
             <AnalyticsChart data={analyticsData} />
-            <TransactionList transactions={transactions} />
+            <TransactionList />
           </div>
 
           <div className="lg:col-span-4 space-y-6">

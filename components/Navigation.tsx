@@ -15,6 +15,7 @@ import {
     ChevronLeft,
     MessageCircle,
     ScanLine,
+    CreditCard,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuthToken } from "@/hooks/use-auth-token"
@@ -74,11 +75,13 @@ export default function Navigation() {
         { id: "Scan", icon: <ScanLine size={24} />, label: "Scan", path: "", isCenterButton: true },
         { id: "Actions", icon: <FileText size={24} />, label: "Actions", path: userId ? `/action/${userId}` : '/action' },
         { id: "Chat", icon: <MessageCircle size={24} />, label: "Chat", path: userId ? `/chat` : '/chat' },
+        { id: "Transactions", icon: <CreditCard size={24} />, label: "Transactions", path: "/transactions" },
     ]
 
     const mainMenuItems: NavigationItem[] = [
         { id: "Home", icon: <Home size={24} />, label: "Home", path: userId ? `/home/${userId}` : '/home' },
         { id: "Statistics", icon: <BarChart2 size={24} />, label: "Statistics", path: userId ? `/statistics/${userId}` : '/statistics' },
+        { id: "Transactions", icon: <CreditCard size={24} />, label: "Transactions", path: "/transactions" },
         { id: "Actions", icon: <FileText size={24} />, label: "Action", path: userId ? `/action/${userId}` : '/action' },
         { id: "Chat", icon: <MessageCircle size={24} />, label: "Chat", path: userId ? `/chat` : '/chat' },
     ]

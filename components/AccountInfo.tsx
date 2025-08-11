@@ -166,11 +166,6 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
                                 Re-login
                             </button>
                         </div>
-                        <div className="mt-4 text-sm text-gray-500">
-                            <p>Debug Info:</p>
-                            <p>UserID: {userId || 'undefined'}</p>
-                            <p>URL: {typeof window !== 'undefined' ? window.location.pathname : 'N/A'}</p>
-                        </div>
                     </div>
                 </div>
             </div>

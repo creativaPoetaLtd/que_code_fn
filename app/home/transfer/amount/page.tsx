@@ -6,7 +6,9 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { ArrowLeft, Check, Shield, AlertCircle, Eye, EyeOff } from "lucide-react";
 import Navigation from "@/components/Navigation";
-import { getWalletBalance, getCurrentUserId, transferMoney } from "@/helpers/api";
+import { getWalletBalance, transferMoney } from "@/helpers/api";
+import { useAuthToken } from "@/hooks/use-auth-token";
+import { getUserIdFromToken, isTokenExpired } from "@/utils/jwtUtils";
 
 interface Recipient {
   id: string;
@@ -28,6 +30,7 @@ const AmountPage = () => {
   const [balanceLoading, setBalanceLoading] = useState(true);
   const [balanceError, setBalanceError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const { getToken } = useAuthToken();
 
   const quickAmounts = [500, 1000, 2500, 5000, 10000, 25000];
 
@@ -45,7 +48,11 @@ const AmountPage = () => {
       setBalanceLoading(true);
       setBalanceError(null);
       try {
-        const userId = getCurrentUserId();
+        const token = getToken();
+        let userId: string | null | undefined;
+        if (token && !isTokenExpired(token)) {
+          userId = getUserIdFromToken(token);
+        }
         if (!userId) throw new Error('User not found');
         const data = await getWalletBalance(userId);
         setCurrentBalance(Number(data.balance));
@@ -112,7 +119,11 @@ const AmountPage = () => {
     setLoading(true);
     setError("");
     try {
-      const senderId = getCurrentUserId();
+      const token = getToken();
+      let senderId: string | null | undefined;
+      if (token && !isTokenExpired(token)) {
+        senderId = getUserIdFromToken(token);
+      }
       if (!senderId) throw new Error("User not found");
       const result = await transferMoney({
         senderId,
@@ -191,7 +202,7 @@ const AmountPage = () => {
             {/* Balance Display */}
             <div className="bg-gradient-to-r from-[#00313A] to-[#00252e] rounded-3xl p-6 mb-6 text-white">
               <p className="text-sm opacity-80 mb-1">Available Balance</p>
-              <h2 className="text-2xl font-bold">RWF {balanceLoading ? 'Loading...' : balanceError ? balanceError : `RWF ${currentBalance?.toLocaleString()}`}</h2>
+              <h2 className="text-2xl font-bold">{balanceLoading ? 'Loading...' : balanceError ? balanceError : `RWF ${currentBalance?.toLocaleString()}`}</h2>
             </div>
 
             {/* Amount Input */}
