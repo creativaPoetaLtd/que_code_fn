@@ -7,6 +7,19 @@ import axios from 'axios';
 import baseUrl from '@/helpers/baseUrl';
 import Navigation from '@/components/Navigation';
 import { Header } from '@/components/Header';
+import { useUserInfo } from '@/hooks/use-user-info';
+import { Button as CustomButton } from '@/components/ui/button';
+import { Input as CustomInput } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import InputPassword from '@/components/ui/InputPassword';
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter
+} from '@/components/ui/dialog';
 
 interface UserData {
   name?: string;
@@ -34,48 +47,22 @@ const WelcomeProfilePage = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState<string>('');
   const [contactForm, setContactForm] = useState<ContactFormData>({
     name: '',
     email: '',
     message: ''
   });
-
-  // Check authentication status
+  const { isAuthenticated, userId: currentUserId } = useUserInfo();
+  const isLoggedIn = isAuthenticated;
+  
+  // Add a state to track if hydration is complete
+  const [isHydrated, setIsHydrated] = useState(false);
+  
   useEffect(() => {
-    const checkAuthStatus = () => {
-      const authToken = localStorage.getItem('authToken');
-      if (authToken) {
-        try {
-          const base64Url = authToken.split('.')[1];
-          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-          const payload = JSON.parse(atob(base64));
-          
-          // Check if token is not expired
-          if (payload.exp && payload.exp * 1000 > Date.now()) {
-            const loggedInUserId = payload?.userId || payload?.id || payload?.sub;
-            if (loggedInUserId) {
-              setIsLoggedIn(true);
-              setCurrentUserId(loggedInUserId);
-            }
-          } else {
-            // Token is expired, remove it
-            localStorage.removeItem('authToken');
-            setIsLoggedIn(false);
-          }
-        } catch (error) {
-          console.error('Invalid token:', error);
-          localStorage.removeItem('authToken');
-          setIsLoggedIn(false);
-        }
-      } else {
-        setIsLoggedIn(false);
-      }
-    };
-    
-    checkAuthStatus();
+    setIsHydrated(true);
   }, []);
+
+  // (Remove the useEffect that redirects logged-in users to their home page)
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -185,7 +172,7 @@ const WelcomeProfilePage = () => {
   if (loading) {
     return (
       <>
-      <Header />
+      {isHydrated && isLoggedIn && <Header />}
         <div className="min-h-screen bg-gradient-to-br from-[#013f47] via-[#025059] to-[#01363d] flex items-center justify-center px-4 relative overflow-hidden">
           {/* Animated Background */}
         <div className="absolute inset-0 overflow-hidden">
@@ -236,7 +223,7 @@ const WelcomeProfilePage = () => {
 
   return (
     <>
-    <Header />
+    {isHydrated && isLoggedIn && <Header />}
       <div className="min-h-screen bg-gradient-to-br from-[#013f47] via-[#025059] to-[#01363d] relative overflow-hidden">
         {/* Enhanced Animated Background */}
       <div className="absolute inset-0 overflow-hidden">
@@ -266,11 +253,11 @@ const WelcomeProfilePage = () => {
   </div>
 
         {/* Main Content Container */}
-        <div className="container mx-auto px-4 py-8 lg:py-12 flex items-center justify-center min-h-screen relative z-10">
+        <div className="container mx-auto px-4 py-8 lg:py-12 flex items-center justify-center min-h-screen relative z-10 ">
           {/* Desktop Layout: Two Column */}
-          <div className="hidden lg:flex w-full max-w-6xl xl:max-w-7xl gap-8 xl:gap-12 items-center">
+          <div className="hidden lg:flex w-full max-w-4xl xl:max-w-5xl gap-8 xl:gap-12 items-center mx-auto">
             {/* Left Side - Profile Information */}
-            <div className="flex-1 bg-white/95 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 p-8 xl:p-12 relative">
+            <div className="flex-1 bg-white/95 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 p-8 xl:p-12 relative ">
         {/* Decorative top accent */}
         <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-gradient-to-br from-[#00B512] to-[#1fd331] rounded-full flex items-center justify-center shadow-lg">
           <Gift className="w-8 h-8 text-white" />
@@ -365,6 +352,180 @@ const WelcomeProfilePage = () => {
                     <Twitter className="w-7 h-7 text-white" />
                   </button>
                 </div>
+                {/* Modal Trigger Buttons */}
+                <div className="flex flex-col items-center gap-4 mt-4">
+                  <div className="flex justify-center gap-4 w-full">
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <CustomButton variant="default" className="px-6 py-3 rounded-xl font-bold shadow-lg bg-gradient-to-r from-[#00B512] to-[#1fd331] text-white">
+                          Send Money
+                        </CustomButton>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Send Money</DialogTitle>
+                        </DialogHeader>
+                        <form className="space-y-6" onSubmit={e => { e.preventDefault(); handleSubmit(); }}>
+                          <div className="space-y-2">
+                        <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
+                          <span>Amount ($)</span>
+                          <Sparkles className="w-4 h-4 text-[#00B512] animate-pulse" />
+                        </label>
+                            <CustomInput
+                          type="number"
+                          placeholder="Enter amount"
+                          value={amount}
+                          onChange={e => setAmount(e.target.value)}
+                              className="h-12 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
+                        />
+                      </div>
+                          {isLoggedIn && (
+                            <div className="space-y-2">
+                        <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
+                          <span>Password</span>
+                          <Shield className="w-4 h-4 text-[#1fd331] animate-pulse delay-150" />
+                        </label>
+                              <InputPassword
+                          placeholder="Enter password"
+                          value={password}
+                          onChange={e => setPassword(e.target.value)}
+                                className="h-12 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
+                        />
+                      </div>
+                          )}
+                          <div className="space-y-2">
+                        <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
+                          <span>Message</span>
+                          <MessageSquare className="w-4 h-4 text-[#00B512] animate-pulse" />
+                        </label>
+                            <Textarea
+                          placeholder="Enter a message (optional)"
+                              className="rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
+                          rows={3}
+                        />
+                      </div>
+                          <DialogFooter>
+                            <CustomButton
+                              type="submit"
+                              variant="default"
+                              className="w-full h-12 bg-gradient-to-r from-[#00B512] to-[#1fd331] border-none rounded-xl font-bold text-white shadow-lg hover:shadow-xl text-lg"
+                              disabled={!amount || (isLoggedIn && !password)}
+                      >
+                              {isLoggedIn ? <b>Send Money</b> : <b>Next</b>}
+                            </CustomButton>
+                          </DialogFooter>
+                        </form>
+                      </DialogContent>
+                    </Dialog>
+                    {isLoggedIn && (
+                      <CustomButton
+                        variant="outline"
+                        className="px-6 py-3 border-2 border-[#00B512] text-[#00B512] rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:bg-[#00B512] hover:text-white"
+                        onClick={handleAddFriend}
+                      >
+                        <span className="flex items-center justify-center gap-3">
+                          <Plus className="w-5 h-5" />
+                          <b>Add Friend</b>
+                        </span>
+                      </CustomButton>
+                    )}
+                    {!isLoggedIn && (
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <CustomButton variant="outline" className="px-6 py-3 rounded-xl font-bold shadow-lg border-[#00B512] text-[#00B512]">
+                            Contact
+                          </CustomButton>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Contact {user.name}</DialogTitle>
+                          </DialogHeader>
+                          <form className="space-y-6" onSubmit={e => { e.preventDefault(); handleContactSubmit(); }}>
+                            <div className="space-y-2">
+                              <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
+                                <span>Your Name</span>
+                                <User className="w-4 h-4 text-[#00B512] animate-pulse" />
+                              </label>
+                              <CustomInput
+                                placeholder="Enter your name"
+                                value={contactForm.name}
+                                onChange={e => setContactForm({ ...contactForm, name: e.target.value })}
+                                className="h-12 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
+                                <span>Email</span>
+                                <Mail className="w-4 h-4 text-[#1fd331] animate-pulse delay-150" />
+                              </label>
+                              <CustomInput
+                                type="email"
+                                placeholder="Enter your email"
+                                value={contactForm.email}
+                                onChange={e => setContactForm({ ...contactForm, email: e.target.value })}
+                                className="h-12 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
+                                <span>Message</span>
+                                <MessageSquare className="w-4 h-4 text-[#00B512] animate-pulse" />
+                              </label>
+                              <Textarea
+                                placeholder="Enter your message"
+                                value={contactForm.message}
+                                onChange={e => setContactForm({ ...contactForm, message: e.target.value })}
+                                className="rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
+                                rows={4}
+                              />
+                            </div>
+                            <DialogFooter>
+                              <CustomButton
+                                type="submit"
+                                variant="default"
+                                className="w-full h-12 bg-gradient-to-r from-[#00B512] to-[#1fd331] border-none rounded-xl font-bold text-white shadow-lg hover:shadow-xl text-lg"
+                                disabled={!contactForm.name || !contactForm.email || !contactForm.message}
+                              >
+                                <b>Send Message</b>
+                              </CustomButton>
+                            </DialogFooter>
+                          </form>
+                        </DialogContent>
+                      </Dialog>
+                    )}
+                  </div>
+                  {isLoggedIn ? (
+                    <div className="w-full max-w-xs flex flex-col items-center gap-3 bg-gradient-to-br from-[#f0fff4] via-[#e6f9f0] to-[#f6fff9] rounded-2xl shadow-lg p-5 mt-2 border border-[#00B512]/10">
+                      <div className="text-center mb-2">
+                        <span className="block text-lg font-bold text-[#00B512] drop-shadow-sm">Welcome back!</span>
+                        <span className="block text-sm text-[#00313A]/70 mt-1">You're all set to send money and connect 🎉</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="w-full max-w-xs flex flex-col items-center gap-3 bg-gradient-to-br from-[#f0fff4] via-[#e6f9f0] to-[#f6fff9] rounded-2xl shadow-lg p-5 mt-2 border border-[#00B512]/10">
+                      <div className="text-center mb-2">
+                        <span className="block text-lg font-bold text-[#00B512] drop-shadow-sm">Join us now or sign in!</span>
+                        <span className="block text-sm text-[#00313A]/70 mt-1">Enjoy secure, fast, and fun money transfers 🚀</span>
+                      </div>
+                      <div className="flex gap-3 w-full">
+                        <CustomButton
+                          variant="outline"
+                          className="flex-1 h-12 border-2 border-[#00B512] text-[#00B512] rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:bg-[#00B512] hover:text-white"
+                          onClick={handleLoginClick}
+                        >
+                          <b>Login</b>
+                        </CustomButton>
+                        <CustomButton
+                          variant="default"
+                          className="flex-1 h-12 bg-[#00B512] border-2 border-[#00B512] text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:bg-[#1fd331]"
+                          onClick={handleSignupClick}
+                        >
+                          <b>Sign Up</b>
+                        </CustomButton>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Debug Info */}
@@ -378,223 +539,13 @@ const WelcomeProfilePage = () => {
             </div>
 
             {/* Right Side - Forms */}
-            <div className="flex-1 space-y-6">
-              {isLoggedIn ? (
-                /* Logged in user forms */
-                <div className="space-y-6">
-                  {/* Money Transfer Form */}
-                  <div className="bg-white/95 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 p-8 xl:p-10">
-                    <div className="text-center mb-6">
-                      <h2 className="text-2xl font-bold text-[#00313A] mb-2">Send Money</h2>
-                      <div className="w-16 h-1 bg-gradient-to-r from-[#00B512] to-[#1fd331] rounded-full mx-auto"></div>
-                    </div>
-
-                    <div className="space-y-6">
-                      <div className="space-y-3">
-                        <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
-                          <span>Amount ($)</span>
-                          <Sparkles className="w-4 h-4 text-[#00B512] animate-pulse" />
-                        </label>
-                        <Input
-                          type="number"
-                          placeholder="Enter amount"
-                          value={amount}
-                          onChange={e => setAmount(e.target.value)}
-                          className="h-14 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] transition-all duration-300 shadow-sm hover:shadow-md text-lg"
-                        />
-                      </div>
-                      
-                      <div className="space-y-3">
-                        <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
-                          <span>Password</span>
-                          <Shield className="w-4 h-4 text-[#1fd331] animate-pulse delay-150" />
-                        </label>
-                        <Input.Password
-                          placeholder="Enter password"
-                          value={password}
-                          onChange={e => setPassword(e.target.value)}
-                          className="h-14 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] transition-all duration-300 shadow-sm hover:shadow-md text-lg"
-                        />
-                      </div>
-                      
-                      <div className="space-y-3">
-                        <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
-                          <span>Message</span>
-                          <MessageSquare className="w-4 h-4 text-[#00B512] animate-pulse" />
-                        </label>
-                        <Input.TextArea
-                          placeholder="Enter a message (optional)"
-                          className="rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] transition-all duration-300 shadow-sm hover:shadow-md text-lg"
-                          rows={3}
-                        />
-                      </div>
-                      
-                      <Button 
-                        type="primary" 
-                        className="w-full h-14 bg-gradient-to-r from-[#00B512] to-[#1fd331] border-none rounded-xl font-bold text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 transform text-lg"
-                        onClick={handleSubmit}
-                        disabled={!amount || !password}
-                      >
-                        <b>Send Money</b>
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Add Friend Card */}
-                  <div className="bg-white/95 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 p-8">
-                    <Button 
-                      type="default" 
-                      className="w-full h-14 bg-white border-2 border-[#00B512] text-[#00B512] rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:bg-[#00B512] hover:text-white transform text-lg"
-                      onClick={handleAddFriend}
-                    >
-                      <span className="flex items-center justify-center gap-3">
-                        {/* <Plus className="w-5 h-5" /> */}
-                        <b>Add Friend</b>
-                      </span>
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                /* Non-logged in user forms */
-                <div className="space-y-6">
-                  {/* Money Transfer Form */}
-                  <div className="bg-white/95 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 p-8 xl:p-10">
-                    <div className="text-center mb-6">
-                      <h2 className="text-2xl font-bold text-[#00313A] mb-2">Send Money</h2>
-                      <div className="w-16 h-1 bg-gradient-to-r from-[#00B512] to-[#1fd331] rounded-full mx-auto"></div>
-                    </div>
-
-                    <div className="space-y-6">
-                      <div className="space-y-3">
-                        <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
-                          <span>Amount ($)</span>
-                          <Sparkles className="w-4 h-4 text-[#00B512] animate-pulse" />
-                        </label>
-                        <Input
-                          type="number"
-                          placeholder="Enter amount"
-                          value={amount}
-                          onChange={e => setAmount(e.target.value)}
-                          className="h-14 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] transition-all duration-300 shadow-sm hover:shadow-md text-lg"
-                        />
-                      </div>
-                      
-                      <div className="space-y-3">
-                        <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
-                          <span>Message</span>
-                          <MessageSquare className="w-4 h-4 text-[#00B512] animate-pulse" />
-                        </label>
-                        <Input.TextArea
-                          placeholder="Enter a message (optional)"
-                          className="rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] transition-all duration-300 shadow-sm hover:shadow-md text-lg"
-                          rows={3}
-                        />
-                      </div>
-                      
-                      <Button 
-                        type="primary" 
-                        className="w-full h-14 bg-gradient-to-r from-[#00B512] to-[#1fd331] border-none rounded-xl font-bold text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 transform text-lg"
-                        onClick={handleSubmit}
-                        disabled={!amount}
-                      >
-                        <b>Next</b>
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Contact Form */}
-                  <div className="bg-white/95 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 p-8 xl:p-10">
-                    <div className="text-center mb-6">
-                      <h2 className="text-2xl font-bold text-[#00313A] mb-2">Contact {user.name}</h2>
-                      <div className="w-16 h-1 bg-gradient-to-r from-[#00B512] to-[#1fd331] rounded-full mx-auto"></div>
-                    </div>
-
-                    <div className="space-y-6">
-                      <div className="space-y-3">
-                        <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
-                          <span>Your Name</span>
-                          <User className="w-4 h-4 text-[#00B512] animate-pulse" />
-                        </label>
-                        <Input
-                          placeholder="Enter your name"
-                          value={contactForm.name}
-                          onChange={e => setContactForm({...contactForm, name: e.target.value})}
-                          className="h-14 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] transition-all duration-300 shadow-sm hover:shadow-md text-lg"
-                        />
-                      </div>
-                      
-                      <div className="space-y-3">
-                        <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
-                          <span>Email</span>
-                          <Mail className="w-4 h-4 text-[#1fd331] animate-pulse delay-150" />
-                        </label>
-                        <Input
-                          type="email"
-                          placeholder="Enter your email"
-                          value={contactForm.email}
-                          onChange={e => setContactForm({...contactForm, email: e.target.value})}
-                          className="h-14 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] transition-all duration-300 shadow-sm hover:shadow-md text-lg"
-                        />
-                      </div>
-                      
-                      <div className="space-y-3">
-                        <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
-                          <span>Message</span>
-                          <MessageSquare className="w-4 h-4 text-[#00B512] animate-pulse" />
-                        </label>
-                        <Input.TextArea
-                          placeholder="Enter your message"
-                          value={contactForm.message}
-                          onChange={e => setContactForm({...contactForm, message: e.target.value})}
-                          className="rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] transition-all duration-300 shadow-sm hover:shadow-md text-lg"
-                          rows={4}
-                        />
-                      </div>
-                      
-                      <Button 
-                        type="primary" 
-                        className="w-full h-14 bg-gradient-to-r from-[#00B512] to-[#1fd331] border-none rounded-xl font-bold text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 transform text-lg"
-                        onClick={handleContactSubmit}
-                        disabled={!contactForm.name || !contactForm.email || !contactForm.message}
-                      >
-                        <span className="flex items-center justify-center gap-3">
-                          {/* <MessageSquare className="w-5 h-5" /> */}
-                          <b>Send Message</b>
-                        </span>
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Auth Buttons */}
-                  <div className="bg-white/95 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 p-8">
-                    <div className="text-center mb-6">
-                      <h3 className="text-xl font-bold text-[#00313A] mb-2">Join Our Platform</h3>
-                      <p className="text-sm text-[#00313A]/70">Already have an account? Sign in to access more features</p>
-                    </div>
-                    <div className="flex gap-4">
-                      <Button 
-                        type="default" 
-                        className="flex-1 h-14 bg-white border-2 border-[#00B512] text-[#00B512] rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:bg-[#00B512] hover:text-white transform text-lg"
-                        onClick={handleLoginClick}
-                      >
-                        <b>Login</b>
-                      </Button>
-                      <Button 
-                        type="default" 
-                        className="flex-1 h-14 bg-[#00B512] border-2 border-[#00B512] text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:bg-[#1fd331] transform text-lg"
-                        onClick={handleSignupClick}
-                      >
-                        <b>Sign Up</b>
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+            {/* <div className="flex-1 space-y-6 border-4 border-red-500"> */}
+              {/* The forms have been moved to modals. You can add other content here if needed. */}
+            {/* </div> */}
           </div>
 
           {/* Mobile Layout: Single Column */}
-          <div className="lg:hidden w-full max-w-md">
+          <div className="lg:hidden w-full max-w-md ">
             <div className="bg-white/95 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 p-6 relative transform hover:scale-[1.02] transition-all duration-300">
               {/* Decorative top accent */}
               <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-gradient-to-br from-[#00B512] to-[#1fd331] rounded-full flex items-center justify-center shadow-lg">
@@ -685,71 +636,80 @@ const WelcomeProfilePage = () => {
               {isLoggedIn ? (
                 // Mobile logged in user interface
                 <div className="w-full space-y-4">
-                  {/* Mobile Money Transfer Form */}
-          <div className="space-y-3">
-                    <label className="text-xs font-semibold text-[#00313A] flex items-center gap-2">
-              <span>Amount ($) </span>
-              <Sparkles className="w-3 h-3 text-[#00B512] animate-pulse" />
+                  {/* Mobile Modal Trigger Buttons */}
+                  <div className="flex flex-col gap-3">
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <CustomButton variant="default" className="w-full h-12 bg-gradient-to-r from-[#00B512] to-[#1fd331] text-white rounded-xl font-bold shadow-lg">
+                          Send Money
+                        </CustomButton>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                          <DialogTitle>Send Money</DialogTitle>
+                        </DialogHeader>
+                        <form className="space-y-4" onSubmit={e => { e.preventDefault(); handleSubmit(); }}>
+                          <div className="space-y-2">
+                            <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
+                              <span>Amount ($)</span>
+                              <Sparkles className="w-4 h-4 text-[#00B512] animate-pulse" />
             </label>
-            <Input
+                            <CustomInput
               type="number"
               placeholder="Enter amount"
               value={amount}
               onChange={e => setAmount(e.target.value)}
-                      className="h-10 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] transition-all duration-300 shadow-sm hover:shadow-md"
-                      style={{ fontSize: '14px', fontWeight: '500' }}
+                              className="h-12 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
             />
           </div>
-          
-          <div className="space-y-3">
-                    <label className="text-xs font-semibold text-[#00313A] flex items-center gap-2">
+                          <div className="space-y-2">
+                            <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
               <span>Password</span>
-              <Shield className="w-3 h-3 text-[#1fd331] animate-pulse delay-150" />
+                              <Shield className="w-4 h-4 text-[#1fd331] animate-pulse delay-150" />
             </label>
-            <Input.Password
+                            <InputPassword
               placeholder="Enter password"
               value={password}
               onChange={e => setPassword(e.target.value)}
-                      className="h-10 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] transition-all duration-300 shadow-sm hover:shadow-md"
-                      style={{ fontSize: '14px', fontWeight: '500' }}
+                              className="h-12 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
                     />
                   </div>
-                  
-                  <div className="space-y-3">
-                    <label className="text-xs font-semibold text-[#00313A] flex items-center gap-2">
+                          <div className="space-y-2">
+                            <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
                       <span>Message</span>
-                      <MessageSquare className="w-3 h-3 text-[#00B512] animate-pulse" />
+                              <MessageSquare className="w-4 h-4 text-[#00B512] animate-pulse" />
                     </label>
-                    <Input.TextArea
+                            <Textarea
                       placeholder="Enter a message (optional)"
-                      className="rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] transition-all duration-300 shadow-sm hover:shadow-md"
+                              className="rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
                       rows={3}
-                      style={{ fontSize: '14px', fontWeight: '500' }}
             />
           </div>
-          
-          <Button 
-            type="primary" 
-                    className="w-full h-10 bg-gradient-to-r from-[#00B512] to-[#1fd331] border-none rounded-xl font-bold text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 transform"
-            onClick={handleSubmit}
+                          <DialogFooter>
+                            <CustomButton
+                              type="submit"
+                              variant="default"
+                              className="w-full h-12 bg-gradient-to-r from-[#00B512] to-[#1fd331] border-none rounded-xl font-bold text-white shadow-lg hover:shadow-xl text-lg"
             disabled={!amount || !password}
-                    style={{ fontSize: '14px', letterSpacing: '0.5px' }}
-                  >
-                    <b>Next</b>
-                  </Button>
-
-                  {/* Mobile Add Friend Button */}
-                  <Button 
-                    type="default" 
-                    className="w-full h-10 bg-white border-2 border-[#00B512] text-[#00B512] rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:bg-[#00B512] hover:text-white transform"
+                            >
+                              <b>Send Money</b>
+                            </CustomButton>
+                          </DialogFooter>
+                        </form>
+                      </DialogContent>
+                    </Dialog>
+                    
+                    <CustomButton
+                      variant="outline"
+                      className="w-full h-12 border-2 border-[#00B512] text-[#00B512] rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:bg-[#00B512] hover:text-white"
                     onClick={handleAddFriend}
-                    style={{ fontSize: '14px', letterSpacing: '0.5px' }}
           >
-            <span className="flex items-center justify-center gap-2">
-                      {/* <Plus className="w-4 h-4" /> */}
+                      <span className="flex items-center justify-center gap-3">
+                        <Plus className="w-5 h-5" />
                       <b>Add Friend</b>
                     </span>
-                  </Button>
+                    </CustomButton>
+                  </div>
 
                   {/* Mobile Social Media Icons */}
                   <div className="flex justify-center gap-3 mt-4">
@@ -776,105 +736,120 @@ const WelcomeProfilePage = () => {
               ) : (
                 // Mobile non-logged in user interface
                 <div className="w-full space-y-4">
-                  {/* Mobile Money Transfer Form */}
-                  <div className="space-y-3">
-                    <label className="text-xs font-semibold text-[#00313A] flex items-center gap-2">
-                      <span>Amount ($) </span>
-                      <Sparkles className="w-3 h-3 text-[#00B512] animate-pulse" />
+                  {/* Mobile Modal Trigger Buttons */}
+                  <div className="flex flex-col gap-3">
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <CustomButton variant="default" className="w-full h-12 bg-gradient-to-r from-[#00B512] to-[#1fd331] text-white rounded-xl font-bold shadow-lg">
+                          Send Money
+                        </CustomButton>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                          <DialogTitle>Send Money</DialogTitle>
+                        </DialogHeader>
+                        <form className="space-y-4" onSubmit={e => { e.preventDefault(); handleSubmit(); }}>
+                          <div className="space-y-2">
+                            <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
+                              <span>Amount ($)</span>
+                              <Sparkles className="w-4 h-4 text-[#00B512] animate-pulse" />
                     </label>
-                    <Input
+                            <CustomInput
                       type="number"
                       placeholder="Enter amount"
                       value={amount}
                       onChange={e => setAmount(e.target.value)}
-                      className="h-10 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] transition-all duration-300 shadow-sm hover:shadow-md"
-                      style={{ fontSize: '14px', fontWeight: '500' }}
-                    />
-                  </div>
-                  
-                  <div className="space-y-3">
-                    <label className="text-xs font-semibold text-[#00313A] flex items-center gap-2">
+                              className="h-12 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
+            />
+          </div>
+                          <div className="space-y-2">
+                            <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
                       <span>Message</span>
-                      <MessageSquare className="w-3 h-3 text-[#00B512] animate-pulse" />
+                              <MessageSquare className="w-4 h-4 text-[#00B512] animate-pulse" />
                     </label>
-                    <Input.TextArea
+                            <Textarea
                       placeholder="Enter a message (optional)"
-                      className="rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] transition-all duration-300 shadow-sm hover:shadow-md"
+                              className="rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
                       rows={3}
-                      style={{ fontSize: '14px', fontWeight: '500' }}
                     />
                   </div>
-                  
-                  <Button 
-                    type="primary" 
-                    className="w-full h-10 bg-gradient-to-r from-[#00B512] to-[#1fd331] border-none rounded-xl font-bold text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 transform"
-                    onClick={handleSubmit}
+                          <DialogFooter>
+                            <CustomButton
+                              type="submit"
+                              variant="default"
+                              className="w-full h-12 bg-gradient-to-r from-[#00B512] to-[#1fd331] border-none rounded-xl font-bold text-white shadow-lg hover:shadow-xl text-lg"
                     disabled={!amount}
-                    style={{ fontSize: '14px', letterSpacing: '0.5px' }}
                   >
               <b>Next</b>
-                  </Button>
-
-                  {/* Mobile Divider */}
-                  <div className="w-full h-px bg-gradient-to-r from-transparent via-[#00B512]/30 to-transparent my-4"></div>
-
-                  {/* Mobile Contact Form */}
-                  <div className="space-y-3">
-                    <label className="text-xs font-semibold text-[#00313A] flex items-center gap-2">
+                            </CustomButton>
+                          </DialogFooter>
+                        </form>
+                      </DialogContent>
+                    </Dialog>
+                    
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <CustomButton variant="outline" className="w-full h-12 border-2 border-[#00B512] text-[#00B512] rounded-xl font-bold shadow-lg">
+                          Contact
+                        </CustomButton>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                          <DialogTitle>Contact {user.name}</DialogTitle>
+                        </DialogHeader>
+                        <form className="space-y-4" onSubmit={e => { e.preventDefault(); handleContactSubmit(); }}>
+                          <div className="space-y-2">
+                            <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
                       <span>Your Name</span>
-                      <User className="w-3 h-3 text-[#00B512] animate-pulse" />
+                              <User className="w-4 h-4 text-[#00B512] animate-pulse" />
                     </label>
-                    <Input
+                            <CustomInput
                       placeholder="Enter your name"
                       value={contactForm.name}
-                      onChange={e => setContactForm({...contactForm, name: e.target.value})}
-                      className="h-10 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] transition-all duration-300 shadow-sm hover:shadow-md"
-                      style={{ fontSize: '14px', fontWeight: '500' }}
+                              onChange={e => setContactForm({ ...contactForm, name: e.target.value })}
+                              className="h-12 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
                     />
                   </div>
-                  
-                  <div className="space-y-3">
-                    <label className="text-xs font-semibold text-[#00313A] flex items-center gap-2">
+                          <div className="space-y-2">
+                            <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
                       <span>Email</span>
-                      <Mail className="w-3 h-3 text-[#1fd331] animate-pulse delay-150" />
+                              <Mail className="w-4 h-4 text-[#1fd331] animate-pulse delay-150" />
                     </label>
-                    <Input
+                            <CustomInput
                       type="email"
                       placeholder="Enter your email"
                       value={contactForm.email}
-                      onChange={e => setContactForm({...contactForm, email: e.target.value})}
-                      className="h-10 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] transition-all duration-300 shadow-sm hover:shadow-md"
-                      style={{ fontSize: '14px', fontWeight: '500' }}
+                              onChange={e => setContactForm({ ...contactForm, email: e.target.value })}
+                              className="h-12 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
                     />
                   </div>
-                  
-                  <div className="space-y-3">
-                    <label className="text-xs font-semibold text-[#00313A] flex items-center gap-2">
+                          <div className="space-y-2">
+                            <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
                       <span>Message</span>
-                      <MessageSquare className="w-3 h-3 text-[#00B512] animate-pulse" />
+                              <MessageSquare className="w-4 h-4 text-[#00B512] animate-pulse" />
                     </label>
-                    <Input.TextArea
+                            <Textarea
                       placeholder="Enter your message"
                       value={contactForm.message}
-                      onChange={e => setContactForm({...contactForm, message: e.target.value})}
-                      className="rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] transition-all duration-300 shadow-sm hover:shadow-md"
-                      rows={3}
-                      style={{ fontSize: '14px', fontWeight: '500' }}
+                              onChange={e => setContactForm({ ...contactForm, message: e.target.value })}
+                              className="rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
+                              rows={4}
                     />
                   </div>
-                  
-                  <Button 
-                    type="primary" 
-                    className="w-full h-10 bg-gradient-to-r from-[#00B512] to-[#1fd331] border-none rounded-xl font-bold text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 transform"
-                    onClick={handleContactSubmit}
+                          <DialogFooter>
+                            <CustomButton
+                              type="submit"
+                              variant="default"
+                              className="w-full h-12 bg-gradient-to-r from-[#00B512] to-[#1fd331] border-none rounded-xl font-bold text-white shadow-lg hover:shadow-xl text-lg"
                     disabled={!contactForm.name || !contactForm.email || !contactForm.message}
-                    style={{ fontSize: '14px', letterSpacing: '0.5px' }}
                   >
-                    <span className="flex items-center justify-center gap-2">
-                      {/* <MessageSquare className="w-4 h-4" /> */}
                       <b>Send Message</b>
-            </span>
-          </Button>
+                            </CustomButton>
+                          </DialogFooter>
+                        </form>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
 
                   {/* Mobile Social Media Icons */}
                   <div className="flex justify-center gap-3 mt-4">
@@ -898,48 +873,95 @@ const WelcomeProfilePage = () => {
                     </button>
         </div>
         
-                  {/* Mobile Login and Signup Buttons */}
-                  <div className="flex gap-3 mt-4">
-                    <Button 
-                      type="default" 
-                      className="flex-1 h-10 bg-white border-2 border-[#00B512] text-[#00B512] rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:bg-[#00B512] hover:text-white transform"
+                  {/* Mobile Login and Signup Buttons with Sweet Message */}
+                  <div className="w-full flex flex-col items-center gap-3 bg-gradient-to-br from-[#f0fff4] via-[#e6f9f0] to-[#f6fff9] rounded-2xl shadow-lg p-4 mt-2 border border-[#00B512]/10">
+                    <div className="text-center mb-2">
+                      <span className="block text-base font-bold text-[#00B512] drop-shadow-sm">Join us now or sign in!</span>
+                      <span className="block text-xs text-[#00313A]/70 mt-1">Enjoy secure, fast, and fun money transfers 🚀</span>
+                    </div>
+                    <div className="flex gap-3 w-full">
+                      <CustomButton
+                        variant="outline"
+                        className="flex-1 h-10 border-2 border-[#00B512] text-[#00B512] rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:bg-[#00B512] hover:text-white"
                       onClick={handleLoginClick}
-                      style={{ fontSize: '14px', letterSpacing: '0.5px' }}
                     >
                       <b>Login</b>
-                    </Button>
-                    <Button 
-                      type="default" 
-                      className="flex-1 h-10 bg-[#00B512] border-2 border-[#00B512] text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:bg-[#1fd331] transform"
+                      </CustomButton>
+                      <CustomButton
+                        variant="default"
+                        className="flex-1 h-10 bg-[#00B512] border-2 border-[#00B512] text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:bg-[#1fd331]"
                       onClick={handleSignupClick}
-                      style={{ fontSize: '14px', letterSpacing: '0.5px' }}
                     >
                       <b>Sign Up</b>
-                    </Button>
+                      </CustomButton>
+                    </div>
                   </div>
                 </div>
               )}
               
-              {/* Mobile Footer */}
-              <div className="mt-6 text-center space-y-2">
-          <div className="flex items-center justify-center gap-1 mb-2">
-            <Star className="w-3 h-3 text-[#00B512] animate-pulse" />
-            <Star className="w-3 h-3 text-[#1fd331] animate-pulse delay-150" />
-            <Star className="w-3 h-3 text-[#00B512] animate-pulse delay-300" />
-          </div>
-          <p className="text-xs text-[#00313A] font-medium">
-            QiewCode Made with <Heart className="w-3 h-3 text-[#00B512] inline mx-1 animate-pulse" />for you
-          </p>
-              </div>
+              {/* Mobile Footer - Only for logged in users */}
+              {isHydrated && isLoggedIn && (
+                <div className="mt-6 text-center space-y-2">
+                  <div className="flex items-center justify-center gap-1 mb-2">
+                    <Star className="w-3 h-3 text-[#00B512] animate-pulse" />
+                    <Star className="w-3 h-3 text-[#1fd331] animate-pulse delay-150" />
+                    <Star className="w-3 h-3 text-[#00B512] animate-pulse delay-300" />
+                  </div>
+                  <p className="text-xs text-[#00313A] font-medium">
+                    QiewCode Made with <Heart className="w-3 h-3 text-[#00B512] inline mx-1 animate-pulse" />for you
+                  </p>
+                </div>
+              )}
             </div>
         </div>
       </div>
       
         {/* Mobile Navigation */}
-    <div className="lg:hidden">
-      <Navigation />
-        </div>
-    </div>
+    {isHydrated && isLoggedIn && (
+      <div className="lg:hidden">
+        <Navigation />
+      </div>
+    )}
+      </div>
+      
+      {/* Footer - Only for logged in users */}
+      {isHydrated && isLoggedIn && (
+        <footer className="bg-[#00313A] text-white py-8 mt-12">
+          <div className="container mx-auto px-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div>
+                <h3 className="text-lg font-bold mb-4 text-[#00B512]">QiewCode</h3>
+                <p className="text-sm text-gray-300">
+                  Secure, fast, and reliable money transfer platform designed for modern users.
+                </p>
+              </div>
+              <div>
+                <h4 className="text-md font-semibold mb-4 text-[#00B512]">Quick Links</h4>
+                <ul className="space-y-2 text-sm text-gray-300">
+                  <li><a href="/home" className="hover:text-[#00B512] transition-colors">Home</a></li>
+                  <li><a href="/profile" className="hover:text-[#00B512] transition-colors">Profile</a></li>
+                  <li><a href="/settings" className="hover:text-[#00B512] transition-colors">Settings</a></li>
+                  <li><a href="/statistics" className="hover:text-[#00B512] transition-colors">Statistics</a></li>
+                </ul>
+              </div>
+              <div>
+                <h4 className="text-md font-semibold mb-4 text-[#00B512]">Support</h4>
+                <ul className="space-y-2 text-sm text-gray-300">
+                  <li><a href="/help" className="hover:text-[#00B512] transition-colors">Help Center</a></li>
+                  <li><a href="/contact" className="hover:text-[#00B512] transition-colors">Contact Us</a></li>
+                  <li><a href="/privacy" className="hover:text-[#00B512] transition-colors">Privacy Policy</a></li>
+                  <li><a href="/terms" className="hover:text-[#00B512] transition-colors">Terms of Service</a></li>
+                </ul>
+              </div>
+            </div>
+            <div className="border-t border-gray-600 mt-8 pt-8 text-center">
+              <p className="text-sm text-gray-400">
+                © 2024 QiewCode. All rights reserved. Made with ❤️ for secure money transfers.
+              </p>
+            </div>
+          </div>
+        </footer>
+      )}
     </>
   );
 };

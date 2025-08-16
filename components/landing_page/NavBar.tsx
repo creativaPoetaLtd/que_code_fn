@@ -5,39 +5,29 @@ import { Button } from "antd";
 import { MenuOutlined, CloseOutlined } from "@ant-design/icons";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { useUserInfo } from "@/hooks/use-user-info";
+
 const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const router = useRouter();
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userId, setUserId] = useState("");
+  const { isAuthenticated, userId } = useUserInfo();
+
+  // Prevent hydration mismatch by only showing auth-dependent content after mounting
   useEffect(() => {
-    const authToken = localStorage.getItem("authToken");
-    setIsLoggedIn(!!authToken);
+    setMounted(true);
   }, []);
-console.log("igor");
+
   const toggleMenu = () => {
     setMenuOpen(!menuOpen);
   };
 
   const handleNavigate = () => {
-    const authToken = localStorage.getItem("authToken");
-  
-    if (authToken) {
-      try {
-        const base64Url = authToken.split(".")[1];
-        const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-        const payload = JSON.parse(atob(base64));
-        const id = payload?.userId || payload?.id || payload?.sub || "";
-        if (id) {
-          router.push(`/home/${id}`);
-          return;
-        }
-      } catch (e) {
-        // fall through to login
-      }
+    if (isAuthenticated && userId) {
+      router.push(`/home/${userId}`);
+    } else {
+      router.push("/auth/login");
     }
-  
-    router.push("/auth/login");
   };
 
   return (
@@ -76,7 +66,7 @@ console.log("igor");
           className="border-[#00B512] px-8 py-4 text-md text-white transition-colors duration-500 ease-in-out hover:bg-[#1fd331]"
           ghost
         >
-          {isLoggedIn ? "Dashboard" : "Sign In"}
+          {mounted ? (isAuthenticated ? "Dashboard" : "Sign In") : "Sign In"}
         </Button>
       </div>
 
@@ -112,7 +102,7 @@ console.log("igor");
             Help
           </a>
           <Button onClick={handleNavigate} className="border-white text-white w-fit" ghost>
-            {isLoggedIn ? "Dashboard" : "Sign In"}
+            {mounted ? (isAuthenticated ? "Dashboard" : "Sign In") : "Sign In"}
           </Button>
         </div>
       )}
