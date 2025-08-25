@@ -6,47 +6,23 @@ export const getWalletBalance = async (userId: string) => {
   return res.data;
 };
 
-export const transferMoney = async ({ senderId, receiverId, amount, description }: {
+export const transferMoney = async ({ senderId, receiverId, amount, description, categoryId, token }: {
   senderId: string;
   receiverId: string;
   amount: number;
   description: string;
+  categoryId?: string;
+  token?: string;
 }) => {
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
   const res = await axios.post(`${baseUrl}/transactions/transfer`, {
     senderId,
     receiverId,
     amount,
     description,
-  });
+    categoryId,
+  }, { headers });
   return res.data;
-};
-
-export const getCurrentUserId = (): string | null => {
-  try {
-  // Retrieve token, first check sessionStorage then localStorage
-  const raw = sessionStorage.getItem('token') ?? localStorage.getItem('token');
-    if (!raw) return null;
-    let authToken: string | null;
-    try {
-      authToken = JSON.parse(raw).value;
-    } catch {
-      authToken = raw;
-    }
-    if (!authToken) return null;
-    const parts = authToken.split('.');
-    if (parts.length < 2) return null;
-    const base64Url = parts[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-  const payload = JSON.parse(atob(base64));
-    let userId = payload?.userId || payload?.id || payload?.sub || null;
-    if (userId === 'undefined') {
-      return null;
-    }
-    return userId;
-  } catch (error) {
-    console.error('getCurrentUserId error:', error);
-    return null;
-  }
 };
 
 export const getAllUsers = async () => {
@@ -74,5 +50,52 @@ export const getTransactionHistory = async (userId: string, params?: {
   
   const url = `${baseUrl}/transactions/history/${userId}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
   const res = await axios.get(url);
+  return res.data;
+};
+
+// Analytics API functions
+export const getExpenseSummary = async (userId: string, period?: '7d' | '30d' | '90d' | '365d', token?: string) => {
+  const queryParams = new URLSearchParams();
+  if (period) queryParams.append('period', period);
+  
+  const url = `${baseUrl}/analytics/summary/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const res = await axios.get(url, { headers });
+  return res.data;
+};
+
+export const getCategoryBreakdown = async (userId: string, period?: '7d' | '30d' | '90d' | '365d', token?: string) => {
+  const queryParams = new URLSearchParams();
+  if (period) queryParams.append('period', period);
+  
+  const url = `${baseUrl}/analytics/category-breakdown/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const res = await axios.get(url, { headers });
+  return res.data;
+};
+
+export const getSpendingTrends = async (userId: string, period?: '7d' | '30d' | '90d' | '365d', token?: string) => {
+  const queryParams = new URLSearchParams();
+  if (period) queryParams.append('period', period);
+  
+  const url = `${baseUrl}/analytics/spending-trends/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const res = await axios.get(url, { headers });
+  return res.data;
+};
+
+export const getRecentExpenses = async (userId: string, limit?: number, token?: string) => {
+  const queryParams = new URLSearchParams();
+  if (limit) queryParams.append('limit', limit.toString());
+  
+  const url = `${baseUrl}/analytics/recent-transactions/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const res = await axios.get(url, { headers });
+  return res.data;
+};
+
+export const getCategories = async (token?: string) => {
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const res = await axios.get(`${baseUrl}/transactions/categories`, { headers });
   return res.data;
 };

@@ -20,14 +20,6 @@ const Dashboard = () => {
     { name: 'Aug', income: 20000, expense: 12000 },
   ];
 
-
-  const expenseData = [
-    { name: 'Entertainment', value: 30, color: '#1e40af' },
-    { name: 'Bill Expense', value: 15, color: '#f97316' },
-    { name: 'Investment', value: 20, color: '#e11d48' },
-    { name: 'Others', value: 35, color: '#2563eb' },
-  ];
-
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="p-4 lg:p-8 lg:ml-20">
@@ -47,7 +39,7 @@ const Dashboard = () => {
           </div>
 
           <div className="lg:col-span-4 space-y-6">
-            <ExpenseStats data={expenseData} />
+            <ExpenseStats />
             <StatRecentActions percentage={75} />
           </div>
         </div>

@@ -1,10 +1,11 @@
-import AccountInfo from '@/components/AccountInfo'
-import Dashboard from '@/components/Dashboard/Dashboard'
+"use client";
+
+import AdvancedAnalytics from '@/components/Dashboard/AdvancedAnalytics'
+import { ExpenseStats } from '@/components/Dashboard/ExpenseStats'
 
 import { Header } from '@/components/Header'
 import Navigation from '@/components/Navigation'
-// import RecentActions from '@/components/RecentActions'
-import RecentMessages from '@/components/RecentMessages'
+
 import RecentTransactions from '@/components/RecentTransactions'
 
 import React from 'react'
@@ -21,8 +22,24 @@ const page = () => {
                     {/* Header */}
                     <Header />
 
-                    {/* Content */}
-                    <Dashboard />
+                    {/* Enhanced Analytics Content */}
+                    <div className="space-y-8 mt-6">
+                        {/* Advanced Analytics Section */}
+                        <AdvancedAnalytics />
+                        
+                        {/* Split Layout for Detailed Views */}
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            {/* Expense Statistics - 2 columns */}
+                            <div className="lg:col-span-2">
+                                <ExpenseStats />
+                            </div>
+                            
+                            {/* Recent Transactions - 1 column */}
+                            <div className="lg:col-span-1">
+                                <RecentTransactions />
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </main>
 

@@ -1,25 +1,85 @@
-import React, { useState } from 'react';
+"use client";
+
+import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
-import { Modal, Table } from 'antd';
+import { Modal, Table, Select, Spin, Alert } from 'antd';
 import { ExpenseData } from '@/types/dashboard';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { getCategoryBreakdown, getRecentExpenses } from '@/helpers/api';
+import { useAuthToken } from '@/hooks/use-auth-token';
+import { getUserIdFromToken, isTokenExpired } from '@/utils/jwtUtils';
+
+const { Option } = Select;
+
+interface CategoryBreakdownItem {
+    category: string;
+    name: string;
+    amount: number;
+    percentage: number;
+    icon: string;
+    color: string;
+}
+
+interface RecentExpense {
+    id: string;
+    amount: number;
+    description: string;
+    category: string;
+    categoryName: string;
+    categoryColor: string;
+    createdAt: string;
+}
 
 interface ExpenseStatsProps {
-    data: ExpenseData[];
+    period?: '7d' | '30d' | '90d' | '365d';
 }
 
-interface DetailedExpenseItem {
-    key: number;
-    date: string;
-    description: string;
-    amount: number;
-}
-
-export const ExpenseStats = ({ data }: ExpenseStatsProps) => {
+export const ExpenseStats = ({ period = '30d' }: ExpenseStatsProps) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [selectedCategory, setSelectedCategory] = useState<ExpenseData | null>(null);
+    const [selectedCategory, setSelectedCategory] = useState<CategoryBreakdownItem | null>(null);
+    const [categoryData, setCategoryData] = useState<CategoryBreakdownItem[]>([]);
+    const [recentExpenses, setRecentExpenses] = useState<RecentExpense[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [selectedPeriod, setSelectedPeriod] = useState<'7d' | '30d' | '90d' | '365d'>(period);
+    const { getToken } = useAuthToken();
 
-    const handleSegmentClick = (item: ExpenseData) => {
+    useEffect(() => {
+        fetchData();
+    }, [selectedPeriod]);
+
+    const fetchData = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            
+            const token = getToken();
+            let userId: string | null | undefined;
+            if (token && !isTokenExpired(token)) {
+                userId = getUserIdFromToken(token);
+            }
+            
+            if (!userId) {
+                setError('Please log in to view expense statistics');
+                return;
+            }
+
+            const [categoryResponse, recentResponse] = await Promise.all([
+                getCategoryBreakdown(userId, selectedPeriod, token || undefined),
+                getRecentExpenses(userId, 50, token || undefined)
+            ]);
+
+            setCategoryData(categoryResponse.data || []);
+            setRecentExpenses(recentResponse.data || []);
+        } catch (err) {
+            setError('Failed to fetch expense data');
+            console.error('Error fetching expense data:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSegmentClick = (item: CategoryBreakdownItem) => {
         setSelectedCategory(item);
         setIsModalOpen(true);
     };
@@ -29,11 +89,30 @@ export const ExpenseStats = ({ data }: ExpenseStatsProps) => {
         setSelectedCategory(null);
     };
 
+    const handlePeriodChange = (newPeriod: '7d' | '30d' | '90d' | '365d') => {
+        setSelectedPeriod(newPeriod);
+    };
+
+    // Convert category data to pie chart format
+    const pieChartData: ExpenseData[] = Array.isArray(categoryData)
+  ? categoryData.map(item => ({
+      name: item.name,
+      value: Math.round(item.percentage),
+      color: item.color
+    }))
+  : [];
+
+    // Get expenses for selected category
+    const getCategoryExpenses = (categoryId: string) => {
+        return recentExpenses.filter(expense => expense.category === categoryId);
+    };
+
     const columns = [
         {
             title: 'Date',
-            dataIndex: 'date',
+            dataIndex: 'createdAt',
             key: 'date',
+            render: (date: string) => new Date(date).toLocaleDateString(),
         },
         {
             title: 'Description',
@@ -48,60 +127,8 @@ export const ExpenseStats = ({ data }: ExpenseStatsProps) => {
         },
     ];
 
-    // Sample detailed data for each category
-    const detailedData: Record<string, DetailedExpenseItem[]> = {
-        Entertainment: [
-            { key: 1, date: '2025-02-01', description: 'Movie Tickets', amount: 50 },
-            { key: 2, date: '2025-02-05', description: 'Concert', amount: 150 },
-        ],
-        'Bill Expense': [
-            { key: 1, date: '2025-02-02', description: 'Electricity Bill', amount: 75 },
-            { key: 2, date: '2025-02-06', description: 'Water Bill', amount: 40 },
-        ],
-        Investment: [
-            { key: 1, date: '2025-02-03', description: 'Stocks', amount: 200 },
-            { key: 2, date: '2025-02-07', description: 'Bonds', amount: 300 },
-        ],
-        Others: [
-            { key: 1, date: '2025-02-04', description: 'Groceries', amount: 100 },
-            { key: 2, date: '2025-02-08', description: 'Clothing', amount: 200 },
-        ],
-    };
-
-    // Create summary data for the modal pie chart
-    const getModalPieData = (categoryName: string) => {
-        if (!categoryName) return [];
-
-        const categoryItems = detailedData[categoryName];
-        if (!categoryItems) return [];
-
-        // Group by description
-        const groupedData = categoryItems.reduce((acc, item) => {
-            const existingItem = acc.find(i => i.description === item.description);
-            if (existingItem) {
-                existingItem.amount += item.amount;
-            } else {
-                acc.push({
-                    description: item.description,
-                    amount: item.amount
-                });
-            }
-            return acc;
-        }, [] as { description: string; amount: number }[]);
-
-        return groupedData;
-    };
-
-    // Calculate total for selected category
-    const getSelectedCategoryTotal = (categoryName: string) => {
-        if (!categoryName) return 0;
-        const categoryItems = detailedData[categoryName];
-        if (!categoryItems) return 0;
-        return categoryItems.reduce((total, item) => total + item.amount, 0);
-    };
-
     // Custom renderer for pie chart labels
-    const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index, name }: any) => {
+    const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
         const RADIAN = Math.PI / 180;
         const radius = 25 + innerRadius + (outerRadius - innerRadius);
         const x = cx + radius * Math.cos(-midAngle * RADIAN);
@@ -121,25 +148,84 @@ export const ExpenseStats = ({ data }: ExpenseStatsProps) => {
         ) : null;
     };
 
-    // Custom click handler for pie chart
-    const onPieClick = (data: any, index: number) => {
-        if (data && data.name) {
-            const selectedItem = data.data.find((item: ExpenseData) => item.name === data.name);
-            if (selectedItem) {
-                handleSegmentClick(selectedItem);
-            }
+    const getPeriodLabel = (period: string) => {
+        switch (period) {
+            case '7d': return 'Last 7 days';
+            case '30d': return 'Last 30 days';
+            case '90d': return 'Last 3 months';
+            case '365d': return 'Last year';
+            default: return 'Last 30 days';
         }
     };
 
+    if (loading) {
+        return (
+            <Card className="p-6">
+                <div className="flex justify-center items-center h-64">
+                    <Spin size="large" />
+                </div>
+            </Card>
+        );
+    }
+
+    if (error) {
+        return (
+            <Card className="p-6">
+                <Alert
+                    message="Error"
+                    description={error}
+                    type="error"
+                    showIcon
+                />
+            </Card>
+        );
+    }
+
+    if (categoryData.length === 0) {
+        return (
+            <Card className="p-6">
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-xl font-semibold">Expense Statistics</h2>
+                    <Select
+                        value={selectedPeriod}
+                        onChange={handlePeriodChange}
+                        style={{ width: 150 }}
+                    >
+                        <Option value="7d">Last 7 days</Option>
+                        <Option value="30d">Last 30 days</Option>
+                        <Option value="90d">Last 3 months</Option>
+                        <Option value="365d">Last year</Option>
+                    </Select>
+                </div>
+                <div className="text-center py-8">
+                    <p className="text-gray-500">No expense data available for {getPeriodLabel(selectedPeriod)}</p>
+                    <p className="text-sm text-gray-400 mt-2">Start making categorized transactions to see your expense breakdown</p>
+                </div>
+            </Card>
+        );
+    }
+
     return (
         <Card className="p-6">
-            <h2 className="text-xl font-semibold mb-6">Expense Statistics</h2>
+            <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold">Expense Statistics</h2>
+                <Select
+                    value={selectedPeriod}
+                    onChange={handlePeriodChange}
+                    style={{ width: 150 }}
+                >
+                    <Option value="7d">Last 7 days</Option>
+                    <Option value="30d">Last 30 days</Option>
+                    <Option value="90d">Last 3 months</Option>
+                    <Option value="365d">Last year</Option>
+                </Select>
+            </div>
             <div className="flex justify-center mb-6">
                 <div className="w-full h-64">
                     <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                             <Pie
-                                data={data}
+                                data={pieChartData}
                                 cx="50%"
                                 cy="50%"
                                 labelLine={false}
@@ -150,12 +236,14 @@ export const ExpenseStats = ({ data }: ExpenseStatsProps) => {
                                 dataKey="value"
                                 nameKey="name"
                                 onClick={(data, index) => {
-                                    const item = data as unknown as ExpenseData;
-                                    handleSegmentClick(item);
+                                    const categoryItem = categoryData.find(cat => cat.name === data.name);
+                                    if (categoryItem) {
+                                        handleSegmentClick(categoryItem);
+                                    }
                                 }}
                                 cursor="pointer"
                             >
-                                {data.map((entry, index) => (
+                                {pieChartData.map((entry, index) => (
                                     <Cell
                                         key={`cell-${index}`}
                                         fill={entry.color}
@@ -163,76 +251,66 @@ export const ExpenseStats = ({ data }: ExpenseStatsProps) => {
                                 ))}
                             </Pie>
                             <Tooltip
-                                formatter={(value) => [`${value}%`, 'Percentage']}
+                                formatter={(value: any) => [`${value}%`, 'Percentage']}
                             />
                         </PieChart>
                     </ResponsiveContainer>
                 </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-                {data.map((item) => (
+                {Array.isArray(categoryData) && categoryData.map((item) => (
                     <div
-                        key={item.name}
-                        className="flex items-center space-x-2 cursor-pointer"
+                        key={item.category}
+                        className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded"
                         onClick={() => handleSegmentClick(item)}
                     >
-                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
-                        <span className="text-sm">{item.name} ({item.value}%)</span>
+                        <div className="flex items-center space-x-2">
+                            <span className="text-lg">{item.icon}</span>
+                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
+                        </div>
+                        <div className="flex-1">
+                            <div className="text-sm font-medium">{item.name}</div>
+                            <div className="text-xs text-gray-500">${item.amount.toFixed(2)} ({Math.round(item.percentage)}%)</div>
+                        </div>
                     </div>
                 ))}
             </div>
             <Modal
-                title={`${selectedCategory?.name} Details`}
+                title={`${selectedCategory?.name} Details - ${getPeriodLabel(selectedPeriod)}`}
                 open={isModalOpen}
                 onCancel={handleModalClose}
                 footer={null}
-                width={700}
+                width={800}
             >
                 {selectedCategory && (
                     <div className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <h3 className="text-lg font-semibold mb-2">Summary</h3>
-                                <div className="h-64 w-full">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <PieChart>
-                                            <Pie
-                                                data={getModalPieData(selectedCategory.name)}
-                                                cx="50%"
-                                                cy="50%"
-                                                innerRadius={50}
-                                                outerRadius={80}
-                                                paddingAngle={5}
-                                                dataKey="amount"
-                                                nameKey="description"
-                                                label={({ description }) => description}
-                                            >
-                                                {getModalPieData(selectedCategory.name).map((entry, index) => (
-                                                    <Cell
-                                                        key={`cell-${index}`}
-                                                        fill={index % 2 === 0 ? selectedCategory.color : `${selectedCategory.color}99`}
-                                                    />
-                                                ))}
-                                            </Pie>
-                                            <Tooltip
-                                                formatter={(value) => [`$${Number(value).toFixed(2)}`, 'Amount']}
-                                            />
-                                        </PieChart>
-                                    </ResponsiveContainer>
+                        <div className="bg-gray-50 p-4 rounded-lg">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-3">
+                                    <span className="text-2xl">{selectedCategory.icon}</span>
+                                    <div>
+                                        <h3 className="text-lg font-semibold">{selectedCategory.name}</h3>
+                                        <p className="text-gray-600">Total spent: ${selectedCategory.amount.toFixed(2)}</p>
+                                    </div>
                                 </div>
-                                <div className="text-center mt-2">
-                                    <p className="text-gray-500">Total: ${getSelectedCategoryTotal(selectedCategory.name).toFixed(2)}</p>
+                                <div className="text-right">
+                                    <div className="text-2xl font-bold" style={{ color: selectedCategory.color }}>
+                                        {Math.round(selectedCategory.percentage)}%
+                                    </div>
+                                    <div className="text-sm text-gray-500">of total expenses</div>
                                 </div>
                             </div>
-                            <div>
-                                <h3 className="text-lg font-semibold mb-2">Transactions</h3>
-                                <Table
-                                    columns={columns}
-                                    dataSource={detailedData[selectedCategory.name] || []}
-                                    pagination={false}
-                                    size="small"
-                                />
-                            </div>
+                        </div>
+                        
+                        <div>
+                            <h3 className="text-lg font-semibold mb-4">Recent Transactions</h3>
+                            <Table
+                                columns={columns}
+                                dataSource={getCategoryExpenses(selectedCategory.category)}
+                                pagination={{ pageSize: 10 }}
+                                size="small"
+                                locale={{ emptyText: 'No transactions found for this category' }}
+                            />
                         </div>
                     </div>
                 )}
@@ -240,3 +318,5 @@ export const ExpenseStats = ({ data }: ExpenseStatsProps) => {
         </Card>
     );
 };
+
+export default ExpenseStats;

@@ -4,9 +4,9 @@ import React from "react";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { ArrowLeft, Check, Shield, AlertCircle, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Check, Shield, AlertCircle, Eye, EyeOff, Tag } from "lucide-react";
 import Navigation from "@/components/Navigation";
-import { getWalletBalance, transferMoney } from "@/helpers/api";
+import { getWalletBalance, transferMoney, getCategories } from "@/helpers/api";
 import { useAuthToken } from "@/hooks/use-auth-token";
 import { getUserIdFromToken, isTokenExpired } from "@/utils/jwtUtils";
 
@@ -16,6 +16,13 @@ interface Recipient {
   phone: string;
   avatar: string;
   isOnline: boolean;
+}
+
+interface Category {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
 }
 
 const AmountPage = () => {
@@ -30,6 +37,9 @@ const AmountPage = () => {
   const [balanceLoading, setBalanceLoading] = useState(true);
   const [balanceError, setBalanceError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
   const { getToken } = useAuthToken();
 
   const quickAmounts = [500, 1000, 2500, 5000, 10000, 25000];
@@ -43,7 +53,22 @@ const AmountPage = () => {
       // If no recipient, redirect back
       router.push('/home/transfer');
     }
-    // Fetch balance
+    
+    // Fetch balance and categories
+    const fetchData = async () => {
+      try {
+        const token = getToken();
+        const [categoriesData] = await Promise.all([
+          getCategories(token || undefined),
+        ]);
+        setCategories(categoriesData.data || []);
+      } catch (err) {
+        console.error('Error fetching categories:', err);
+      } finally {
+        setCategoriesLoading(false);
+      }
+    };
+    
     const fetchBalance = async () => {
       setBalanceLoading(true);
       setBalanceError(null);
@@ -62,6 +87,8 @@ const AmountPage = () => {
         setBalanceLoading(false);
       }
     };
+    
+    fetchData();
     fetchBalance();
   }, [router]);
 
@@ -130,6 +157,8 @@ const AmountPage = () => {
         receiverId: recipient.id,
         amount: Number(amount),
         description: "Payment",
+        categoryId: selectedCategory || undefined,
+        token: token || undefined,
       });
       // Optionally store result for success page
       sessionStorage.setItem('transferResult', JSON.stringify(result));
@@ -245,6 +274,54 @@ const AmountPage = () => {
               </div>
             </div>
 
+            {/* Category Selection */}
+            <div className="bg-white rounded-3xl p-6 mb-6 shadow-sm border border-gray-100">
+              <div className="flex items-center space-x-2 mb-4">
+                <Tag className="w-5 h-5 text-gray-600" />
+                <label className="block text-sm font-medium text-gray-700">
+                  Category (Optional)
+                </label>
+              </div>
+              
+              {categoriesLoading ? (
+                <div className="flex justify-center py-4">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-500"></div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setSelectedCategory("")}
+                    className={`p-3 rounded-xl border-2 transition ${
+                      selectedCategory === ""
+                        ? 'border-green-500 bg-green-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="text-center">
+                      <div className="text-lg mb-1">❓</div>
+                      <div className="text-xs font-medium text-gray-700">No Category</div>
+                    </div>
+                  </button>
+                  {categories.map((category) => (
+                    <button
+                      key={category.id}
+                      onClick={() => setSelectedCategory(category.id)}
+                      className={`p-3 rounded-xl border-2 transition ${
+                        selectedCategory === category.id
+                          ? 'border-green-500 bg-green-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="text-center">
+                        <div className="text-lg mb-1">{category.icon}</div>
+                        <div className="text-xs font-medium text-gray-700">{category.name}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-6">
                 <div className="flex items-center space-x-2 text-red-700">
@@ -285,6 +362,15 @@ const AmountPage = () => {
                   <span className="text-gray-600">Amount:</span>
                   <span className="font-bold text-xl text-green-600">RWF {parseFloat(amount).toLocaleString()}</span>
                 </div>
+                {selectedCategory && (
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-gray-600">Category:</span>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-lg">{categories.find(c => c.id === selectedCategory)?.icon}</span>
+                      <span className="font-medium text-gray-900">{categories.find(c => c.id === selectedCategory)?.name}</span>
+                    </div>
+                  </div>
+                )}
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Fee:</span>
                   <span className="font-medium text-green-600">Free</span>
