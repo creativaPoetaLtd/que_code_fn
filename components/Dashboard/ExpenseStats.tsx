@@ -12,27 +12,22 @@ import { getUserIdFromToken, isTokenExpired } from '@/utils/jwtUtils';
 const { Option } = Select;
 
 interface CategoryBreakdownItem {
-    id: string;
+    category: string;
     name: string;
-    totalAmount: number;
+    amount: number;
     percentage: number;
     icon: string;
     color: string;
-    transactionCount: number;
 }
 
 interface RecentExpense {
     id: string;
-    amount: string;
+    amount: number;
     description: string;
-    categoryId: string;
+    category: string;
+    categoryName: string;
+    categoryColor: string;
     createdAt: string;
-    category: {
-        id: string;
-        name: string;
-        icon: string;
-        color: string;
-    };
 }
 
 interface ExpenseStatsProps {
@@ -74,7 +69,7 @@ export const ExpenseStats = ({ period = '30d' }: ExpenseStatsProps) => {
                 getRecentExpenses(userId, 50, token || undefined)
             ]);
 
-            setCategoryData(categoryResponse.data?.breakdown || []);
+            setCategoryData(categoryResponse.data || []);
             setRecentExpenses(recentResponse.data || []);
         } catch (err) {
             setError('Failed to fetch expense data');
@@ -109,7 +104,7 @@ export const ExpenseStats = ({ period = '30d' }: ExpenseStatsProps) => {
 
     // Get expenses for selected category
     const getCategoryExpenses = (categoryId: string) => {
-        return recentExpenses.filter(expense => expense.categoryId === categoryId);
+        return recentExpenses.filter(expense => expense.category === categoryId);
     };
 
     const columns = [
@@ -128,7 +123,7 @@ export const ExpenseStats = ({ period = '30d' }: ExpenseStatsProps) => {
             title: 'Amount',
             dataIndex: 'amount',
             key: 'amount',
-            render: (amount: string) => `$${parseFloat(amount).toFixed(2)}`,
+            render: (amount: number) => `$${amount.toFixed(2)}`,
         },
     ];
 
@@ -265,7 +260,7 @@ export const ExpenseStats = ({ period = '30d' }: ExpenseStatsProps) => {
             <div className="grid grid-cols-2 gap-4">
                 {Array.isArray(categoryData) && categoryData.map((item) => (
                     <div
-                        key={item.id}
+                        key={item.category}
                         className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded"
                         onClick={() => handleSegmentClick(item)}
                     >
@@ -275,7 +270,7 @@ export const ExpenseStats = ({ period = '30d' }: ExpenseStatsProps) => {
                         </div>
                         <div className="flex-1">
                             <div className="text-sm font-medium">{item.name}</div>
-                            <div className="text-xs text-gray-500">${item.totalAmount.toFixed(2)} ({Math.round(item.percentage)}%)</div>
+                            <div className="text-xs text-gray-500">${item.amount.toFixed(2)} ({Math.round(item.percentage)}%)</div>
                         </div>
                     </div>
                 ))}
@@ -295,7 +290,7 @@ export const ExpenseStats = ({ period = '30d' }: ExpenseStatsProps) => {
                                     <span className="text-2xl">{selectedCategory.icon}</span>
                                     <div>
                                         <h3 className="text-lg font-semibold">{selectedCategory.name}</h3>
-                                        <p className="text-gray-600">Total spent: ${selectedCategory.totalAmount.toFixed(2)}</p>
+                                        <p className="text-gray-600">Total spent: ${selectedCategory.amount.toFixed(2)}</p>
                                     </div>
                                 </div>
                                 <div className="text-right">
@@ -311,7 +306,7 @@ export const ExpenseStats = ({ period = '30d' }: ExpenseStatsProps) => {
                             <h3 className="text-lg font-semibold mb-4">Recent Transactions</h3>
                             <Table
                                 columns={columns}
-                                dataSource={getCategoryExpenses(selectedCategory.id)}
+                                dataSource={getCategoryExpenses(selectedCategory.category)}
                                 pagination={{ pageSize: 10 }}
                                 size="small"
                                 locale={{ emptyText: 'No transactions found for this category' }}

@@ -13,7 +13,7 @@ const { Option } = Select;
 const { RangePicker } = DatePicker;
 
 interface ExpenseSummary {
-    totalSpent: number;
+    totalExpenses: number;
     totalTransactions: number;
     averageTransaction: number;
     previousPeriodExpenses: number;
@@ -163,8 +163,8 @@ const AdvancedAnalytics = ({ defaultPeriod = '30d' }: AdvancedAnalyticsProps) =>
                             <DollarSign className="w-8 h-8 text-blue-600 mr-2" />
                         </div>
                         <Statistic
-                            title="Total Spent"
-                            value={summary.totalSpent || 0}
+                            title="Total Expenses"
+                            value={summary.totalExpenses}
                             precision={2}
                             prefix="$"
                             valueStyle={{ color: '#1890ff', fontSize: '20px' }}
@@ -178,7 +178,7 @@ const AdvancedAnalytics = ({ defaultPeriod = '30d' }: AdvancedAnalyticsProps) =>
                         </div>
                         <Statistic
                             title="Transactions"
-                            value={summary.totalTransactions || 0}
+                            value={summary.totalTransactions}
                             valueStyle={{ color: '#52c41a', fontSize: '20px' }}
                         />
                     </Card>
@@ -190,14 +190,14 @@ const AdvancedAnalytics = ({ defaultPeriod = '30d' }: AdvancedAnalyticsProps) =>
                         </div>
                         <Statistic
                             title="Average Transaction"
-                            value={summary.averageTransaction || 0}
+                            value={summary.averageTransaction}
                             precision={2}
                             prefix="$"
                             valueStyle={{ color: '#722ed1', fontSize: '20px' }}
                         />
                     </Card>
                 </Col>
-                {/* <Col xs={24} sm={12} lg={6}>
+                <Col xs={24} sm={12} lg={6}>
                     <Card className="text-center">
                         <div className="flex items-center justify-center mb-2">
                             {summary.growthPercentage >= 0 ? (
@@ -208,18 +208,18 @@ const AdvancedAnalytics = ({ defaultPeriod = '30d' }: AdvancedAnalyticsProps) =>
                         </div>
                         <Statistic
                             title="Change"
-                            value={Math.abs(summary.growthPercentage || 0)}
+                            value={Math.abs(summary.growthPercentage)}
                             precision={1}
                             suffix="%"
                             valueStyle={{ 
-                                color: (summary.growthPercentage || 0) >= 0 ? '#f5222d' : '#52c41a',
+                                color: summary.growthPercentage >= 0 ? '#f5222d' : '#52c41a',
                                 fontSize: '20px'
                             }}
-                            prefix={(summary.growthPercentage || 0) >= 0 ? '+' : '-'}
+                            prefix={summary.growthPercentage >= 0 ? '+' : '-'}
                         />
                         <p className="text-xs text-gray-500 mt-1">vs previous period</p>
                     </Card>
-                </Col> */}
+                </Col>
             </Row>
 
             {/* Spending Trends Chart */}
@@ -287,14 +287,14 @@ const AdvancedAnalytics = ({ defaultPeriod = '30d' }: AdvancedAnalyticsProps) =>
                             <div className="bg-blue-50 p-4 rounded-lg">
                                 <h4 className="font-medium text-blue-900 mb-2">Daily Average</h4>
                                 <p className="text-2xl font-bold text-blue-600">
-                                    ${((summary.totalSpent || 0) / (selectedPeriod === '7d' ? 7 : selectedPeriod === '30d' ? 30 : selectedPeriod === '90d' ? 90 : 365)).toFixed(2)}
+                                    ${(summary.totalExpenses / (selectedPeriod === '7d' ? 7 : selectedPeriod === '30d' ? 30 : selectedPeriod === '90d' ? 90 : 365)).toFixed(2)}
                                 </p>
                                 <p className="text-sm text-blue-700 mt-1">per day in {getPeriodLabel(selectedPeriod)}</p>
                             </div>
                             <div className="bg-green-50 p-4 rounded-lg">
                                 <h4 className="font-medium text-green-900 mb-2">Spending Frequency</h4>
                                 <p className="text-2xl font-bold text-green-600">
-                                    {trends.length > 0 ? ((summary.totalTransactions || 0) / trends.length).toFixed(1) : '0'}
+                                    {trends.length > 0 ? (summary.totalTransactions / trends.length).toFixed(1) : '0'}
                                 </p>
                                 <p className="text-sm text-green-700 mt-1">transactions per active day</p>
                             </div>
@@ -302,11 +302,11 @@ const AdvancedAnalytics = ({ defaultPeriod = '30d' }: AdvancedAnalyticsProps) =>
                                 <h4 className="font-medium text-purple-900 mb-2">Trend Direction</h4>
                                 <div className="flex items-center">
                                     <div className="text-2xl font-bold text-purple-600">
-                                        {(summary.growthPercentage || 0) >= 0 ? '📈' : '📉'}
+                                        {summary.growthPercentage >= 0 ? '📈' : '📉'}
                                     </div>
                                     <div className="ml-2">
                                         <p className="text-sm text-purple-700">
-                                            {(summary.growthPercentage || 0) >= 0 ? 'Increasing' : 'Decreasing'}
+                                            {summary.growthPercentage >= 0 ? 'Increasing' : 'Decreasing'}
                                         </p>
                                         <p className="text-xs text-purple-600">spending trend</p>
                                     </div>
