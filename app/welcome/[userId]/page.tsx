@@ -8,6 +8,7 @@ import baseUrl from '@/helpers/baseUrl';
 import Navigation from '@/components/Navigation';
 import { Header } from '@/components/Header';
 import { useUserInfo } from '@/hooks/use-user-info';
+import { useAuthToken } from '@/hooks/use-auth-token';
 import { Button as CustomButton } from '@/components/ui/button';
 import { Input as CustomInput } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -53,6 +54,7 @@ const WelcomeProfilePage = () => {
     message: ''
   });
   const { isAuthenticated, userId: currentUserId } = useUserInfo();
+  const { getToken } = useAuthToken();
   const isLoggedIn = isAuthenticated;
   
   // Add a state to track if hydration is complete
@@ -75,10 +77,26 @@ const WelcomeProfilePage = () => {
       try {
         setLoading(true);
         setError('');
-        
-        const response = await axios.get(`${baseUrl}/users/${userId}`);
-        const data = response.data;
-        
+
+        const token = getToken();
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const userUrl = `${baseUrl}/users/${userId}`;
+        const profileUrl = `${baseUrl}/api/v1/profiles?userId=${encodeURIComponent(userId)}`;
+
+        const [userRes, profileRes] = await Promise.allSettled([
+          axios.get(userUrl, { headers }),
+          axios.get(profileUrl, { headers }),
+        ]);
+ 
+        let data: any = {};
+        let profile: any = {};
+        if (userRes.status === 'fulfilled') {
+          data = userRes.value.data;
+        }
+        if (profileRes.status === 'fulfilled') {
+          profile = profileRes.value.data;
+        }
+
         let name = '';
         if (data.firstName || data.lastName) {
           name = `${data.firstName || ''} ${data.lastName || ''}`.trim();
@@ -91,16 +109,16 @@ const WelcomeProfilePage = () => {
         } else {
           name = 'User';
         }
-        
+
         setUser({
           name,
-          profileImage: data.profileImage || '',
+          profileImage: profile.profileImage || '',
           avatar: data.avatar || data.photo || data.profilePicture || '',
           phone: data.phone || data.phoneNumber || data.mobile || '',
-          statusMessage: data.statusMessage || '',
-          showPhoneOnWelcome: data.showPhoneOnWelcome !== undefined ? data.showPhoneOnWelcome : true,
-          showProfileImageOnWelcome: data.showProfileImageOnWelcome !== undefined ? data.showProfileImageOnWelcome : true,
-          showStatusMessageOnWelcome: data.showStatusMessageOnWelcome !== undefined ? data.showStatusMessageOnWelcome : true,
+          statusMessage: profile.statusMessage || '',
+          showPhoneOnWelcome: profile.showPhoneOnWelcome !== undefined ? profile.showPhoneOnWelcome : true,
+          showProfileImageOnWelcome: profile.showProfileImageOnWelcome !== undefined ? profile.showProfileImageOnWelcome : true,
+          showStatusMessageOnWelcome: profile.showStatusMessageOnWelcome !== undefined ? profile.showStatusMessageOnWelcome : true,
         });
         setLoading(false);
       } catch (error) {
@@ -121,7 +139,7 @@ const WelcomeProfilePage = () => {
     };
 
     fetchUser();
-  }, [userId]);
+  }, [userId, getToken]);
 
   const handleSubmit = () => {
     if (!amount || !password) {

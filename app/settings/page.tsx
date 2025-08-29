@@ -17,6 +17,8 @@ import Navigation from "@/components/Navigation"
 import React from "react"
 import axios from "axios"
 import baseUrl from '@/helpers/baseUrl';
+import { useUserInfo } from "@/hooks/use-user-info"
+import { useAuthToken } from "@/hooks/use-auth-token"
 
 export default function SettingsPage() {
     // Personal Info State
@@ -27,10 +29,22 @@ export default function SettingsPage() {
     const [lastName, setLastName] = useState("");
     const [email, setEmail] = useState("");
     const [phone, setPhone] = useState("");
-    const [address, setAddress] = useState("");
     const [profileImage, setProfileImage] = useState<string | null>(null);
     const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
     const [profileImagePreview, setProfileImagePreview] = useState<string | null>(null);
+    const [profileId, setProfileId] = useState<string | null>(null);
+    // Profile model fields
+    const [profileType, setProfileType] = useState<"individual" | "organization" | "">("");
+    const [profileUserId, setProfileUserId] = useState<string>("");
+    const [organizationId, setOrganizationId] = useState<string>("");
+    const [province, setProvince] = useState<string>("");
+    const [district, setDistrict] = useState<string>("");
+    const [sector, setSector] = useState<string>("");
+    const [cell, setCell] = useState<string>("");
+    const [tinNumber, setTinNumber] = useState<string>("");
+    const [qrCode, setQrCode] = useState<string>("");
+    const [logoFile, setLogoFile] = useState<File | null>(null);
+    const [operationalDocumentFile, setOperationalDocumentFile] = useState<File | null>(null);
     // Add state for status message
     const [statusMessage, setStatusMessage] = useState("");
 
@@ -39,56 +53,89 @@ export default function SettingsPage() {
     const [showProfileImageOnWelcome, setShowProfileImageOnWelcome] = useState(true);
     const [showStatusMessageOnWelcome, setShowStatusMessageOnWelcome] = useState(true);
 
-    // Extract userId from JWT
-    useEffect(() => {
-        const authToken = localStorage.getItem('authToken');
-        if (authToken) {
-            try {
-                const base64Url = authToken.split('.')[1];
-                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                const payload = JSON.parse(atob(base64));
-                const id = payload?.userId || payload?.id || payload?.sub;
-                if (id) setUserId(id);
-            } catch (e) {
-                setError('Invalid authentication token. Please log in again.');
-            }
-        } else {
-            setError('Not authenticated. Please log in.');
-        }
-    }, []);
+    const userInfo = useUserInfo();
+    const { getToken } = useAuthToken();
 
-    // Fetch user data
+    // Sync userId from cookie-based auth
     useEffect(() => {
-        if (!userId) return;
-        const fetchUser = async () => {
+        if (userInfo.isAuthenticated && userInfo.userId) {
+            setUserId(userInfo.userId);
+            setError("");
+        } else if (!userInfo.isAuthenticated) {
+            setUserId("");
+            setError('Not authenticated. Please log in.');
+            setLoading(false);
+        }
+    }, [userInfo.isAuthenticated, userInfo.userId]);
+
+    // Fetch user and profile data
+    useEffect(() => {
+        if (!userId || !userInfo.isAuthenticated) {
+            console.log('[Settings] No userId yet, skipping fetch.');
+            return;
+        }
+        const fetchUserAndProfile = async () => {
             setLoading(true);
             setError("");
             try {
-                const authToken = localStorage.getItem('authToken');
+                const authToken = getToken();
                 const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {};
-                const res = await axios.get(`${baseUrl}/users/${userId}`, { headers });
-                const data = res.data;
-                setFirstName(data.firstName || "");
-                setLastName(data.lastName || "");
-                setEmail(data.email || "");
-                setPhone(data.phone || "");
-                setAddress(data.address || "");
-                setProfileImage(data.profileImage || null);
-                setProfileImagePreview(data.profileImage || null);
-                // In fetchUser, set the new fields from API response
-                setShowPhoneOnWelcome(data.showPhoneOnWelcome !== undefined ? data.showPhoneOnWelcome : true);
-                setShowProfileImageOnWelcome(data.showProfileImageOnWelcome !== undefined ? data.showProfileImageOnWelcome : true);
-                setShowStatusMessageOnWelcome(data.showStatusMessageOnWelcome !== undefined ? data.showStatusMessageOnWelcome : true);
-                // Set status message from API
-                setStatusMessage(data.statusMessage || "");
+                const userUrl = `${baseUrl}/users/${userId}`;
+                const profileUrl = `${baseUrl}/api/v1/profiles?userId=${encodeURIComponent(userId)}`;
+
+                console.log('[Settings] Fetching:', { userUrl, profileUrl });
+
+                const [userRes, profileRes] = await Promise.allSettled([
+                    axios.get(userUrl, { headers }),
+                    axios.get(profileUrl, { headers }),
+                ]);
+
+                if (userRes.status === 'fulfilled') {
+                    const data = userRes.value.data;
+                    console.log('[Settings] User data:', data);
+                    setFirstName(data.firstName || "");
+                    setLastName(data.lastName || "");
+                    setEmail(data.email || "");
+                    setPhone(data.phone || "");
+                } else {
+                    console.error('[Settings] Failed to fetch user:', userRes.reason);
+                }
+
+                if (profileRes.status === 'fulfilled') {
+                    const profile = profileRes.value.data;
+                    console.log('[Settings] Profile data:', profile);
+                    setProfileId(profile.id || null);
+                    setProfileType(profile.type || "");
+                    setProfileUserId(profile.userId || "");
+                    setOrganizationId(profile.organizationId || "");
+                    setProvince(profile.province || "");
+                    setDistrict(profile.district || "");
+                    setSector(profile.sector || "");
+                    setCell(profile.cell || "");
+                    setTinNumber(profile.tinNumber || "");
+                    setQrCode(profile.qrCode || "");
+                    setProfileImage(profile.profileImage || null);
+                    setProfileImagePreview(profile.profileImage || null);
+                    setShowPhoneOnWelcome(profile.showPhoneOnWelcome !== undefined ? profile.showPhoneOnWelcome : true);
+                    setShowProfileImageOnWelcome(profile.showProfileImageOnWelcome !== undefined ? profile.showProfileImageOnWelcome : true);
+                    setShowStatusMessageOnWelcome(profile.showStatusMessageOnWelcome !== undefined ? profile.showStatusMessageOnWelcome : true);
+                    setStatusMessage(profile.statusMessage || "");
+                } else {
+                    console.error('[Settings] Failed to fetch profile:', profileRes.reason);
+                }
+
+                if (userRes.status === 'rejected' && profileRes.status === 'rejected') {
+                    setError('Failed to load user data.');
+                }
             } catch (err) {
+                console.error('[Settings] Unexpected fetch error:', err);
                 setError('Failed to load user data.');
             } finally {
                 setLoading(false);
             }
         };
-        fetchUser();
-    }, [userId]);
+        fetchUserAndProfile();
+    }, [userId, userInfo.isAuthenticated, getToken]);
 
     // Handle image select
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -105,27 +152,46 @@ export default function SettingsPage() {
         setLoading(true);
         setError("");
         try {
-            const authToken = localStorage.getItem('authToken');
-            // Only set Authorization header, do NOT set Content-Type for FormData
-            const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {};
-            const formData = new FormData();
-            formData.append('firstName', firstName);
-            formData.append('lastName', lastName);
-            formData.append('email', email);
-            formData.append('phone', phone);
-            formData.append('address', address);
-            // Add statusMessage to formData
-            formData.append('statusMessage', statusMessage);
-            if (profileImageFile && profileImageFile instanceof File) {
-                console.log('Uploading file:', profileImageFile);
-                formData.append('profileImage', profileImageFile);
-            } else {
-                console.log('No new profile image selected or not a File:', profileImageFile);
+            const authToken = getToken();
+            const authHeader = authToken ? { Authorization: `Bearer ${authToken}` } : {};
+
+            // 1) Update user basic info (JSON)
+            const userPayload = {
+                firstName,
+                lastName,
+                email,
+                phone,
+            };
+            await axios.put(`${baseUrl}/users/${userId}`, userPayload, { headers: { ...authHeader } });
+
+            // 2) Update profile-specific fields via multipart if we have profileId
+            if (profileId) {
+                const profileForm = new FormData();
+                if (profileType) profileForm.append('type', profileType);
+                const effectiveUserId = profileUserId || userId;
+                if (effectiveUserId) profileForm.append('userId', effectiveUserId);
+                if (organizationId) profileForm.append('organizationId', organizationId);
+                if (province) profileForm.append('province', province);
+                if (district) profileForm.append('district', district);
+                if (sector) profileForm.append('sector', sector);
+                if (cell) profileForm.append('cell', cell);
+                if (tinNumber) profileForm.append('tinNumber', tinNumber);
+                profileForm.append('statusMessage', statusMessage);
+                profileForm.append('showPhoneOnWelcome', String(showPhoneOnWelcome));
+                profileForm.append('showProfileImageOnWelcome', String(showProfileImageOnWelcome));
+                profileForm.append('showStatusMessageOnWelcome', String(showStatusMessageOnWelcome));
+                if (qrCode) profileForm.append('qrCode', qrCode);
+                if (profileImageFile && profileImageFile instanceof File) {
+                    profileForm.append('profileImage', profileImageFile);
+                }
+                if (logoFile && logoFile instanceof File) {
+                    profileForm.append('logo', logoFile);
+                }
+                if (operationalDocumentFile && operationalDocumentFile instanceof File) {
+                    profileForm.append('operationalDocument', operationalDocumentFile);
+                }
+                await axios.put(`${baseUrl}/api/v1/profiles/${profileId}`, profileForm, { headers: { ...authHeader } });
             }
-            formData.append('showPhoneOnWelcome', String(showPhoneOnWelcome));
-            formData.append('showProfileImageOnWelcome', String(showProfileImageOnWelcome));
-            formData.append('showStatusMessageOnWelcome', String(showStatusMessageOnWelcome));
-            await axios.put(`${baseUrl}/users/${userId}`, formData, { headers });
             toast({
                 title: "Profile updated",
                 description: "Your profile information has been updated successfully.",
@@ -224,6 +290,37 @@ export default function SettingsPage() {
                                                 <Input id="last-name" value={lastName} onChange={e => setLastName(e.target.value)} />
                                             </div>
                                         </div>
+                                        <Separator />
+                                        <div className="space-y-2">
+                                            <Label htmlFor="profile-type">Profile Type</Label>
+                                            <select id="profile-type" className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B512] w-full" value={profileType} onChange={e => setProfileType(e.target.value as any)}>
+                                                <option value="">Select type</option>
+                                                <option value="individual">individual</option>
+                                                <option value="organization">organization</option>
+                                            </select>
+                                        </div>
+                                        <div className="grid gap-4 sm:grid-cols-2">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="province">Province</Label>
+                                                <Input id="province" value={province} onChange={e => setProvince(e.target.value)} />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="district">District</Label>
+                                                <Input id="district" value={district} onChange={e => setDistrict(e.target.value)} />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="sector">Sector</Label>
+                                                <Input id="sector" value={sector} onChange={e => setSector(e.target.value)} />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="cell">Cell</Label>
+                                                <Input id="cell" value={cell} onChange={e => setCell(e.target.value)} />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="tin">TIN Number</Label>
+                                            <Input id="tin" value={tinNumber} onChange={e => setTinNumber(e.target.value)} placeholder="Tax identification number" />
+                                        </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="email">Email</Label>
                                             <Input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} />
@@ -231,10 +328,6 @@ export default function SettingsPage() {
                                         <div className="space-y-2">
                                             <Label htmlFor="phone">Phone number</Label>
                                             <Input id="phone" type="tel" value={phone} onChange={e => setPhone(e.target.value)} />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="address">Address</Label>
-                                            <Input id="address" value={address} onChange={e => setAddress(e.target.value)} />
                                         </div>
                                         {/* Status Message input */}
                                         <div className="space-y-2">
@@ -286,6 +379,15 @@ export default function SettingsPage() {
                                             <Button variant="ghost" className="text-red-500 hover:text-red-600 hover:bg-red-50 w-full" onClick={() => { setProfileImageFile(null); setProfileImagePreview(null); }}>
                                                 Remove
                                             </Button>
+                                            <Separator />
+                                            <div className="w-full">
+                                                <Label htmlFor="logo-upload">Organization Logo</Label>
+                                                <input type="file" accept="image/*" id="logo-upload" className="mt-2" onChange={(e) => setLogoFile(e.target.files?.[0] || null)} />
+                                            </div>
+                                            <div className="w-full">
+                                                <Label htmlFor="operational-doc-upload">Operational Document</Label>
+                                                <input type="file" id="operational-doc-upload" className="mt-2" onChange={(e) => setOperationalDocumentFile(e.target.files?.[0] || null)} />
+                                            </div>
                                         </div>
                                     </CardContent>
                                 </Card>
