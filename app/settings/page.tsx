@@ -17,6 +17,8 @@ import Navigation from "@/components/Navigation"
 import React from "react"
 import axios from "axios"
 import baseUrl from '@/helpers/baseUrl';
+import { useUserInfo } from "@/hooks/use-user-info"
+import { useAuthToken } from "@/hooks/use-auth-token"
 
 export default function SettingsPage() {
     // Personal Info State
@@ -27,10 +29,22 @@ export default function SettingsPage() {
     const [lastName, setLastName] = useState("");
     const [email, setEmail] = useState("");
     const [phone, setPhone] = useState("");
-    const [address, setAddress] = useState("");
     const [profileImage, setProfileImage] = useState<string | null>(null);
     const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
     const [profileImagePreview, setProfileImagePreview] = useState<string | null>(null);
+    const [profileId, setProfileId] = useState<string | null>(null);
+    // Profile model fields
+    const [profileType, setProfileType] = useState<"individual" | "organization" | "">("");
+    const [profileUserId, setProfileUserId] = useState<string>("");
+    const [organizationId, setOrganizationId] = useState<string>("");
+    const [province, setProvince] = useState<string>("");
+    const [district, setDistrict] = useState<string>("");
+    const [sector, setSector] = useState<string>("");
+    const [cell, setCell] = useState<string>("");
+    const [tinNumber, setTinNumber] = useState<string>("");
+    const [qrCode, setQrCode] = useState<string>("");
+    const [logoFile, setLogoFile] = useState<File | null>(null);
+    const [operationalDocumentFile, setOperationalDocumentFile] = useState<File | null>(null);
     // Add state for status message
     const [statusMessage, setStatusMessage] = useState("");
 
@@ -39,56 +53,107 @@ export default function SettingsPage() {
     const [showProfileImageOnWelcome, setShowProfileImageOnWelcome] = useState(true);
     const [showStatusMessageOnWelcome, setShowStatusMessageOnWelcome] = useState(true);
 
-    // Extract userId from JWT
-    useEffect(() => {
-        const authToken = localStorage.getItem('authToken');
-        if (authToken) {
-            try {
-                const base64Url = authToken.split('.')[1];
-                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                const payload = JSON.parse(atob(base64));
-                const id = payload?.userId || payload?.id || payload?.sub;
-                if (id) setUserId(id);
-            } catch (e) {
-                setError('Invalid authentication token. Please log in again.');
-            }
-        } else {
-            setError('Not authenticated. Please log in.');
-        }
-    }, []);
+    // Add state for success message
+    const [successMessage, setSuccessMessage] = useState("");
 
-    // Fetch user data
+    const userInfo = useUserInfo();
+    const { getToken } = useAuthToken();
+
+    // Sync userId from cookie-based auth
     useEffect(() => {
-        if (!userId) return;
-        const fetchUser = async () => {
+        if (userInfo.isAuthenticated && userInfo.userId) {
+            setUserId(userInfo.userId);
+            setError("");
+        } else if (!userInfo.isAuthenticated) {
+            setUserId("");
+            setError('Not authenticated. Please log in.');
+            setLoading(false);
+        }
+    }, [userInfo.isAuthenticated, userInfo.userId]);
+
+    // Fetch user and profile data
+    const fetchUserAndProfile = async () => {
+        if (!userId || !userInfo.isAuthenticated) {
+            console.log('[Settings] No userId yet, skipping fetch.');
+            return;
+        }
             setLoading(true);
             setError("");
             try {
-                const authToken = localStorage.getItem('authToken');
+                const authToken = getToken();
                 const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {};
-                const res = await axios.get(`${baseUrl}/users/${userId}`, { headers });
-                const data = res.data;
+                const userUrl = `${baseUrl}/users/${userId}`;
+                const profileUrl = `${baseUrl}/profiles?userId=${encodeURIComponent(userId)}`;
+
+                console.log('[Settings] Fetching:', { userUrl, profileUrl });
+
+                const [userRes, profileRes] = await Promise.allSettled([
+                    axios.get(userUrl, { headers }),
+                    axios.get(profileUrl, { headers }),
+                ]);
+
+                if (userRes.status === 'fulfilled') {
+                    const data = userRes.value.data;
+                    console.log('[Settings] User data:', data);
                 setFirstName(data.firstName || "");
                 setLastName(data.lastName || "");
                 setEmail(data.email || "");
                 setPhone(data.phone || "");
-                setAddress(data.address || "");
-                setProfileImage(data.profileImage || null);
-                setProfileImagePreview(data.profileImage || null);
-                // In fetchUser, set the new fields from API response
-                setShowPhoneOnWelcome(data.showPhoneOnWelcome !== undefined ? data.showPhoneOnWelcome : true);
-                setShowProfileImageOnWelcome(data.showProfileImageOnWelcome !== undefined ? data.showProfileImageOnWelcome : true);
-                setShowStatusMessageOnWelcome(data.showStatusMessageOnWelcome !== undefined ? data.showStatusMessageOnWelcome : true);
-                // Set status message from API
-                setStatusMessage(data.statusMessage || "");
+                } else {
+                    console.error('[Settings] Failed to fetch user:', userRes.reason);
+                }
+
+                if (profileRes.status === 'fulfilled') {
+                    const profile = profileRes.value.data;
+                    console.log('[Settings] Profile data:', profile);
+                    setProfileId(profile.id || null);
+                    setProfileType(profile.type || "");
+                    setProfileUserId(profile.userId || "");
+                    setOrganizationId(profile.organizationId || "");
+                    setProvince(profile.province || "");
+                    setDistrict(profile.district || "");
+                    setSector(profile.sector || "");
+                    setCell(profile.cell || "");
+                    setTinNumber(profile.tinNumber || "");
+                    setQrCode(profile.qrCode || "");
+                    setProfileImage(profile.profileImage || null);
+                    setProfileImagePreview(profile.profileImage || null);
+                    setShowPhoneOnWelcome(profile.showPhoneOnWelcome !== undefined ? profile.showPhoneOnWelcome : true);
+                    setShowProfileImageOnWelcome(profile.showProfileImageOnWelcome !== undefined ? profile.showProfileImageOnWelcome : true);
+                    setShowStatusMessageOnWelcome(profile.showStatusMessageOnWelcome !== undefined ? profile.showStatusMessageOnWelcome : true);
+                    setStatusMessage(profile.statusMessage || "");
+                } else {
+                    console.error('[Settings] Failed to fetch profile:', profileRes.reason);
+                    if (profileRes.reason.response) {
+                        console.error('[Settings] Profile response status:', profileRes.reason.response.status);
+                        console.error('[Settings] Profile response data:', profileRes.reason.response.data);
+                    }
+                }
+
+                if (userRes.status === 'rejected' && profileRes.status === 'rejected') {
+                    setError('Failed to load user data.');
+                }
             } catch (err) {
+                console.error('[Settings] Unexpected fetch error:', err);
                 setError('Failed to load user data.');
             } finally {
                 setLoading(false);
             }
         };
-        fetchUser();
-    }, [userId]);
+
+    // Refresh profile data after updates
+    const refreshProfileData = async () => {
+        if (userId && userInfo.isAuthenticated) {
+            await fetchUserAndProfile();
+        }
+    };
+
+    // Fetch user and profile data on component mount
+    useEffect(() => {
+        if (userId && userInfo.isAuthenticated) {
+        fetchUserAndProfile();
+        }
+    }, [userId, userInfo.isAuthenticated, getToken]);
 
     // Handle image select
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -101,42 +166,193 @@ export default function SettingsPage() {
 
     // Save profile handler
     const handleSaveProfile = async () => {
-        if (!userId) return;
+        if (!userId) {
+            toast({
+                title: "Error",
+                description: "User ID not found. Please log in again.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        // Validate required fields
+        if (!firstName.trim() || !lastName.trim() || !email.trim() || !phone.trim() || !profileType) {
+            toast({
+                title: "Validation Error",
+                description: "Please fill in all required fields: First Name, Last Name, Email, Phone, and Profile Type.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            toast({
+                title: "Validation Error",
+                description: "Please enter a valid email address.",
+                variant: "destructive",
+            });
+            return;
+        }
+        
         setLoading(true);
         setError("");
+        
         try {
-            const authToken = localStorage.getItem('authToken');
-            // Only set Authorization header, do NOT set Content-Type for FormData
-            const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {};
-            const formData = new FormData();
-            formData.append('firstName', firstName);
-            formData.append('lastName', lastName);
-            formData.append('email', email);
-            formData.append('phone', phone);
-            formData.append('address', address);
-            // Add statusMessage to formData
-            formData.append('statusMessage', statusMessage);
-            if (profileImageFile && profileImageFile instanceof File) {
-                console.log('Uploading file:', profileImageFile);
-                formData.append('profileImage', profileImageFile);
+            const authToken = getToken();
+            const authHeader = authToken ? { Authorization: `Bearer ${authToken}` } : {};
+
+            console.log('[Settings] Starting profile update for user:', userId);
+
+            // 1) Update user basic info (JSON)
+            const userPayload = {
+                firstName,
+                lastName,
+                email,
+                phone,
+            };
+            
+            console.log('[Settings] Updating user with payload:', userPayload);
+            const userResponse = await axios.put(`${baseUrl}/users/${userId}`, userPayload, { 
+                headers: { ...authHeader, 'Content-Type': 'application/json' } 
+            });
+            console.log('[Settings] User update response:', userResponse.data);
+
+            // 2) Handle profile update/creation
+            if (profileId) {
+                // Update existing profile
+                console.log('[Settings] Updating existing profile:', profileId);
+                const profileForm = new FormData();
+                
+                if (profileType) profileForm.append('type', profileType);
+                const effectiveUserId = profileUserId || userId;
+                if (effectiveUserId) profileForm.append('userId', effectiveUserId);
+                if (organizationId) profileForm.append('organizationId', organizationId);
+                if (province) profileForm.append('province', province);
+                if (district) profileForm.append('district', district);
+                if (sector) profileForm.append('sector', sector);
+                if (cell) profileForm.append('cell', cell);
+                if (tinNumber) profileForm.append('tinNumber', tinNumber);
+                profileForm.append('statusMessage', statusMessage);
+                profileForm.append('showPhoneOnWelcome', String(showPhoneOnWelcome));
+                profileForm.append('showProfileImageOnWelcome', String(showProfileImageOnWelcome));
+                profileForm.append('showStatusMessageOnWelcome', String(showStatusMessageOnWelcome));
+                if (qrCode) profileForm.append('qrCode', qrCode);
+                
+                if (profileImageFile && profileImageFile instanceof File) {
+                    profileForm.append('profileImage', profileImageFile);
+                }
+                if (logoFile && logoFile instanceof File) {
+                    profileForm.append('logo', logoFile);
+                }
+                if (operationalDocumentFile && operationalDocumentFile instanceof File) {
+                    profileForm.append('operationalDocument', operationalDocumentFile);
+                }
+
+                const profileResponse = await axios.put(`${baseUrl}/profiles/${profileId}`, profileForm, { 
+                    headers: { ...authHeader } 
+                });
+                console.log('[Settings] Profile update response:', profileResponse.data);
             } else {
-                console.log('No new profile image selected or not a File:', profileImageFile);
+                // Create new profile - IMPORTANT: Use POST to /api/v1/profiles
+                console.log('[Settings] Creating new profile for user:', userId);
+                const profileForm = new FormData();
+                
+                // Required fields for profile creation
+                profileForm.append('type', profileType || 'individual');
+                profileForm.append('userId', userId);
+                
+                // Optional fields
+                if (organizationId) profileForm.append('organizationId', organizationId);
+                if (province) profileForm.append('province', province);
+                if (district) profileForm.append('district', district);
+                if (sector) profileForm.append('sector', sector);
+                if (cell) profileForm.append('cell', cell);
+                if (tinNumber) profileForm.append('tinNumber', tinNumber);
+                profileForm.append('statusMessage', statusMessage);
+                profileForm.append('showPhoneOnWelcome', String(showPhoneOnWelcome));
+                profileForm.append('showProfileImageOnWelcome', String(showProfileImageOnWelcome));
+                profileForm.append('showStatusMessageOnWelcome', String(showStatusMessageOnWelcome));
+                if (qrCode) profileForm.append('qrCode', qrCode);
+                
+                if (profileImageFile && profileImageFile instanceof File) {
+                    profileForm.append('profileImage', profileImageFile);
+                }
+                if (logoFile && logoFile instanceof File) {
+                    profileForm.append('logo', logoFile);
+                }
+                if (operationalDocumentFile && operationalDocumentFile instanceof File) {
+                    profileForm.append('operationalDocument', operationalDocumentFile);
+                }
+
+                console.log('[Settings] Creating profile with data:', {
+                    type: profileType || 'individual',
+                    userId,
+                    statusMessage,
+                    showPhoneOnWelcome,
+                    showProfileImageOnWelcome,
+                    showStatusMessageOnWelcome
+                });
+
+                const profileResponse = await axios.post(`${baseUrl}/profiles`, profileForm, { 
+                    headers: { ...authHeader } 
+                });
+                console.log('[Settings] Profile creation response:', profileResponse.data);
+                
+                // Update local state with new profile ID
+                if (profileResponse.data && profileResponse.data.id) {
+                    setProfileId(profileResponse.data.id);
+                    console.log('[Settings] New profile ID set:', profileResponse.data.id);
+                } else if (profileResponse.data && profileResponse.data.data && profileResponse.data.data.id) {
+                    setProfileId(profileResponse.data.data.id);
+                    console.log('[Settings] New profile ID set from data:', profileResponse.data.data.id);
+                }
             }
-            formData.append('showPhoneOnWelcome', String(showPhoneOnWelcome));
-            formData.append('showProfileImageOnWelcome', String(showProfileImageOnWelcome));
-            formData.append('showStatusMessageOnWelcome', String(showStatusMessageOnWelcome));
-            await axios.put(`${baseUrl}/users/${userId}`, formData, { headers });
+
             toast({
                 title: "Profile updated",
                 description: "Your profile information has been updated successfully.",
             });
+            
+            // Set success message and clear error
+            setSuccessMessage("Profile updated successfully!");
+            setError("");
+            
+            // Refresh the profile data to show updated information
+            await refreshProfileData();
+            
+            // Clear success message after 5 seconds
+            setTimeout(() => {
+                setSuccessMessage("");
+            }, 5000);
+            
         } catch (err: any) {
-            if (err.response && err.response.data && err.response.data.message) {
-                setError('Failed to update profile: ' + err.response.data.message);
-            } else {
-                setError('Failed to update profile.');
+            console.error('[Settings] Profile update error:', err);
+            
+            let errorMessage = 'Failed to update profile.';
+            if (err.response) {
+                if (err.response.data && err.response.data.message) {
+                    errorMessage = 'Failed to update profile: ' + err.response.data.message;
+                } else if (err.response.status === 401) {
+                    errorMessage = 'Authentication failed. Please log in again.';
+                } else if (err.response.status === 403) {
+                    errorMessage = 'You do not have permission to update this profile.';
+                } else if (err.response.status === 404) {
+                    errorMessage = 'Profile not found.';
+                } else if (err.response.status >= 500) {
+                    errorMessage = 'Server error. Please try again later.';
+                }
+            } else if (err.request) {
+                errorMessage = 'Network error. Please check your connection.';
             }
-            console.error('Update profile error:', err);
+            
+            setError(errorMessage);
+            toast({
+                title: "Error",
+                description: errorMessage,
+                variant: "destructive",
+            });
         } finally {
             setLoading(false);
         }
@@ -203,10 +419,37 @@ export default function SettingsPage() {
                         {/* Profile Tab */}
                         <TabsContent value="profile">
                             {loading ? (
-                                <div className="py-8 text-center">Loading...</div>
+                                <div className="py-8 text-center">
+                                    <div className="inline-flex items-center gap-2">
+                                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#00B512]"></div>
+                                        <span>Loading profile information...</span>
+                                    </div>
+                                </div>
                             ) : error ? (
-                                <div className="py-8 text-center text-red-500">{error}</div>
+                                <div className="py-8 text-center">
+                                    <div className="inline-flex flex-col items-center gap-2 text-red-500">
+                                        <AlertCircle size={24} />
+                                        <span>{error}</span>
+                                        <Button 
+                                            variant="outline" 
+                                            onClick={refreshProfileData}
+                                            className="mt-2"
+                                        >
+                                            Try Again
+                                        </Button>
+                                    </div>
+                                </div>
                             ) : (
+                            <div>
+                            <form onSubmit={(e) => { e.preventDefault(); handleSaveProfile(); }}>
+                                {successMessage && (
+                                    <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                                        <div className="flex items-center gap-2 text-green-800">
+                                            <CheckCircle size={20} />
+                                            <span className="font-medium">{successMessage}</span>
+                                        </div>
+                                    </div>
+                                )}
                             <div className="grid gap-6 md:grid-cols-5">
                                 <Card className="md:col-span-3">
                                     <CardHeader>
@@ -217,50 +460,147 @@ export default function SettingsPage() {
                                         <div className="grid gap-4 sm:grid-cols-2">
                                             <div className="space-y-2">
                                                 <Label htmlFor="first-name">First name</Label>
-                                                <Input id="first-name" value={firstName} onChange={e => setFirstName(e.target.value)} />
+                                                    <Input 
+                                                        id="first-name" 
+                                                        value={firstName} 
+                                                        onChange={e => setFirstName(e.target.value)}
+                                                        required
+                                                    />
                                             </div>
                                             <div className="space-y-2">
                                                 <Label htmlFor="last-name">Last name</Label>
-                                                <Input id="last-name" value={lastName} onChange={e => setLastName(e.target.value)} />
+                                                    <Input 
+                                                        id="last-name" 
+                                                        value={lastName} 
+                                                        onChange={e => setLastName(e.target.value)}
+                                                        required
+                                                    />
+                                            </div>
+                                        </div>
+                                        <Separator />
+                                        <div className="space-y-2">
+                                            <Label htmlFor="profile-type">Profile Type</Label>
+                                                <select 
+                                                    id="profile-type" 
+                                                    className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B512] w-full" 
+                                                    value={profileType} 
+                                                    onChange={e => setProfileType(e.target.value as any)}
+                                                    required
+                                                >
+                                                <option value="">Select type</option>
+                                                    <option value="individual">Individual</option>
+                                                    <option value="organization">Organization</option>
+                                            </select>
+                                        </div>
+                                        <div className="grid gap-4 sm:grid-cols-2">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="province">Province</Label>
+                                                    <Input 
+                                                        id="province" 
+                                                        value={province} 
+                                                        onChange={e => setProvince(e.target.value)} 
+                                                    />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="district">District</Label>
+                                                    <Input 
+                                                        id="district" 
+                                                        value={district} 
+                                                        onChange={e => setDistrict(e.target.value)} 
+                                                    />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="sector">Sector</Label>
+                                                    <Input 
+                                                        id="sector" 
+                                                        value={sector} 
+                                                        onChange={e => setSector(e.target.value)} 
+                                                    />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="cell">Cell</Label>
+                                                    <Input 
+                                                        id="cell" 
+                                                        value={cell} 
+                                                        onChange={e => setCell(e.target.value)} 
+                                                    />
                                             </div>
                                         </div>
                                         <div className="space-y-2">
+                                            <Label htmlFor="tin">TIN Number</Label>
+                                                <Input 
+                                                    id="tin" 
+                                                    value={tinNumber} 
+                                                    onChange={e => setTinNumber(e.target.value)} 
+                                                    placeholder="Tax identification number" 
+                                                />
+                                        </div>
+                                        <div className="space-y-2">
                                             <Label htmlFor="email">Email</Label>
-                                            <Input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} />
+                                                <Input 
+                                                    id="email" 
+                                                    type="email" 
+                                                    value={email} 
+                                                    onChange={e => setEmail(e.target.value)}
+                                                    required
+                                                />
                                         </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="phone">Phone number</Label>
-                                            <Input id="phone" type="tel" value={phone} onChange={e => setPhone(e.target.value)} />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="address">Address</Label>
-                                            <Input id="address" value={address} onChange={e => setAddress(e.target.value)} />
+                                                <Input 
+                                                    id="phone" 
+                                                    type="tel" 
+                                                    value={phone} 
+                                                    onChange={e => setPhone(e.target.value)}
+                                                    required
+                                                />
                                         </div>
                                         {/* Status Message input */}
                                         <div className="space-y-2">
                                             <Label htmlFor="status-message">Status Message</Label>
-                                            <Input id="status-message" value={statusMessage} onChange={e => setStatusMessage(e.target.value)} placeholder="Enter your status message" />
+                                                <Input 
+                                                    id="status-message" 
+                                                    value={statusMessage} 
+                                                    onChange={e => setStatusMessage(e.target.value)} 
+                                                    placeholder="Enter your status message" 
+                                                />
                                         </div>
                                         <div className="space-y-2">
                                             <Label>Welcome Page Visibility</Label>
                                             <div className="flex flex-col gap-2">
                                                 <label className="flex items-center gap-2">
-                                                    <input type="checkbox" checked={showPhoneOnWelcome} onChange={e => setShowPhoneOnWelcome(e.target.checked)} />
+                                                        <input 
+                                                            type="checkbox" 
+                                                            checked={showPhoneOnWelcome} 
+                                                            onChange={e => setShowPhoneOnWelcome(e.target.checked)} 
+                                                        />
                                                     Show phone on welcome page
                                                 </label>
                                                 <label className="flex items-center gap-2">
-                                                    <input type="checkbox" checked={showProfileImageOnWelcome} onChange={e => setShowProfileImageOnWelcome(e.target.checked)} />
+                                                        <input 
+                                                            type="checkbox" 
+                                                            checked={showProfileImageOnWelcome} 
+                                                            onChange={e => setShowProfileImageOnWelcome(e.target.checked)} 
+                                                        />
                                                     Show profile image on welcome page
                                                 </label>
                                                 <label className="flex items-center gap-2">
-                                                    <input type="checkbox" checked={showStatusMessageOnWelcome} onChange={e => setShowStatusMessageOnWelcome(e.target.checked)} />
+                                                        <input 
+                                                            type="checkbox" 
+                                                            checked={showStatusMessageOnWelcome} 
+                                                            onChange={e => setShowStatusMessageOnWelcome(e.target.checked)} 
+                                                        />
                                                     Show status message on welcome page
                                                 </label>
                                             </div>
                                         </div>
                                     </CardContent>
                                     <CardFooter className="flex justify-end">
-                                        <Button onClick={handleSaveProfile} className="bg-[#00B512] hover:bg-[#009E10]" disabled={loading}>
+                                            <Button 
+                                                type="submit" 
+                                                className="bg-[#00B512] hover:bg-[#009E10]" 
+                                                disabled={loading}
+                                            >
                                             {loading ? 'Saving...' : 'Save changes'}
                                         </Button>
                                     </CardFooter>
@@ -283,12 +623,41 @@ export default function SettingsPage() {
                                                     <span><Upload size={16} className="mr-2" />Upload new image</span>
                                                 </Button>
                                             </label>
-                                            <Button variant="ghost" className="text-red-500 hover:text-red-600 hover:bg-red-50 w-full" onClick={() => { setProfileImageFile(null); setProfileImagePreview(null); }}>
+                                                <Button 
+                                                    variant="ghost" 
+                                                    className="text-red-500 hover:text-red-600 hover:bg-red-50 w-full" 
+                                                    onClick={() => { setProfileImageFile(null); setProfileImagePreview(null); }}
+                                                    type="button"
+                                                >
                                                 Remove
                                             </Button>
+                                            <Separator />
+                                            <div className="w-full">
+                                                <Label htmlFor="logo-upload">Organization Logo</Label>
+                                                    <input 
+                                                        type="file" 
+                                                        accept="image/*" 
+                                                        id="logo-upload" 
+                                                        className="mt-2" 
+                                                        onChange={(e) => setLogoFile(e.target.files?.[0] || null)} 
+                                                    />
+                                            </div>
+                                            <div className="w-full">
+                                                <Label htmlFor="operational-doc-upload">Operational Document</Label>
+                                                    <input 
+                                                        type="file" 
+                                                        id="operational-doc-upload" 
+                                                        className="mt-2" 
+                                                        onChange={(e) => setOperationalDocumentFile(e.target.files?.[0] || null)} 
+                                                    />
+                                            </div>
                                         </div>
                                     </CardContent>
                                 </Card>
+                                </div>
+                            </form>
+                            
+
                             </div>
                             )}
 

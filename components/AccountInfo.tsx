@@ -79,24 +79,60 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
                 const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {};
 
                 console.log('Fetching user data for ID:', id);
-                console.log('API URL:', `${baseUrl}/users/${id}`);
 
-                const response = await axios.get(`${baseUrl}/users/${id}`, { headers });
-                const userData = response.data;
+                const userUrl = `${baseUrl}/users/${id}`;
+                const profileUrl = `${baseUrl}/profiles?userId=${encodeURIComponent(id)}`;
+                console.log('User API URL:', userUrl);
+                console.log('Profile API URL:', profileUrl);
 
-                console.log('User data received:', userData);
+                const [userRes, profileRes] = await Promise.allSettled([
+                    axios.get(userUrl, { headers }),
+                    axios.get(profileUrl, { headers }),
+                ]);
+
+                let firstName = '';
+                let lastName = '';
+                let qrCode = '';
+
+                if (userRes.status === 'fulfilled') {
+                    const userData = userRes.value.data;
+                    console.log('User data received:', userData);
+                    firstName = userData.firstName || '';
+                    lastName = userData.lastName || '';
+                } else {
+                    const err = userRes.reason;
+                    console.error('Error fetching user data:', err);
+                }
+
+                if (profileRes.status === 'fulfilled') {
+                    const profile = profileRes.value.data;
+                    console.log('Profile data received:', profile);
+                    qrCode = profile.qrCode || '';
+                } else {
+                    const err = profileRes.reason;
+                    console.error('Error fetching user profile:', err);
+                    if (axios.isAxiosError(err)) {
+                        const status = err.response?.status;
+                        console.error('Profile API Error Status:', status);
+                        console.error('Profile API Error Data:', err.response?.data);
+                        if (status === 400) {
+                            // Keep non-blocking; still show user names if available
+                            setError((prev) => prev ?? 'Missing profile query.');
+                        }
+                    }
+                }
+
+                if (!firstName && !lastName && !qrCode) {
+                    setError('Failed to load user data. Please try again.');
+                }
 
                 setUser({
-                    firstName: userData.firstName || '',
-                    lastName: userData.lastName || '',
-                    qrCode: userData.qrCode || ''
+                    firstName,
+                    lastName,
+                    qrCode,
                 });
             } catch (error) {
-                console.error('Error fetching user data:', error);
-                if (axios.isAxiosError(error)) {
-                    console.error('API Error Status:', error.response?.status);
-                    console.error('API Error Data:', error.response?.data);
-                }
+                console.error('Unexpected error fetching profile/user:', error);
                 setError('Failed to load user data. Please try again.');
             } finally {
                 setLoading(false);
