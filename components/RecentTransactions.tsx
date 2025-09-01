@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { useEffect, useState } from 'react';
-import { getTransactionHistory } from '@/helpers/api';
+import { getTransactionHistory, getUserWallet } from '@/helpers/api';
 import { Transaction } from '@/types/dashboard';
 import { useRouter } from 'next/navigation';
 import { useAuthToken } from '@/hooks/use-auth-token';
@@ -11,6 +11,7 @@ export const RecentTransactions: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserWalletId, setCurrentUserWalletId] = useState<string | null>(null);
   const router = useRouter();
   const { getToken } = useAuthToken();
 
@@ -19,7 +20,7 @@ export const RecentTransactions: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-  const token = getToken();
+        const token = getToken();
         let userId: string | null | undefined;
         if (token && !isTokenExpired(token)) {
           userId = getUserIdFromToken(token);
@@ -28,11 +29,27 @@ export const RecentTransactions: React.FC = () => {
         if (!userId) throw new Error('User not found');
         
         setCurrentUserId(userId);
-        console.log('RecentTransactions - fetching transactions for user:', userId);
+        
+        const walletResponse = await getUserWallet(userId);
+        console.log('RecentTransactions - wallet response:', walletResponse);
+        
+        if (!walletResponse.success) {
+          throw new Error('Could not fetch wallet information');
+        }
+        
+        const walletId = walletResponse.data.walletId;
+        setCurrentUserWalletId(walletId);
+        
+        console.log('RecentTransactions - fetching transactions for wallet:', walletId);
         
         const response = await getTransactionHistory(userId, { limit: 5 });
         console.log('RecentTransactions - response:', response);
-        setTransactions(response.transactions || []);
+        
+        if (response.success) {
+          setTransactions(response.data.transactions || []);
+        } else {
+          throw new Error(response.message || 'Failed to fetch transactions');
+        }
       } catch (err) {
         console.error('RecentTransactions - fetch error:', err);
         setError('Could not fetch transactions');
@@ -44,7 +61,7 @@ export const RecentTransactions: React.FC = () => {
   }, []);
 
   const getTransactionDisplayInfo = (transaction: Transaction) => {
-    const isOutgoing = transaction.senderId === currentUserId;
+    const isOutgoing = transaction.senderWalletId === currentUserWalletId;
     const transactionAmount = Number(transaction.amount) || 0;
     const transactionFee = Number(transaction.fee) || 0;
     const amount = isOutgoing ? -(transactionAmount + transactionFee) : transactionAmount;
