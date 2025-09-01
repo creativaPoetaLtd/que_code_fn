@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { ArrowLeft, Check, Shield, AlertCircle, Eye, EyeOff } from "lucide-react";
 import Navigation from "@/components/Navigation";
-import { getWalletBalance, transferMoney } from "@/helpers/api";
+import { getUserBalance, transferMoney, getTransactionCategories } from "@/helpers/api";
 import { useAuthToken } from "@/hooks/use-auth-token";
 import { getUserIdFromToken, isTokenExpired } from "@/utils/jwtUtils";
 
@@ -30,6 +30,10 @@ const AmountPage = () => {
   const [balanceLoading, setBalanceLoading] = useState(true);
   const [balanceError, setBalanceError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<any>(null);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [transferInProgress, setTransferInProgress] = useState(false);
   const { getToken } = useAuthToken();
 
   const quickAmounts = [500, 1000, 2500, 5000, 10000, 25000];
@@ -54,8 +58,12 @@ const AmountPage = () => {
           userId = getUserIdFromToken(token);
         }
         if (!userId) throw new Error('User not found');
-        const data = await getWalletBalance(userId);
-        setCurrentBalance(Number(data.balance));
+        const response = await getUserBalance(userId);
+        if (response.success && response.data) {
+          setCurrentBalance(Number(response.data.balance));
+        } else {
+          setBalanceError('Invalid balance data received');
+        }
       } catch (err: any) {
         setBalanceError('Could not fetch balance');
       } finally {
@@ -64,6 +72,28 @@ const AmountPage = () => {
     };
     fetchBalance();
   }, [router]);
+
+  // Load transaction categories
+  useEffect(() => {
+    const fetchCategories = async () => {
+      setCategoriesLoading(true);
+      try {
+        const response = await getTransactionCategories();
+        if (response.success) {
+          setCategories(response.data);
+          const defaultCategory = response.data.find((cat: any) => cat.name === 'Other');
+          if (defaultCategory) {
+            setSelectedCategory(defaultCategory);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load categories:', err);
+      } finally {
+        setCategoriesLoading(false);
+      }
+    };
+    fetchCategories();
+  }, []);
 
   const handleAmountSelect = (value: number) => {
     setAmount(value.toString());
@@ -106,6 +136,12 @@ const AmountPage = () => {
   const handleConfirm = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Prevent duplicate submissions
+    if (transferInProgress || loading) {
+      console.log('Transfer already in progress, ignoring duplicate request');
+      return;
+    }
+
     if (pin.length !== 4) {
       setError("Please enter your 4-digit PIN");
       return;
@@ -116,27 +152,50 @@ const AmountPage = () => {
       return;
     }
 
+    if (!selectedCategory) {
+      setError("Please select a transaction category");
+      return;
+    }
+
+    setTransferInProgress(true);
     setLoading(true);
     setError("");
+    
     try {
       const token = getToken();
-      let senderId: string | null | undefined;
+      let currentUserId: string | null | undefined;
       if (token && !isTokenExpired(token)) {
-        senderId = getUserIdFromToken(token);
+        currentUserId = getUserIdFromToken(token);
       }
-      if (!senderId) throw new Error("User not found");
+      if (!currentUserId) throw new Error("User not found");
+      
+      console.log('Initiating transfer with data:', {
+        senderUserId: currentUserId,
+        receiverUserId: recipient.id,
+        amount: Number(amount),
+        categoryId: selectedCategory?.id
+      });
+      
       const result = await transferMoney({
-        senderId,
-        receiverId: recipient.id,
+        senderUserId: currentUserId,
+        receiverUserId: recipient.id,
         amount: Number(amount),
         description: "Payment",
+        categoryId: selectedCategory?.id
       });
-      // Optionally store result for success page
+      
+      console.log('Transfer successful:', result);
+      
       sessionStorage.setItem('transferResult', JSON.stringify(result));
+      
+      setTransferInProgress(false);
+      setLoading(false);
+      
       router.push("/home/transfer/success");
     } catch (err: any) {
+      console.error('Transfer failed:', err);
       setError(err?.response?.data?.message || err?.message || 'Transfer failed');
-    } finally {
+      setTransferInProgress(false);
       setLoading(false);
     }
   };
@@ -245,6 +304,33 @@ const AmountPage = () => {
               </div>
             </div>
 
+            {/* Category Selection */}
+            <div className="bg-white rounded-3xl p-6 mb-6 shadow-sm border border-gray-100">
+              <label className="block text-sm font-medium text-gray-700 mb-4">
+                Select Category
+              </label>
+              
+              {categoriesLoading ? (
+                <div className="text-center py-4">Loading categories...</div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  {categories.map((category) => (
+                    <button
+                      key={category.id}
+                      onClick={() => setSelectedCategory(category)}
+                      className={`py-3 px-4 rounded-xl font-medium transition text-left ${
+                        selectedCategory?.id === category.id
+                          ? 'bg-green-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {category.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-6">
                 <div className="flex items-center space-x-2 text-red-700">
@@ -329,10 +415,10 @@ const AmountPage = () => {
 
                 <button
                   type="submit"
-                  disabled={pin.length !== 4 || loading}
+                  disabled={pin.length !== 4 || loading || transferInProgress}
                   className="w-full mt-6 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold py-4 rounded-2xl transition text-lg"
                 >
-                  {loading ? 'Processing...' : 'Confirm Transfer'}
+                  {loading || transferInProgress ? 'Processing...' : 'Confirm Transfer'}
                 </button>
               </form>
             </div>

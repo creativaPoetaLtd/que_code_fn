@@ -44,13 +44,13 @@ const SuccessPage = () => {
 
   return (
     <TransferSuccess
-      amount={transferResult.transaction.amount}
+      amount={transferResult.data.amount}
       recipient={{
-        name: transferResult.transaction.description,
-        id: transferResult.transaction.receiverId,
+        name: transferResult.data.description || 'Payment',
+        id: transferResult.data.receiverUserId || 'Unknown',
         avatar: '', // Optionally fetch avatar if available
       }}
-      transactionId={transferResult.transaction.transactionId}
+      transactionId={transferResult.data.transactionId}
     />
   );
 };

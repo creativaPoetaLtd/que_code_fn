@@ -79,6 +79,8 @@ export const getUserBalance = async (userId: string) => {
   }
 };
 
+const activeTransfers = new Set<string>();
+
 export const transferMoney = async ({ senderUserId, receiverUserId, amount, description, categoryId }: {
   senderUserId: string;
   receiverUserId: string;
@@ -86,16 +88,35 @@ export const transferMoney = async ({ senderUserId, receiverUserId, amount, desc
   description?: string;
   categoryId?: string;
 }) => {
-  const res = await axios.post(`${baseUrl}/transactions/transfer`, {
-    senderUserId,
-    receiverUserId,
-    amount,
-    description,
-    categoryId
-  }, {
-    headers: getAuthHeaders()
-  });
-  return res.data;
+  // Create a unique key for this transfer request
+  const transferKey = `${senderUserId}-${receiverUserId}-${amount}-${Date.now()}`;
+  const baseKey = `${senderUserId}-${receiverUserId}-${amount}`;
+  
+  // Check if a similar transfer is already in progress
+  if (activeTransfers.has(baseKey)) {
+    throw new Error('A similar transfer is already in progress. Please wait.');
+  }
+  
+  // Mark this transfer as active
+  activeTransfers.add(baseKey);
+  
+  try {
+    const res = await axios.post(`${baseUrl}/transactions/transfer`, {
+      senderUserId,
+      receiverUserId,
+      amount,
+      description,
+      categoryId
+    }, {
+      headers: getAuthHeaders()
+    });
+    
+    return res.data;
+  } finally {
+    setTimeout(() => {
+      activeTransfers.delete(baseKey);
+    }, 1000);
+  }
 };
 
 export const getCurrentUserId = (): string | null => {

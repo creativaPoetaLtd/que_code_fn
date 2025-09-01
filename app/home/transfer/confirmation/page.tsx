@@ -5,7 +5,7 @@ import Navigation from "@/components/Navigation";
 import { ArrowLeft, CheckCircle, Shield, Clock, CreditCard, Smartphone } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { transferMoney, getWalletBalance } from "@/helpers/api";
+import { transferMoney, getUserBalance } from "@/helpers/api";
 import { useAuthToken } from "@/hooks/use-auth-token";
 import { getUserIdFromToken, isTokenExpired } from "@/utils/jwtUtils";
 
@@ -51,8 +51,12 @@ const ConfirmationPage = () => {
           userId = getUserIdFromToken(token);
         }
         if (!userId) throw new Error('User not found');
-        const data = await getWalletBalance(userId);
-        setCurrentBalance(Number(data.balance));
+        const response = await getUserBalance(userId);
+        if (response.success && response.data) {
+          setCurrentBalance(Number(response.data.balance));
+        } else {
+          setBalanceError('Invalid balance data received');
+        }
       } catch (err: any) {
         setBalanceError('Could not fetch balance');
       } finally {
@@ -70,13 +74,14 @@ const ConfirmationPage = () => {
     setTransferError(null);
     try {
       const token = getToken();
-      let senderId: string | null | undefined;
+      let currentUserId: string | null | undefined;
       if (token && !isTokenExpired(token)) {
-        senderId = getUserIdFromToken(token);
+        currentUserId = getUserIdFromToken(token);
       }
-      if (!senderId || !recipient) throw new Error('User or recipient not found');
-      const result = await transferMoney({ senderId,
-        receiverId: recipient.id,
+      if (!currentUserId || !recipient) throw new Error('User or recipient not found');
+      const result = await transferMoney({ 
+        senderUserId: currentUserId,
+        receiverUserId: recipient.id,
         amount: Number(amount),
         description: 'Payment',
       });
