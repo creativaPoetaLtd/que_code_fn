@@ -81,7 +81,7 @@ const WelcomeProfilePage = () => {
         const token = getToken();
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
         const userUrl = `${baseUrl}/users/${userId}`;
-        const profileUrl = `${baseUrl}/api/v1/profiles?userId=${encodeURIComponent(userId)}`;
+        const profileUrl = `${baseUrl}/profiles?userId=${encodeURIComponent(userId)}`;
 
         const [userRes, profileRes] = await Promise.allSettled([
           axios.get(userUrl, { headers }),
@@ -90,11 +90,35 @@ const WelcomeProfilePage = () => {
  
         let data: any = {};
         let profile: any = {};
+        
         if (userRes.status === 'fulfilled') {
           data = userRes.value.data;
+          console.log('[Welcome] User data fetched successfully:', data);
+        } else {
+          console.error('[Welcome] Failed to fetch user data:', userRes.reason);
+          if (userRes.reason.response) {
+            console.error('[Welcome] User response status:', userRes.reason.response.status);
+            console.error('[Welcome] User response data:', userRes.reason.response.data);
+          }
         }
+        
         if (profileRes.status === 'fulfilled') {
           profile = profileRes.value.data;
+          console.log('[Welcome] Profile data fetched successfully:', profile);
+        } else {
+          console.error('[Welcome] Failed to fetch profile data:', profileRes.reason);
+          if (profileRes.reason.response) {
+            console.error('[Welcome] Profile response status:', profileRes.reason.response.status);
+            console.error('[Welcome] Profile response data:', profileRes.reason.response.data);
+          }
+          // Set default profile values if fetch fails
+          profile = {
+            profileImage: '',
+            statusMessage: '',
+            showPhoneOnWelcome: true,
+            showProfileImageOnWelcome: true,
+            showStatusMessageOnWelcome: true,
+          };
         }
 
         let name = '';
@@ -554,6 +578,7 @@ const WelcomeProfilePage = () => {
                   </p>
                 </div>
               )}
+              
             </div>
 
             {/* Right Side - Forms */}
@@ -650,6 +675,7 @@ const WelcomeProfilePage = () => {
           </div>
         )}
         
+
               {/* Mobile Forms based on authentication status */}
               {isLoggedIn ? (
                 // Mobile logged in user interface
