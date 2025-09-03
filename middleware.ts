@@ -22,7 +22,11 @@ const authRoutes = [
 
 export function middleware(request: NextRequest) {
     const { pathname, searchParams } = request.nextUrl;
-    const token = request.cookies.get('token');
+    
+    // Check for token in cookies (for SSR) and Authorization header (for client-side)
+    const token = request.cookies.get('token') || 
+                  request.headers.get('authorization')?.replace('Bearer ', '');
+    
     const isAuthenticated = !!token;
 
     const isProtectedRoute = protectedRoutes.some(route =>
@@ -30,6 +34,25 @@ export function middleware(request: NextRequest) {
     );
 
     const isAuthRoute = authRoutes.some(route => pathname.startsWith(route));
+
+    // Special handling for home routes with userId
+    if (pathname.startsWith('/home/') && pathname !== '/home') {
+        // Extract userId from pathname (e.g., /home/123 -> 123)
+        const pathParts = pathname.split('/');
+        const urlUserId = pathParts[2]; // Get the userId part
+        
+        if (!isAuthenticated) {
+            // No token, redirect to login
+            const loginUrl = request.nextUrl.clone();
+            loginUrl.pathname = '/auth/login';
+            loginUrl.searchParams.set('returnUrl', pathname + request.nextUrl.search);
+            return NextResponse.redirect(loginUrl);
+        }
+
+        // If authenticated, let the client-side component handle the userId validation
+        // This ensures the user can only access their own home page
+        return NextResponse.next();
+    }
 
     if (isProtectedRoute && !isAuthenticated) {
         const loginUrl = request.nextUrl.clone();
@@ -55,6 +78,7 @@ export function middleware(request: NextRequest) {
         homeUrl.searchParams.delete('returnUrl');
         return NextResponse.redirect(homeUrl);
     }
+    
     return NextResponse.next();
 }
 

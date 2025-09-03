@@ -139,7 +139,7 @@ export default function SettingsPage() {
             } finally {
                 setLoading(false);
             }
-        };
+        }
 
     // Refresh profile data after updates
     const refreshProfileData = async () => {
@@ -159,9 +159,71 @@ export default function SettingsPage() {
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                toast({
+                    title: "Invalid file type",
+                    description: "Please select an image file (JPEG, PNG, GIF, etc.)",
+                    variant: "destructive",
+                });
+                return;
+            }
+            
+            // Validate file size (5MB limit)
+            if (file.size > 5 * 1024 * 1024) {
+                toast({
+                    title: "File too large",
+                    description: "Please select an image smaller than 5MB",
+                    variant: "destructive",
+                });
+                return;
+            }
+            
             setProfileImageFile(file);
             setProfileImagePreview(URL.createObjectURL(file));
+            console.log('[Settings] Profile image selected:', file.name, file.size, file.type);
         }
+    };
+
+    // Validate files before upload
+    const validateFiles = () => {
+        if (profileImageFile && !profileImageFile.type.startsWith('image/')) {
+            toast({
+                title: "Invalid profile image",
+                description: "Profile image must be an image file",
+                variant: "destructive",
+            });
+            return false;
+        }
+        
+        if (logoFile && !logoFile.type.startsWith('image/')) {
+            toast({
+                title: "Invalid logo",
+                description: "Logo must be an image file",
+                variant: "destructive",
+            });
+            return false;
+        }
+        
+        if (profileImageFile && profileImageFile.size > 5 * 1024 * 1024) {
+            toast({
+                title: "Profile image too large",
+                description: "Profile image must be smaller than 5MB",
+                variant: "destructive",
+            });
+            return false;
+        }
+        
+        if (logoFile && logoFile.size > 5 * 1024 * 1024) {
+            toast({
+                title: "Logo too large",
+                description: "Logo must be smaller than 5MB",
+                variant: "destructive",
+            });
+            return false;
+        }
+        
+        return true;
     };
 
     // Save profile handler
@@ -193,6 +255,11 @@ export default function SettingsPage() {
                 description: "Please enter a valid email address.",
                 variant: "destructive",
             });
+            return;
+        }
+
+        // Validate files before upload
+        if (!validateFiles()) {
             return;
         }
         
@@ -240,20 +307,59 @@ export default function SettingsPage() {
                 profileForm.append('showStatusMessageOnWelcome', String(showStatusMessageOnWelcome));
                 if (qrCode) profileForm.append('qrCode', qrCode);
                 
+                // Handle profile image update - ensure proper file handling
                 if (profileImageFile && profileImageFile instanceof File) {
+                    console.log('[Settings] Adding profile image to form:', profileImageFile.name, profileImageFile.size, profileImageFile.type);
                     profileForm.append('profileImage', profileImageFile);
                 }
                 if (logoFile && logoFile instanceof File) {
+                    console.log('[Settings] Adding logo to form:', logoFile.name, logoFile.size, logoFile.type);
                     profileForm.append('logo', logoFile);
                 }
                 if (operationalDocumentFile && operationalDocumentFile instanceof File) {
+                    console.log('[Settings] Adding operational document to form:', operationalDocumentFile.name, operationalDocumentFile.size, operationalDocumentFile.type);
                     profileForm.append('operationalDocument', operationalDocumentFile);
                 }
 
+                console.log('[Settings] Sending profile update with FormData:', {
+                    hasProfileImage: !!profileImageFile,
+                    hasLogo: !!logoFile,
+                    hasDocument: !!operationalDocumentFile,
+                    formDataEntries: Array.from(profileForm.entries()).map(([key, value]) => ({
+                        key,
+                        type: value instanceof File ? 'File' : 'String',
+                        value: value instanceof File ? `${value.name} (${value.size} bytes)` : value
+                    }))
+                });
+
                 const profileResponse = await axios.put(`${baseUrl}/profiles/${profileId}`, profileForm, { 
-                    headers: { ...authHeader } 
+                    headers: { 
+                        ...authHeader,
+                        'Content-Type': 'multipart/form-data' // Ensure proper content type
+                    } 
                 });
                 console.log('[Settings] Profile update response:', profileResponse.data);
+                
+                // Update local image states with new URLs from backend
+                if (profileResponse.data && profileResponse.data.data) {
+                    const updatedProfile = profileResponse.data.data;
+                    if (updatedProfile.profileImage) {
+                        setProfileImage(updatedProfile.profileImage);
+                        setProfileImagePreview(updatedProfile.profileImage);
+                        console.log('[Settings] Updated profile image URL:', updatedProfile.profileImage);
+                    }
+                    if (updatedProfile.logo) {
+                        console.log('[Settings] Updated logo URL:', updatedProfile.logo);
+                    }
+                    if (updatedProfile.operationalDocument) {
+                        console.log('[Settings] Updated operational document URL:', updatedProfile.operationalDocument);
+                    }
+                }
+                
+                // Clear file states after successful upload
+                setProfileImageFile(null);
+                setLogoFile(null);
+                setOperationalDocumentFile(null);
             } else {
                 // Create new profile - IMPORTANT: Use POST to /api/v1/profiles
                 console.log('[Settings] Creating new profile for user:', userId);
@@ -277,37 +383,58 @@ export default function SettingsPage() {
                 if (qrCode) profileForm.append('qrCode', qrCode);
                 
                 if (profileImageFile && profileImageFile instanceof File) {
+                    console.log('[Settings] Adding profile image to creation form:', profileImageFile.name, profileImageFile.size, profileImageFile.type);
                     profileForm.append('profileImage', profileImageFile);
                 }
                 if (logoFile && logoFile instanceof File) {
+                    console.log('[Settings] Adding logo to creation form:', logoFile.name, logoFile.size, logoFile.type);
                     profileForm.append('logo', logoFile);
                 }
                 if (operationalDocumentFile && operationalDocumentFile instanceof File) {
+                    console.log('[Settings] Adding operational document to creation form:', operationalDocumentFile.name, operationalDocumentFile.size, operationalDocumentFile.type);
                     profileForm.append('operationalDocument', operationalDocumentFile);
                 }
 
-                console.log('[Settings] Creating profile with data:', {
-                    type: profileType || 'individual',
-                    userId,
-                    statusMessage,
-                    showPhoneOnWelcome,
-                    showProfileImageOnWelcome,
-                    showStatusMessageOnWelcome
+                console.log('[Settings] Creating profile with FormData:', {
+                    hasProfileImage: !!profileImageFile,
+                    hasLogo: !!logoFile,
+                    hasDocument: !!operationalDocumentFile,
+                    formDataEntries: Array.from(profileForm.entries()).map(([key, value]) => ({
+                        key,
+                        type: value instanceof File ? 'File' : 'String',
+                        value: value instanceof File ? `${value.name} (${value.size} bytes)` : value
+                    }))
                 });
 
                 const profileResponse = await axios.post(`${baseUrl}/profiles`, profileForm, { 
-                    headers: { ...authHeader } 
+                    headers: { 
+                        ...authHeader,
+                        'Content-Type': 'multipart/form-data' // Ensure proper content type
+                    } 
                 });
                 console.log('[Settings] Profile creation response:', profileResponse.data);
                 
-                // Update local state with new profile ID
-                if (profileResponse.data && profileResponse.data.id) {
+                // Update local state with new profile ID and image URLs
+                if (profileResponse.data && profileResponse.data.data) {
+                    const newProfile = profileResponse.data.data;
+                    if (newProfile.id) {
+                        setProfileId(newProfile.id);
+                        console.log('[Settings] New profile ID set:', newProfile.id);
+                    }
+                    if (newProfile.profileImage) {
+                        setProfileImage(newProfile.profileImage);
+                        setProfileImagePreview(newProfile.profileImage);
+                        console.log('[Settings] New profile image URL set:', newProfile.profileImage);
+                    }
+                } else if (profileResponse.data && profileResponse.data.id) {
                     setProfileId(profileResponse.data.id);
-                    console.log('[Settings] New profile ID set:', profileResponse.data.id);
-                } else if (profileResponse.data && profileResponse.data.data && profileResponse.data.data.id) {
-                    setProfileId(profileResponse.data.data.id);
-                    console.log('[Settings] New profile ID set from data:', profileResponse.data.data.id);
+                    console.log('[Settings] New profile ID set from response:', profileResponse.data.id);
                 }
+                
+                // Clear file states after successful creation
+                setProfileImageFile(null);
+                setLogoFile(null);
+                setOperationalDocumentFile(null);
             }
 
             toast({
