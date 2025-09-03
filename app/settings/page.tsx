@@ -153,7 +153,7 @@ export default function SettingsPage() {
     // Refresh profile data after updates
     const refreshProfileData = async () => {
         if (userId && userInfo.isAuthenticated) {
-            await fetchUserAndProfile();
+        fetchUserAndProfile();
         }
     };
 
@@ -416,22 +416,11 @@ export default function SettingsPage() {
             return;
         }
 
-        // Validate required fields
-        if (!firstName.trim() || !lastName.trim() || !email.trim() || !phone.trim() || !profileType) {
+        // Validate required fields - only profile fields since user fields are read-only
+        if (!profileType) {
             toast({
                 title: "Validation Error",
-                description: "Please fill in all required fields: First Name, Last Name, Email, Phone, and Profile Type.",
-                variant: "destructive",
-            });
-            return;
-        }
-
-        // Validate email format
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-            toast({
-                title: "Validation Error",
-                description: "Please enter a valid email address.",
+                description: "Please select a profile type.",
                 variant: "destructive",
             });
             return;
@@ -451,21 +440,7 @@ export default function SettingsPage() {
 
             console.log('[Settings] Starting profile update for user:', userId);
 
-            // 1) Update user basic info (JSON)
-            const userPayload = {
-                firstName,
-                lastName,
-                email,
-                phone,
-            };
-            
-            console.log('[Settings] Updating user with payload:', userPayload);
-            const userResponse = await axios.put(`${baseUrl}/users/${userId}`, userPayload, { 
-                headers: { ...authHeader, 'Content-Type': 'application/json' } 
-            });
-            console.log('[Settings] User update response:', userResponse.data);
-
-            // 2) Handle profile update/creation
+            // Handle profile update/creation (user fields are read-only, so no user update needed)
             if (profileId) {
                 // Update existing profile
                 console.log('[Settings] Updating existing profile:', profileId);
@@ -622,7 +597,7 @@ export default function SettingsPage() {
             });
             
             // Set success message and clear error
-            setSuccessMessage("Profile updated successfully!");
+            setSuccessMessage("Profile information updated successfully!");
             setError("");
             
             // Refresh the profile data to show updated information
@@ -695,7 +670,7 @@ export default function SettingsPage() {
                 <div className="container max-w-6xl mx-auto py-6 px-4 sm:px-6 lg:py-10 mobile-bottom-padding">
                     <div className="flex flex-col gap-2 mb-8">
                         <h1 className="text-2xl sm:text-3xl font-bold">Settings</h1>
-                        <p className="text-gray-500">Manage your account settings and preferences</p>
+                        <p className="text-gray-500">Manage your profile settings and preferences</p>
                     </div>
 
                     <Tabs defaultValue="profile" className="w-full">
@@ -764,33 +739,77 @@ export default function SettingsPage() {
                             <div className="grid gap-6 md:grid-cols-5">
                                 <Card className="md:col-span-3">
                                     <CardHeader>
-                                        <CardTitle>Personal Information</CardTitle>
-                                        <CardDescription>Update your personal details</CardDescription>
+                                        <CardTitle>Account & Profile Information</CardTitle>
+                                        <CardDescription>View your account details and update profile information</CardDescription>
                                     </CardHeader>
                                     <CardContent className="space-y-4">
-                                        <div className="grid gap-4 sm:grid-cols-2">
-                                            <div className="space-y-2">
-                                                <Label htmlFor="first-name">First name</Label>
-                                                    <Input 
-                                                        id="first-name" 
-                                                        value={firstName} 
-                                                        onChange={e => setFirstName(e.target.value)}
-                                                        required
-                                                    />
+                                        {/* User Model Fields - Read Only */}
+                                        <div className="space-y-4">
+                                            <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
+                                                <User size={16} className="text-gray-500" />
+                                                <h3 className="text-sm font-medium text-gray-700">Account Information (Read-Only)</h3>
                                             </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="last-name">Last name</Label>
-                                                    <Input 
-                                                        id="last-name" 
-                                                        value={lastName} 
-                                                        onChange={e => setLastName(e.target.value)}
-                                                        required
-                                                    />
+                                            <div className="grid gap-4 sm:grid-cols-2">
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="first-name" className="text-gray-600 flex items-center gap-2">
+                                                        <Lock size={14} />
+                                                        First name
+                                                    </Label>
+                                                    <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900 flex items-center justify-between">
+                                                        <span>{firstName || 'Not provided'}</span>
+                                                        <span className="text-xs text-gray-400 bg-gray-200 px-2 py-1 rounded">Read-only</span>
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="last-name" className="text-gray-600 flex items-center gap-2">
+                                                        <Lock size={14} />
+                                                        Last name
+                                                    </Label>
+                                                    <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900 flex items-center justify-between">
+                                                        <span>{lastName || 'Not provided'}</span>
+                                                        <span className="text-xs text-gray-400 bg-gray-200 px-2 py-1 rounded">Read-only</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="grid gap-4 sm:grid-cols-2">
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="email" className="text-gray-600 flex items-center gap-2">
+                                                        <Lock size={14} />
+                                                        Email
+                                                    </Label>
+                                                    <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900 flex items-center justify-between">
+                                                        <span>{email || 'Not provided'}</span>
+                                                        <span className="text-xs text-gray-400 bg-gray-200 px-2 py-1 rounded">Read-only</span>
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="phone" className="text-gray-600 flex items-center gap-2">
+                                                        <Lock size={14} />
+                                                        Phone number
+                                                    </Label>
+                                                    <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900 flex items-center justify-between">
+                                                        <span>{phone || 'Not provided'}</span>
+                                                        <span className="text-xs text-gray-400 bg-gray-200 px-2 py-1 rounded">Read-only</span>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
+
                                         <Separator />
-                                        <div className="space-y-2">
-                                            <Label htmlFor="profile-type">Profile Type</Label>
+                                        <div className="text-sm text-gray-500 italic">
+                                            Note: Account information (name, email, phone) cannot be edited here. Contact support if you need to update these details.
+                                        </div>
+                                        <Separator />
+
+                                        {/* Profile Model Fields - Editable */}
+                                        <div className="space-y-4">
+                                            <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
+                                                <Shield size={16} className="text-gray-500" />
+                                                <h3 className="text-sm font-medium text-gray-700">Profile Information (Editable)</h3>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="profile-type">Profile Type</Label>
                                                 <select 
                                                     id="profile-type" 
                                                     className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B512] w-full" 
@@ -798,11 +817,11 @@ export default function SettingsPage() {
                                                     onChange={e => setProfileType(e.target.value as any)}
                                                     required
                                                 >
-                                                <option value="">Select type</option>
+                                                    <option value="">Select type</option>
                                                     <option value="individual">Individual</option>
                                                     <option value="organization">Organization</option>
-                                            </select>
-                                        </div>
+                                                </select>
+                                            </div>
                                         <div className="grid gap-4 sm:grid-cols-2">
                                             <div className="space-y-2">
                                                 <Label htmlFor="province">Province</Label>
@@ -846,26 +865,6 @@ export default function SettingsPage() {
                                                     placeholder="Tax identification number" 
                                                 />
                                         </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="email">Email</Label>
-                                                <Input 
-                                                    id="email" 
-                                                    type="email" 
-                                                    value={email} 
-                                                    onChange={e => setEmail(e.target.value)}
-                                                    required
-                                                />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="phone">Phone number</Label>
-                                                <Input 
-                                                    id="phone" 
-                                                    type="tel" 
-                                                    value={phone} 
-                                                    onChange={e => setPhone(e.target.value)}
-                                                    required
-                                                />
-                                        </div>
                                         {/* Status Message input */}
                                         <div className="space-y-2">
                                             <Label htmlFor="status-message">Status Message</Label>
@@ -880,32 +879,33 @@ export default function SettingsPage() {
                                             <Label>Welcome Page Visibility</Label>
                                             <div className="flex flex-col gap-2">
                                                 <label className="flex items-center gap-2">
-                                                        <input 
-                                                            type="checkbox" 
-                                                            checked={showPhoneOnWelcome} 
-                                                            onChange={e => setShowPhoneOnWelcome(e.target.checked)} 
-                                                        />
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={showPhoneOnWelcome} 
+                                                        onChange={e => setShowPhoneOnWelcome(e.target.checked)} 
+                                                    />
                                                     Show phone on welcome page
                                                 </label>
                                                 <label className="flex items-center gap-2">
-                                                        <input 
-                                                            type="checkbox" 
-                                                            checked={showProfileImageOnWelcome} 
-                                                            onChange={e => setShowProfileImageOnWelcome(e.target.checked)} 
-                                                        />
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={showProfileImageOnWelcome} 
+                                                        onChange={e => setShowProfileImageOnWelcome(e.target.checked)} 
+                                                    />
                                                     Show profile image on welcome page
                                                 </label>
                                                 <label className="flex items-center gap-2">
-                                                        <input 
-                                                            type="checkbox" 
-                                                            checked={showStatusMessageOnWelcome} 
-                                                            onChange={e => setShowStatusMessageOnWelcome(e.target.checked)} 
-                                                        />
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={showStatusMessageOnWelcome} 
+                                                        onChange={e => setShowStatusMessageOnWelcome(e.target.checked)} 
+                                                    />
                                                     Show status message on welcome page
                                                 </label>
                                             </div>
                                         </div>
-                                    </CardContent>
+                                    </div>
+                                </CardContent>
                                     <CardFooter className="flex justify-end">
                                             <Button 
                                                 type="submit" 
