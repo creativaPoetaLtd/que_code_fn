@@ -59,6 +59,15 @@ export default function SettingsPage() {
     const userInfo = useUserInfo();
     const { getToken } = useAuthToken();
 
+    // Helper function to format file size
+    const formatFileSize = (bytes: number): string => {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    };
+
     // Sync userId from cookie-based auth
     useEffect(() => {
         if (userInfo.isAuthenticated && userInfo.userId) {
@@ -155,72 +164,242 @@ export default function SettingsPage() {
         }
     }, [userId, userInfo.isAuthenticated, getToken]);
 
+    // Cleanup function for file preview URLs
+    useEffect(() => {
+        return () => {
+            // Cleanup file preview URLs to prevent memory leaks
+            if (profileImagePreview && profileImagePreview.startsWith('blob:')) {
+                URL.revokeObjectURL(profileImagePreview);
+            }
+        };
+    }, [profileImagePreview]);
+
     // Handle image select
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            // Validate file type
-            if (!file.type.startsWith('image/')) {
+            // Enhanced file type validation
+            const allowedTypes = [
+                'image/png', 'image/jpeg', 'image/jpg', 'image/gif', 
+                'image/webp', 'image/bmp', 'image/tiff', 'image/jfif', 'image/tif'
+            ];
+            
+            if (!allowedTypes.includes(file.type)) {
                 toast({
                     title: "Invalid file type",
-                    description: "Please select an image file (JPEG, PNG, GIF, etc.)",
+                    description: "Please select a valid image file (PNG, JPG, JPEG, GIF, WebP, BMP, TIFF, JFIF, TIF)",
                     variant: "destructive",
                 });
                 return;
             }
             
-            // Validate file size (5MB limit)
-            if (file.size > 5 * 1024 * 1024) {
+            // Enhanced file size validation (5MB limit)
+            const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+            if (file.size > maxSize) {
                 toast({
                     title: "File too large",
-                    description: "Please select an image smaller than 5MB",
+                    description: `File size (${formatFileSize(file.size)}) exceeds the 5MB limit. Please select a smaller image.`,
                     variant: "destructive",
                 });
                 return;
             }
             
+            // Clear any previous errors
+            setError("");
+            
+            // Set the file and preview
             setProfileImageFile(file);
             setProfileImagePreview(URL.createObjectURL(file));
+            
+            // Show success message
+            toast({
+                title: "Image selected",
+                description: `${file.name} has been selected for upload.`,
+            });
+            
             console.log('[Settings] Profile image selected:', file.name, file.size, file.type);
         }
     };
 
-    // Validate files before upload
+    // Handle logo file selection
+    const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            // Enhanced file type validation for logo
+            const allowedTypes = [
+                'image/png', 'image/jpeg', 'image/jpg', 'image/gif', 
+                'image/webp', 'image/bmp', 'image/tiff', 'image/jfif', 'image/tif'
+            ];
+            
+            if (!allowedTypes.includes(file.type)) {
+                toast({
+                    title: "Invalid logo file type",
+                    description: "Please select a valid image file for the logo (PNG, JPG, JPEG, GIF, WebP, BMP, TIFF, JFIF, TIF)",
+                    variant: "destructive",
+                });
+                return;
+            }
+            
+            // Enhanced file size validation (5MB limit)
+            const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+            if (file.size > maxSize) {
+                toast({
+                    title: "Logo file too large",
+                    description: `Logo file size (${formatFileSize(file.size)}) exceeds the 5MB limit. Please select a smaller image.`,
+                    variant: "destructive",
+                });
+                return;
+            }
+            
+            setLogoFile(file);
+            toast({
+                title: "Logo selected",
+                description: `${file.name} has been selected for upload.`,
+            });
+        }
+    };
+
+    // Handle operational document file selection
+    const handleOperationalDocumentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            // Enhanced file type validation for documents
+            const allowedTypes = [
+                'image/png', 'image/jpeg', 'image/jpg', 'image/gif', 
+                'image/webp', 'image/bmp', 'image/tiff', 'image/jfif', 'image/tif',
+                'application/pdf'
+            ];
+            
+            if (!allowedTypes.includes(file.type)) {
+                toast({
+                    title: "Invalid document file type",
+                    description: "Please select a valid file (PNG, JPG, JPEG, GIF, WebP, BMP, TIFF, JFIF, TIF, PDF)",
+                    variant: "destructive",
+                });
+                return;
+            }
+            
+            // Enhanced file size validation (5MB limit)
+            const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+            if (file.size > maxSize) {
+                toast({
+                    title: "Document file too large",
+                    description: `Document file size (${formatFileSize(file.size)}) exceeds the 5MB limit. Please select a smaller file.`,
+                    variant: "destructive",
+                });
+                return;
+            }
+            
+            setOperationalDocumentFile(file);
+            toast({
+                title: "Document selected",
+                description: `${file.name} has been selected for upload.`,
+            });
+        }
+    };
+
+    // Remove profile image
+    const handleRemoveProfileImage = () => {
+        setProfileImageFile(null);
+        setProfileImagePreview(null);
+        toast({
+            title: "Profile image removed",
+            description: "Profile image has been removed. Save changes to apply.",
+        });
+    };
+
+    // Remove logo
+    const handleRemoveLogo = () => {
+        setLogoFile(null);
+        toast({
+            title: "Logo removed",
+            description: "Logo has been removed. Save changes to apply.",
+        });
+    };
+
+    // Remove operational document
+    const handleRemoveOperationalDocument = () => {
+        setOperationalDocumentFile(null);
+        toast({
+            title: "Document removed",
+            description: "Operational document has been removed. Save changes to apply.",
+        });
+    };
+
+    // Enhanced file validation before upload
     const validateFiles = () => {
-        if (profileImageFile && !profileImageFile.type.startsWith('image/')) {
-            toast({
-                title: "Invalid profile image",
-                description: "Profile image must be an image file",
-                variant: "destructive",
-            });
-            return false;
+        const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+        const allowedImageTypes = [
+            'image/png', 'image/jpeg', 'image/jpg', 'image/gif', 
+            'image/webp', 'image/bmp', 'image/tiff', 'image/jfif', 'image/tif'
+        ];
+        const allowedDocumentTypes = [
+            'image/png', 'image/jpeg', 'image/jpg', 'image/gif', 
+            'image/webp', 'image/bmp', 'image/tiff', 'image/jfif', 'image/tif',
+            'application/pdf'
+        ];
+
+        // Validate profile image
+        if (profileImageFile) {
+            if (!allowedImageTypes.includes(profileImageFile.type)) {
+                toast({
+                    title: "Invalid profile image format",
+                    description: "Profile image must be a valid image file (PNG, JPG, JPEG, GIF, WebP, BMP, TIFF, JFIF, TIF)",
+                    variant: "destructive",
+                });
+                return false;
+            }
+            
+            if (profileImageFile.size > maxSize) {
+                toast({
+                    title: "Profile image too large",
+                    description: `Profile image size (${formatFileSize(profileImageFile.size)}) exceeds the 5MB limit`,
+                    variant: "destructive",
+                });
+                return false;
+            }
         }
         
-        if (logoFile && !logoFile.type.startsWith('image/')) {
-            toast({
-                title: "Invalid logo",
-                description: "Logo must be an image file",
-                variant: "destructive",
-            });
-            return false;
+        // Validate logo
+        if (logoFile) {
+            if (!allowedImageTypes.includes(logoFile.type)) {
+                toast({
+                    title: "Invalid logo format",
+                    description: "Logo must be a valid image file (PNG, JPG, JPEG, GIF, WebP, BMP, TIFF, JFIF, TIF)",
+                    variant: "destructive",
+                });
+                return false;
+            }
+            
+            if (logoFile.size > maxSize) {
+                toast({
+                    title: "Logo too large",
+                    description: `Logo size (${formatFileSize(logoFile.size)}) exceeds the 5MB limit`,
+                    variant: "destructive",
+                });
+                return false;
+            }
         }
         
-        if (profileImageFile && profileImageFile.size > 5 * 1024 * 1024) {
-            toast({
-                title: "Profile image too large",
-                description: "Profile image must be smaller than 5MB",
-                variant: "destructive",
-            });
-            return false;
-        }
-        
-        if (logoFile && logoFile.size > 5 * 1024 * 1024) {
-            toast({
-                title: "Logo too large",
-                description: "Logo must be smaller than 5MB",
-                variant: "destructive",
-            });
-            return false;
+        // Validate operational document
+        if (operationalDocumentFile) {
+            if (!allowedDocumentTypes.includes(operationalDocumentFile.type)) {
+                toast({
+                    title: "Invalid document format",
+                    description: "Document must be a valid file (PNG, JPG, JPEG, GIF, WebP, BMP, TIFF, JFIF, TIF, PDF)",
+                    variant: "destructive",
+                });
+                return false;
+            }
+            
+            if (operationalDocumentFile.size > maxSize) {
+                toast({
+                    title: "Document too large",
+                    description: `Document size (${formatFileSize(operationalDocumentFile.size)}) exceeds the 5MB limit`,
+                    variant: "destructive",
+                });
+                return false;
+            }
         }
         
         return true;
@@ -575,6 +754,11 @@ export default function SettingsPage() {
                                             <CheckCircle size={20} />
                                             <span className="font-medium">{successMessage}</span>
                                         </div>
+                                        {profileImageFile && (
+                                            <p className="text-sm text-green-700 mt-2">
+                                                Profile image has been updated successfully!
+                                            </p>
+                                        )}
                                     </div>
                                 )}
                             <div className="grid gap-6 md:grid-cols-5">
@@ -728,57 +912,182 @@ export default function SettingsPage() {
                                                 className="bg-[#00B512] hover:bg-[#009E10]" 
                                                 disabled={loading}
                                             >
-                                            {loading ? 'Saving...' : 'Save changes'}
+                                            {loading ? (
+                                                <div className="flex items-center gap-2">
+                                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                                    <span>Saving changes...</span>
+                                                </div>
+                                            ) : (
+                                                'Save changes'
+                                            )}
                                         </Button>
                                     </CardFooter>
                                 </Card>
 
                                 <Card className="md:col-span-2">
                                     <CardHeader>
-                                        <CardTitle>Profile Picture</CardTitle>
-                                        <CardDescription>Update your profile image</CardDescription>
+                                        <CardTitle>Profile Picture & Documents</CardTitle>
+                                        <CardDescription>Update your profile image, logo, and operational documents</CardDescription>
                                     </CardHeader>
-                                    <CardContent className="flex flex-col items-center space-y-4">
-                                        <Avatar className="h-24 w-24 border-2 border-gray-200">
-                                            <AvatarImage src={profileImagePreview || "/placeholder.svg?height=96&width=96"} alt="Profile" />
-                                            <AvatarFallback>{firstName?.[0]}{lastName?.[0]}</AvatarFallback>
-                                        </Avatar>
-                                        <div className="flex flex-col items-center gap-2">
-                                            <input type="file" accept="image/*" id="profile-image-upload" style={{ display: 'none' }} onChange={handleImageChange} />
-                                            <label htmlFor="profile-image-upload">
-                                                <Button variant="outline" className="w-full" asChild>
-                                                    <span><Upload size={16} className="mr-2" />Upload new image</span>
-                                                </Button>
-                                            </label>
-                                                <Button 
-                                                    variant="ghost" 
-                                                    className="text-red-500 hover:text-red-600 hover:bg-red-50 w-full" 
-                                                    onClick={() => { setProfileImageFile(null); setProfileImagePreview(null); }}
-                                                    type="button"
-                                                >
-                                                Remove
-                                            </Button>
-                                            <Separator />
-                                            <div className="w-full">
-                                                <Label htmlFor="logo-upload">Organization Logo</Label>
+                                    <CardContent className="flex flex-col items-center space-y-6">
+                                        {/* Profile Image Section */}
+                                        <div className="w-full space-y-4">
+                                            <Label className="text-sm font-medium">Profile Image</Label>
+                                            <div className="flex flex-col items-center space-y-4">
+                                                <Avatar className="h-24 w-24 border-2 border-gray-200 shadow-sm">
+                                                    <AvatarImage 
+                                                        src={profileImagePreview || profileImage || "/placeholder.svg?height=96&width=96"} 
+                                                        alt={`${firstName} ${lastName}'s profile`} 
+                                                    />
+                                                    <AvatarFallback className="text-lg font-semibold bg-gray-100">
+                                                        {firstName?.[0]}{lastName?.[0]}
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                                
+                                                <div className="flex flex-col items-center gap-2 w-full">
                                                     <input 
                                                         type="file" 
-                                                        accept="image/*" 
-                                                        id="logo-upload" 
-                                                        className="mt-2" 
-                                                        onChange={(e) => setLogoFile(e.target.files?.[0] || null)} 
+                                                        accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,image/bmp,image/tiff,image/jfif,image/tif" 
+                                                        id="profile-image-upload" 
+                                                        style={{ display: 'none' }} 
+                                                        onChange={handleImageChange} 
                                                     />
-                                            </div>
-                                            <div className="w-full">
-                                                <Label htmlFor="operational-doc-upload">Operational Document</Label>
-                                                    <input 
-                                                        type="file" 
-                                                        id="operational-doc-upload" 
-                                                        className="mt-2" 
-                                                        onChange={(e) => setOperationalDocumentFile(e.target.files?.[0] || null)} 
-                                                    />
+                                                    <label htmlFor="profile-image-upload" className="w-full">
+                                                        <Button variant="outline" className="w-full hover:bg-gray-50" asChild>
+                                                            <span><Upload size={16} className="mr-2" />Upload new image</span>
+                                                        </Button>
+                                                    </label>
+                                                    <p className="text-xs text-gray-500 text-center">
+                                                        Click to browse or drag & drop an image file
+                                                    </p>
+                                                    
+                                                    {(profileImageFile || profileImagePreview) && (
+                                                        <Button 
+                                                            variant="ghost" 
+                                                            className="text-red-500 hover:text-red-600 hover:bg-red-50 w-full" 
+                                                            onClick={handleRemoveProfileImage}
+                                                            type="button"
+                                                        >
+                                                            Remove image
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                                
+                                                {profileImageFile && (
+                                                    <div className="w-full p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                                        <div className="flex items-center gap-2 text-blue-800">
+                                                            <CheckCircle size={16} />
+                                                            <span className="text-sm font-medium">
+                                                                {profileImageFile.name} selected for upload
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center justify-between mt-2">
+                                                            <p className="text-xs text-blue-600">
+                                                                Size: {formatFileSize(profileImageFile.size)}
+                                                            </p>
+                                                            <p className="text-xs text-blue-600">
+                                                                Type: {profileImageFile.type.split('/')[1].toUpperCase()}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
+
+                                        <Separator />
+
+                                        {/* Organization Logo Section */}
+                                        <div className="w-full space-y-4">
+                                            <Label className="text-sm font-medium">Organization Logo</Label>
+                                            <div className="space-y-3">
+                                                <input 
+                                                    type="file" 
+                                                    accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,image/bmp,image/tiff,image/jfif,image/tif" 
+                                                    id="logo-upload" 
+                                                    className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" 
+                                                    onChange={handleLogoChange} 
+                                                />
+                                                
+                                                {logoFile && (
+                                                    <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                                                        <div className="flex items-center gap-2">
+                                                            <CheckCircle size={16} className="text-green-600" />
+                                                            <span className="text-sm font-medium text-green-800">
+                                                                {logoFile.name}
+                                                            </span>
+                                                        </div>
+                                                        <Button 
+                                                            variant="ghost" 
+                                                            size="sm" 
+                                                            className="text-red-500 hover:text-red-600 hover:bg-red-50" 
+                                                            onClick={handleRemoveLogo}
+                                                        >
+                                                            Remove
+                                                        </Button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <Separator />
+
+                                        {/* Operational Document Section */}
+                                        <div className="w-full space-y-4">
+                                            <Label className="text-sm font-medium">Operational Document</Label>
+                                            <div className="space-y-3">
+                                                <input 
+                                                    type="file" 
+                                                    accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,image/bmp,image/tiff,image/jfif,image/tif,application/pdf" 
+                                                    id="operational-doc-upload" 
+                                                    className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100" 
+                                                    onChange={handleOperationalDocumentChange} 
+                                                />
+                                                
+                                                {operationalDocumentFile && (
+                                                    <div className="flex items-center justify-between p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                                                        <div className="flex items-center gap-2">
+                                                            <CheckCircle size={16} className="text-purple-600" />
+                                                            <span className="text-sm font-medium text-purple-800">
+                                                                {operationalDocumentFile.name}
+                                                            </span>
+                                                        </div>
+                                                        <Button 
+                                                            variant="ghost" 
+                                                            size="sm" 
+                                                            className="text-red-500 hover:text-red-600 hover:bg-red-50" 
+                                                            onClick={handleRemoveOperationalDocument}
+                                                        >
+                                                            Remove
+                                                        </Button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* File Requirements Info */}
+                                        <div className="w-full p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                                            <h4 className="text-sm font-medium text-gray-700 mb-2">File Requirements</h4>
+                                            <ul className="text-xs text-gray-600 space-y-1">
+                                                <li>• Supported formats: PNG, JPG, JPEG, GIF, WebP, BMP, TIFF, JFIF, TIF</li>
+                                                <li>• Documents can also be PDF format</li>
+                                                <li>• Maximum file size: 5MB per file</li>
+                                                <li>• Images will be automatically optimized</li>
+                                                <li>• For best results, use square images for profile pictures</li>
+                                            </ul>
+                                        </div>
+
+                                        {/* Upload Status */}
+                                        {(profileImageFile || logoFile || operationalDocumentFile) && (
+                                            <div className="w-full p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                                                <div className="flex items-center gap-2 text-amber-800">
+                                                    <AlertCircle size={16} />
+                                                    <span className="text-sm font-medium">Files ready for upload</span>
+                                                </div>
+                                                <p className="text-xs text-amber-700 mt-1">
+                                                    Click "Save changes" to upload your selected files
+                                                </p>
+                                            </div>
+                                        )}
                                     </CardContent>
                                 </Card>
                                 </div>
