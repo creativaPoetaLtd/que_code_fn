@@ -31,6 +31,20 @@ interface UserData {
   showPhoneOnWelcome?: boolean;
   showProfileImageOnWelcome?: boolean;
   showStatusMessageOnWelcome?: boolean;
+  // Additional profile fields from settings
+  profileType?: 'individual' | 'organization';
+  province?: string;
+  district?: string;
+  sector?: string;
+  cell?: string;
+  tinNumber?: string;
+  logo?: string;
+  operationalDocument?: string;
+  // New visibility controls
+  showProfileTypeOnWelcome?: boolean;
+  showLocationOnWelcome?: boolean;
+  showTinOnWelcome?: boolean;
+  showLogoOnWelcome?: boolean;
 }
 
 interface ContactFormData {
@@ -143,6 +157,20 @@ const WelcomeProfilePage = () => {
           showPhoneOnWelcome: profile.showPhoneOnWelcome !== undefined ? profile.showPhoneOnWelcome : true,
           showProfileImageOnWelcome: profile.showProfileImageOnWelcome !== undefined ? profile.showProfileImageOnWelcome : true,
           showStatusMessageOnWelcome: profile.showStatusMessageOnWelcome !== undefined ? profile.showStatusMessageOnWelcome : true,
+          // Additional profile fields
+          profileType: profile.type || 'individual',
+          province: profile.province || '',
+          district: profile.district || '',
+          sector: profile.sector || '',
+          cell: profile.cell || '',
+          tinNumber: profile.tinNumber || '',
+          logo: profile.logo || '',
+          operationalDocument: profile.operationalDocument || '',
+          // New visibility controls
+          showProfileTypeOnWelcome: profile.showProfileTypeOnWelcome !== undefined ? profile.showProfileTypeOnWelcome : true,
+          showLocationOnWelcome: profile.showLocationOnWelcome !== undefined ? profile.showLocationOnWelcome : true,
+          showTinOnWelcome: profile.showTinOnWelcome !== undefined ? profile.showTinOnWelcome : true,
+          showLogoOnWelcome: profile.showLogoOnWelcome !== undefined ? profile.showLogoOnWelcome : true,
         });
         setLoading(false);
       } catch (error) {
@@ -156,6 +184,20 @@ const WelcomeProfilePage = () => {
           showPhoneOnWelcome: true,
           showProfileImageOnWelcome: true,
           showStatusMessageOnWelcome: true,
+          // Additional profile fields with defaults
+          profileType: 'individual',
+          province: '',
+          district: '',
+          sector: '',
+          cell: '',
+          tinNumber: '',
+          logo: '',
+          operationalDocument: '',
+          // New visibility controls with defaults
+          showProfileTypeOnWelcome: true,
+          showLocationOnWelcome: true,
+          showTinOnWelcome: true,
+          showLogoOnWelcome: true,
         });
         setError(`Could not load profile data for user ID: ${userId.substring(0, 8)}...`);
         setLoading(false);
@@ -209,6 +251,11 @@ const WelcomeProfilePage = () => {
   // Function to get the display image (prioritize profileImage over avatar)
   const getDisplayImage = () => {
     return user.profileImage || user.avatar || '';
+  };
+
+  // Function to get the display logo
+  const getDisplayLogo = () => {
+    return user.logo || '';
   };
 
   if (loading) {
@@ -373,27 +420,122 @@ const WelcomeProfilePage = () => {
                   </div>
                 </div>
 
-                {/* Social Media Icons */}
-                <div className="flex justify-center gap-4 mt-6">
-                  <button
-                    onClick={() => handleSocialMediaClick('Instagram')}
-                    className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 transform"
-                  >
-                    <Instagram className="w-7 h-7 text-white" />
-                  </button>
-                  <button
-                    onClick={() => handleSocialMediaClick('Facebook')}
-                    className="w-14 h-14 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 transform"
-                  >
-                    <Facebook className="w-7 h-7 text-white" />
-                  </button>
-                  <button
-                    onClick={() => handleSocialMediaClick('Twitter')}
-                    className="w-14 h-14 bg-gradient-to-br from-blue-400 to-blue-500 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 transform"
-                  >
-                    <Twitter className="w-7 h-7 text-white" />
-                  </button>
+                {/* Additional Profile Information */}
+                <div className="w-full mt-6 space-y-6">
+                  {/* Profile Type Badge */}
+                  {user.profileType && user.showProfileTypeOnWelcome && (
+                    <div className="flex justify-center animate-fade-in">
+                      <div className={`px-6 py-3 rounded-full text-sm font-bold shadow-lg transform hover:scale-105 transition-all duration-300 animate-pulse ${
+                        user.profileType === 'organization' 
+                          ? 'bg-gradient-to-r from-purple-500 via-purple-600 to-purple-700 text-white shadow-purple-500/25 hover:shadow-purple-500/40' 
+                          : 'bg-gradient-to-r from-[#00B512] via-[#1fd331] to-[#00B512] text-white shadow-[#00B512]/25 hover:shadow-[#00B512]/40'
+                      }`}>
+                        <span className="flex items-center gap-2">
+                          {user.profileType === 'organization' ? '🏢' : '👤'}
+                          {user.profileType === 'organization' ? 'Organization Account' : 'Individual Account'}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Location Information */}
+                  {(user.province || user.district || user.sector || user.cell) && user.showLocationOnWelcome && (
+                    <div className="bg-gradient-to-br from-white via-[#f8fffa] to-[#f0fff4] rounded-2xl p-6 border-2 border-[#00B512]/10 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] animate-fade-in">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 bg-gradient-to-br from-[#00B512] to-[#1fd331] rounded-full flex items-center justify-center shadow-md animate-pulse">
+                          <span className="text-white text-lg">📍</span>
+                        </div>
+                        <h3 className="text-lg font-bold text-[#00313A]">Location Information</h3>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        {user.province && (
+                          <div className="bg-white/60 rounded-xl p-3 border border-[#00B512]/10 hover:bg-white/80 transition-all duration-200">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-[#00B512] text-sm">🏛️</span>
+                              <span className="text-[#00B512] font-semibold text-sm">Province</span>
+                            </div>
+                            <span className="text-[#00313A] font-medium">{user.province}</span>
+                          </div>
+                        )}
+                        {user.district && (
+                          <div className="bg-white/60 rounded-xl p-3 border border-[#00B512]/10 hover:bg-white/80 transition-all duration-200">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-[#00B512] text-sm">🏘️</span>
+                              <span className="text-[#00B512] font-semibold text-sm">District</span>
+                            </div>
+                            <span className="text-[#00313A] font-medium">{user.district}</span>
+                          </div>
+                        )}
+                        {user.sector && (
+                          <div className="bg-white/60 rounded-xl p-3 border border-[#00B512]/10 hover:bg-white/80 transition-all duration-200">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-[#00B512] text-sm">🏠</span>
+                              <span className="text-[#00B512] font-semibold text-sm">Sector</span>
+                            </div>
+                            <span className="text-[#00313A] font-medium">{user.sector}</span>
+                          </div>
+                        )}
+                        {user.cell && (
+                          <div className="bg-white/60 rounded-xl p-3 border border-[#00B512]/10 hover:bg-white/80 transition-all duration-200">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-[#00B512] text-sm">🏡</span>
+                              <span className="text-[#00B512] font-semibold text-sm">Cell</span>
+                            </div>
+                            <span className="text-[#00313A] font-medium">{user.cell}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TIN Number */}
+                  {user.tinNumber && user.showTinOnWelcome && (
+                    <div className="bg-gradient-to-br from-white via-[#f8fffa] to-[#f0fff4] rounded-2xl p-6 border-2 border-[#00B512]/10 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] animate-fade-in">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 bg-gradient-to-br from-[#00B512] to-[#1fd331] rounded-full flex items-center justify-center shadow-md animate-pulse">
+                          <span className="text-white text-lg">🏛️</span>
+                        </div>
+                        <h3 className="text-lg font-bold text-[#00313A]">Tax Information</h3>
+                      </div>
+                      <div className="bg-white/60 rounded-xl p-4 border border-[#00B512]/10 hover:bg-white/80 transition-all duration-200">
+                        <div className="flex items-center gap-3">
+                          <span className="text-[#00B512] font-bold text-lg">TIN</span>
+                          <span className="text-[#00313A] font-mono font-bold text-lg bg-gradient-to-r from-[#00B512] to-[#1fd331] bg-clip-text text-transparent">
+                            {user.tinNumber}
+                          </span>
+                        </div>
+                        <p className="text-[#00313A]/70 text-sm mt-2">Tax Identification Number</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Organization Logo */}
+                  {user.logo && user.showLogoOnWelcome && (
+                    <div className="bg-gradient-to-br from-white via-[#f8fffa] to-[#f0fff4] rounded-2xl p-6 border-2 border-[#00B512]/10 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] animate-fade-in">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 bg-gradient-to-br from-[#00B512] to-[#1fd331] rounded-full flex items-center justify-center shadow-md animate-pulse">
+                          <span className="text-white text-lg">🏢</span>
+                        </div>
+                        <h3 className="text-lg font-bold text-[#00313A]">Organization Logo</h3>
+                      </div>
+                      <div className="flex justify-center">
+                        <div className="bg-white/80 rounded-2xl p-4 border-2 border-[#00B512]/20 shadow-lg hover:shadow-xl transition-all duration-200">
+                          <img 
+                            src={getDisplayLogo()} 
+                            alt="Organization Logo" 
+                            className="w-20 h-20 object-contain rounded-xl hover:scale-110 transition-transform duration-200"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
+
+
                 {/* Modal Trigger Buttons */}
                 <div className="flex flex-col items-center gap-4 mt-4">
                   <div className="flex justify-center gap-4 w-full">
@@ -661,6 +803,121 @@ const WelcomeProfilePage = () => {
                     <Sparkles className="w-3 h-3 text-[#1fd331] animate-pulse delay-300" />
             </div>
           </div>
+        </div>
+
+        {/* Mobile Additional Profile Information */}
+        <div className="w-full mt-4 space-y-4">
+          {/* Profile Type Badge */}
+          {user.profileType && user.showProfileTypeOnWelcome && (
+            <div className="flex justify-center animate-fade-in">
+              <div className={`px-4 py-2 rounded-full text-xs font-bold shadow-md transform hover:scale-105 transition-all duration-300 animate-pulse ${
+                user.profileType === 'organization' 
+                  ? 'bg-gradient-to-r from-purple-500 via-purple-600 to-purple-700 text-white shadow-purple-500/25 hover:shadow-purple-500/40' 
+                  : 'bg-gradient-to-r from-[#00B512] via-[#1fd331] to-[#00B512] text-white shadow-[#00B512]/25 hover:shadow-[#00B512]/40'
+              }`}>
+                <span className="flex items-center gap-1">
+                  {user.profileType === 'organization' ? '🏢' : '👤'}
+                  {user.profileType === 'organization' ? 'Organization' : 'Individual'}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Location Information */}
+          {(user.province || user.district || user.sector || user.cell) && user.showLocationOnWelcome && (
+            <div className="bg-gradient-to-br from-white via-[#f8fffa] to-[#f0fff4] rounded-xl p-4 border-2 border-[#00B512]/10 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] animate-fade-in">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-8 h-8 bg-gradient-to-br from-[#00B512] to-[#1fd331] rounded-full flex items-center justify-center shadow-sm animate-pulse">
+                  <span className="text-white text-sm">📍</span>
+                </div>
+                <h3 className="text-sm font-bold text-[#00313A]">Location</h3>
+              </div>
+              <div className="space-y-2">
+                {user.province && (
+                  <div className="bg-white/60 rounded-lg p-2 border border-[#00B512]/10 hover:bg-white/80 transition-all duration-200">
+                    <div className="flex items-center gap-1 mb-1">
+                      <span className="text-[#00B512] text-xs">🏛️</span>
+                      <span className="text-[#00B512] font-semibold text-xs">Province</span>
+                    </div>
+                    <span className="text-[#00313A] font-medium text-xs">{user.province}</span>
+                  </div>
+                )}
+                {user.district && (
+                  <div className="bg-white/60 rounded-lg p-2 border border-[#00B512]/10 hover:bg-white/80 transition-all duration-200">
+                    <div className="flex items-center gap-1 mb-1">
+                      <span className="text-[#00B512] text-xs">🏘️</span>
+                      <span className="text-[#00B512] font-semibold text-xs">District</span>
+                    </div>
+                    <span className="text-[#00313A] font-medium text-xs">{user.district}</span>
+                  </div>
+                )}
+                {user.sector && (
+                  <div className="bg-white/60 rounded-lg p-2 border border-[#00B512]/10 hover:bg-white/80 transition-all duration-200">
+                    <div className="flex items-center gap-1 mb-1">
+                      <span className="text-[#00B512] text-xs">🏠</span>
+                      <span className="text-[#00B512] font-semibold text-xs">Sector</span>
+                    </div>
+                    <span className="text-[#00313A] font-medium text-xs">{user.sector}</span>
+                  </div>
+                )}
+                {user.cell && (
+                  <div className="bg-white/60 rounded-lg p-2 border border-[#00B512]/10 hover:bg-white/80 transition-all duration-200">
+                    <div className="flex items-center gap-1 mb-1">
+                      <span className="text-[#00B512] text-xs">🏡</span>
+                      <span className="text-[#00B512] font-semibold text-xs">Cell</span>
+                    </div>
+                    <span className="text-[#00313A] font-medium text-xs">{user.cell}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TIN Number */}
+          {user.tinNumber && user.showTinOnWelcome && (
+            <div className="bg-gradient-to-br from-white via-[#f8fffa] to-[#f0fff4] rounded-xl p-4 border-2 border-[#00B512]/10 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] animate-fade-in">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-8 h-8 bg-gradient-to-br from-[#00B512] to-[#1fd331] rounded-full flex items-center justify-center shadow-sm animate-pulse">
+                  <span className="text-white text-sm">🏛️</span>
+                </div>
+                <h3 className="text-sm font-bold text-[#00313A]">Tax Info</h3>
+              </div>
+              <div className="bg-white/60 rounded-lg p-3 border border-[#00B512]/10 hover:bg-white/80 transition-all duration-200">
+                <div className="flex items-center gap-2">
+                  <span className="text-[#00B512] font-bold text-sm">TIN</span>
+                  <span className="text-[#00313A] font-mono font-bold text-sm bg-gradient-to-r from-[#00B512] to-[#1fd331] bg-clip-text text-transparent">
+                    {user.tinNumber}
+                  </span>
+                </div>
+                <p className="text-[#00313A]/70 text-xs mt-1">Tax ID Number</p>
+              </div>
+            </div>
+          )}
+
+          {/* Organization Logo */}
+          {user.logo && user.showLogoOnWelcome && (
+            <div className="bg-gradient-to-br from-white via-[#f8fffa] to-[#f0fff4] rounded-xl p-4 border-2 border-[#00B512]/10 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] animate-fade-in">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-8 h-8 bg-gradient-to-br from-[#00B512] to-[#1fd331] rounded-full flex items-center justify-center shadow-sm animate-pulse">
+                  <span className="text-white text-sm">🏢</span>
+                </div>
+                <h3 className="text-sm font-bold text-[#00313A]">Logo</h3>
+              </div>
+              <div className="flex justify-center">
+                <div className="bg-white/80 rounded-xl p-3 border-2 border-[#00B512]/20 shadow-md hover:shadow-lg transition-all duration-200">
+                  <img 
+                    src={getDisplayLogo()} 
+                    alt="Organization Logo" 
+                    className="w-14 h-14 object-contain rounded-lg hover:scale-110 transition-transform duration-200"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Decorative divider */}
@@ -999,6 +1256,27 @@ const WelcomeProfilePage = () => {
               </div>
             </div>
             <div className="border-t border-gray-600 mt-8 pt-8 text-center">
+              {/* Social Media Icons */}
+              <div className="flex justify-center gap-4 mb-6">
+                <button
+                  onClick={() => handleSocialMediaClick('Instagram')}
+                  className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 transform"
+                >
+                  <Instagram className="w-6 h-6 text-white" />
+                </button>
+                <button
+                  onClick={() => handleSocialMediaClick('Facebook')}
+                  className="w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 transform"
+                >
+                  <Facebook className="w-6 h-6 text-white" />
+                </button>
+                <button
+                  onClick={() => handleSocialMediaClick('Twitter')}
+                  className="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-500 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 transform"
+                >
+                  <Twitter className="w-6 h-6 text-white" />
+                </button>
+              </div>
               <p className="text-sm text-gray-400">
                 © 2024 QiewCode. All rights reserved. Made with ❤️ for secure money transfers.
               </p>

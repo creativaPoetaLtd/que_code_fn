@@ -52,6 +52,11 @@ export default function SettingsPage() {
     const [showPhoneOnWelcome, setShowPhoneOnWelcome] = useState(true);
     const [showProfileImageOnWelcome, setShowProfileImageOnWelcome] = useState(true);
     const [showStatusMessageOnWelcome, setShowStatusMessageOnWelcome] = useState(true);
+    // New visibility controls for additional profile data
+    const [showProfileTypeOnWelcome, setShowProfileTypeOnWelcome] = useState(true);
+    const [showLocationOnWelcome, setShowLocationOnWelcome] = useState(true);
+    const [showTinOnWelcome, setShowTinOnWelcome] = useState(true);
+    const [showLogoOnWelcome, setShowLogoOnWelcome] = useState(true);
 
     // Add state for success message
     const [successMessage, setSuccessMessage] = useState("");
@@ -130,6 +135,11 @@ export default function SettingsPage() {
                     setShowPhoneOnWelcome(profile.showPhoneOnWelcome !== undefined ? profile.showPhoneOnWelcome : true);
                     setShowProfileImageOnWelcome(profile.showProfileImageOnWelcome !== undefined ? profile.showProfileImageOnWelcome : true);
                     setShowStatusMessageOnWelcome(profile.showStatusMessageOnWelcome !== undefined ? profile.showStatusMessageOnWelcome : true);
+                    // Set new visibility controls with defaults
+                    setShowProfileTypeOnWelcome(profile.showProfileTypeOnWelcome !== undefined ? profile.showProfileTypeOnWelcome : true);
+                    setShowLocationOnWelcome(profile.showLocationOnWelcome !== undefined ? profile.showLocationOnWelcome : true);
+                    setShowTinOnWelcome(profile.showTinOnWelcome !== undefined ? profile.showTinOnWelcome : true);
+                    setShowLogoOnWelcome(profile.showLogoOnWelcome !== undefined ? profile.showLogoOnWelcome : true);
                     setStatusMessage(profile.statusMessage || "");
                 } else {
                     console.error('[Settings] Failed to fetch profile:', profileRes.reason);
@@ -342,42 +352,42 @@ export default function SettingsPage() {
         // Validate profile image
         if (profileImageFile) {
             if (!allowedImageTypes.includes(profileImageFile.type)) {
-                toast({
+            toast({
                     title: "Invalid profile image format",
                     description: "Profile image must be a valid image file (PNG, JPG, JPEG, GIF, WebP, BMP, TIFF, JFIF, TIF)",
-                    variant: "destructive",
-                });
-                return false;
-            }
-            
+                variant: "destructive",
+            });
+            return false;
+        }
+        
             if (profileImageFile.size > maxSize) {
-                toast({
+            toast({
                     title: "Profile image too large",
                     description: `Profile image size (${formatFileSize(profileImageFile.size)}) exceeds the 5MB limit`,
-                    variant: "destructive",
-                });
-                return false;
+                variant: "destructive",
+            });
+            return false;
             }
         }
         
         // Validate logo
         if (logoFile) {
             if (!allowedImageTypes.includes(logoFile.type)) {
-                toast({
+            toast({
                     title: "Invalid logo format",
                     description: "Logo must be a valid image file (PNG, JPG, JPEG, GIF, WebP, BMP, TIFF, JFIF, TIF)",
-                    variant: "destructive",
-                });
-                return false;
-            }
-            
+                variant: "destructive",
+            });
+            return false;
+        }
+        
             if (logoFile.size > maxSize) {
-                toast({
-                    title: "Logo too large",
+            toast({
+                title: "Logo too large",
                     description: `Logo size (${formatFileSize(logoFile.size)}) exceeds the 5MB limit`,
-                    variant: "destructive",
-                });
-                return false;
+                variant: "destructive",
+            });
+            return false;
             }
         }
         
@@ -440,152 +450,247 @@ export default function SettingsPage() {
 
             console.log('[Settings] Starting profile update for user:', userId);
 
+            // Determine if there are any files to upload
+            const hasProfileImageFile = !!(profileImageFile && profileImageFile instanceof File);
+            const hasLogoFile = !!(logoFile && logoFile instanceof File);
+            const hasOperationalDocumentFile = !!(operationalDocumentFile && operationalDocumentFile instanceof File);
+            const hasAnyFile = hasProfileImageFile || hasLogoFile || hasOperationalDocumentFile;
+
             // Handle profile update/creation (user fields are read-only, so no user update needed)
             if (profileId) {
                 // Update existing profile
                 console.log('[Settings] Updating existing profile:', profileId);
-                const profileForm = new FormData();
-                
-                if (profileType) profileForm.append('type', profileType);
-                const effectiveUserId = profileUserId || userId;
-                if (effectiveUserId) profileForm.append('userId', effectiveUserId);
-                if (organizationId) profileForm.append('organizationId', organizationId);
-                if (province) profileForm.append('province', province);
-                if (district) profileForm.append('district', district);
-                if (sector) profileForm.append('sector', sector);
-                if (cell) profileForm.append('cell', cell);
-                if (tinNumber) profileForm.append('tinNumber', tinNumber);
-                profileForm.append('statusMessage', statusMessage);
-                profileForm.append('showPhoneOnWelcome', String(showPhoneOnWelcome));
-                profileForm.append('showProfileImageOnWelcome', String(showProfileImageOnWelcome));
-                profileForm.append('showStatusMessageOnWelcome', String(showStatusMessageOnWelcome));
-                if (qrCode) profileForm.append('qrCode', qrCode);
-                
-                // Handle profile image update - ensure proper file handling
-                if (profileImageFile && profileImageFile instanceof File) {
-                    console.log('[Settings] Adding profile image to form:', profileImageFile.name, profileImageFile.size, profileImageFile.type);
-                    profileForm.append('profileImage', profileImageFile);
-                }
-                if (logoFile && logoFile instanceof File) {
-                    console.log('[Settings] Adding logo to form:', logoFile.name, logoFile.size, logoFile.type);
-                    profileForm.append('logo', logoFile);
-                }
-                if (operationalDocumentFile && operationalDocumentFile instanceof File) {
-                    console.log('[Settings] Adding operational document to form:', operationalDocumentFile.name, operationalDocumentFile.size, operationalDocumentFile.type);
-                    profileForm.append('operationalDocument', operationalDocumentFile);
+
+                if (hasAnyFile) {
+                    // Use multipart/form-data only when files are present
+                    const profileForm = new FormData();
+                    if (profileType) profileForm.append('type', profileType);
+                    const effectiveUserId = profileUserId || userId;
+                    if (effectiveUserId) profileForm.append('userId', effectiveUserId);
+                    if (organizationId) profileForm.append('organizationId', organizationId);
+                    if (province) profileForm.append('province', province);
+                    if (district) profileForm.append('district', district);
+                    if (sector) profileForm.append('sector', sector);
+                    if (cell) profileForm.append('cell', cell);
+                    if (tinNumber) profileForm.append('tinNumber', tinNumber);
+                    profileForm.append('statusMessage', statusMessage);
+                    profileForm.append('showPhoneOnWelcome', String(showPhoneOnWelcome));
+                    profileForm.append('showProfileImageOnWelcome', String(showProfileImageOnWelcome));
+                    profileForm.append('showStatusMessageOnWelcome', String(showStatusMessageOnWelcome));
+                    // Add new visibility controls
+                    profileForm.append('showProfileTypeOnWelcome', String(showProfileTypeOnWelcome));
+                    profileForm.append('showLocationOnWelcome', String(showLocationOnWelcome));
+                    profileForm.append('showTinOnWelcome', String(showTinOnWelcome));
+                    profileForm.append('showLogoOnWelcome', String(showLogoOnWelcome));
+                    if (qrCode) profileForm.append('qrCode', qrCode);
+
+                    if (hasProfileImageFile) {
+                        console.log('[Settings] Adding profile image to form:', profileImageFile!.name, profileImageFile!.size, profileImageFile!.type);
+                        profileForm.append('profileImage', profileImageFile as File);
+                    }
+                    if (hasLogoFile) {
+                        console.log('[Settings] Adding logo to form:', logoFile!.name, logoFile!.size, logoFile!.type);
+                        profileForm.append('logo', logoFile as File);
+                    }
+                    if (hasOperationalDocumentFile) {
+                        console.log('[Settings] Adding operational document to form:', operationalDocumentFile!.name, operationalDocumentFile!.size, operationalDocumentFile!.type);
+                        profileForm.append('operationalDocument', operationalDocumentFile as File);
+                    }
+
+                    console.log('[Settings] Sending profile update with FormData:', {
+                        hasProfileImage: hasProfileImageFile,
+                        hasLogo: hasLogoFile,
+                        hasDocument: hasOperationalDocumentFile,
+                        formDataEntries: Array.from(profileForm.entries()).map(([key, value]) => ({
+                            key,
+                            type: value instanceof File ? 'File' : 'String',
+                            value: value instanceof File ? `${value.name} (${value.size} bytes)` : value
+                        }))
+                    });
+
+                    const profileResponse = await axios.put(`${baseUrl}/profiles/${profileId}`, profileForm, { 
+                        headers: { 
+                            ...authHeader
+                        } 
+                    });
+                    console.log('[Settings] Profile update response:', profileResponse.data);
+
+                    // Update local image states with new URLs from backend
+                    if (profileResponse.data && profileResponse.data.data) {
+                        const updatedProfile = profileResponse.data.data;
+                        if (updatedProfile.profileImage) {
+                            setProfileImage(updatedProfile.profileImage);
+                            setProfileImagePreview(updatedProfile.profileImage);
+                            console.log('[Settings] Updated profile image URL:', updatedProfile.profileImage);
+                        }
+                        if (updatedProfile.logo) {
+                            console.log('[Settings] Updated logo URL:', updatedProfile.logo);
+                        }
+                        if (updatedProfile.operationalDocument) {
+                            console.log('[Settings] Updated operational document URL:', updatedProfile.operationalDocument);
+                        }
+                    }
+
+                } else {
+                    // No files selected; send JSON payload to avoid empty multipart parts
+                    const jsonPayload = {
+                        type: profileType,
+                        userId: profileUserId || userId,
+                        organizationId: organizationId || undefined,
+                        province: province || undefined,
+                        district: district || undefined,
+                        sector: sector || undefined,
+                        cell: cell || undefined,
+                        tinNumber: tinNumber || undefined,
+                        statusMessage,
+                        showPhoneOnWelcome,
+                        showProfileImageOnWelcome,
+                        showStatusMessageOnWelcome,
+                        showProfileTypeOnWelcome,
+                        showLocationOnWelcome,
+                        showTinOnWelcome,
+                        showLogoOnWelcome,
+                        qrCode: qrCode || undefined,
+                    };
+
+                    console.log('[Settings] Sending profile update with JSON (no files):', jsonPayload);
+                    const profileResponse = await axios.put(`${baseUrl}/profiles/${profileId}`, jsonPayload, {
+                        headers: {
+                            ...authHeader,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    console.log('[Settings] Profile update response:', profileResponse.data);
                 }
 
-                console.log('[Settings] Sending profile update with FormData:', {
-                    hasProfileImage: !!profileImageFile,
-                    hasLogo: !!logoFile,
-                    hasDocument: !!operationalDocumentFile,
-                    formDataEntries: Array.from(profileForm.entries()).map(([key, value]) => ({
-                        key,
-                        type: value instanceof File ? 'File' : 'String',
-                        value: value instanceof File ? `${value.name} (${value.size} bytes)` : value
-                    }))
-                });
-
-                const profileResponse = await axios.put(`${baseUrl}/profiles/${profileId}`, profileForm, { 
-                    headers: { 
-                        ...authHeader,
-                        'Content-Type': 'multipart/form-data' // Ensure proper content type
-                    } 
-                });
-                console.log('[Settings] Profile update response:', profileResponse.data);
-                
-                // Update local image states with new URLs from backend
-                if (profileResponse.data && profileResponse.data.data) {
-                    const updatedProfile = profileResponse.data.data;
-                    if (updatedProfile.profileImage) {
-                        setProfileImage(updatedProfile.profileImage);
-                        setProfileImagePreview(updatedProfile.profileImage);
-                        console.log('[Settings] Updated profile image URL:', updatedProfile.profileImage);
-                    }
-                    if (updatedProfile.logo) {
-                        console.log('[Settings] Updated logo URL:', updatedProfile.logo);
-                    }
-                    if (updatedProfile.operationalDocument) {
-                        console.log('[Settings] Updated operational document URL:', updatedProfile.operationalDocument);
-                    }
-                }
-                
-                // Clear file states after successful upload
+                // Clear file states after successful update/create
                 setProfileImageFile(null);
                 setLogoFile(null);
                 setOperationalDocumentFile(null);
             } else {
-                // Create new profile - IMPORTANT: Use POST to /api/v1/profiles
+                // Create new profile
                 console.log('[Settings] Creating new profile for user:', userId);
-                const profileForm = new FormData();
-                
-                // Required fields for profile creation
-                profileForm.append('type', profileType || 'individual');
-                profileForm.append('userId', userId);
-                
-                // Optional fields
-                if (organizationId) profileForm.append('organizationId', organizationId);
-                if (province) profileForm.append('province', province);
-                if (district) profileForm.append('district', district);
-                if (sector) profileForm.append('sector', sector);
-                if (cell) profileForm.append('cell', cell);
-                if (tinNumber) profileForm.append('tinNumber', tinNumber);
-                profileForm.append('statusMessage', statusMessage);
-                profileForm.append('showPhoneOnWelcome', String(showPhoneOnWelcome));
-                profileForm.append('showProfileImageOnWelcome', String(showProfileImageOnWelcome));
-                profileForm.append('showStatusMessageOnWelcome', String(showStatusMessageOnWelcome));
-                if (qrCode) profileForm.append('qrCode', qrCode);
-                
-                if (profileImageFile && profileImageFile instanceof File) {
-                    console.log('[Settings] Adding profile image to creation form:', profileImageFile.name, profileImageFile.size, profileImageFile.type);
-                    profileForm.append('profileImage', profileImageFile);
-                }
-                if (logoFile && logoFile instanceof File) {
-                    console.log('[Settings] Adding logo to creation form:', logoFile.name, logoFile.size, logoFile.type);
-                    profileForm.append('logo', logoFile);
-                }
-                if (operationalDocumentFile && operationalDocumentFile instanceof File) {
-                    console.log('[Settings] Adding operational document to creation form:', operationalDocumentFile.name, operationalDocumentFile.size, operationalDocumentFile.type);
-                    profileForm.append('operationalDocument', operationalDocumentFile);
+
+                if (hasAnyFile) {
+                    // Use multipart/form-data only when files are present
+                    const profileForm = new FormData();
+                    // Required fields for profile creation
+                    profileForm.append('type', profileType || 'individual');
+                    profileForm.append('userId', userId);
+                    // Optional fields
+                    if (organizationId) profileForm.append('organizationId', organizationId);
+                    if (province) profileForm.append('province', province);
+                    if (district) profileForm.append('district', district);
+                    if (sector) profileForm.append('sector', sector);
+                    if (cell) profileForm.append('cell', cell);
+                    if (tinNumber) profileForm.append('tinNumber', tinNumber);
+                    profileForm.append('statusMessage', statusMessage);
+                    profileForm.append('showPhoneOnWelcome', String(showPhoneOnWelcome));
+                    profileForm.append('showProfileImageOnWelcome', String(showProfileImageOnWelcome));
+                    profileForm.append('showStatusMessageOnWelcome', String(showStatusMessageOnWelcome));
+                    // Add new visibility controls
+                    profileForm.append('showProfileTypeOnWelcome', String(showProfileTypeOnWelcome));
+                    profileForm.append('showLocationOnWelcome', String(showLocationOnWelcome));
+                    profileForm.append('showTinOnWelcome', String(showTinOnWelcome));
+                    profileForm.append('showLogoOnWelcome', String(showLogoOnWelcome));
+                    if (qrCode) profileForm.append('qrCode', qrCode);
+
+                    if (hasProfileImageFile) {
+                        console.log('[Settings] Adding profile image to creation form:', profileImageFile!.name, profileImageFile!.size, profileImageFile!.type);
+                        profileForm.append('profileImage', profileImageFile as File);
+                    }
+                    if (hasLogoFile) {
+                        console.log('[Settings] Adding logo to creation form:', logoFile!.name, logoFile!.size, logoFile!.type);
+                        profileForm.append('logo', logoFile as File);
+                    }
+                    if (hasOperationalDocumentFile) {
+                        console.log('[Settings] Adding operational document to creation form:', operationalDocumentFile!.name, operationalDocumentFile!.size, operationalDocumentFile!.type);
+                        profileForm.append('operationalDocument', operationalDocumentFile as File);
+                    }
+
+                    console.log('[Settings] Creating profile with FormData:', {
+                        hasProfileImage: hasProfileImageFile,
+                        hasLogo: hasLogoFile,
+                        hasDocument: hasOperationalDocumentFile,
+                        formDataEntries: Array.from(profileForm.entries()).map(([key, value]) => ({
+                            key,
+                            type: value instanceof File ? 'File' : 'String',
+                            value: value instanceof File ? `${value.name} (${value.size} bytes)` : value
+                        }))
+                    });
+
+                    const profileResponse = await axios.post(`${baseUrl}/profiles`, profileForm, { 
+                        headers: { 
+                            ...authHeader
+                        } 
+                    });
+                    console.log('[Settings] Profile creation response:', profileResponse.data);
+
+                    // Update local state with new profile ID and image URLs
+                    if (profileResponse.data && profileResponse.data.data) {
+                        const newProfile = profileResponse.data.data;
+                        if (newProfile.id) {
+                            setProfileId(newProfile.id);
+                            console.log('[Settings] New profile ID set:', newProfile.id);
+                        }
+                        if (newProfile.profileImage) {
+                            setProfileImage(newProfile.profileImage);
+                            setProfileImagePreview(newProfile.profileImage);
+                            console.log('[Settings] New profile image URL set:', newProfile.profileImage);
+                        }
+                    } else if (profileResponse.data && profileResponse.data.id) {
+                        setProfileId(profileResponse.data.id);
+                        console.log('[Settings] New profile ID set from response:', profileResponse.data.id);
+                    }
+                } else {
+                    // No files selected; send JSON payload for creation
+                    const jsonPayload = {
+                        type: profileType || 'individual',
+                        userId,
+                        organizationId: organizationId || undefined,
+                        province: province || undefined,
+                        district: district || undefined,
+                        sector: sector || undefined,
+                        cell: cell || undefined,
+                        tinNumber: tinNumber || undefined,
+                        statusMessage,
+                        showPhoneOnWelcome,
+                        showProfileImageOnWelcome,
+                        showStatusMessageOnWelcome,
+                        showProfileTypeOnWelcome,
+                        showLocationOnWelcome,
+                        showTinOnWelcome,
+                        showLogoOnWelcome,
+                        qrCode: qrCode || undefined,
+                    };
+
+                    console.log('[Settings] Creating profile with JSON (no files):', jsonPayload);
+                    const profileResponse = await axios.post(`${baseUrl}/profiles`, jsonPayload, {
+                        headers: {
+                            ...authHeader,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    console.log('[Settings] Profile creation response:', profileResponse.data);
+
+                    if (profileResponse.data && profileResponse.data.data) {
+                        const newProfile = profileResponse.data.data;
+                        if (newProfile.id) {
+                            setProfileId(newProfile.id);
+                            console.log('[Settings] New profile ID set:', newProfile.id);
+                        }
+                        if (newProfile.profileImage) {
+                            setProfileImage(newProfile.profileImage);
+                            setProfileImagePreview(newProfile.profileImage);
+                            console.log('[Settings] New profile image URL set:', newProfile.profileImage);
+                        }
+                    } else if (profileResponse.data && profileResponse.data.id) {
+                        setProfileId(profileResponse.data.id);
+                        console.log('[Settings] New profile ID set from response:', profileResponse.data.id);
+                    }
                 }
 
-                console.log('[Settings] Creating profile with FormData:', {
-                    hasProfileImage: !!profileImageFile,
-                    hasLogo: !!logoFile,
-                    hasDocument: !!operationalDocumentFile,
-                    formDataEntries: Array.from(profileForm.entries()).map(([key, value]) => ({
-                        key,
-                        type: value instanceof File ? 'File' : 'String',
-                        value: value instanceof File ? `${value.name} (${value.size} bytes)` : value
-                    }))
-                });
-
-                const profileResponse = await axios.post(`${baseUrl}/profiles`, profileForm, { 
-                    headers: { 
-                        ...authHeader,
-                        'Content-Type': 'multipart/form-data' // Ensure proper content type
-                    } 
-                });
-                console.log('[Settings] Profile creation response:', profileResponse.data);
-                
-                // Update local state with new profile ID and image URLs
-                if (profileResponse.data && profileResponse.data.data) {
-                    const newProfile = profileResponse.data.data;
-                    if (newProfile.id) {
-                        setProfileId(newProfile.id);
-                        console.log('[Settings] New profile ID set:', newProfile.id);
-                    }
-                    if (newProfile.profileImage) {
-                        setProfileImage(newProfile.profileImage);
-                        setProfileImagePreview(newProfile.profileImage);
-                        console.log('[Settings] New profile image URL set:', newProfile.profileImage);
-                    }
-                } else if (profileResponse.data && profileResponse.data.id) {
-                    setProfileId(profileResponse.data.id);
-                    console.log('[Settings] New profile ID set from response:', profileResponse.data.id);
-                }
-                
-                // Clear file states after successful creation
+                // Clear file states after successful update/create
                 setProfileImageFile(null);
                 setLogoFile(null);
                 setOperationalDocumentFile(null);
@@ -749,8 +854,8 @@ export default function SettingsPage() {
                                                 <User size={16} className="text-gray-500" />
                                                 <h3 className="text-sm font-medium text-gray-700">Account Information (Read-Only)</h3>
                                             </div>
-                                            <div className="grid gap-4 sm:grid-cols-2">
-                                                <div className="space-y-2">
+                                        <div className="grid gap-4 sm:grid-cols-2">
+                                            <div className="space-y-2">
                                                     <Label htmlFor="first-name" className="text-gray-600 flex items-center gap-2">
                                                         <Lock size={14} />
                                                         First name
@@ -759,8 +864,8 @@ export default function SettingsPage() {
                                                         <span>{firstName || 'Not provided'}</span>
                                                         <span className="text-xs text-gray-400 bg-gray-200 px-2 py-1 rounded">Read-only</span>
                                                     </div>
-                                                </div>
-                                                <div className="space-y-2">
+                                            </div>
+                                            <div className="space-y-2">
                                                     <Label htmlFor="last-name" className="text-gray-600 flex items-center gap-2">
                                                         <Lock size={14} />
                                                         Last name
@@ -768,8 +873,8 @@ export default function SettingsPage() {
                                                     <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900 flex items-center justify-between">
                                                         <span>{lastName || 'Not provided'}</span>
                                                         <span className="text-xs text-gray-400 bg-gray-200 px-2 py-1 rounded">Read-only</span>
-                                                    </div>
-                                                </div>
+                                            </div>
+                                        </div>
                                             </div>
                                             
                                             <div className="grid gap-4 sm:grid-cols-2">
@@ -784,13 +889,22 @@ export default function SettingsPage() {
                                                     </div>
                                                 </div>
                                                 <div className="space-y-2">
-                                                    <Label htmlFor="phone" className="text-gray-600 flex items-center gap-2">
-                                                        <Lock size={14} />
-                                                        Phone number
-                                                    </Label>
-                                                    <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900 flex items-center justify-between">
-                                                        <span>{phone || 'Not provided'}</span>
-                                                        <span className="text-xs text-gray-400 bg-gray-200 px-2 py-1 rounded">Read-only</span>
+                                                    <Label htmlFor="phone">Phone Number</Label>
+                                                    <div className="flex items-center justify-between">
+                                                        <Input 
+                                                            id="phone" 
+                                                            value={phone} 
+                                                            disabled
+                                                            className="flex-1 mr-4"
+                                                        />
+                                                        <label className="flex items-center gap-2 text-sm">
+                                                            <input 
+                                                                type="checkbox" 
+                                                                checked={showPhoneOnWelcome} 
+                                                                onChange={e => setShowPhoneOnWelcome(e.target.checked)} 
+                                                            />
+                                                            Show on welcome page
+                                                        </label>
                                                     </div>
                                                 </div>
                                             </div>
@@ -808,104 +922,152 @@ export default function SettingsPage() {
                                                 <Shield size={16} className="text-gray-500" />
                                                 <h3 className="text-sm font-medium text-gray-700">Profile Information (Editable)</h3>
                                             </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="profile-type">Profile Type</Label>
-                                                <select 
-                                                    id="profile-type" 
-                                                    className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B512] w-full" 
-                                                    value={profileType} 
-                                                    onChange={e => setProfileType(e.target.value as any)}
-                                                    required
-                                                >
-                                                    <option value="">Select type</option>
-                                                    <option value="individual">Individual</option>
-                                                    <option value="organization">Organization</option>
-                                                </select>
+                                        <div className="space-y-2">
+                                            <Label>Profile Type</Label>
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex-1 mr-4">
+                                                    <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
+                                                        {profileType === 'organization' ? 'Organization' : 'Individual'}
+                                                    </div>
+                                                </div>
+                                                <label className="flex items-center gap-2 text-sm">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={showProfileTypeOnWelcome} 
+                                                        onChange={e => setShowProfileTypeOnWelcome(e.target.checked)} 
+                                                    />
+                                                    Show on welcome page
+                                                </label>
                                             </div>
-                                        <div className="grid gap-4 sm:grid-cols-2">
-                                            <div className="space-y-2">
-                                                <Label htmlFor="province">Province</Label>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Location Information</Label>
+                                            <div className="grid gap-4 sm:grid-cols-2">
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="province">Province</Label>
                                                     <Input 
                                                         id="province" 
                                                         value={province} 
                                                         onChange={e => setProvince(e.target.value)} 
                                                     />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="district">District</Label>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="district">District</Label>
                                                     <Input 
                                                         id="district" 
                                                         value={district} 
                                                         onChange={e => setDistrict(e.target.value)} 
                                                     />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="sector">Sector</Label>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="sector">Sector</Label>
                                                     <Input 
                                                         id="sector" 
                                                         value={sector} 
                                                         onChange={e => setSector(e.target.value)} 
                                                     />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="cell">Cell</Label>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="cell">Cell</Label>
                                                     <Input 
                                                         id="cell" 
                                                         value={cell} 
                                                         onChange={e => setCell(e.target.value)} 
                                                     />
+                                                </div>
+                                            </div>
+                                            <div className="flex justify-end mt-2">
+                                                <label className="flex items-center gap-2 text-sm">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={showLocationOnWelcome} 
+                                                        onChange={e => setShowLocationOnWelcome(e.target.checked)} 
+                                                    />
+                                                    Show location on welcome page
+                                                </label>
                                             </div>
                                         </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="tin">TIN Number</Label>
+                                            <div className="flex items-center justify-between">
                                                 <Input 
                                                     id="tin" 
                                                     value={tinNumber} 
                                                     onChange={e => setTinNumber(e.target.value)} 
                                                     placeholder="Tax identification number" 
+                                                    className="flex-1 mr-4"
                                                 />
+                                                <label className="flex items-center gap-2 text-sm">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={showTinOnWelcome} 
+                                                        onChange={e => setShowTinOnWelcome(e.target.checked)} 
+                                                    />
+                                                    Show on welcome page
+                                                </label>
+                                            </div>
                                         </div>
                                         {/* Status Message input */}
                                         <div className="space-y-2">
                                             <Label htmlFor="status-message">Status Message</Label>
+                                            <div className="flex items-center justify-between">
                                                 <Input 
                                                     id="status-message" 
                                                     value={statusMessage} 
                                                     onChange={e => setStatusMessage(e.target.value)} 
                                                     placeholder="Enter your status message" 
+                                                    className="flex-1 mr-4"
                                                 />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label>Welcome Page Visibility</Label>
-                                            <div className="flex flex-col gap-2">
-                                                <label className="flex items-center gap-2">
-                                                    <input 
-                                                        type="checkbox" 
-                                                        checked={showPhoneOnWelcome} 
-                                                        onChange={e => setShowPhoneOnWelcome(e.target.checked)} 
-                                                    />
-                                                    Show phone on welcome page
-                                                </label>
-                                                <label className="flex items-center gap-2">
-                                                    <input 
-                                                        type="checkbox" 
-                                                        checked={showProfileImageOnWelcome} 
-                                                        onChange={e => setShowProfileImageOnWelcome(e.target.checked)} 
-                                                    />
-                                                    Show profile image on welcome page
-                                                </label>
-                                                <label className="flex items-center gap-2">
+                                                <label className="flex items-center gap-2 text-sm">
                                                     <input 
                                                         type="checkbox" 
                                                         checked={showStatusMessageOnWelcome} 
                                                         onChange={e => setShowStatusMessageOnWelcome(e.target.checked)} 
                                                     />
-                                                    Show status message on welcome page
+                                                    Show on welcome page
                                                 </label>
                                             </div>
                                         </div>
-                                    </div>
-                                </CardContent>
+                                        {/* Profile Image Visibility */}
+                                        <div className="space-y-2">
+                                            <Label>Profile Image</Label>
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex-1 mr-4">
+                                                    <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
+                                                        Profile image upload section
+                                                    </div>
+                                                </div>
+                                                <label className="flex items-center gap-2 text-sm">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={showProfileImageOnWelcome} 
+                                                        onChange={e => setShowProfileImageOnWelcome(e.target.checked)} 
+                                                    />
+                                                    Show on welcome page
+                                                </label>
+                                            </div>
+                                        </div>
+                                        {/* Organization Logo Visibility */}
+                                        <div className="space-y-2">
+                                            <Label>Organization Logo</Label>
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex-1 mr-4">
+                                                    <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
+                                                        Logo upload section
+                                                    </div>
+                                                </div>
+                                                <label className="flex items-center gap-2 text-sm">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={showLogoOnWelcome} 
+                                                        onChange={e => setShowLogoOnWelcome(e.target.checked)} 
+                                                    />
+                                                    Show on welcome page
+                                                </label>
+                                            </div>
+                                        </div>
+                                        </div>
+                                    </CardContent>
                                     <CardFooter className="flex justify-end">
                                             <Button 
                                                 type="submit" 
@@ -942,7 +1104,7 @@ export default function SettingsPage() {
                                                     <AvatarFallback className="text-lg font-semibold bg-gray-100">
                                                         {firstName?.[0]}{lastName?.[0]}
                                                     </AvatarFallback>
-                                                </Avatar>
+                                        </Avatar>
                                                 
                                                 <div className="flex flex-col items-center gap-2 w-full">
                                                     <input 
@@ -954,22 +1116,22 @@ export default function SettingsPage() {
                                                     />
                                                     <label htmlFor="profile-image-upload" className="w-full">
                                                         <Button variant="outline" className="w-full hover:bg-gray-50" asChild>
-                                                            <span><Upload size={16} className="mr-2" />Upload new image</span>
-                                                        </Button>
-                                                    </label>
+                                                    <span><Upload size={16} className="mr-2" />Upload new image</span>
+                                                </Button>
+                                            </label>
                                                     <p className="text-xs text-gray-500 text-center">
                                                         Click to browse or drag & drop an image file
                                                     </p>
                                                     
                                                     {(profileImageFile || profileImagePreview) && (
-                                                        <Button 
-                                                            variant="ghost" 
-                                                            className="text-red-500 hover:text-red-600 hover:bg-red-50 w-full" 
+                                                <Button 
+                                                    variant="ghost" 
+                                                    className="text-red-500 hover:text-red-600 hover:bg-red-50 w-full" 
                                                             onClick={handleRemoveProfileImage}
-                                                            type="button"
-                                                        >
+                                                    type="button"
+                                                >
                                                             Remove image
-                                                        </Button>
+                                            </Button>
                                                     )}
                                                 </div>
                                                 
@@ -994,16 +1156,16 @@ export default function SettingsPage() {
                                             </div>
                                         </div>
 
-                                        <Separator />
+                                            <Separator />
 
                                         {/* Organization Logo Section */}
                                         <div className="w-full space-y-4">
                                             <Label className="text-sm font-medium">Organization Logo</Label>
                                             <div className="space-y-3">
-                                                <input 
-                                                    type="file" 
+                                                    <input 
+                                                        type="file" 
                                                     accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,image/bmp,image/tiff,image/jfif,image/tif" 
-                                                    id="logo-upload" 
+                                                        id="logo-upload" 
                                                     className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" 
                                                     onChange={handleLogoChange} 
                                                 />
@@ -1015,7 +1177,7 @@ export default function SettingsPage() {
                                                             <span className="text-sm font-medium text-green-800">
                                                                 {logoFile.name}
                                                             </span>
-                                                        </div>
+                                            </div>
                                                         <Button 
                                                             variant="ghost" 
                                                             size="sm" 
@@ -1035,10 +1197,10 @@ export default function SettingsPage() {
                                         <div className="w-full space-y-4">
                                             <Label className="text-sm font-medium">Operational Document</Label>
                                             <div className="space-y-3">
-                                                <input 
-                                                    type="file" 
+                                                    <input 
+                                                        type="file" 
                                                     accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,image/bmp,image/tiff,image/jfif,image/tif,application/pdf" 
-                                                    id="operational-doc-upload" 
+                                                        id="operational-doc-upload" 
                                                     className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100" 
                                                     onChange={handleOperationalDocumentChange} 
                                                 />
@@ -1050,7 +1212,7 @@ export default function SettingsPage() {
                                                             <span className="text-sm font-medium text-purple-800">
                                                                 {operationalDocumentFile.name}
                                                             </span>
-                                                        </div>
+                                            </div>
                                                         <Button 
                                                             variant="ghost" 
                                                             size="sm" 
@@ -1059,7 +1221,7 @@ export default function SettingsPage() {
                                                         >
                                                             Remove
                                                         </Button>
-                                                    </div>
+                                        </div>
                                                 )}
                                             </div>
                                         </div>
