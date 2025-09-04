@@ -7,81 +7,165 @@ import { RecentTransactions } from "./RecentTransactions";
 import { useParams, useRouter } from 'next/navigation';
 import RecentActions from "./RecentActions";
 import Navigation from "./Navigation";
+import { useAuthToken } from '@/hooks/use-auth-token';
 
 export const HomePageLayout = () => {
     const params = useParams();
     const router = useRouter();
+    const { getToken } = useAuthToken();
     const [userId, setUserId] = useState<string>("");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string>("");
+    const [isRedirecting, setIsRedirecting] = useState(false);
+    const [redirectAttempts, setRedirectAttempts] = useState(0);
 
     useEffect(() => {
         const getUserId = () => {
+            // Prevent multiple redirects and limit attempts
+            if (isRedirecting || redirectAttempts >= 3) return;
+            
             try {
-                // First try to get from URL params
-                let currentUserId = params.userId as string;
-                // If userId is not in URL params or is undefined, try to get it from token
-                if (!currentUserId || currentUserId === 'undefined') {
-                    const authToken = localStorage.getItem('authToken');
-
-                    if (authToken) {
-                        try {
-                            const base64Url = authToken.split('.')[1];
-                            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                            const payload = JSON.parse(atob(base64));
-                            currentUserId = payload?.userId || payload?.id || payload?.sub;
-                            // If we got userId from token but URL doesn't have it, redirect to proper URL
-                            if (currentUserId && (window.location.pathname === '/home/' || window.location.pathname === '/home')) {
-                                router.replace(`/home/${currentUserId}`);
-                                return;
-                            }
-                        } catch (error) {
-                            console.error('HomePageLayout - Error decoding token:', error);
-                            setError('Invalid authentication token. Please log in again.');
-                            setTimeout(() => {
-                                localStorage.removeItem('authToken');
-                                router.push('/auth/login');
-                            }, 2000);
-                            return;
-                        }
-                    } else {
-                        router.push('/auth/login');
-                        return;
-                    }
+                const authToken = getToken();
+                
+                if (!authToken) {
+                    // No token, redirect to login
+                    router.push('/auth/login');
+                    return;
                 }
-                if (!currentUserId) {
-                    setError('User ID not found. Please log in again.');
+
+                // Decode token to get logged-in user's ID
+                let loggedInUserId: string | null = null;
+                try {
+                    const base64Url = authToken.split('.')[1];
+                    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                    const payload = JSON.parse(atob(base64));
+                    loggedInUserId = payload?.userId || payload?.id || payload?.sub;
+                } catch (error) {
+                    console.error('HomePageLayout - Error decoding token:', error);
+                    setError('Invalid authentication token. Please log in again.');
                     setTimeout(() => {
-                        localStorage.removeItem('authToken');
                         router.push('/auth/login');
                     }, 2000);
                     return;
                 }
 
-                setUserId(currentUserId);
+                if (!loggedInUserId) {
+                    setError('User ID not found in token. Please log in again.');
+                    setTimeout(() => {
+                        router.push('/auth/login');
+                    }, 2000);
+                    return;
+                }
+
+                // Get userId from URL params
+                const urlUserId = params.userId as string;
+
+                // If no userId in URL, redirect to logged-in user's home page
+                if (!urlUserId || urlUserId === 'undefined') {
+                    setIsRedirecting(true);
+                    setRedirectAttempts(prev => prev + 1);
+                    router.replace(`/home/${loggedInUserId}`);
+                    
+                    // Add fallback redirect
+                    setTimeout(() => {
+                        if (window.location.pathname !== `/home/${loggedInUserId}`) {
+                            window.location.href = `/home/${loggedInUserId}`;
+                        }
+                    }, 3000);
+                    return;
+                }
+
+                // Check if URL userId matches logged-in user's ID
+                if (urlUserId !== loggedInUserId) {
+                    // Redirect to logged-in user's home page
+                    setIsRedirecting(true);
+                    setRedirectAttempts(prev => prev + 1);
+                    router.replace(`/home/${loggedInUserId}`);
+                    
+                    // Add fallback redirect
+                    setTimeout(() => {
+                        if (window.location.pathname !== `/home/${loggedInUserId}`) {
+                            window.location.href = `/home/${loggedInUserId}`;
+                        }
+                    }, 3000);
+                    return;
+                }
+
+                // User is authorized to access this page
+                setUserId(loggedInUserId);
                 setLoading(false);
+                setIsRedirecting(false);
 
             } catch (error) {
                 console.error('HomePageLayout - Error in getUserId:', error);
                 setError('An error occurred while loading user data.');
                 setTimeout(() => {
-                    localStorage.removeItem('authToken');
                     router.push('/auth/login');
                 }, 2000);
             }
         };
 
-        getUserId();
-    }, [params, router]);
+        // Add a small delay to ensure the component is fully mounted
+        const timer = setTimeout(getUserId, 100);
+        
+        return () => clearTimeout(timer);
+    }, [params, router, isRedirecting, redirectAttempts, getToken]);
 
-    // Show loading state while determining userId
-    if (loading) {
+    // If too many redirect attempts, show error and manual redirect button
+    if (redirectAttempts >= 3) {
+        return (
+            <div className="flex flex-col min-h-screen bg-gray-50">
+                <div className="flex-1 flex items-center justify-center">
+                    <div className="text-center">
+                        <div className="text-red-500 mb-4">Redirect failed</div>
+                        <p className="text-gray-600 mb-4">Unable to automatically redirect to your home page.</p>
+                        <button
+                            onClick={() => {
+                                const authToken = getToken();
+                                if (authToken) {
+                                    try {
+                                        const base64Url = authToken.split('.')[1];
+                                        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                                        const payload = JSON.parse(atob(base64));
+                                        const loggedInUserId = payload?.userId || payload?.id || payload?.sub;
+                                        if (loggedInUserId) {
+                                            window.location.href = `/home/${loggedInUserId}`;
+                                        } else {
+                                            router.push('/auth/login');
+                                        }
+                                    } catch (error) {
+                                        router.push('/auth/login');
+                                    }
+                                } else {
+                                    router.push('/auth/login');
+                                }
+                            }}
+                            className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+                        >
+                            Try Again
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Show loading state while determining userId or redirecting
+    if (loading || isRedirecting) {
         return (
             <div className="flex flex-col min-h-screen bg-gray-50">
                 <div className="flex-1 flex items-center justify-center">
                     <div className="text-center">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500 mx-auto"></div>
-                        <p className="mt-4 text-gray-600">Loading...</p>
+                        <p className="mt-4 text-gray-600">
+                            {isRedirecting ? 'Redirecting to your home page...' : 'Loading...'}
+                        </p>
+                        {isRedirecting && (
+                            <p className="mt-2 text-sm text-gray-400">Please wait...</p>
+                        )}
+                        {redirectAttempts > 0 && (
+                            <p className="mt-2 text-xs text-gray-500">Attempt {redirectAttempts + 1}/3</p>
+                        )}
                     </div>
                 </div>
             </div>
@@ -101,6 +185,7 @@ export const HomePageLayout = () => {
             </div>
         );
     }
+
     return (
         <div className="flex flex-col min-h-screen bg-gray-50">
             {/* Desktop Sidebar */}
