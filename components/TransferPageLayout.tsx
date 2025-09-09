@@ -5,7 +5,7 @@ import Navigation from "./Navigation";
 import { ArrowLeft, QrCode, Users, CreditCard, Search, Plus, Send, Smartphone } from "lucide-react";
 import Image from "next/image";
 import { useRouter, useParams } from "next/navigation";
-import { getWalletBalance, getAllUsers } from "@/helpers/api";
+import { getUserBalance, getAllUsers } from "@/helpers/api";
 import { useAuthToken } from "@/hooks/use-auth-token";
 import { getUserIdFromToken, isTokenExpired } from "@/utils/jwtUtils";
 
@@ -54,8 +54,12 @@ const TransferPageLayout = () => {
         if (!userId) {
           console.warn('No userId available, skipping balance fetch');
         } else {
-          const data = await getWalletBalance(userId);
-          setBalance(Number(data.balance));
+          const response = await getUserBalance(userId);
+          if (response.success && response.data) {
+            setBalance(Number(response.data.balance));
+          } else {
+            setBalanceError('Invalid balance data received');
+          }
         }
       } catch (err: any) {
         console.error('TransferPageLayout.fetchBalance error:', err);

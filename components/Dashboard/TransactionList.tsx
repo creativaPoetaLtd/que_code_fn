@@ -54,7 +54,7 @@ const response = await getTransactionHistory(userId, {
   startDate,
   endDate
 });
-      setTransactions(response.transactions || []);
+      setTransactions(response.data.transactions || []);
     } catch (err) {
       console.error('TransactionList - fetch error:', err);
       setError('Could not fetch transactions');

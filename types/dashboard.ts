@@ -2,6 +2,8 @@ export interface Transaction {
   id: string;
   senderId: string;
   receiverId: string;
+  senderWalletId?: string;
+  receiverWalletId?: string;
   amount: number;
   fee: number;
   description?: string;

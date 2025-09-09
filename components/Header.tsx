@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import axios from "axios";
 import Image from "next/image";
 import baseUrl from "@/helpers/baseUrl";
-import { getWalletBalance } from '@/helpers/api';
+import { getUserBalance } from '@/helpers/api';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useNotifications } from "@/context/NotificationContext";
 import NotificationDropdown from "./notifications/NotificationDropdown";
@@ -67,8 +67,12 @@ export const Header = () => {
             setBalanceLoading(true);
             setBalanceError(null);
             try {
-                const data = await getWalletBalance(userId);
-                setBalance(Number(data.balance));
+                const response = await getUserBalance(userId);
+                if (response.success && response.data) {
+                    setBalance(Number(response.data.balance));
+                } else {
+                    setBalanceError('Invalid balance data received');
+                }
             } catch (err) {
                 setBalanceError('Could not fetch balance');
                 console.error("Error fetching balance:", err);
