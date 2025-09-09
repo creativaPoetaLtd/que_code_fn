@@ -62,4 +62,6 @@ export interface User {
     avatar: string;
     recent?: boolean;
   }
+
+export * from './analytics.types';
   

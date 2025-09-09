@@ -191,3 +191,46 @@ export const getTransactionCategories = async () => {
   });
   return res.data;
 };
+
+export const getAnalyticsSummary = async (userId: string, startDate?: string, endDate?: string) => {
+  const params = new URLSearchParams({ userId });
+  if (startDate) params.append('startDate', startDate);
+  if (endDate) params.append('endDate', endDate);
+  
+  const res = await axios.get(`${baseUrl}/analytics/summary?${params.toString()}`, {
+    headers: getAuthHeaders()
+  });
+  return res.data;
+};
+
+export const getAnalyticsCategoryBreakdown = async (userId: string, startDate?: string, endDate?: string) => {
+  const params = new URLSearchParams({ userId });
+  if (startDate) params.append('startDate', startDate);
+  if (endDate) params.append('endDate', endDate);
+  
+  const res = await axios.get(`${baseUrl}/analytics/category-breakdown?${params.toString()}`, {
+    headers: getAuthHeaders()
+  });
+  return res.data;
+};
+
+export const getAnalyticsSpendingTrends = async (userId: string, startDate?: string, endDate?: string, interval: string = 'daily') => {
+  const params = new URLSearchParams({ userId, interval });
+  if (startDate) params.append('startDate', startDate);
+  if (endDate) params.append('endDate', endDate);
+  
+  const res = await axios.get(`${baseUrl}/analytics/spending-trends?${params.toString()}`, {
+    headers: getAuthHeaders()
+  });
+  return res.data;
+};
+
+export const getAnalyticsRecentTransactions = async (userId: string, limit: number = 10, type?: string) => {
+  const params = new URLSearchParams({ userId, limit: limit.toString() });
+  if (type) params.append('type', type);
+  
+  const res = await axios.get(`${baseUrl}/analytics/recent-transactions?${params.toString()}`, {
+    headers: getAuthHeaders()
+  });
+  return res.data;
+};
