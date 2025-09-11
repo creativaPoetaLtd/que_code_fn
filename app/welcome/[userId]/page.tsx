@@ -95,35 +95,58 @@ const WelcomeProfilePage = () => {
         const token = getToken();
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
         const userUrl = `${baseUrl}/users/${userId}`;
-        const profileUrl = `${baseUrl}/profiles?userId=${encodeURIComponent(userId)}`;
+        const organizationUrl = `${baseUrl}/organizations/${userId}`;
 
-        const [userRes, profileRes] = await Promise.allSettled([
+        console.log('[Welcome] Fetching:', { userUrl, organizationUrl });
+
+        const [userRes, organizationRes] = await Promise.allSettled([
           axios.get(userUrl, { headers }),
-          axios.get(profileUrl, { headers }),
+          axios.get(organizationUrl, { headers }),
         ]);
- 
+
         let data: any = {};
         let profile: any = {};
+        let isOrganization = false;
+        let effectiveUserId = userId;
+        let effectiveOrganizationId = "";
         
+        // Check if user data was successful
         if (userRes.status === 'fulfilled') {
           data = userRes.value.data;
           console.log('[Welcome] User data fetched successfully:', data);
+          effectiveUserId = userId;
+          effectiveOrganizationId = "";
+        } else if (organizationRes.status === 'fulfilled') {
+          // If user failed but organization succeeded, use organization data
+          data = organizationRes.value.data;
+          console.log('[Welcome] Organization data fetched successfully:', data);
+          isOrganization = true;
+          effectiveUserId = "";
+          effectiveOrganizationId = userId;
         } else {
-          console.error('[Welcome] Failed to fetch user data:', userRes.reason);
-          if (userRes.reason.response) {
-            console.error('[Welcome] User response status:', userRes.reason.response.status);
-            console.error('[Welcome] User response data:', userRes.reason.response.data);
+          const userErr = userRes.reason;
+          const orgErr = organizationRes.reason;
+          console.error('[Welcome] Failed to fetch user data:', userErr);
+          console.error('[Welcome] Failed to fetch organization data:', orgErr);
+          if (userErr.response) {
+            console.error('[Welcome] User response status:', userErr.response.status);
+            console.error('[Welcome] User response data:', userErr.response.data);
           }
         }
+
+        // Now fetch profile with correct parameters
+        const profileUrl = `${baseUrl}/profiles?userId=${encodeURIComponent(effectiveUserId)}&organizationId=${encodeURIComponent(effectiveOrganizationId)}`;
+        console.log('[Welcome] Profile URL:', profileUrl);
         
-        if (profileRes.status === 'fulfilled') {
-          profile = profileRes.value.data;
+        try {
+          const profileRes = await axios.get(profileUrl, { headers });
+          profile = profileRes.data;
           console.log('[Welcome] Profile data fetched successfully:', profile);
-        } else {
-          console.error('[Welcome] Failed to fetch profile data:', profileRes.reason);
-          if (profileRes.reason.response) {
-            console.error('[Welcome] Profile response status:', profileRes.reason.response.status);
-            console.error('[Welcome] Profile response data:', profileRes.reason.response.data);
+        } catch (profileError) {
+          console.error('[Welcome] Failed to fetch profile data:', profileError);
+          if (axios.isAxiosError(profileError)) {
+            console.error('[Welcome] Profile response status:', profileError.response?.status);
+            console.error('[Welcome] Profile response data:', profileError.response?.data);
           }
           // Set default profile values if fetch fails
           profile = {
@@ -136,29 +159,35 @@ const WelcomeProfilePage = () => {
         }
 
         let name = '';
-        if (data.firstName || data.lastName) {
-          name = `${data.firstName || ''} ${data.lastName || ''}`.trim();
-        } else if (data.name) {
-          name = data.name;
-        } else if (data.username) {
-          name = data.username;
-        } else if (data.displayName) {
-          name = data.displayName;
+        if (isOrganization) {
+          // For organizations, use the organization name
+          name = data.name || 'Organization';
         } else {
-          name = 'User';
+          // For users, use first name and last name
+          if (data.firstName || data.lastName) {
+            name = `${data.firstName || ''} ${data.lastName || ''}`.trim();
+          } else if (data.name) {
+            name = data.name;
+          } else if (data.username) {
+            name = data.username;
+          } else if (data.displayName) {
+            name = data.displayName;
+          } else {
+            name = 'User';
+          }
         }
 
         setUser({
           name,
           profileImage: profile.profileImage || '',
           avatar: data.avatar || data.photo || data.profilePicture || '',
-          phone: data.phone || data.phoneNumber || data.mobile || '',
+          phone: isOrganization ? (data.contactPhone || '') : (data.phone || data.phoneNumber || data.mobile || ''),
           statusMessage: profile.statusMessage || '',
           showPhoneOnWelcome: profile.showPhoneOnWelcome !== undefined ? profile.showPhoneOnWelcome : true,
           showProfileImageOnWelcome: profile.showProfileImageOnWelcome !== undefined ? profile.showProfileImageOnWelcome : true,
           showStatusMessageOnWelcome: profile.showStatusMessageOnWelcome !== undefined ? profile.showStatusMessageOnWelcome : true,
           // Additional profile fields
-          profileType: profile.type || 'individual',
+          profileType: isOrganization ? 'organization' : (profile.type || 'individual'),
           province: profile.province || '',
           district: profile.district || '',
           sector: profile.sector || '',
@@ -248,8 +277,13 @@ const WelcomeProfilePage = () => {
     router.push('/auth/signup');
   };
 
-  // Function to get the display image (prioritize profileImage over avatar)
+  // Function to get the display image (prioritize profileImage over avatar, or logo for organizations)
   const getDisplayImage = () => {
+    // For organizations, prioritize logo over profileImage
+    if (user.profileType === 'organization') {
+      return user.logo || user.profileImage || user.avatar || '';
+    }
+    // For users, prioritize profileImage over avatar
     return user.profileImage || user.avatar || '';
   };
 
@@ -415,7 +449,9 @@ const WelcomeProfilePage = () => {
                   
                   <div className="flex items-center justify-center gap-3 mb-6">
                     <Sparkles className="w-5 h-5 text-[#00B512] animate-pulse" />
-                    <span className="text-lg font-semibold text-[#00313A]">Send Money</span>
+                    <span className="text-lg font-semibold text-[#00313A]">
+                      {user.profileType === 'organization' ? 'Pay' : 'Send Money'}
+                    </span>
                     <Sparkles className="w-5 h-5 text-[#1fd331] animate-pulse delay-300" />
                   </div>
                 </div>
@@ -437,6 +473,181 @@ const WelcomeProfilePage = () => {
                       </div>
                     </div>
                   )}
+
+                  {/* Action Buttons */}
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="flex justify-center gap-4 w-full">
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <CustomButton variant="default" className="px-6 py-3 rounded-xl font-bold shadow-lg bg-gradient-to-r from-[#00B512] to-[#1fd331] text-white">
+                            {user.profileType === 'organization' ? 'Pay' : 'Send Money'}
+                          </CustomButton>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>{user.profileType === 'organization' ? 'Pay' : 'Send Money'}</DialogTitle>
+                          </DialogHeader>
+                          <form className="space-y-6" onSubmit={e => { e.preventDefault(); handleSubmit(); }}>
+                            <div className="space-y-2">
+                              <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
+                                <span>Amount ($)</span>
+                                <Sparkles className="w-4 h-4 text-[#00B512] animate-pulse" />
+                              </label>
+                              <CustomInput
+                                type="number"
+                                placeholder="Enter amount"
+                                value={amount}
+                                onChange={e => setAmount(e.target.value)}
+                                className="h-12 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
+                              />
+                            </div>
+                            {isLoggedIn && (
+                              <div className="space-y-2">
+                                <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
+                                  <span>Password</span>
+                                  <Shield className="w-4 h-4 text-[#1fd331] animate-pulse delay-150" />
+                                </label>
+                                <InputPassword
+                                  placeholder="Enter password"
+                                  value={password}
+                                  onChange={e => setPassword(e.target.value)}
+                                  className="h-12 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
+                                />
+                              </div>
+                            )}
+                            <div className="space-y-2">
+                              <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
+                                <span>Message</span>
+                                <MessageSquare className="w-4 h-4 text-[#00B512] animate-pulse" />
+                              </label>
+                              <Textarea
+                                placeholder="Enter a message (optional)"
+                                className="rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
+                                rows={3}
+                              />
+                            </div>
+                            <DialogFooter>
+                              <CustomButton
+                                type="submit"
+                                variant="default"
+                                className="w-full h-12 bg-gradient-to-r from-[#00B512] to-[#1fd331] border-none rounded-xl font-bold text-white shadow-lg hover:shadow-xl text-lg"
+                                disabled={!amount || (isLoggedIn && !password)}
+                              >
+                                {isLoggedIn ? <b>{user.profileType === 'organization' ? 'Pay' : 'Send Money'}</b> : <b>Next</b>}
+                              </CustomButton>
+                            </DialogFooter>
+                          </form>
+                        </DialogContent>
+                      </Dialog>
+                      {isLoggedIn && user.profileType !== 'organization' && (
+                        <CustomButton
+                          variant="outline"
+                          className="px-6 py-3 border-2 border-[#00B512] text-[#00B512] rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:bg-[#00B512] hover:text-white"
+                          onClick={handleAddFriend}
+                        >
+                          <span className="flex items-center justify-center gap-3">
+                            <Plus className="w-5 h-5" />
+                            <b>Add Friend</b>
+                          </span>
+                        </CustomButton>
+                      )}
+                      {!isLoggedIn && (
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <CustomButton variant="outline" className="px-6 py-3 rounded-xl font-bold shadow-lg border-[#00B512] text-[#00B512]">
+                              Contact
+                            </CustomButton>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Contact {user.name}</DialogTitle>
+                            </DialogHeader>
+                            <form className="space-y-6" onSubmit={e => { e.preventDefault(); handleContactSubmit(); }}>
+                              <div className="space-y-2">
+                                <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
+                                  <span>Your Name</span>
+                                  <User className="w-4 h-4 text-[#00B512] animate-pulse" />
+                                </label>
+                                <CustomInput
+                                  placeholder="Enter your name"
+                                  value={contactForm.name}
+                                  onChange={e => setContactForm({ ...contactForm, name: e.target.value })}
+                                  className="h-12 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
+                                  <span>Email</span>
+                                  <Mail className="w-4 h-4 text-[#1fd331] animate-pulse delay-150" />
+                                </label>
+                                <CustomInput
+                                  type="email"
+                                  placeholder="Enter your email"
+                                  value={contactForm.email}
+                                  onChange={e => setContactForm({ ...contactForm, email: e.target.value })}
+                                  className="h-12 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
+                                  <span>Message</span>
+                                  <MessageSquare className="w-4 h-4 text-[#00B512] animate-pulse" />
+                                </label>
+                                <Textarea
+                                  placeholder="Enter your message"
+                                  value={contactForm.message}
+                                  onChange={e => setContactForm({ ...contactForm, message: e.target.value })}
+                                  className="rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
+                                  rows={4}
+                                />
+                              </div>
+                              <DialogFooter>
+                                <CustomButton
+                                  type="submit"
+                                  variant="default"
+                                  className="w-full h-12 bg-gradient-to-r from-[#00B512] to-[#1fd331] border-none rounded-xl font-bold text-white shadow-lg hover:shadow-xl text-lg"
+                                  disabled={!contactForm.name || !contactForm.email || !contactForm.message}
+                                >
+                                  <b>Send Message</b>
+                                </CustomButton>
+                              </DialogFooter>
+                            </form>
+                          </DialogContent>
+                        </Dialog>
+                      )}
+                    </div>
+                    {isLoggedIn ? (
+                      <div className="w-full max-w-xs flex flex-col items-center gap-3 bg-gradient-to-br from-[#f0fff4] via-[#e6f9f0] to-[#f6fff9] rounded-2xl shadow-lg p-5 mt-2 border border-[#00B512]/10">
+                        <div className="text-center mb-2">
+                          <span className="block text-lg font-bold text-[#00B512] drop-shadow-sm">Welcome back!</span>
+                          <span className="block text-sm text-[#00313A]/70 mt-1">You're all set to send money and connect 🎉</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="w-full max-w-xs flex flex-col items-center gap-3 bg-gradient-to-br from-[#f0fff4] via-[#e6f9f0] to-[#f6fff9] rounded-2xl shadow-lg p-5 mt-2 border border-[#00B512]/10">
+                        <div className="text-center mb-2">
+                          <span className="block text-lg font-bold text-[#00B512] drop-shadow-sm">Join us now or sign in!</span>
+                          <span className="block text-sm text-[#00313A]/70 mt-1">Enjoy secure, fast, and fun money transfers 🚀</span>
+                        </div>
+                        <div className="flex gap-3 w-full">
+                          <CustomButton
+                            variant="outline"
+                            className="flex-1 h-12 border-2 border-[#00B512] text-[#00B512] rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:bg-[#00B512] hover:text-white"
+                            onClick={handleLoginClick}
+                          >
+                            <b>Login</b>
+                          </CustomButton>
+                          <CustomButton
+                            variant="default"
+                            className="flex-1 h-12 bg-[#00B512] border-2 border-[#00B512] text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:bg-[#1fd331]"
+                            onClick={handleSignupClick}
+                          >
+                            <b>Sign Up</b>
+                          </CustomButton>
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
                   {/* Location Information */}
                   {(user.province || user.district || user.sector || user.cell) && user.showLocationOnWelcome && (
@@ -536,180 +747,6 @@ const WelcomeProfilePage = () => {
                 </div>
 
 
-                {/* Modal Trigger Buttons */}
-                <div className="flex flex-col items-center gap-4 mt-4">
-                  <div className="flex justify-center gap-4 w-full">
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <CustomButton variant="default" className="px-6 py-3 rounded-xl font-bold shadow-lg bg-gradient-to-r from-[#00B512] to-[#1fd331] text-white">
-                          Send Money
-                        </CustomButton>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Send Money</DialogTitle>
-                        </DialogHeader>
-                        <form className="space-y-6" onSubmit={e => { e.preventDefault(); handleSubmit(); }}>
-                          <div className="space-y-2">
-                        <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
-                          <span>Amount ($)</span>
-                          <Sparkles className="w-4 h-4 text-[#00B512] animate-pulse" />
-                        </label>
-                            <CustomInput
-                          type="number"
-                          placeholder="Enter amount"
-                          value={amount}
-                          onChange={e => setAmount(e.target.value)}
-                              className="h-12 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
-                        />
-                      </div>
-                          {isLoggedIn && (
-                            <div className="space-y-2">
-                        <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
-                          <span>Password</span>
-                          <Shield className="w-4 h-4 text-[#1fd331] animate-pulse delay-150" />
-                        </label>
-                              <InputPassword
-                          placeholder="Enter password"
-                          value={password}
-                          onChange={e => setPassword(e.target.value)}
-                                className="h-12 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
-                        />
-                      </div>
-                          )}
-                          <div className="space-y-2">
-                        <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
-                          <span>Message</span>
-                          <MessageSquare className="w-4 h-4 text-[#00B512] animate-pulse" />
-                        </label>
-                            <Textarea
-                          placeholder="Enter a message (optional)"
-                              className="rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
-                          rows={3}
-                        />
-                      </div>
-                          <DialogFooter>
-                            <CustomButton
-                              type="submit"
-                              variant="default"
-                              className="w-full h-12 bg-gradient-to-r from-[#00B512] to-[#1fd331] border-none rounded-xl font-bold text-white shadow-lg hover:shadow-xl text-lg"
-                              disabled={!amount || (isLoggedIn && !password)}
-                      >
-                              {isLoggedIn ? <b>Send Money</b> : <b>Next</b>}
-                            </CustomButton>
-                          </DialogFooter>
-                        </form>
-                      </DialogContent>
-                    </Dialog>
-                    {isLoggedIn && (
-                      <CustomButton
-                        variant="outline"
-                        className="px-6 py-3 border-2 border-[#00B512] text-[#00B512] rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:bg-[#00B512] hover:text-white"
-                        onClick={handleAddFriend}
-                      >
-                        <span className="flex items-center justify-center gap-3">
-                          <Plus className="w-5 h-5" />
-                          <b>Add Friend</b>
-                        </span>
-                      </CustomButton>
-                    )}
-                    {!isLoggedIn && (
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <CustomButton variant="outline" className="px-6 py-3 rounded-xl font-bold shadow-lg border-[#00B512] text-[#00B512]">
-                            Contact
-                          </CustomButton>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Contact {user.name}</DialogTitle>
-                          </DialogHeader>
-                          <form className="space-y-6" onSubmit={e => { e.preventDefault(); handleContactSubmit(); }}>
-                            <div className="space-y-2">
-                              <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
-                                <span>Your Name</span>
-                                <User className="w-4 h-4 text-[#00B512] animate-pulse" />
-                              </label>
-                              <CustomInput
-                                placeholder="Enter your name"
-                                value={contactForm.name}
-                                onChange={e => setContactForm({ ...contactForm, name: e.target.value })}
-                                className="h-12 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
-                                <span>Email</span>
-                                <Mail className="w-4 h-4 text-[#1fd331] animate-pulse delay-150" />
-                              </label>
-                              <CustomInput
-                                type="email"
-                                placeholder="Enter your email"
-                                value={contactForm.email}
-                                onChange={e => setContactForm({ ...contactForm, email: e.target.value })}
-                                className="h-12 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
-                                <span>Message</span>
-                                <MessageSquare className="w-4 h-4 text-[#00B512] animate-pulse" />
-                              </label>
-                              <Textarea
-                                placeholder="Enter your message"
-                                value={contactForm.message}
-                                onChange={e => setContactForm({ ...contactForm, message: e.target.value })}
-                                className="rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
-                                rows={4}
-                              />
-                            </div>
-                            <DialogFooter>
-                              <CustomButton
-                                type="submit"
-                                variant="default"
-                                className="w-full h-12 bg-gradient-to-r from-[#00B512] to-[#1fd331] border-none rounded-xl font-bold text-white shadow-lg hover:shadow-xl text-lg"
-                                disabled={!contactForm.name || !contactForm.email || !contactForm.message}
-                              >
-                                <b>Send Message</b>
-                              </CustomButton>
-                            </DialogFooter>
-                          </form>
-                        </DialogContent>
-                      </Dialog>
-                    )}
-                  </div>
-                  {isLoggedIn ? (
-                    <div className="w-full max-w-xs flex flex-col items-center gap-3 bg-gradient-to-br from-[#f0fff4] via-[#e6f9f0] to-[#f6fff9] rounded-2xl shadow-lg p-5 mt-2 border border-[#00B512]/10">
-                      <div className="text-center mb-2">
-                        <span className="block text-lg font-bold text-[#00B512] drop-shadow-sm">Welcome back!</span>
-                        <span className="block text-sm text-[#00313A]/70 mt-1">You're all set to send money and connect 🎉</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="w-full max-w-xs flex flex-col items-center gap-3 bg-gradient-to-br from-[#f0fff4] via-[#e6f9f0] to-[#f6fff9] rounded-2xl shadow-lg p-5 mt-2 border border-[#00B512]/10">
-                      <div className="text-center mb-2">
-                        <span className="block text-lg font-bold text-[#00B512] drop-shadow-sm">Join us now or sign in!</span>
-                        <span className="block text-sm text-[#00313A]/70 mt-1">Enjoy secure, fast, and fun money transfers 🚀</span>
-                      </div>
-                      <div className="flex gap-3 w-full">
-                        <CustomButton
-                          variant="outline"
-                          className="flex-1 h-12 border-2 border-[#00B512] text-[#00B512] rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:bg-[#00B512] hover:text-white"
-                          onClick={handleLoginClick}
-                        >
-                          <b>Login</b>
-                        </CustomButton>
-                        <CustomButton
-                          variant="default"
-                          className="flex-1 h-12 bg-[#00B512] border-2 border-[#00B512] text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:bg-[#1fd331]"
-                          onClick={handleSignupClick}
-                        >
-                          <b>Sign Up</b>
-                        </CustomButton>
-                      </div>
-                    </div>
-                  )}
-                </div>
               </div>
 
               {/* Debug Info */}
@@ -799,7 +836,9 @@ const WelcomeProfilePage = () => {
             
             <div className="flex items-center justify-center gap-2">
                     <Sparkles className="w-3 h-3 text-[#00B512] animate-pulse" />
-              <span className="text-sm text-[#00313A] font-medium">Send Money</span>
+              <span className="text-sm text-[#00313A] font-medium">
+                {user.profileType === 'organization' ? 'Pay' : 'Send Money'}
+              </span>
                     <Sparkles className="w-3 h-3 text-[#1fd331] animate-pulse delay-300" />
             </div>
           </div>
@@ -822,6 +861,200 @@ const WelcomeProfilePage = () => {
               </div>
             </div>
           )}
+
+          {/* Mobile Action Buttons */}
+          <div className="w-full space-y-4">
+            <div className="flex flex-col gap-3">
+              <Dialog>
+                <DialogTrigger asChild>
+                  <CustomButton variant="default" className="w-full h-12 bg-gradient-to-r from-[#00B512] to-[#1fd331] text-white rounded-xl font-bold shadow-lg">
+                    {user.profileType === 'organization' ? 'Pay' : 'Send Money'}
+                  </CustomButton>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>{user.profileType === 'organization' ? 'Pay' : 'Send Money'}</DialogTitle>
+                  </DialogHeader>
+                  <form className="space-y-4" onSubmit={e => { e.preventDefault(); handleSubmit(); }}>
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
+                        <span>Amount ($)</span>
+                        <Sparkles className="w-4 h-4 text-[#00B512] animate-pulse" />
+                      </label>
+                      <CustomInput
+                        type="number"
+                        placeholder="Enter amount"
+                        value={amount}
+                        onChange={e => setAmount(e.target.value)}
+                        className="h-12 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
+                      />
+                    </div>
+                    {isLoggedIn && (
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
+                          <span>Password</span>
+                          <Shield className="w-4 h-4 text-[#1fd331] animate-pulse delay-150" />
+                        </label>
+                        <InputPassword
+                          placeholder="Enter password"
+                          value={password}
+                          onChange={e => setPassword(e.target.value)}
+                          className="h-12 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
+                        />
+                      </div>
+                    )}
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
+                        <span>Message</span>
+                        <MessageSquare className="w-4 h-4 text-[#00B512] animate-pulse" />
+                      </label>
+                      <Textarea
+                        placeholder="Enter a message (optional)"
+                        className="rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
+                        rows={3}
+                      />
+                    </div>
+                    <DialogFooter>
+                      <CustomButton
+                        type="submit"
+                        variant="default"
+                        className="w-full h-12 bg-gradient-to-r from-[#00B512] to-[#1fd331] border-none rounded-xl font-bold text-white shadow-lg hover:shadow-xl text-lg"
+                        disabled={!amount || (isLoggedIn && !password)}
+                      >
+                        {isLoggedIn ? <b>{user.profileType === 'organization' ? 'Pay' : 'Send Money'}</b> : <b>Next</b>}
+                      </CustomButton>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+              
+              {isLoggedIn && user.profileType !== 'organization' && (
+                <CustomButton
+                  variant="outline"
+                  className="w-full h-12 border-2 border-[#00B512] text-[#00B512] rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:bg-[#00B512] hover:text-white"
+                  onClick={handleAddFriend}
+                >
+                  <span className="flex items-center justify-center gap-3">
+                    <Plus className="w-5 h-5" />
+                    <b>Add Friend</b>
+                  </span>
+                </CustomButton>
+              )}
+
+              {!isLoggedIn && (
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <CustomButton variant="outline" className="w-full h-12 border-2 border-[#00B512] text-[#00B512] rounded-xl font-bold shadow-lg">
+                      Contact
+                    </CustomButton>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Contact {user.name}</DialogTitle>
+                    </DialogHeader>
+                    <form className="space-y-4" onSubmit={e => { e.preventDefault(); handleContactSubmit(); }}>
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
+                          <span>Your Name</span>
+                          <User className="w-4 h-4 text-[#00B512] animate-pulse" />
+                        </label>
+                        <CustomInput
+                          placeholder="Enter your name"
+                          value={contactForm.name}
+                          onChange={e => setContactForm({ ...contactForm, name: e.target.value })}
+                          className="h-12 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
+                          <span>Email</span>
+                          <Mail className="w-4 h-4 text-[#1fd331] animate-pulse delay-150" />
+                        </label>
+                        <CustomInput
+                          type="email"
+                          placeholder="Enter your email"
+                          value={contactForm.email}
+                          onChange={e => setContactForm({ ...contactForm, email: e.target.value })}
+                          className="h-12 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
+                          <span>Message</span>
+                          <MessageSquare className="w-4 h-4 text-[#00B512] animate-pulse" />
+                        </label>
+                        <Textarea
+                          placeholder="Enter your message"
+                          value={contactForm.message}
+                          onChange={e => setContactForm({ ...contactForm, message: e.target.value })}
+                          className="rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
+                          rows={4}
+                        />
+                      </div>
+                      <DialogFooter>
+                        <CustomButton
+                          type="submit"
+                          variant="default"
+                          className="w-full h-12 bg-gradient-to-r from-[#00B512] to-[#1fd331] border-none rounded-xl font-bold text-white shadow-lg hover:shadow-xl text-lg"
+                          disabled={!contactForm.name || !contactForm.email || !contactForm.message}
+                        >
+                          <b>Send Message</b>
+                        </CustomButton>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              )}
+            </div>
+
+            {/* Mobile Social Media Icons */}
+            <div className="flex justify-center gap-3 mt-4">
+              <button
+                onClick={() => handleSocialMediaClick('Instagram')}
+                className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 transform"
+              >
+                <Instagram className="w-5 h-5 text-white" />
+              </button>
+              <button
+                onClick={() => handleSocialMediaClick('Facebook')}
+                className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 transform"
+              >
+                <Facebook className="w-5 h-5 text-white" />
+              </button>
+              <button
+                onClick={() => handleSocialMediaClick('Twitter')}
+                className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-500 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 transform"
+              >
+                <Twitter className="w-5 h-5 text-white" />
+              </button>
+            </div>
+
+            {/* Mobile Login and Signup Buttons with Sweet Message */}
+            {!isLoggedIn && (
+              <div className="w-full flex flex-col items-center gap-3 bg-gradient-to-br from-[#f0fff4] via-[#e6f9f0] to-[#f6fff9] rounded-2xl shadow-lg p-4 mt-2 border border-[#00B512]/10">
+                <div className="text-center mb-2">
+                  <span className="block text-base font-bold text-[#00B512] drop-shadow-sm">Join us now or sign in!</span>
+                  <span className="block text-xs text-[#00313A]/70 mt-1">Enjoy secure, fast, and fun money transfers 🚀</span>
+                </div>
+                <div className="flex gap-3 w-full">
+                  <CustomButton
+                    variant="outline"
+                    className="flex-1 h-10 border-2 border-[#00B512] text-[#00B512] rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:bg-[#00B512] hover:text-white"
+                    onClick={handleLoginClick}
+                  >
+                    <b>Login</b>
+                  </CustomButton>
+                  <CustomButton
+                    variant="default"
+                    className="flex-1 h-10 bg-[#00B512] border-2 border-[#00B512] text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:bg-[#1fd331]"
+                    onClick={handleSignupClick}
+                  >
+                    <b>Sign Up</b>
+                  </CustomButton>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Location Information */}
           {(user.province || user.district || user.sector || user.cell) && user.showLocationOnWelcome && (
@@ -933,272 +1166,6 @@ const WelcomeProfilePage = () => {
         )}
         
 
-              {/* Mobile Forms based on authentication status */}
-              {isLoggedIn ? (
-                // Mobile logged in user interface
-                <div className="w-full space-y-4">
-                  {/* Mobile Modal Trigger Buttons */}
-                  <div className="flex flex-col gap-3">
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <CustomButton variant="default" className="w-full h-12 bg-gradient-to-r from-[#00B512] to-[#1fd331] text-white rounded-xl font-bold shadow-lg">
-                          Send Money
-                        </CustomButton>
-                      </DialogTrigger>
-                      <DialogContent className="sm:max-w-md">
-                        <DialogHeader>
-                          <DialogTitle>Send Money</DialogTitle>
-                        </DialogHeader>
-                        <form className="space-y-4" onSubmit={e => { e.preventDefault(); handleSubmit(); }}>
-                          <div className="space-y-2">
-                            <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
-                              <span>Amount ($)</span>
-                              <Sparkles className="w-4 h-4 text-[#00B512] animate-pulse" />
-            </label>
-                            <CustomInput
-              type="number"
-              placeholder="Enter amount"
-              value={amount}
-              onChange={e => setAmount(e.target.value)}
-                              className="h-12 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
-            />
-          </div>
-                          <div className="space-y-2">
-                            <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
-              <span>Password</span>
-                              <Shield className="w-4 h-4 text-[#1fd331] animate-pulse delay-150" />
-            </label>
-                            <InputPassword
-              placeholder="Enter password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-                              className="h-12 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
-                    />
-                  </div>
-                          <div className="space-y-2">
-                            <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
-                      <span>Message</span>
-                              <MessageSquare className="w-4 h-4 text-[#00B512] animate-pulse" />
-                    </label>
-                            <Textarea
-                      placeholder="Enter a message (optional)"
-                              className="rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
-                      rows={3}
-            />
-          </div>
-                          <DialogFooter>
-                            <CustomButton
-                              type="submit"
-                              variant="default"
-                              className="w-full h-12 bg-gradient-to-r from-[#00B512] to-[#1fd331] border-none rounded-xl font-bold text-white shadow-lg hover:shadow-xl text-lg"
-            disabled={!amount || !password}
-                            >
-                              <b>Send Money</b>
-                            </CustomButton>
-                          </DialogFooter>
-                        </form>
-                      </DialogContent>
-                    </Dialog>
-                    
-                    <CustomButton
-                      variant="outline"
-                      className="w-full h-12 border-2 border-[#00B512] text-[#00B512] rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:bg-[#00B512] hover:text-white"
-                    onClick={handleAddFriend}
-          >
-                      <span className="flex items-center justify-center gap-3">
-                        <Plus className="w-5 h-5" />
-                      <b>Add Friend</b>
-                    </span>
-                    </CustomButton>
-                  </div>
-
-                  {/* Mobile Social Media Icons */}
-                  <div className="flex justify-center gap-3 mt-4">
-                    <button
-                      onClick={() => handleSocialMediaClick('Instagram')}
-                      className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 transform"
-                    >
-                      <Instagram className="w-5 h-5 text-white" />
-                    </button>
-                    <button
-                      onClick={() => handleSocialMediaClick('Facebook')}
-                      className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 transform"
-                    >
-                      <Facebook className="w-5 h-5 text-white" />
-                    </button>
-                    <button
-                      onClick={() => handleSocialMediaClick('Twitter')}
-                      className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-500 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 transform"
-                    >
-                      <Twitter className="w-5 h-5 text-white" />
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                // Mobile non-logged in user interface
-                <div className="w-full space-y-4">
-                  {/* Mobile Modal Trigger Buttons */}
-                  <div className="flex flex-col gap-3">
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <CustomButton variant="default" className="w-full h-12 bg-gradient-to-r from-[#00B512] to-[#1fd331] text-white rounded-xl font-bold shadow-lg">
-                          Send Money
-                        </CustomButton>
-                      </DialogTrigger>
-                      <DialogContent className="sm:max-w-md">
-                        <DialogHeader>
-                          <DialogTitle>Send Money</DialogTitle>
-                        </DialogHeader>
-                        <form className="space-y-4" onSubmit={e => { e.preventDefault(); handleSubmit(); }}>
-                          <div className="space-y-2">
-                            <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
-                              <span>Amount ($)</span>
-                              <Sparkles className="w-4 h-4 text-[#00B512] animate-pulse" />
-                    </label>
-                            <CustomInput
-                      type="number"
-                      placeholder="Enter amount"
-                      value={amount}
-                      onChange={e => setAmount(e.target.value)}
-                              className="h-12 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
-            />
-          </div>
-                          <div className="space-y-2">
-                            <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
-                      <span>Message</span>
-                              <MessageSquare className="w-4 h-4 text-[#00B512] animate-pulse" />
-                    </label>
-                            <Textarea
-                      placeholder="Enter a message (optional)"
-                              className="rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
-                      rows={3}
-                    />
-                  </div>
-                          <DialogFooter>
-                            <CustomButton
-                              type="submit"
-                              variant="default"
-                              className="w-full h-12 bg-gradient-to-r from-[#00B512] to-[#1fd331] border-none rounded-xl font-bold text-white shadow-lg hover:shadow-xl text-lg"
-                    disabled={!amount}
-                  >
-              <b>Next</b>
-                            </CustomButton>
-                          </DialogFooter>
-                        </form>
-                      </DialogContent>
-                    </Dialog>
-                    
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <CustomButton variant="outline" className="w-full h-12 border-2 border-[#00B512] text-[#00B512] rounded-xl font-bold shadow-lg">
-                          Contact
-                        </CustomButton>
-                      </DialogTrigger>
-                      <DialogContent className="sm:max-w-md">
-                        <DialogHeader>
-                          <DialogTitle>Contact {user.name}</DialogTitle>
-                        </DialogHeader>
-                        <form className="space-y-4" onSubmit={e => { e.preventDefault(); handleContactSubmit(); }}>
-                          <div className="space-y-2">
-                            <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
-                      <span>Your Name</span>
-                              <User className="w-4 h-4 text-[#00B512] animate-pulse" />
-                    </label>
-                            <CustomInput
-                      placeholder="Enter your name"
-                      value={contactForm.name}
-                              onChange={e => setContactForm({ ...contactForm, name: e.target.value })}
-                              className="h-12 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
-                    />
-                  </div>
-                          <div className="space-y-2">
-                            <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
-                      <span>Email</span>
-                              <Mail className="w-4 h-4 text-[#1fd331] animate-pulse delay-150" />
-                    </label>
-                            <CustomInput
-                      type="email"
-                      placeholder="Enter your email"
-                      value={contactForm.email}
-                              onChange={e => setContactForm({ ...contactForm, email: e.target.value })}
-                              className="h-12 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
-                    />
-                  </div>
-                          <div className="space-y-2">
-                            <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
-                      <span>Message</span>
-                              <MessageSquare className="w-4 h-4 text-[#00B512] animate-pulse" />
-                    </label>
-                            <Textarea
-                      placeholder="Enter your message"
-                      value={contactForm.message}
-                              onChange={e => setContactForm({ ...contactForm, message: e.target.value })}
-                              className="rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
-                              rows={4}
-                    />
-                  </div>
-                          <DialogFooter>
-                            <CustomButton
-                              type="submit"
-                              variant="default"
-                              className="w-full h-12 bg-gradient-to-r from-[#00B512] to-[#1fd331] border-none rounded-xl font-bold text-white shadow-lg hover:shadow-xl text-lg"
-                    disabled={!contactForm.name || !contactForm.email || !contactForm.message}
-                  >
-                      <b>Send Message</b>
-                            </CustomButton>
-                          </DialogFooter>
-                        </form>
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-
-                  {/* Mobile Social Media Icons */}
-                  <div className="flex justify-center gap-3 mt-4">
-                    <button
-                      onClick={() => handleSocialMediaClick('Instagram')}
-                      className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 transform"
-                    >
-                      <Instagram className="w-5 h-5 text-white" />
-                    </button>
-                    <button
-                      onClick={() => handleSocialMediaClick('Facebook')}
-                      className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 transform"
-                    >
-                      <Facebook className="w-5 h-5 text-white" />
-                    </button>
-                    <button
-                      onClick={() => handleSocialMediaClick('Twitter')}
-                      className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-500 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 transform"
-                    >
-                      <Twitter className="w-5 h-5 text-white" />
-                    </button>
-        </div>
-        
-                  {/* Mobile Login and Signup Buttons with Sweet Message */}
-                  <div className="w-full flex flex-col items-center gap-3 bg-gradient-to-br from-[#f0fff4] via-[#e6f9f0] to-[#f6fff9] rounded-2xl shadow-lg p-4 mt-2 border border-[#00B512]/10">
-                    <div className="text-center mb-2">
-                      <span className="block text-base font-bold text-[#00B512] drop-shadow-sm">Join us now or sign in!</span>
-                      <span className="block text-xs text-[#00313A]/70 mt-1">Enjoy secure, fast, and fun money transfers 🚀</span>
-                    </div>
-                    <div className="flex gap-3 w-full">
-                      <CustomButton
-                        variant="outline"
-                        className="flex-1 h-10 border-2 border-[#00B512] text-[#00B512] rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:bg-[#00B512] hover:text-white"
-                      onClick={handleLoginClick}
-                    >
-                      <b>Login</b>
-                      </CustomButton>
-                      <CustomButton
-                        variant="default"
-                        className="flex-1 h-10 bg-[#00B512] border-2 border-[#00B512] text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:bg-[#1fd331]"
-                      onClick={handleSignupClick}
-                    >
-                      <b>Sign Up</b>
-                      </CustomButton>
-                    </div>
-                  </div>
-                </div>
-              )}
               
               {/* Mobile Footer - Only for logged in users */}
               {isHydrated && isLoggedIn && (

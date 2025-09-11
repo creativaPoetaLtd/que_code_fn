@@ -29,6 +29,18 @@ export default function SettingsPage() {
     const [lastName, setLastName] = useState("");
     const [email, setEmail] = useState("");
     const [phone, setPhone] = useState("");
+    // Organization-specific fields
+    const [organizationName, setOrganizationName] = useState("");
+    const [organizationType, setOrganizationType] = useState("");
+    const [ownerName, setOwnerName] = useState("");
+    const [ownerPhone, setOwnerPhone] = useState("");
+    const [ownerEmail, setOwnerEmail] = useState("");
+    const [contactPhone, setContactPhone] = useState("");
+    const [organizationTinNumber, setOrganizationTinNumber] = useState("");
+    const [approvalStatus, setApprovalStatus] = useState(false);
+    const [categoryId, setCategoryId] = useState("");
+    const [categoryName, setCategoryName] = useState("");
+    const [categoryDescription, setCategoryDescription] = useState("");
     const [profileImage, setProfileImage] = useState<string | null>(null);
     const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
     const [profileImagePreview, setProfileImagePreview] = useState<string | null>(null);
@@ -96,29 +108,75 @@ export default function SettingsPage() {
             try {
                 const authToken = getToken();
                 const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {};
+                // Try user endpoint first, then organization endpoint
                 const userUrl = `${baseUrl}/users/${userId}`;
-                const profileUrl = `${baseUrl}/profiles?userId=${encodeURIComponent(userId)}`;
+                const organizationUrl = `${baseUrl}/organizations/${userId}`;
 
-                console.log('[Settings] Fetching:', { userUrl, profileUrl });
+                console.log('[Settings] Fetching:', { userUrl, organizationUrl });
 
-                const [userRes, profileRes] = await Promise.allSettled([
+                const [userRes, organizationRes] = await Promise.allSettled([
                     axios.get(userUrl, { headers }),
-                    axios.get(profileUrl, { headers }),
+                    axios.get(organizationUrl, { headers }),
                 ]);
 
+                let isOrganization = false;
+                let effectiveUserId = userId;
+                let effectiveOrganizationId = "";
+
+                // Check if user data was successful
                 if (userRes.status === 'fulfilled') {
                     const data = userRes.value.data;
                     console.log('[Settings] User data:', data);
-                setFirstName(data.firstName || "");
-                setLastName(data.lastName || "");
-                setEmail(data.email || "");
-                setPhone(data.phone || "");
+                    setFirstName(data.firstName || "");
+                    setLastName(data.lastName || "");
+                    setEmail(data.email || "");
+                    setPhone(data.phone || "");
+                    effectiveUserId = userId;
+                    effectiveOrganizationId = "";
+                } else if (organizationRes.status === 'fulfilled') {
+                    // If user failed but organization succeeded, use organization data
+                    const orgData = organizationRes.value.data;
+                    console.log('[Settings] Organization data:', orgData);
+                    isOrganization = true;
+                    
+                    // Set basic fields for display
+                    setFirstName(orgData.name || "");
+                    setLastName("");
+                    setEmail(orgData.email || "");
+                    setPhone(orgData.contactPhone || "");
+                    
+                    // Set all organization-specific fields
+                    setOrganizationName(orgData.name || "");
+                    setOrganizationType(orgData.type || "");
+                    setOwnerName(orgData.ownerName || "");
+                    setOwnerPhone(orgData.ownerPhone || "");
+                    setOwnerEmail(orgData.ownerEmail || "");
+                    setContactPhone(orgData.contactPhone || "");
+                    setOrganizationTinNumber(orgData.tinNumber || "");
+                    setCategoryId(orgData.categoryId || "");
+                    
+                    // Set category information if available
+                    if (orgData.Category) {
+                        setCategoryName(orgData.Category.name || "");
+                        setCategoryDescription(orgData.Category.description || "");
+                    }
+                    
+                    effectiveUserId = "";
+                    effectiveOrganizationId = userId;
                 } else {
-                    console.error('[Settings] Failed to fetch user:', userRes.reason);
+                    const userErr = userRes.reason;
+                    const orgErr = organizationRes.reason;
+                    console.error('[Settings] Failed to fetch user:', userErr);
+                    console.error('[Settings] Failed to fetch organization:', orgErr);
                 }
 
-                if (profileRes.status === 'fulfilled') {
-                    const profile = profileRes.value.data;
+                // Now fetch profile with correct parameters
+                const profileUrl = `${baseUrl}/profiles?userId=${encodeURIComponent(effectiveUserId)}&organizationId=${encodeURIComponent(effectiveOrganizationId)}`;
+                console.log('[Settings] Profile URL:', profileUrl);
+                
+                try {
+                    const profileRes = await axios.get(profileUrl, { headers });
+                    const profile = profileRes.data;
                     console.log('[Settings] Profile data:', profile);
                     setProfileId(profile.id || null);
                     setProfileType(profile.type || "");
@@ -141,15 +199,15 @@ export default function SettingsPage() {
                     setShowTinOnWelcome(profile.showTinOnWelcome !== undefined ? profile.showTinOnWelcome : true);
                     setShowLogoOnWelcome(profile.showLogoOnWelcome !== undefined ? profile.showLogoOnWelcome : true);
                     setStatusMessage(profile.statusMessage || "");
-                } else {
-                    console.error('[Settings] Failed to fetch profile:', profileRes.reason);
-                    if (profileRes.reason.response) {
-                        console.error('[Settings] Profile response status:', profileRes.reason.response.status);
-                        console.error('[Settings] Profile response data:', profileRes.reason.response.data);
+                } catch (profileError) {
+                    console.error('[Settings] Failed to fetch profile:', profileError);
+                    if (axios.isAxiosError(profileError)) {
+                        console.error('[Settings] Profile response status:', profileError.response?.status);
+                        console.error('[Settings] Profile response data:', profileError.response?.data);
                     }
                 }
 
-                if (userRes.status === 'rejected' && profileRes.status === 'rejected') {
+                if (userRes.status === 'rejected' && organizationRes.status === 'rejected') {
                     setError('Failed to load user data.');
                 }
             } catch (err) {
@@ -465,9 +523,15 @@ export default function SettingsPage() {
                     // Use multipart/form-data only when files are present
                     const profileForm = new FormData();
                     if (profileType) profileForm.append('type', profileType);
-                    const effectiveUserId = profileUserId || userId;
-                    if (effectiveUserId) profileForm.append('userId', effectiveUserId);
-                    if (organizationId) profileForm.append('organizationId', organizationId);
+                    // For organizations, don't set userId, only organizationId
+                    if (organizationName) {
+                        // This is an organization profile
+                        if (organizationId) profileForm.append('organizationId', organizationId);
+                    } else {
+                        // This is a user profile
+                        const effectiveUserId = profileUserId || userId;
+                        if (effectiveUserId) profileForm.append('userId', effectiveUserId);
+                    }
                     if (province) profileForm.append('province', province);
                     if (district) profileForm.append('district', district);
                     if (sector) profileForm.append('sector', sector);
@@ -535,8 +599,11 @@ export default function SettingsPage() {
                     // No files selected; send JSON payload to avoid empty multipart parts
                     const jsonPayload = {
                         type: profileType,
-                        userId: profileUserId || userId,
-                        organizationId: organizationId || undefined,
+                        // For organizations, don't set userId, only organizationId
+                        ...(organizationName ? 
+                            { organizationId: organizationId || undefined } : 
+                            { userId: profileUserId || userId }
+                        ),
                         province: province || undefined,
                         district: district || undefined,
                         sector: sector || undefined,
@@ -576,9 +643,14 @@ export default function SettingsPage() {
                     const profileForm = new FormData();
                     // Required fields for profile creation
                     profileForm.append('type', profileType || 'individual');
-                    profileForm.append('userId', userId);
-                    // Optional fields
-                    if (organizationId) profileForm.append('organizationId', organizationId);
+                    // For organizations, don't set userId, only organizationId
+                    if (organizationName) {
+                        // This is an organization profile
+                        if (organizationId) profileForm.append('organizationId', organizationId);
+                    } else {
+                        // This is a user profile
+                        profileForm.append('userId', userId);
+                    }
                     if (province) profileForm.append('province', province);
                     if (district) profileForm.append('district', district);
                     if (sector) profileForm.append('sector', sector);
@@ -646,8 +718,11 @@ export default function SettingsPage() {
                     // No files selected; send JSON payload for creation
                     const jsonPayload = {
                         type: profileType || 'individual',
-                        userId,
-                        organizationId: organizationId || undefined,
+                        // For organizations, don't set userId, only organizationId
+                        ...(organizationName ? 
+                            { organizationId: organizationId || undefined } : 
+                            { userId }
+                        ),
                         province: province || undefined,
                         district: district || undefined,
                         sector: sector || undefined,
@@ -848,73 +923,196 @@ export default function SettingsPage() {
                                         <CardDescription>View your account details and update profile information</CardDescription>
                                     </CardHeader>
                                     <CardContent className="space-y-4">
-                                        {/* User Model Fields - Read Only */}
-                                        <div className="space-y-4">
-                                            <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
-                                                <User size={16} className="text-gray-500" />
-                                                <h3 className="text-sm font-medium text-gray-700">Account Information (Read-Only)</h3>
-                                            </div>
-                                        <div className="grid gap-4 sm:grid-cols-2">
-                                            <div className="space-y-2">
-                                                    <Label htmlFor="first-name" className="text-gray-600 flex items-center gap-2">
-                                                        <Lock size={14} />
-                                                        First name
-                                                    </Label>
-                                                    <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900 flex items-center justify-between">
-                                                        <span>{firstName || 'Not provided'}</span>
-                                                        <span className="text-xs text-gray-400 bg-gray-200 px-2 py-1 rounded">Read-only</span>
-                                                    </div>
-                                            </div>
-                                            <div className="space-y-2">
-                                                    <Label htmlFor="last-name" className="text-gray-600 flex items-center gap-2">
-                                                        <Lock size={14} />
-                                                        Last name
-                                                    </Label>
-                                                    <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900 flex items-center justify-between">
-                                                        <span>{lastName || 'Not provided'}</span>
-                                                        <span className="text-xs text-gray-400 bg-gray-200 px-2 py-1 rounded">Read-only</span>
-                                            </div>
-                                        </div>
-                                            </div>
-                                            
+                                        {/* User Model Fields - Read Only - Only show for individual users */}
+                                        {!organizationName && (
+                                            <div className="space-y-4">
+                                                <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
+                                                    <User size={16} className="text-gray-500" />
+                                                    <h3 className="text-sm font-medium text-gray-700">Account Information (Read-Only)</h3>
+                                                </div>
                                             <div className="grid gap-4 sm:grid-cols-2">
                                                 <div className="space-y-2">
-                                                    <Label htmlFor="email" className="text-gray-600 flex items-center gap-2">
-                                                        <Lock size={14} />
-                                                        Email
-                                                    </Label>
-                                                    <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900 flex items-center justify-between">
-                                                        <span>{email || 'Not provided'}</span>
-                                                        <span className="text-xs text-gray-400 bg-gray-200 px-2 py-1 rounded">Read-only</span>
-                                                    </div>
+                                                        <Label htmlFor="first-name" className="text-gray-600 flex items-center gap-2">
+                                                            <Lock size={14} />
+                                                            First name
+                                                        </Label>
+                                                        <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900 flex items-center justify-between">
+                                                            <span>{firstName || 'Not provided'}</span>
+                                                            <span className="text-xs text-gray-400 bg-gray-200 px-2 py-1 rounded">Read-only</span>
+                                                        </div>
                                                 </div>
                                                 <div className="space-y-2">
-                                                    <Label htmlFor="phone">Phone Number</Label>
-                                                    <div className="flex items-center justify-between">
-                                                        <Input 
-                                                            id="phone" 
-                                                            value={phone} 
-                                                            disabled
-                                                            className="flex-1 mr-4"
-                                                        />
-                                                        <label className="flex items-center gap-2 text-sm">
-                                                            <input 
-                                                                type="checkbox" 
-                                                                checked={showPhoneOnWelcome} 
-                                                                onChange={e => setShowPhoneOnWelcome(e.target.checked)} 
+                                                        <Label htmlFor="last-name" className="text-gray-600 flex items-center gap-2">
+                                                            <Lock size={14} />
+                                                            Last name
+                                                        </Label>
+                                                        <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900 flex items-center justify-between">
+                                                            <span>{lastName || 'Not provided'}</span>
+                                                            <span className="text-xs text-gray-400 bg-gray-200 px-2 py-1 rounded">Read-only</span>
+                                                </div>
+                                            </div>
+                                                </div>
+                                                
+                                                <div className="grid gap-4 sm:grid-cols-2">
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="email" className="text-gray-600 flex items-center gap-2">
+                                                            <Lock size={14} />
+                                                            Email
+                                                        </Label>
+                                                        <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900 flex items-center justify-between">
+                                                            <span>{email || 'Not provided'}</span>
+                                                            <span className="text-xs text-gray-400 bg-gray-200 px-2 py-1 rounded">Read-only</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="phone">Phone Number</Label>
+                                                        <div className="flex items-center justify-between">
+                                                            <Input 
+                                                                id="phone" 
+                                                                value={phone} 
+                                                                disabled
+                                                                className="flex-1 mr-4"
                                                             />
-                                                            Show on welcome page
-                                                        </label>
+                                                            <label className="flex items-center gap-2 text-sm">
+                                                                <input 
+                                                                    type="checkbox" 
+                                                                    checked={showPhoneOnWelcome} 
+                                                                    onChange={e => setShowPhoneOnWelcome(e.target.checked)} 
+                                                                />
+                                                                Show on welcome page
+                                                            </label>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
+                                        )}
 
-                                        <Separator />
-                                        <div className="text-sm text-gray-500 italic">
-                                            Note: Account information (name, email, phone) cannot be edited here. Contact support if you need to update these details.
-                                        </div>
-                                        <Separator />
+                                        {!organizationName && (
+                                            <>
+                                                <Separator />
+                                                <div className="text-sm text-gray-500 italic">
+                                                    Note: Account information (name, email, phone) cannot be edited here. Contact support if you need to update these details.
+                                                </div>
+                                                <Separator />
+                                            </>
+                                        )}
+
+                                        {/* Organization Information Section - Only show if organization data is available */}
+                                        {organizationName && (
+                                            <div className="space-y-4">
+                                                <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
+                                                    <Shield size={16} className="text-gray-500" />
+                                                    <h3 className="text-sm font-medium text-gray-700">Organization Information (Read-Only)</h3>
+                                                </div>
+                                                
+                                                <div className="grid gap-4 sm:grid-cols-2">
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="org-name" className="text-gray-600 flex items-center gap-2">
+                                                            <Lock size={14} />
+                                                            Organization Name
+                                                        </Label>
+                                                        <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900 flex items-center justify-between">
+                                                            <span>{organizationName || 'Not provided'}</span>
+                                                            <span className="text-xs text-gray-400 bg-gray-200 px-2 py-1 rounded">Read-only</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="org-type" className="text-gray-600 flex items-center gap-2">
+                                                            <Lock size={14} />
+                                                            Organization Type
+                                                        </Label>
+                                                        <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900 flex items-center justify-between">
+                                                            <span>{organizationType || 'Not provided'}</span>
+                                                            <span className="text-xs text-gray-400 bg-gray-200 px-2 py-1 rounded">Read-only</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="grid gap-4 sm:grid-cols-2">
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="owner-name" className="text-gray-600 flex items-center gap-2">
+                                                            <Lock size={14} />
+                                                            Owner Name
+                                                        </Label>
+                                                        <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900 flex items-center justify-between">
+                                                            <span>{ownerName || 'Not provided'}</span>
+                                                            <span className="text-xs text-gray-400 bg-gray-200 px-2 py-1 rounded">Read-only</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="owner-phone" className="text-gray-600 flex items-center gap-2">
+                                                            <Lock size={14} />
+                                                            Owner Phone
+                                                        </Label>
+                                                        <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900 flex items-center justify-between">
+                                                            <span>{ownerPhone || 'Not provided'}</span>
+                                                            <span className="text-xs text-gray-400 bg-gray-200 px-2 py-1 rounded">Read-only</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="grid gap-4 sm:grid-cols-2">
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="owner-email" className="text-gray-600 flex items-center gap-2">
+                                                            <Lock size={14} />
+                                                            Owner Email
+                                                        </Label>
+                                                        <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900 flex items-center justify-between">
+                                                            <span>{ownerEmail || 'Not provided'}</span>
+                                                            <span className="text-xs text-gray-400 bg-gray-200 px-2 py-1 rounded">Read-only</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="contact-phone" className="text-gray-600 flex items-center gap-2">
+                                                            <Lock size={14} />
+                                                            Contact Phone
+                                                        </Label>
+                                                        <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900 flex items-center justify-between">
+                                                            <span>{contactPhone || 'Not provided'}</span>
+                                                            <span className="text-xs text-gray-400 bg-gray-200 px-2 py-1 rounded">Read-only</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="org-tin" className="text-gray-600 flex items-center gap-2">
+                                                        <Lock size={14} />
+                                                        TIN Number
+                                                    </Label>
+                                                    <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900 flex items-center justify-between">
+                                                        <span>{organizationTinNumber || 'Not provided'}</span>
+                                                        <span className="text-xs text-gray-400 bg-gray-200 px-2 py-1 rounded">Read-only</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Category Information */}
+                                                {categoryName && (
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="category" className="text-gray-600 flex items-center gap-2">
+                                                            <Lock size={14} />
+                                                            Category
+                                                        </Label>
+                                                        <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
+                                                            <div className="flex items-center justify-between">
+                                                                <div>
+                                                                    <span className="font-medium">{categoryName}</span>
+                                                                    {categoryDescription && (
+                                                                        <p className="text-sm text-gray-500 mt-1">{categoryDescription}</p>
+                                                                    )}
+                                                                </div>
+                                                                <span className="text-xs text-gray-400 bg-gray-200 px-2 py-1 rounded">Read-only</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                <Separator />
+                                                <div className="text-sm text-gray-500 italic">
+                                                    Note: Organization information cannot be edited here. Contact support if you need to update these details.
+                                                </div>
+                                                <Separator />
+                                            </div>
+                                        )}
 
                                         {/* Profile Model Fields - Editable */}
                                         <div className="space-y-4">
@@ -1069,11 +1267,11 @@ export default function SettingsPage() {
                                         </div>
                                     </CardContent>
                                     <CardFooter className="flex justify-end">
-                                            <Button 
-                                                type="submit" 
-                                                className="bg-[#00B512] hover:bg-[#009E10]" 
-                                                disabled={loading}
-                                            >
+                                        <Button 
+                                            type="submit" 
+                                            className="bg-[#00B512] hover:bg-[#009E10]" 
+                                            disabled={loading}
+                                        >
                                             {loading ? (
                                                 <div className="flex items-center gap-2">
                                                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>

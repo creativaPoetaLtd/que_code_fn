@@ -10,7 +10,7 @@ import { mainUrl } from '@/helpers/baseUrl';
 import Button from '../../../components/ui/Button-ant';
 import InputPassword from '@/components/ui/InputPassword';
 import Input from 'antd/es/input';
-import { useLoginMutation } from '@/states/authentication';
+import { useLoginMutation, useLoginOrganizationMutation } from '@/states/authentication';
 import { ClipLoader } from 'react-spinners';
 import { useAuthToken } from '@/hooks/use-auth-token';
 
@@ -76,6 +76,7 @@ const LoginForm: React.FC = () => {
   const returnUrl = searchParams.get('returnUrl') || '/home';
 
   const [login, { isLoading }] = useLoginMutation();
+  const [loginOrganization, { isLoading: isOrgLoading }] = useLoginOrganizationMutation();
   const { setToken, getToken } = useAuthToken();
   const { getTokenInfo, decodeToken } = useTokenInfo();
 
@@ -96,18 +97,41 @@ const LoginForm: React.FC = () => {
     const tokenInfo = getTokenInfo();
     if (tokenInfo) {
       // User is already logged in with valid token
-      router.replace(`/home/${tokenInfo.id}`);
+      redirectAfterLogin(tokenInfo.id, tokenInfo.accountType);
     }
   }, [router]);
 
-  const redirectAfterLogin = (userId: string) => {
-    // Always redirect to home with userId
-    router.replace(`/home/${userId}`);
+  const redirectAfterLogin = (userId: string, accountType?: string) => {
+    // Redirect based on account type
+    if (accountType === 'organization') {
+      // For organizations, redirect to a different dashboard or home page
+      router.replace(`/home/${userId}`);
+    } else {
+      // For regular users, redirect to user home
+      router.replace(`/home/${userId}`);
+    }
   };
 
   const onSubmit = async (data: LoginFormInputs) => {
     try {
-      const response = await login(data).unwrap();
+      console.log('Attempting login with credentials:', { email: data.email, password: '[HIDDEN]' });
+      
+      // Try organization login first, then fall back to regular login
+      let response;
+      let isOrganization = false;
+      
+      try {
+        console.log('Trying organization login...');
+        response = await loginOrganization(data).unwrap();
+        isOrganization = true;
+        console.log('Organization login successful:', response);
+      } catch (orgError) {
+        console.log('Organization login failed, trying regular login...');
+        response = await login(data).unwrap();
+        isOrganization = false;
+        console.log('Regular login successful:', response);
+      }
+      
       const { token, account } = response;
 
       setToken(token);
@@ -118,24 +142,33 @@ const LoginForm: React.FC = () => {
         throw new Error('Invalid token received');
       }
 
+      // Determine account type for appropriate messaging
+      const accountType = isOrganization ? 'organization' : (tokenInfo.accountType || 'user');
+      const entityType = accountType === 'organization' ? 'Organization' : 'User';
+      
       notification.success({
         message: 'Login Successful',
         description: `Welcome back, ${tokenInfo.name}!`,
         placement: 'topRight',
       });
 
-      // Redirect to home with userId
-      redirectAfterLogin(tokenInfo.id);
+      // Redirect based on account type
+      redirectAfterLogin(tokenInfo.id, accountType);
     } catch (error) {
       console.error('Login error:', error);
       const err = error as APIError;
       const status = err?.status;
       const errorMessage = err?.data?.message || 'An error occurred during login';
+      
+      // Log detailed error information for debugging
+      console.log('Error status:', status);
+      console.log('Error message:', errorMessage);
+      console.log('Full error response:', err?.data);
 
       if (status === 404) {
         notification.error({
           message: 'Login Failed',
-          description: 'User not found. Please check your email.',
+          description: 'Account not found. Please check your email.',
           placement: 'topRight',
         });
       } else if (status === 401) {
@@ -214,8 +247,8 @@ const LoginForm: React.FC = () => {
               placement: 'topRight',
             });
 
-            // Redirect to home with userId
-            redirectAfterLogin(tokenInfo.id);
+            // Redirect based on account type
+            redirectAfterLogin(tokenInfo.id, tokenInfo.accountType);
           } else {
             notification.error({
               message: 'Login Error',
@@ -307,9 +340,9 @@ const LoginForm: React.FC = () => {
           htmlType="submit"
           type="primary"
           className="w-full !mt-4"
-          disabled={isLoading}
+          disabled={isLoading || isOrgLoading}
         >
-          {isLoading ? (
+          {(isLoading || isOrgLoading) ? (
             <div className="flex items-center justify-center">
               <ClipLoader color='#ffffff' size={20} />
               <span className="ml-2">Signing in...</span>
@@ -330,7 +363,7 @@ const LoginForm: React.FC = () => {
         icon={<GoogleOutlined />}
         className="w-full flex justify-center items-center bg-gray-100 border-gray-300 text-gray-700 hover:text-white"
         onClick={handleGoogleLogin}
-        disabled={isLoading}
+        disabled={isLoading || isOrgLoading}
       >
         Sign in with Google
       </Button>
