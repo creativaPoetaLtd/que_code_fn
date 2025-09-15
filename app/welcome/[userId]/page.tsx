@@ -40,11 +40,16 @@ interface UserData {
   tinNumber?: string;
   logo?: string;
   operationalDocument?: string;
+  // Category information for organizations
+  categoryId?: string;
+  categoryName?: string;
+  categoryDescription?: string;
   // New visibility controls
   showProfileTypeOnWelcome?: boolean;
   showLocationOnWelcome?: boolean;
   showTinOnWelcome?: boolean;
   showLogoOnWelcome?: boolean;
+  showCategoryOnWelcome?: boolean;
 }
 
 interface ContactFormData {
@@ -195,11 +200,16 @@ const WelcomeProfilePage = () => {
           tinNumber: profile.tinNumber || '',
           logo: profile.logo || '',
           operationalDocument: profile.operationalDocument || '',
+          // Category information for organizations
+          categoryId: isOrganization ? (data.categoryId || '') : '',
+          categoryName: isOrganization ? (data.Category?.name || '') : '',
+          categoryDescription: isOrganization ? (data.Category?.description || '') : '',
           // New visibility controls
           showProfileTypeOnWelcome: profile.showProfileTypeOnWelcome !== undefined ? profile.showProfileTypeOnWelcome : true,
           showLocationOnWelcome: profile.showLocationOnWelcome !== undefined ? profile.showLocationOnWelcome : true,
           showTinOnWelcome: profile.showTinOnWelcome !== undefined ? profile.showTinOnWelcome : true,
           showLogoOnWelcome: profile.showLogoOnWelcome !== undefined ? profile.showLogoOnWelcome : true,
+          showCategoryOnWelcome: profile.showCategoryOnWelcome !== undefined ? profile.showCategoryOnWelcome : true,
         });
         setLoading(false);
       } catch (error) {
@@ -222,11 +232,16 @@ const WelcomeProfilePage = () => {
           tinNumber: '',
           logo: '',
           operationalDocument: '',
+          // Category information with defaults
+          categoryId: '',
+          categoryName: '',
+          categoryDescription: '',
           // New visibility controls with defaults
           showProfileTypeOnWelcome: true,
           showLocationOnWelcome: true,
           showTinOnWelcome: true,
           showLogoOnWelcome: true,
+          showCategoryOnWelcome: true,
         });
         setError(`Could not load profile data for user ID: ${userId.substring(0, 8)}...`);
         setLoading(false);
@@ -458,10 +473,11 @@ const WelcomeProfilePage = () => {
 
                 {/* Additional Profile Information */}
                 <div className="w-full mt-6 space-y-6">
-                  {/* Profile Type Badge */}
-                  {user.profileType && user.showProfileTypeOnWelcome && (
-                    <div className="flex justify-center animate-fade-in">
-                      <div className={`px-6 py-3 rounded-full text-sm font-bold shadow-lg transform hover:scale-105 transition-all duration-300 animate-pulse ${
+                  {/* Profile Type and Category Badges */}
+                  <div className="flex justify-center gap-3 animate-fade-in">
+                    {/* Profile Type Badge */}
+                    {user.profileType && user.showProfileTypeOnWelcome && (
+                      <div className={`px-6 py-3 rounded-full text-sm font-bold shadow-lg transform hover:scale-105 transition-all duration-300 ${
                         user.profileType === 'organization' 
                           ? 'bg-gradient-to-r from-purple-500 via-purple-600 to-purple-700 text-white shadow-purple-500/25 hover:shadow-purple-500/40' 
                           : 'bg-gradient-to-r from-[#00B512] via-[#1fd331] to-[#00B512] text-white shadow-[#00B512]/25 hover:shadow-[#00B512]/40'
@@ -471,8 +487,18 @@ const WelcomeProfilePage = () => {
                           {user.profileType === 'organization' ? 'Organization Account' : 'Individual Account'}
                         </span>
                       </div>
-                    </div>
-                  )}
+                    )}
+
+                    {/* Category Badge for Organizations */}
+                    {user.profileType === 'organization' && user.categoryName && user.showCategoryOnWelcome && (
+                      <div className="px-6 py-3 rounded-full text-sm font-bold shadow-lg transform hover:scale-105 transition-all duration-300 bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 text-white shadow-blue-500/25 hover:shadow-blue-500/40">
+                        <span className="flex items-center gap-2">
+                          🏷️
+                          {user.categoryName}
+                        </span>
+                      </div>
+                    )}
+                  </div>
 
                   {/* Action Buttons */}
                   <div className="flex flex-col items-center gap-4">
@@ -846,10 +872,11 @@ const WelcomeProfilePage = () => {
 
         {/* Mobile Additional Profile Information */}
         <div className="w-full mt-4 space-y-4">
-          {/* Profile Type Badge */}
-          {user.profileType && user.showProfileTypeOnWelcome && (
-            <div className="flex justify-center animate-fade-in">
-              <div className={`px-4 py-2 rounded-full text-xs font-bold shadow-md transform hover:scale-105 transition-all duration-300 animate-pulse ${
+          {/* Profile Type and Category Badges - Mobile */}
+          <div className="flex justify-center gap-2 animate-fade-in">
+            {/* Profile Type Badge */}
+            {user.profileType && user.showProfileTypeOnWelcome && (
+              <div className={`px-4 py-2 rounded-full text-xs font-bold shadow-md transform hover:scale-105 transition-all duration-300 ${
                 user.profileType === 'organization' 
                   ? 'bg-gradient-to-r from-purple-500 via-purple-600 to-purple-700 text-white shadow-purple-500/25 hover:shadow-purple-500/40' 
                   : 'bg-gradient-to-r from-[#00B512] via-[#1fd331] to-[#00B512] text-white shadow-[#00B512]/25 hover:shadow-[#00B512]/40'
@@ -859,8 +886,18 @@ const WelcomeProfilePage = () => {
                   {user.profileType === 'organization' ? 'Organization' : 'Individual'}
                 </span>
               </div>
-            </div>
-          )}
+            )}
+
+            {/* Category Badge for Organizations - Mobile */}
+            {user.profileType === 'organization' && user.categoryName && user.showCategoryOnWelcome && (
+              <div className="px-4 py-2 rounded-full text-xs font-bold shadow-md transform hover:scale-105 transition-all duration-300 bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 text-white shadow-blue-500/25 hover:shadow-blue-500/40">
+                <span className="flex items-center gap-1">
+                  🏷️
+                  {user.categoryName}
+                </span>
+              </div>
+            )}
+          </div>
 
           {/* Mobile Action Buttons */}
           <div className="w-full space-y-4">
