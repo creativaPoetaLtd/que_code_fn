@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Input, Button } from 'antd';
-import { User, Heart, Shield, Sparkles, Star, Gift, DollarSign, CreditCard, Coins, Banknote, Wallet, Instagram, Facebook, Twitter, Mail, MessageSquare, Plus } from 'lucide-react';
+import { User, Heart, Sparkles, Star, Gift, DollarSign, CreditCard, Coins, Banknote, Wallet, Instagram, Facebook, Twitter, Mail, MessageSquare, Plus } from 'lucide-react';
 import axios from 'axios';
 import baseUrl from '@/helpers/baseUrl';
 import Navigation from '@/components/Navigation';
@@ -12,7 +12,6 @@ import { useAuthToken } from '@/hooks/use-auth-token';
 import { Button as CustomButton } from '@/components/ui/button';
 import { Input as CustomInput } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import InputPassword from '@/components/ui/InputPassword';
 import {
   Dialog,
   DialogTrigger,
@@ -64,7 +63,6 @@ const WelcomeProfilePage = () => {
   const userId = params.userId as string;
   const [user, setUser] = useState<UserData>({});
   const [amount, setAmount] = useState('');
-  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [contactForm, setContactForm] = useState<ContactFormData>({
@@ -251,13 +249,35 @@ const WelcomeProfilePage = () => {
     fetchUser();
   }, [userId, getToken]);
 
-  const handleSubmit = () => {
-    if (!amount || !password) {
-      alert('Please fill in both amount and password');
+  const handleSendMoney = () => {
+    if (!isLoggedIn) {
+      // For non-logged in users, show the modal (existing behavior)
       return;
     }
     
-    console.log('Submitting:', { amount, password, userId });
+    // For logged-in users, navigate directly to transfer amount page
+    // Store recipient data in session storage for the transfer page
+    const recipientData = {
+      id: userId,
+      name: user.name,
+      phone: user.phone,
+      avatar: getDisplayImage() || '',
+      isOnline: true // We don't have real-time status, so default to true
+    };
+    
+    sessionStorage.setItem('selectedRecipient', JSON.stringify(recipientData));
+    router.push('/home/transfer/amount');
+  };
+
+  const handleSubmit = () => {
+    if (!amount) {
+      alert('Please fill in the amount');
+      return;
+    }
+    
+    console.log('Submitting:', { amount, userId });
+    // For non-logged in users, this would typically redirect to login
+    alert('Please login to continue with the transfer');
   };
 
   const handleContactSubmit = () => {
@@ -503,68 +523,76 @@ const WelcomeProfilePage = () => {
                   {/* Action Buttons */}
                   <div className="flex flex-col items-center gap-4">
                     <div className="flex justify-center gap-4 w-full">
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <CustomButton variant="default" className="px-6 py-3 rounded-xl font-bold shadow-lg bg-gradient-to-r from-[#00B512] to-[#1fd331] text-white">
-                            {user.profileType === 'organization' ? 'Pay' : 'Send Money'}
+                      {isLoggedIn ? (
+                        // For logged-in users, direct navigation (only for individual accounts)
+                        user.profileType !== 'organization' ? (
+                          <CustomButton 
+                            variant="default" 
+                            className="px-6 py-3 rounded-xl font-bold shadow-lg bg-gradient-to-r from-[#00B512] to-[#1fd331] text-white hover:shadow-xl transition-all duration-300 hover:scale-105"
+                            onClick={handleSendMoney}
+                          >
+                            Send Money
                           </CustomButton>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>{user.profileType === 'organization' ? 'Pay' : 'Send Money'}</DialogTitle>
-                          </DialogHeader>
-                          <form className="space-y-6" onSubmit={e => { e.preventDefault(); handleSubmit(); }}>
-                            <div className="space-y-2">
-                              <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
-                                <span>Amount ($)</span>
-                                <Sparkles className="w-4 h-4 text-[#00B512] animate-pulse" />
-                              </label>
-                              <CustomInput
-                                type="number"
-                                placeholder="Enter amount"
-                                value={amount}
-                                onChange={e => setAmount(e.target.value)}
-                                className="h-12 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
-                              />
-                            </div>
-                            {isLoggedIn && (
+                        ) : (
+                          <CustomButton 
+                            variant="default" 
+                            className="px-6 py-3 rounded-xl font-bold shadow-lg bg-gradient-to-r from-[#00B512] to-[#1fd331] text-white hover:shadow-xl transition-all duration-300 hover:scale-105"
+                            onClick={handleSendMoney}
+                          >
+                            Pay
+                          </CustomButton>
+                        )
+                      ) : (
+                        // For non-logged in users, show modal
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <CustomButton variant="default" className="px-6 py-3 rounded-xl font-bold shadow-lg bg-gradient-to-r from-[#00B512] to-[#1fd331] text-white">
+                              {user.profileType === 'organization' ? 'Pay' : 'Send Money'}
+                            </CustomButton>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>{user.profileType === 'organization' ? 'Pay' : 'Send Money'}</DialogTitle>
+                            </DialogHeader>
+                            <form className="space-y-6" onSubmit={e => { e.preventDefault(); handleSubmit(); }}>
                               <div className="space-y-2">
                                 <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
-                                  <span>Password</span>
-                                  <Shield className="w-4 h-4 text-[#1fd331] animate-pulse delay-150" />
+                                  <span>Amount ($)</span>
+                                  <Sparkles className="w-4 h-4 text-[#00B512] animate-pulse" />
                                 </label>
-                                <InputPassword
-                                  placeholder="Enter password"
-                                  value={password}
-                                  onChange={e => setPassword(e.target.value)}
+                                <CustomInput
+                                  type="number"
+                                  placeholder="Enter amount"
+                                  value={amount}
+                                  onChange={e => setAmount(e.target.value)}
                                   className="h-12 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
                                 />
                               </div>
-                            )}
-                            <div className="space-y-2">
-                              <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
-                                <span>Message</span>
-                                <MessageSquare className="w-4 h-4 text-[#00B512] animate-pulse" />
-                              </label>
-                              <Textarea
-                                placeholder="Enter a message (optional)"
-                                className="rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
-                                rows={3}
-                              />
-                            </div>
-                            <DialogFooter>
-                              <CustomButton
-                                type="submit"
-                                variant="default"
-                                className="w-full h-12 bg-gradient-to-r from-[#00B512] to-[#1fd331] border-none rounded-xl font-bold text-white shadow-lg hover:shadow-xl text-lg"
-                                disabled={!amount || (isLoggedIn && !password)}
-                              >
-                                {isLoggedIn ? <b>{user.profileType === 'organization' ? 'Pay' : 'Send Money'}</b> : <b>Next</b>}
-                              </CustomButton>
-                            </DialogFooter>
-                          </form>
-                        </DialogContent>
-                      </Dialog>
+                              <div className="space-y-2">
+                                <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
+                                  <span>Message</span>
+                                  <MessageSquare className="w-4 h-4 text-[#00B512] animate-pulse" />
+                                </label>
+                                <Textarea
+                                  placeholder="Enter a message (optional)"
+                                  className="rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
+                                  rows={3}
+                                />
+                              </div>
+                              <DialogFooter>
+                                <CustomButton
+                                  type="submit"
+                                  variant="default"
+                                  className="w-full h-12 bg-gradient-to-r from-[#00B512] to-[#1fd331] border-none rounded-xl font-bold text-white shadow-lg hover:shadow-xl text-lg"
+                                  disabled={!amount}
+                                >
+                                  <b>Next</b>
+                                </CustomButton>
+                              </DialogFooter>
+                            </form>
+                          </DialogContent>
+                        </Dialog>
+                      )}
                       {isLoggedIn && user.profileType !== 'organization' && (
                         <CustomButton
                           variant="outline"
@@ -902,68 +930,66 @@ const WelcomeProfilePage = () => {
           {/* Mobile Action Buttons */}
           <div className="w-full space-y-4">
             <div className="flex flex-col gap-3">
-              <Dialog>
-                <DialogTrigger asChild>
-                  <CustomButton variant="default" className="w-full h-12 bg-gradient-to-r from-[#00B512] to-[#1fd331] text-white rounded-xl font-bold shadow-lg">
-                    {user.profileType === 'organization' ? 'Pay' : 'Send Money'}
-                  </CustomButton>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>{user.profileType === 'organization' ? 'Pay' : 'Send Money'}</DialogTitle>
-                  </DialogHeader>
-                  <form className="space-y-4" onSubmit={e => { e.preventDefault(); handleSubmit(); }}>
-                    <div className="space-y-2">
-                      <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
-                        <span>Amount ($)</span>
-                        <Sparkles className="w-4 h-4 text-[#00B512] animate-pulse" />
-                      </label>
-                      <CustomInput
-                        type="number"
-                        placeholder="Enter amount"
-                        value={amount}
-                        onChange={e => setAmount(e.target.value)}
-                        className="h-12 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
-                      />
-                    </div>
-                    {isLoggedIn && (
+              {isLoggedIn ? (
+                // For logged-in users, direct navigation
+                <CustomButton 
+                  variant="default" 
+                  className="w-full h-12 bg-gradient-to-r from-[#00B512] to-[#1fd331] text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                  onClick={handleSendMoney}
+                >
+                  {user.profileType === 'organization' ? 'Pay' : 'Send Money'}
+                </CustomButton>
+              ) : (
+                // For non-logged in users, show modal
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <CustomButton variant="default" className="w-full h-12 bg-gradient-to-r from-[#00B512] to-[#1fd331] text-white rounded-xl font-bold shadow-lg">
+                      {user.profileType === 'organization' ? 'Pay' : 'Send Money'}
+                    </CustomButton>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>{user.profileType === 'organization' ? 'Pay' : 'Send Money'}</DialogTitle>
+                    </DialogHeader>
+                    <form className="space-y-4" onSubmit={e => { e.preventDefault(); handleSubmit(); }}>
                       <div className="space-y-2">
                         <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
-                          <span>Password</span>
-                          <Shield className="w-4 h-4 text-[#1fd331] animate-pulse delay-150" />
+                          <span>Amount ($)</span>
+                          <Sparkles className="w-4 h-4 text-[#00B512] animate-pulse" />
                         </label>
-                        <InputPassword
-                          placeholder="Enter password"
-                          value={password}
-                          onChange={e => setPassword(e.target.value)}
+                        <CustomInput
+                          type="number"
+                          placeholder="Enter amount"
+                          value={amount}
+                          onChange={e => setAmount(e.target.value)}
                           className="h-12 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
                         />
                       </div>
-                    )}
-                    <div className="space-y-2">
-                      <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
-                        <span>Message</span>
-                        <MessageSquare className="w-4 h-4 text-[#00B512] animate-pulse" />
-                      </label>
-                      <Textarea
-                        placeholder="Enter a message (optional)"
-                        className="rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
-                        rows={3}
-                      />
-                    </div>
-                    <DialogFooter>
-                      <CustomButton
-                        type="submit"
-                        variant="default"
-                        className="w-full h-12 bg-gradient-to-r from-[#00B512] to-[#1fd331] border-none rounded-xl font-bold text-white shadow-lg hover:shadow-xl text-lg"
-                        disabled={!amount || (isLoggedIn && !password)}
-                      >
-                        {isLoggedIn ? <b>{user.profileType === 'organization' ? 'Pay' : 'Send Money'}</b> : <b>Next</b>}
-                      </CustomButton>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
+                          <span>Message</span>
+                          <MessageSquare className="w-4 h-4 text-[#00B512] animate-pulse" />
+                        </label>
+                        <Textarea
+                          placeholder="Enter a message (optional)"
+                          className="rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg"
+                          rows={3}
+                        />
+                      </div>
+                      <DialogFooter>
+                        <CustomButton
+                          type="submit"
+                          variant="default"
+                          className="w-full h-12 bg-gradient-to-r from-[#00B512] to-[#1fd331] border-none rounded-xl font-bold text-white shadow-lg hover:shadow-xl text-lg"
+                          disabled={!amount}
+                        >
+                          <b>Next</b>
+                        </CustomButton>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              )}
               
               {isLoggedIn && user.profileType !== 'organization' && (
                 <CustomButton
