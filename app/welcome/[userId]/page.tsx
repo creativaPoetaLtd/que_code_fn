@@ -262,7 +262,8 @@ const WelcomeProfilePage = () => {
       name: user.name,
       phone: user.phone,
       avatar: getDisplayImage() || '',
-      isOnline: true // We don't have real-time status, so default to true
+      isOnline: true, // We don't have real-time status, so default to true
+      type: user.profileType === 'organization' ? 'organization' : 'user' // Add type information
     };
     
     sessionStorage.setItem('selectedRecipient', JSON.stringify(recipientData));

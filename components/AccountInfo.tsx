@@ -4,7 +4,7 @@ import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import { Copy, CreditCard, Send, Share2 } from 'lucide-react';
 import baseUrl from '@/helpers/baseUrl';
-import { getUserBalance } from '@/helpers/api';
+import { getUserBalance, getEntityBalance } from '@/helpers/api';
 
 interface AccountInfoProps {
     userId: string;
@@ -54,13 +54,23 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
                 return;
             }
             await fetchUserDataById(userId);
-            // Fetch wallet balance
+            // Fetch wallet balance - try both user and organization
             setBalanceLoading(true);
             setBalanceError(null);
             try {
                 console.log('AccountInfo - fetching balance for userId:', userId);
-                const response = await getUserBalance(userId);
-                console.log('AccountInfo - balance response received:', response);
+                
+                // First try as user
+                let response;
+                try {
+                    response = await getEntityBalance(userId, 'user');
+                    console.log('AccountInfo - user balance response received:', response);
+                } catch (userError) {
+                    console.log('AccountInfo - user balance failed, trying organization:', userError);
+                    // If user fails, try as organization
+                    response = await getEntityBalance(userId, 'organization');
+                    console.log('AccountInfo - organization balance response received:', response);
+                }
                 
                 if (response.success && response.data) {
                     setBalance(Number(response.data.balance));

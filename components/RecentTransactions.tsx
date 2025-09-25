@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { useEffect, useState } from 'react';
-import { getTransactionHistory, getUserWallet } from '@/helpers/api';
+import { getTransactionHistory, getUserWallet, getOrganizationWallet } from '@/helpers/api';
 import { Transaction } from '@/types/dashboard';
 import { useRouter } from 'next/navigation';
 import { useAuthToken } from '@/hooks/use-auth-token';
@@ -30,17 +30,19 @@ export const RecentTransactions: React.FC = () => {
         
         setCurrentUserId(userId);
         
-        const walletResponse = await getUserWallet(userId);
-        console.log('RecentTransactions - wallet response:', walletResponse);
-        
-        if (!walletResponse.success) {
-          throw new Error('Could not fetch wallet information');
+        // Get wallet info for display purposes
+        let walletResponse;
+        try {
+          walletResponse = await getUserWallet(userId);
+        } catch (userError) {
+          walletResponse = await getOrganizationWallet(userId);
         }
         
-        const walletId = walletResponse.data.walletId;
-        setCurrentUserWalletId(walletId);
+        if (walletResponse.success) {
+          setCurrentUserWalletId(walletResponse.data.walletId);
+        }
         
-        console.log('RecentTransactions - fetching transactions for wallet:', walletId);
+        console.log('RecentTransactions - fetching transactions for user:', userId);
         
         const response = await getTransactionHistory(userId, { limit: 5 });
         console.log('RecentTransactions - response:', response);

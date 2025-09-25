@@ -5,7 +5,7 @@ import Navigation from "@/components/Navigation";
 import { ArrowLeft, CheckCircle, Shield, Clock, CreditCard, Smartphone } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { transferMoney, getUserBalance } from "@/helpers/api";
+import { transferMoney, getUserBalance, getCurrentUserInfo } from "@/helpers/api";
 import { useAuthToken } from "@/hooks/use-auth-token";
 import { getUserIdFromToken, isTokenExpired } from "@/utils/jwtUtils";
 
@@ -15,6 +15,7 @@ interface Recipient {
   phone: string;
   avatar: string;
   isOnline: boolean;
+  type?: 'user' | 'organization';
 }
 
 const ConfirmationPage = () => {
@@ -27,16 +28,27 @@ const ConfirmationPage = () => {
   const [balanceLoading, setBalanceLoading] = useState(true);
   const [balanceError, setBalanceError] = useState<string | null>(null);
   const [transferError, setTransferError] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<any>(null);
 
   useEffect(() => {
     // Get transfer data from session storage
-    const transferData = sessionStorage.getItem('transferData');
+    const selectedRecipient = sessionStorage.getItem('selectedRecipient');
     const transferAmount = sessionStorage.getItem('transferAmount');
+    const constraintData = sessionStorage.getItem('constraintData');
     
-    if (transferData && transferAmount) {
-      const data = JSON.parse(transferData);
-      setAmount(transferAmount);
-      setRecipient(data.recipient);
+    if (selectedRecipient) {
+      const recipientData = JSON.parse(selectedRecipient);
+      setRecipient(recipientData);
+      // Use a default amount if not set
+      if (transferAmount) {
+        setAmount(transferAmount);
+      }
+      
+      // Load category data if available
+      if (constraintData) {
+        const { selectedCategory } = JSON.parse(constraintData);
+        setSelectedCategory(selectedCategory);
+      }
     } else {
       router.push('/home/transfer');
     }
@@ -73,17 +85,47 @@ const ConfirmationPage = () => {
     setIsLoading(true);
     setTransferError(null);
     try {
-      const token = getToken();
-      let currentUserId: string | null | undefined;
-      if (token && !isTokenExpired(token)) {
-        currentUserId = getUserIdFromToken(token);
+      // Get current user info to determine sender type
+      const currentUserInfo = getCurrentUserInfo();
+      console.log('Current user info:', currentUserInfo);
+      console.log('Account type detected:', currentUserInfo.accountType);
+      console.log('User ID:', currentUserInfo.userId);
+      console.log('Organization ID:', currentUserInfo.organizationId);
+      
+      if (!currentUserInfo.userId && !currentUserInfo.organizationId) {
+        console.error('No user ID or organization ID found in token');
+        throw new Error("User not found");
       }
-      if (!currentUserId || !recipient) throw new Error('User or recipient not found');
+      if (!recipient) throw new Error('Recipient not found');
+      
+      // Determine sender parameters based on account type
+      let senderUserId: string | undefined;
+      let senderOrganizationId: string | undefined;
+      
+      if (currentUserInfo.accountType === 'organization') {
+        senderOrganizationId = currentUserInfo.organizationId || undefined;
+      } else {
+        senderUserId = currentUserInfo.userId || undefined;
+      }
+      
+      // Determine receiver parameters based on recipient type
+      let receiverUserId: string | undefined;
+      let receiverOrganizationId: string | undefined;
+      
+      if (recipient.type === 'organization') {
+        receiverOrganizationId = recipient.id;
+      } else {
+        receiverUserId = recipient.id;
+      }
+      
       const result = await transferMoney({ 
-        senderUserId: currentUserId,
-        receiverUserId: recipient.id,
+        senderUserId,
+        senderOrganizationId,
+        receiverUserId,
+        receiverOrganizationId,
         amount: Number(amount),
         description: 'Payment',
+        categoryId: selectedCategory?.id
       });
       // Store transfer result for success page
       sessionStorage.setItem('transferResult', JSON.stringify(result));
@@ -177,6 +219,35 @@ const ConfirmationPage = () => {
             </div>
           </div>
         </div>
+
+        {/* Transfer Information - Show for organization transfers */}
+        {recipient?.type === 'organization' && selectedCategory && (
+          <div className="bg-blue-50 border border-blue-200 rounded-3xl p-6 mb-6">
+            <div className="flex items-start space-x-3">
+              <Shield className="w-6 h-6 text-blue-600 mt-1" />
+              <div className="flex-1">
+                <h4 className="font-semibold text-blue-800 mb-2">Organization Transfer</h4>
+                <p className="text-sm text-blue-700 mb-3">
+                  This transfer is categorized as: <strong>{selectedCategory.name}</strong>. The organization will receive unrestricted funds.
+                </p>
+                <div className="bg-white rounded-lg p-3 border border-blue-200">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="font-medium text-gray-900">{selectedCategory.name}</p>
+                      <p className="text-xs text-gray-500">{selectedCategory.description}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-blue-800">
+                        RWF {parseFloat(amount).toLocaleString()}
+                      </p>
+                      <p className="text-xs text-blue-600">Unrestricted Amount</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Balance Info */}
         <div className="bg-white rounded-3xl p-6 mb-6 shadow-sm border border-gray-100">
