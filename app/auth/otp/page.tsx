@@ -196,7 +196,7 @@ const OTPVerification: React.FC = () => {
     };
 
     return (
-        <div className="flex min-h-screen bg-white">
+        <div className="flex min-h-screen ">
             <div className="flex flex-col justify-center lg:w-1/2 w-full px-4 md:px-16 lg:px-24">
                 <div className="max-w-md mx-auto w-full py-8">
                     <div className="text-center mb-8">
@@ -238,7 +238,7 @@ const OTPVerification: React.FC = () => {
 
                             <div className="flex items-center justify-between pt-4">
                                 <Button
-                                    type="link"
+                                    // type="link"
                                     onClick={resendOTP}
                                     disabled={!canResend || loading}
                                     className="text-white font-medium"
