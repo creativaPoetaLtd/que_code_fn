@@ -1,268 +1,222 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import Input from "../ui/Input-ant"
-import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Separator } from "@/components/ui/separator"
-import { UserPlus, Search, User, Mail, Phone, QrCode, Link, Loader2 } from "lucide-react"
-import { toast } from "@/hooks/use-toast"
-import QRCodeScanner from "./qr-code-scanner"
-import { useInviteContactMutation } from "@/states/contactSlice"
-import { useAuthToken } from "@/hooks/use-auth-token"
-import { extractPublicIdFromLink, validatePublicId } from "@/utils/profile-link"
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import Input from "../ui/Input-ant";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { UserPlus, QrCode, Link, Loader2 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
+import QRCodeScanner from "./qr-code-scanner";
+import { useSendInvitationMutation } from "@/states/contactInvitationSlice";
+import { useAuthToken } from "@/hooks/use-auth-token";
 
 interface AddContactModalProps {
-    isOpen: boolean
-    onClose: () => void
+  isOpen: boolean;
+  onClose: () => void;
 }
 
-interface ContactSearchResult {
-    id: number
-    name: string
-    email: string
-    phone: string
-}
+export default function AddContactModal({
+  isOpen,
+  onClose,
+}: AddContactModalProps) {
+  const [profileLink, setProfileLink] = useState<string>("");
+  const [isQRScannerOpen, setIsQRScannerOpen] = useState<boolean>(false);
 
-export default function AddContactModal({ isOpen, onClose }: AddContactModalProps) {
-    const [searchTerm, setSearchTerm] = useState<string>("")
-    const [profileLink, setProfileLink] = useState<string>("")
-    const [name, setName] = useState<string>("")
-    const [email, setEmail] = useState<string>("")
-    const [phone, setPhone] = useState<string>("")
-    const [step, setStep] = useState<number>(1)
-    const [searchResults, setSearchResults] = useState<ContactSearchResult[]>([])
-    const [isQRScannerOpen, setIsQRScannerOpen] = useState<boolean>(false)
-    const [extractedPublicId, setExtractedPublicId] = useState<string>("")
+  // Redux hooks
+  const { getToken } = useAuthToken();
+  const token = getToken();
+  const [sendInvitation, { isLoading: isInviting }] =
+    useSendInvitationMutation();
 
-    // Redux hooks
-    const [inviteContact, { isLoading: isInviting }] = useInviteContactMutation()
-    const { getToken } = useAuthToken()
-    const token = getToken();
-
-    // Mock search function (you can replace this with actual search API)
-    const handleSearch = () => {
-        if (searchTerm.length < 3) {
-            toast({
-                title: "Error",
-                description: "Please enter at least 3 characters to search",
-                variant: "destructive",
-            })
-            return
-        }
-        // Simulate search results
-        setSearchResults([
-            { id: 101, name: "John Smith", email: "john.smith@example.com", phone: "+1 555-123-4567" },
-            { id: 102, name: "Jane Doe", email: "jane.doe@example.com", phone: "+1 555-987-6543" },
-        ])
+  const handleProfileLinkSubmit = async () => {
+    if (!profileLink.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a profile link",
+        variant: "destructive",
+      });
+      return;
     }
 
-    const handleProfileLinkSubmit = () => {
-        if (!profileLink.trim()) {
-            toast({
-                title: "Error",
-                description: "Please enter a profile link or public ID",
-                variant: "destructive",
-            })
-            return
-        }
-
-        const publicId = extractPublicIdFromLink(profileLink.trim())
-
-        if (!publicId || !validatePublicId(publicId)) {
-            toast({
-                title: "Invalid Link",
-                description: "Please enter a valid profile link or public ID",
-                variant: "destructive",
-            })
-            return
-        }
-
-        setExtractedPublicId(publicId)
-        handleInviteByPublicId(publicId)
+    if (!token) {
+      toast({
+        title: "Authentication Error",
+        description: "Please log in to send invitations",
+        variant: "destructive",
+      });
+      return;
     }
 
-    const handleInviteByPublicId = async (publicId: string) => {
-        if (!token) {
-            toast({
-                title: "Authentication Error",
-                description: "Please log in to send invitations",
-                variant: "destructive",
-            })
-            return
-        }
+    try {
+      const result = await sendInvitation({
+        profileUrl: profileLink.trim(),
+        token,
+      }).unwrap();
 
-        try {
-            const result = await inviteContact({
-                invitationData: { publicId },
-                token,
-            }).unwrap()
+      toast({
+        title: "Invitation Sent",
+        description: result.message || "Invitation sent successfully",
+      });
 
-            toast({
-                title: "Invitation Sent",
-                description: `Invitation sent successfully to ${result.data.inviteeName}`,
-            })
+      handleClose();
+    } catch (error: any) {
+      console.error("Invitation error:", error);
+      const errorMessage =
+        error?.data?.message || error?.message || "Failed to send invitation";
+      toast({
+        title: "Invitation Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    }
+  };
 
-            handleClose()
-        } catch (error: any) {
-            console.error("Invitation error:", error)
+  const handleClose = () => {
+    // Reset state when closing
+    setProfileLink("");
+    onClose();
+  };
 
-            const errorMessage = error?.data?.message || error?.message || "Failed to send invitation"
+  const handleScanComplete = async (result: string) => {
+    setIsQRScannerOpen(false);
 
-            toast({
-                title: "Invitation Failed",
-                description: errorMessage,
-                variant: "destructive",
-            })
-        }
+    // The QR code should contain a profile link
+    setProfileLink(result);
+
+    if (!token) {
+      toast({
+        title: "Authentication Error",
+        description: "Please log in to send invitations",
+        variant: "destructive",
+      });
+      return;
     }
 
-    const selectContact = (contact: ContactSearchResult) => {
-        setName(contact.name)
-        setEmail(contact.email)
-        setPhone(contact.phone)
-        setStep(2)
+    try {
+      const invitationResult = await sendInvitation({
+        profileUrl: result,
+        token,
+      }).unwrap();
+
+      toast({
+        title: "Invitation Sent",
+        description:
+          invitationResult.message ||
+          "Invitation sent successfully from QR code",
+      });
+
+      handleClose();
+    } catch (error: any) {
+      console.error("QR Invitation error:", error);
+      const errorMessage =
+        error?.data?.message || error?.message || "Failed to send invitation";
+      toast({
+        title: "Invitation Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
     }
+  };
 
-    const handleAddManually = () => {
-        setName("")
-        setEmail("")
-        setPhone("")
-        setStep(2)
-    }
+  return (
+    <>
+      <Dialog open={isOpen} onOpenChange={handleClose}>
+        <DialogContent className="max-w-md max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <div className="flex items-center space-x-2">
+              <div className="p-2 bg-blue-100 rounded-full">
+                <UserPlus size={20} className="text-blue-600" />
+              </div>
+              <div>
+                <DialogTitle>Add Contact</DialogTitle>
+                <p className="text-sm text-gray-500">
+                  Enter a profile link to send a connection invitation
+                </p>
+              </div>
+            </div>
+          </DialogHeader>
 
-    const handleSubmit = () => {
-        if (!name || (!email && !phone)) {
-            toast({
-                title: "Error",
-                description: "Please provide at least a name and either an email or phone number",
-                variant: "destructive",
-            })
-            return
-        }
+          <div className="flex-1 overflow-hidden mb-4">
+            {/* Profile Link Input */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Profile Link
+                </label>
+                <Input
+                  placeholder="Enter profile link (e.g., https://app.com/welcome/user-id)"
+                  value={profileLink}
+                  onChange={(e) => setProfileLink(e.target.value)}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && handleProfileLinkSubmit()
+                  }
+                />
+              </div>
 
-        // For manual entry, you might want to implement a different endpoint
-        // or handle this differently based on your backend requirements
-        toast({
-            title: "Manual Entry",
-            description: "Manual contact entry is not yet implemented. Please use profile links or QR codes.",
-            variant: "destructive",
-        })
-    }
+              <Button
+                onClick={handleProfileLinkSubmit}
+                disabled={isInviting || !profileLink.trim()}
+                className="w-full bg-[#00B512] hover:bg-[#00B512]/90"
+              >
+                {isInviting ? (
+                  <>
+                    <Loader2 size={16} className="mr-2 animate-spin" />
+                    Sending Invitation...
+                  </>
+                ) : (
+                  <>
+                    <UserPlus size={16} className="mr-2" />
+                    Send Invitation
+                  </>
+                )}
+              </Button>
+            </div>
 
-    const handleClose = () => {
-        // Reset state when closing
-        setSearchTerm("")
-        setProfileLink("")
-        setName("")
-        setEmail("")
-        setPhone("")
-        setStep(1)
-        setSearchResults([])
-        setExtractedPublicId("")
-        onClose()
-    }
+            {/* QR Scanner Section */}
+            <Separator className="my-6" />
+            <div className="text-center">
+              <p className="text-sm text-gray-500 mb-3">
+                Or scan a contact's QR code
+              </p>
+              <Button
+                onClick={() => setIsQRScannerOpen(true)}
+                variant="outline"
+                disabled={isInviting}
+                className="w-full"
+              >
+                <QrCode size={16} className="mr-2" />
+                Scan QR Code
+              </Button>
+            </div>
+          </div>
 
-    const handleScanComplete = (result: string) => {
-        setIsQRScannerOpen(false)
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={handleClose}
+              disabled={isInviting}
+              className="w-full"
+            >
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-        // The QR code should contain a profile link
-        const publicId = extractPublicIdFromLink(result)
-
-        if (!publicId || !validatePublicId(publicId)) {
-            toast({
-                title: "Invalid QR Code",
-                description: "The scanned QR code does not contain a valid profile link",
-                variant: "destructive",
-            })
-            return
-        }
-
-        setExtractedPublicId(publicId)
-        setProfileLink(result)
-
-        // Automatically send invitation
-        handleInviteByPublicId(publicId)
-    }
-
-    return (
-        <>
-            <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <div className="flex items-center">
-                            <div className="bg-blue-100 p-2 rounded-full mr-3">
-                                <UserPlus size={20} className="text-blue-600" />
-                            </div>
-                            <DialogTitle>Add Contact</DialogTitle>
-                        </div>
-                    </DialogHeader>
-
-
-                    <div className="py-4">
-                        {/* Profile Link Input Section */}
-                        <div className="mb-6">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                <div className="flex items-center">
-                                    <Link size={16} className="mr-2" />
-                                    <span>Profile Link or Public ID</span>
-                                </div>
-                            </label>
-                            <div className="space-y-2">
-                                <Input
-                                    placeholder="Enter profile link or public ID (e.g., b92d32fae059)"
-                                    value={profileLink}
-                                    onChange={(e) => setProfileLink(e.target.value)}
-                                    onKeyDown={(e) => e.key === "Enter" && handleProfileLinkSubmit()}
-                                />
-                                <Button
-                                    onClick={handleProfileLinkSubmit}
-                                    disabled={isInviting || !profileLink.trim()}
-                                    className="w-full"
-                                >
-                                    {isInviting ? (
-                                        <>
-                                            <Loader2 size={16} className="mr-2 animate-spin" />
-                                            Sending Invitation...
-                                        </>
-                                    ) : (
-                                        "Send Invitation"
-                                    )}
-                                </Button>
-                            </div>
-                            {extractedPublicId && (
-                                <p className="text-xs text-green-600 mt-1">Extracted Public ID: {extractedPublicId}</p>
-                            )}
-                        </div>
-
-                        <Separator className="my-4" />
-
-                        {/* QR Code Scanner Section */}
-                        <div className="text-center mb-6">
-                            <p className="text-sm text-gray-500 mb-3">Or scan a QR code</p>
-                            <Button onClick={() => setIsQRScannerOpen(true)} variant="outline" disabled={isInviting}>
-                                <QrCode size={16} className="mr-2" />
-                                Scan QR Code
-                            </Button>
-                        </div>
-                    </div>
-                    <DialogFooter>
-
-                        <Button variant="outline" onClick={handleClose} disabled={isInviting}>
-                            Cancel
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* QR Code Scanner Modal */}
-            <QRCodeScanner
-                isOpen={isQRScannerOpen}
-                onClose={() => setIsQRScannerOpen(false)}
-                onScanComplete={handleScanComplete}
-                title="Scan Contact QR Code"
-            />
-        </>
-    )
+      {/* QR Code Scanner Modal */}
+      <QRCodeScanner
+        isOpen={isQRScannerOpen}
+        onClose={() => setIsQRScannerOpen(false)}
+        onScanComplete={handleScanComplete}
+        title="Scan Contact QR Code"
+      />
+    </>
+  );
 }

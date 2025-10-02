@@ -12,6 +12,7 @@ import { Select } from 'antd';
 import { useRegisterUserMutation } from '@/states/authentication';
 import { ClipLoader } from 'react-spinners';
 import PhoneInput from 'react-phone-input-2';
+// @ts-ignore
 import 'react-phone-input-2/lib/style.css'
 
 type FormValues = {

@@ -1,10 +1,17 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
 export const apiSlice = createApi({
-    reducerPath: 'api',
-    baseQuery: fetchBaseQuery({
-        baseUrl: process.env.NEXT_PUBLIC_API_URL
-    }),
-    tagTypes: ['Group', 'GroupMember', 'Notification'],
-    endpoints: () => ({})
-})
+  reducerPath: "api",
+  baseQuery: fetchBaseQuery({
+    baseUrl: process.env.NEXT_PUBLIC_API_URL,
+  }),
+  tagTypes: [
+    "Group",
+    "GroupMember",
+    "Notification",
+    "ContactInvitation",
+    "Contact",
+    "User",
+  ],
+  endpoints: () => ({}),
+});
