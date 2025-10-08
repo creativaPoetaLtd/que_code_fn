@@ -40,14 +40,14 @@ export const authenticationSlice = apiSlice.injectEndpoints({
         }),
         verifyOtp: builder.mutation({
             query: (data) => ({
-                url: '/users/verify-otp',
+                url: '/users/verify',
                 method: 'POST',
                 body: data,
             }),
         }),
         resendOtp: builder.mutation({
             query: (data) => ({
-                url: '/users/resend-otp',
+                url: '/users/resend-verification',
                 method: 'POST',
                 body: data,
             }),

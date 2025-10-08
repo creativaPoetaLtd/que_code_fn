@@ -11,6 +11,7 @@ const VerifyPageContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
+  const otp = searchParams.get('otp');
   
   const [isVerifying, setIsVerifying] = useState(true);
   const [verificationStatus, setVerificationStatus] = useState<'success' | 'error' | null>(null);
@@ -22,18 +23,19 @@ const VerifyPageContent = () => {
     hasVerified.current = true;
 
     const verifyEmail = async () => {
-      if (!token) {
+      if (!token || !otp) {
         setVerificationStatus('error');
         setIsVerifying(false);
         notification.error({
           message: 'Verification Failed',
-          description: 'No verification token provided.',
+          description: 'No verification token or OTP provided.',
           placement: 'topRight',
         });
         return;
       }
 
       try {
+
         // Try organization verification first, then fall back to user verification
         let response;
         let isOrganization = false;
@@ -46,6 +48,7 @@ const VerifyPageContent = () => {
           response = await axios.get(`${baseUrl}/users/verify-email?token=${token}`);
           isOrganization = false;
         }
+
         
         if (response.status === 200) {
           setVerificationStatus('success');
@@ -101,7 +104,7 @@ const VerifyPageContent = () => {
     };
 
     verifyEmail();
-  }, [token]);
+  }, [token, otp]);
 
   const renderContent = () => {
     if (isVerifying) {
