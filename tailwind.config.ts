@@ -1,5 +1,6 @@
-/** @type {import('tailwindcss').Config} */
-module.exports = {
+import type { Config } from 'tailwindcss'
+
+const config: Config = {
 	darkMode: ["class"],
 	content: ["./pages/**/*.{js,ts,jsx,tsx,mdx}", "./components/**/*.{js,ts,jsx,tsx,mdx}", "./app/**/*.{js,ts,jsx,tsx,mdx}", "./src/**/*.{js,ts,jsx,tsx,mdx}", "*.{js,ts,jsx,tsx,mdx}"],
 	theme: {
@@ -57,30 +58,30 @@ module.exports = {
 			},
 			keyframes: {
 				"accordion-down": {
-					from: { height: 0 },
+					from: { height: "0" },
 					to: { height: "var(--radix-accordion-content-height)" },
 				},
 				"accordion-up": {
 					from: { height: "var(--radix-accordion-content-height)" },
-					to: { height: 0 },
+					to: { height: "0" },
 				},
 				dropdownOpen: {
 					from: {
-						opacity: 0,
+						opacity: "0",
 						transform: "scale(0.95) translateY(-10px)",
 					},
 					to: {
-						opacity: 1,
+						opacity: "1",
 						transform: "scale(1) translateY(0)",
 					},
 				},
 				fadeIn: {
 					from: {
-						opacity: 0,
+						opacity: "0",
 						transform: "translateY(10px)",
 					},
 					to: {
-						opacity: 1,
+						opacity: "1",
 						transform: "translateY(0)",
 					},
 				},
@@ -95,3 +96,5 @@ module.exports = {
 	},
 	plugins: [require("tailwindcss-animate")],
 }
+
+export default config

@@ -35,13 +35,27 @@ const VerifyPageContent = () => {
       }
 
       try {
-        const response = await axios.get(`${baseUrl}/users/verify?token=${token}&otp=${otp}`);
+
+        // Try organization verification first, then fall back to user verification
+        let response;
+        let isOrganization = false;
+        
+        try {
+          response = await axios.get(`${baseUrl}/organizations/verify?token=${token}`);
+          isOrganization = true;
+        } catch (orgError) {
+          // If organization verification fails, try user verification
+          response = await axios.get(`${baseUrl}/users/verify-email?token=${token}`);
+          isOrganization = false;
+        }
+
         
         if (response.status === 200) {
           setVerificationStatus('success');
+          const entityType = isOrganization ? 'Organization' : 'Account';
           notification.success({
-            message: 'Email Verified Successfully',
-            description: 'Your email has been verified. You can now log in to your account.',
+            message: `${entityType} Verified Successfully`,
+            description: `Your ${entityType.toLowerCase()} has been verified. You can now log in to your account.`,
             placement: 'topRight',
           });
           
@@ -58,8 +72,8 @@ const VerifyPageContent = () => {
         if (errorMessage.toLowerCase().includes('already verified')) {
           setVerificationStatus('success');
           notification.success({
-            message: 'Email Already Verified',
-            description: 'Your email was already verified. You can now log in to your account.',
+            message: 'Already Verified',
+            description: 'Your account was already verified. You can now log in to your account.',
             placement: 'topRight',
           });
           
@@ -68,9 +82,19 @@ const VerifyPageContent = () => {
             router.replace('/auth/login');
           }, 3000);
         } else {
+          // Enhanced error handling for different types of verification failures
+          let errorTitle = 'Verification Failed';
+          let errorDescription = errorMessage;
+          
+          if (errorMessage.toLowerCase().includes('invalid') || errorMessage.toLowerCase().includes('expired')) {
+            errorDescription = 'The verification link is invalid or has expired. Please check your email for a new verification link.';
+          } else if (errorMessage.toLowerCase().includes('user')) {
+            errorDescription = 'An error occurred while fetching the user. Please try again or contact support.';
+          }
+          
           notification.error({
-            message: 'Verification Failed',
-            description: errorMessage,
+            message: errorTitle,
+            description: errorDescription,
             placement: 'topRight',
           });
         }
@@ -100,9 +124,9 @@ const VerifyPageContent = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h2 className="text-2xl font-bold text-green-600 mb-2">Email Verified!</h2>
+          <h2 className="text-2xl font-bold text-green-600 mb-2">Verification Successful!</h2>
           <p className="text-gray-600 text-center mb-6">
-            Your email has been successfully verified. You will be redirected to the login page shortly.
+            Your account has been successfully verified. You will be redirected to the login page shortly.
           </p>
           <button
             onClick={() => router.replace('/auth/login')}

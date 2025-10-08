@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import "antd/dist/reset.css";
 import "./globals.css";
 import { Poppins } from "next/font/google";
 import ClientProvider from "@/components/ClientProvider";

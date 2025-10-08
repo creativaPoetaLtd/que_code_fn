@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import axios from "axios";
 import Image from "next/image";
 import baseUrl from "@/helpers/baseUrl";
-import { getUserBalance } from '@/helpers/api';
+import { getUserBalance, getEntityBalance } from '@/helpers/api';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useNotifications } from "@/context/NotificationContext";
 import NotificationDropdown from "./notifications/NotificationDropdown";
@@ -67,7 +67,16 @@ export const Header = () => {
             setBalanceLoading(true);
             setBalanceError(null);
             try {
-                const response = await getUserBalance(userId);
+                // First try as user
+                let response;
+                try {
+                    response = await getEntityBalance(userId, 'user');
+                } catch (userError) {
+                    console.log('Header - user balance failed, trying organization:', userError);
+                    // If user fails, try as organization
+                    response = await getEntityBalance(userId, 'organization');
+                }
+                
                 if (response.success && response.data) {
                     setBalance(Number(response.data.balance));
                 } else {

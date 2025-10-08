@@ -10,6 +10,13 @@ export const authenticationSlice = apiSlice.injectEndpoints({
                 body: credentials,
             }),
         }),
+        loginOrganization: builder.mutation({
+            query: (credentials) => ({
+                url: '/organizations/login',
+                method: 'POST',
+                body: credentials,
+            }),
+        }),
         registerUser: builder.mutation({
             query: (userData) => ({
                 url: '/users/register',
@@ -21,11 +28,12 @@ export const authenticationSlice = apiSlice.injectEndpoints({
             })
         }),
         registerOrganization: builder.mutation({
-            query: (formData) => ({
-                url: '/organizations/register',
+            query: (data) => ({
+                url: '/organizations',
                 method: 'POST',
-                body: formData,
+                body: data,
                 headers: {
+                    'Content-Type': 'application/json',
                     Accept: 'application/json',
                 }
             })
@@ -44,6 +52,18 @@ export const authenticationSlice = apiSlice.injectEndpoints({
                 body: data,
             }),
         }),
+        verifyOrganization: builder.query({
+            query: (token) => ({
+                url: `/organizations/verify?token=${token}`,
+                method: 'GET',
+            }),
+        }),
+        getOrganizationCategories: builder.query({
+            query: () => ({
+                url: '/organization-categories',
+                method: 'GET',
+            }),
+        }),
 
     }),
     overrideExisting: false,
@@ -52,8 +72,11 @@ export const authenticationSlice = apiSlice.injectEndpoints({
 
 export const {
     useLoginMutation,
+    useLoginOrganizationMutation,
     useRegisterUserMutation,
     useRegisterOrganizationMutation,
     useVerifyOtpMutation,
-    useResendOtpMutation
+    useResendOtpMutation,
+    useVerifyOrganizationQuery,
+    useGetOrganizationCategoriesQuery
 } = authenticationSlice;

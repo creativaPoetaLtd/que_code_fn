@@ -4,7 +4,7 @@ import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import { Copy, CreditCard, Send, Share2 } from 'lucide-react';
 import baseUrl from '@/helpers/baseUrl';
-import { getUserBalance } from '@/helpers/api';
+import { getUserBalance, getEntityBalance } from '@/helpers/api';
 
 interface AccountInfoProps {
     userId: string;
@@ -54,13 +54,23 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
                 return;
             }
             await fetchUserDataById(userId);
-            // Fetch wallet balance
+            // Fetch wallet balance - try both user and organization
             setBalanceLoading(true);
             setBalanceError(null);
             try {
                 console.log('AccountInfo - fetching balance for userId:', userId);
-                const response = await getUserBalance(userId);
-                console.log('AccountInfo - balance response received:', response);
+                
+                // First try as user
+                let response;
+                try {
+                    response = await getEntityBalance(userId, 'user');
+                    console.log('AccountInfo - user balance response received:', response);
+                } catch (userError) {
+                    console.log('AccountInfo - user balance failed, trying organization:', userError);
+                    // If user fails, try as organization
+                    response = await getEntityBalance(userId, 'organization');
+                    console.log('AccountInfo - organization balance response received:', response);
+                }
                 
                 if (response.success && response.data) {
                     setBalance(Number(response.data.balance));
@@ -85,13 +95,17 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
 
                 console.log('Fetching user data for ID:', id);
 
+                // Try user endpoint first, then organization endpoint
                 const userUrl = `${baseUrl}/users/${id}`;
-                const profileUrl = `${baseUrl}/profiles?userId=${encodeURIComponent(id)}`;
+                const organizationUrl = `${baseUrl}/organizations/${id}`;
+                const profileUrl = `${baseUrl}/profiles?userId=${encodeURIComponent(id)}&organizationId=${encodeURIComponent(id)}`;
                 console.log('User API URL:', userUrl);
+                console.log('Organization API URL:', organizationUrl);
                 console.log('Profile API URL:', profileUrl);
 
-                const [userRes, profileRes] = await Promise.allSettled([
+                const [userRes, organizationRes, profileRes] = await Promise.allSettled([
                     axios.get(userUrl, { headers }),
+                    axios.get(organizationUrl, { headers }),
                     axios.get(profileUrl, { headers }),
                 ]);
 
@@ -99,14 +113,23 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
                 let lastName = '';
                 let qrCode = '';
 
+                // Check if user data was successful
                 if (userRes.status === 'fulfilled') {
                     const userData = userRes.value.data;
                     console.log('User data received:', userData);
                     firstName = userData.firstName || '';
                     lastName = userData.lastName || '';
+                } else if (organizationRes.status === 'fulfilled') {
+                    // If user failed but organization succeeded, use organization data
+                    const orgData = organizationRes.value.data;
+                    console.log('Organization data received:', orgData);
+                    firstName = orgData.name || '';
+                    lastName = '';
                 } else {
-                    const err = userRes.reason;
-                    console.error('Error fetching user data:', err);
+                    const userErr = userRes.reason;
+                    const orgErr = organizationRes.reason;
+                    console.error('Error fetching user data:', userErr);
+                    console.error('Error fetching organization data:', orgErr);
                 }
 
                 if (profileRes.status === 'fulfilled') {

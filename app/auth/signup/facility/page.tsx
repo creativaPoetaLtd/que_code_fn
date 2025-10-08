@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { notification } from 'antd';
 import type { NotificationArgsProps } from 'antd';
 import baseUrl from '@/helpers/baseUrl';
-import { useRegisterOrganizationMutation } from '@/states/authentication';
+import { useRegisterOrganizationMutation, useGetOrganizationCategoriesQuery } from '@/states/authentication';
 
 type NotificationPlacement = NotificationArgsProps['placement'];
 
@@ -14,52 +14,50 @@ interface FormData {
   name: string;
   type: string;
   email: string;
+  ownerName: string;
   ownerPhone: string;
   ownerEmail: string;
   contactPhone: string;
   tinNumber: string;
-  registrationNumber: string;
-  province: string;
-  district: string;
-  sector: string;
-  cell: string;
-  logo?: null | string;
-  operationalDocument?: null | string;
   password: string;
 }
 
+interface FormErrors {
+  [key: string]: string;
+}
+
+interface OrganizationCategory {
+  id: string;
+  name: string;
+  description: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 const MultiStepFormFacility = () => {
-  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState('');
+  const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [formData, setFormData] = useState<FormData>({
     name: '',
     type: '',
     email: '',
+    ownerName: '',
     ownerPhone: '',
     ownerEmail: '',
     contactPhone: '',
     tinNumber: '',
-    registrationNumber: '',
-    province: '',
-    district: '',
-    sector: '',
-    cell: '',
-    logo: null,
-    operationalDocument: null,
     password: '',
   });
   const router = useRouter();
   const [registerOrganization, { isLoading }] = useRegisterOrganizationMutation();
-  const nextStep = () => setStep(step + 1);
-  const prevStep = () => setStep(step - 1);
+  const { data: categories, isLoading: categoriesLoading, error: categoriesError, refetch: refetchCategories } = useGetOrganizationCategoriesQuery({});
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, files } = e.target;
-    if (files && files.length > 0) {
-      setFormData({ ...formData, [name]: files[0] });
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+    // Clear field error when user starts typing
+    if (formErrors[name]) {
+      setFormErrors({ ...formErrors, [name]: '' });
     }
   };
   const checkPasswordStrength = (password: string) => {
@@ -71,51 +69,129 @@ const MultiStepFormFacility = () => {
       setPasswordStrength('Strong');
     }
   };
+
+  const validateForm = (): boolean => {
+    const errors: FormErrors = {};
+    
+    // Required fields validation
+    if (!formData.name.trim()) errors.name = 'Organization name is required';
+    if (!formData.type) errors.type = 'Facility type is required';
+    if (!formData.email.trim()) errors.email = 'Organization email is required';
+    if (!formData.ownerName.trim()) errors.ownerName = 'Owner name is required';
+    if (!formData.ownerEmail.trim()) errors.ownerEmail = 'Owner email is required';
+    if (!formData.ownerPhone.trim()) errors.ownerPhone = 'Owner phone is required';
+    if (!formData.contactPhone.trim()) errors.contactPhone = 'Contact phone is required';
+    if (!formData.tinNumber.trim()) errors.tinNumber = 'TIN number is required';
+    if (!formData.password.trim()) errors.password = 'Password is required';
+    
+    // Categories loading validation
+    if (categoriesLoading) {
+      errors.type = 'Please wait for categories to load';
+    } else if (categoriesError) {
+      errors.type = 'Failed to load categories. Please refresh the page';
+    }
+    
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (formData.email && !emailRegex.test(formData.email)) {
+      errors.email = 'Please enter a valid email address';
+    }
+    if (formData.ownerEmail && !emailRegex.test(formData.ownerEmail)) {
+      errors.ownerEmail = 'Please enter a valid owner email address';
+    }
+    
+    // Password strength validation
+    if (formData.password && passwordStrength !== 'Strong') {
+      errors.password = 'Password must be strong (8+ characters, uppercase, number)';
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
   const handlePasswordBlur = () => {
     checkPasswordStrength(formData.password);
   };
+
   const handleSubmit = async () => {
-    if (passwordStrength !== 'Strong') {
+    // Validate form before submission
+    if (!validateForm()) {
       notification.error({
-        message: 'Password Strength Error',
-        description: 'Password is not strong enough.',
+        message: 'Validation Error',
+        description: 'Please fill in all required fields correctly.',
         placement: 'topRight' as NotificationPlacement,
       });
       return;
     }
 
-    const data = new FormData();
-    Object.keys(formData).forEach((key) => {
-      if (key === 'logo' || key === 'operationalDocument') {
-        if (formData[key]) {
-          data.append(key, formData[key]);
-        }
-      } else {
-        data.append(key, formData[key as keyof FormData] as string);
-      }
-    });
+    setLoading(true);
 
     try {
-      const response = await registerOrganization(data).unwrap();
-      // notification.success({
-      //   message: 'Success',
-      //   description: 'Organization registered successfully. Please check your email for verification.',
-      //   placement: 'topRight' as NotificationPlacement,
-      // });
-      // Redirect to OTP page with email parameter and any organization data from response
-      const orgData = response?.organization || response?.data || {};
-      const queryParams = new URLSearchParams({
+      // Create JSON data for submission
+      const data = {
+        name: formData.name,
+        type: formData.type,
         email: formData.email,
-        ...(orgData.id && { orgId: orgData.id }),
-        ...(orgData.token && { token: orgData.token })
-      });
-      router.push(`/auth/otp?${queryParams.toString()}`);
-    } catch (error: any) {
-      notification.error({
-        message: 'Error',
-        description: error?.data?.message || 'An error occurred',
+        ownerName: formData.ownerName,
+        ownerPhone: formData.ownerPhone,
+        ownerEmail: formData.ownerEmail,
+        contactPhone: formData.contactPhone,
+        tinNumber: formData.tinNumber,
+        password: formData.password,
+      };
+
+      const response = await registerOrganization(data).unwrap();
+      
+      notification.success({
+        message: 'Success',
+        description: 'Organization registered successfully. Please check your email for verification.',
         placement: 'topRight' as NotificationPlacement,
       });
+      
+      // Redirect to OTP page with organization email
+      const queryParams = new URLSearchParams({
+        email: formData.email,
+        type: 'organization'
+      });
+      
+      // Add organization ID if available in response
+      if (response?.data?.id) {
+        queryParams.append('orgId', response.data.id);
+      }
+      
+      // Add token if available in response
+      if (response?.data?.token) {
+        queryParams.append('token', response.data.token);
+      }
+      
+      router.push(`/auth/otp?${queryParams.toString()}`);
+      
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      
+      let errorMessage = 'An error occurred during registration';
+      
+      // Handle different error types
+      if (error?.status === 400) {
+        errorMessage = error?.data?.message || 'Invalid data provided';
+      } else if (error?.status === 401) {
+        errorMessage = 'Authentication failed';
+      } else if (error?.status === 403) {
+        errorMessage = 'Email verification required';
+      } else if (error?.status === 409) {
+        errorMessage = 'Organization with this email already exists';
+      } else if (error?.status === 500) {
+        errorMessage = 'Server error. Please try again later';
+      } else if (error?.data?.message) {
+        errorMessage = error.data.message;
+      }
+      
+      notification.error({
+        message: 'Registration Failed',
+        description: errorMessage,
+        placement: 'topRight' as NotificationPlacement,
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -126,165 +202,162 @@ const MultiStepFormFacility = () => {
         <div className="lg:w-1/2 md:px-16 px-4 my-auto justify-center flex flex-col">
           <h1 className="text-2xl font-bold mb-4">You are amazing 👋</h1>
           <p className="text-gray-600 mb-8">Today is a new day. {`It's`} your day. You shape it.</p>
-          <div className="flex w-full mx-auto justify-center items-center mb-8">
-            {[1, 2, 3].map((item) => (
-              <div key={item} className="flex mx-auto justify-center  w-full items-center">
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-white ${step >= item ? 'bg-green-500' : 'bg-gray-300'
-                    }`}
-                >
-                  {item}
-                </div>
-                {item !== 3 && (
-                  <div
-                    className={`w-10 h-1 ${step >= item ? 'bg-green-500' : 'bg-gray-300'}`}
-                  />
-                )}
-              </div>
-            ))}
-          </div>
 
-          {/* Form Steps */}
-          {step === 1 && (
+          {/* Organization Registration Form */}
             <div className='my-auto'>
-              <h2 className="text-xl font-semibold mb-4">Organization Information Details</h2>
+            <h2 className="text-xl font-semibold mb-4">Organization Registration</h2>
+              <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
+                  <div>
                 <input
                   type="text"
                   name="name"
-                  placeholder="Organization Name"
+                      placeholder="Organization Name *"
+                      value={formData.name}
                   onChange={handleInputChange}
-                  className="border p-2 rounded-lg w-full outline-none"
+                      className={`border p-2 rounded-lg w-full outline-none ${formErrors.name ? 'border-red-500' : ''}`}
                 />
+                    {formErrors.name && <p className="text-red-500 text-xs mt-1">{formErrors.name}</p>}
+                  </div>
+                  <div>
                 <input
                   type="password"
                   name="password"
-                  placeholder="Password"
+                      placeholder="Password *"
+                      value={formData.password}
                   onChange={handleInputChange}
                   onBlur={handlePasswordBlur}
-                  className="border p-2 rounded-lg w-full outline-none"
+                      className={`border p-2 rounded-lg w-full outline-none ${formErrors.password ? 'border-red-500' : ''}`}
                 />
                 {passwordStrength && (
                   <p className={`text-sm ${passwordStrength === 'Strong' ? 'text-green-600' : 'text-red-600'}`}>
                     Password Strength: {passwordStrength}
                   </p>
                 )}
-                <select name="type" onChange={handleInputChange} className="border p-2 rounded-lg w-full outline-none">
-                  <option value="">Select Facility Type</option>
-                  <option value="church">Church</option>
-                  <option value="school">School</option>
-                  <option value="shop">Shop</option>
+                    {formErrors.password && <p className="text-red-500 text-xs mt-1">{formErrors.password}</p>}
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <select 
+                      name="type" 
+                      value={formData.type}
+                      onChange={handleInputChange} 
+                      disabled={categoriesLoading}
+                      className={`border p-2 rounded-lg w-full outline-none ${formErrors.type ? 'border-red-500' : ''} ${categoriesLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      <option value="">
+                        {categoriesLoading ? 'Loading categories...' : 'Select Facility Type *'}
+                      </option>
+                      {categories?.map((category: OrganizationCategory) => (
+                        <option key={category.id} value={category.id} title={category.description}>
+                          {category.name}
+                        </option>
+                      ))}
                 </select>
+                    {formErrors.type && <p className="text-red-500 text-xs mt-1">{formErrors.type}</p>}
+                    {categoriesError && (
+                      <div className="text-red-500 text-xs mt-1">
+                        <p>Failed to load categories.</p>
+                        <button 
+                          onClick={() => refetchCategories()}
+                          className="text-blue-500 underline hover:text-blue-700 mt-1"
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <div>
                 <input
                   type="email"
                   name="email"
-                  placeholder="Organization Email"
+                      placeholder="Organization Email *"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      className={`border p-2 rounded-lg w-full outline-none ${formErrors.email ? 'border-red-500' : ''}`}
+                    />
+                    {formErrors.email && <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>}
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <input
+                      type="text"
+                      name="ownerName"
+                      placeholder="Owner Name *"
+                      value={formData.ownerName}
                   onChange={handleInputChange}
-                  className="border p-2 rounded-lg w-full outline-none"
+                      className={`border p-2 rounded-lg w-full outline-none ${formErrors.ownerName ? 'border-red-500' : ''}`}
                 />
+                    {formErrors.ownerName && <p className="text-red-500 text-xs mt-1">{formErrors.ownerName}</p>}
+                  </div>
+                  <div>
                 <input
                   type="email"
                   name="ownerEmail"
-                  placeholder="Owner Email"
+                      placeholder="Owner Email *"
+                      value={formData.ownerEmail}
                   onChange={handleInputChange}
-                  className="border p-2 rounded-lg w-full outline-none"
-                />
+                      className={`border p-2 rounded-lg w-full outline-none ${formErrors.ownerEmail ? 'border-red-500' : ''}`}
+                    />
+                    {formErrors.ownerEmail && <p className="text-red-500 text-xs mt-1">{formErrors.ownerEmail}</p>}
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
                 <input
                   type="text"
                   name="ownerPhone"
-                  placeholder="Organization Phone"
+                      placeholder="Owner Phone *"
+                      value={formData.ownerPhone}
+                      onChange={handleInputChange}
+                      className={`border p-2 rounded-lg w-full outline-none ${formErrors.ownerPhone ? 'border-red-500' : ''}`}
+                    />
+                    {formErrors.ownerPhone && <p className="text-red-500 text-xs mt-1">{formErrors.ownerPhone}</p>}
+                  </div>
+                  <div>
+                    <input
+                      type="text"
+                      name="contactPhone"
+                      placeholder="Contact Phone *"
+                      value={formData.contactPhone}
                   onChange={handleInputChange}
-                  className="border p-2 rounded-lg w-full outline-none"
-                />
+                      className={`border p-2 rounded-lg w-full outline-none ${formErrors.contactPhone ? 'border-red-500' : ''}`}
+                    />
+                    {formErrors.contactPhone && <p className="text-red-500 text-xs mt-1">{formErrors.contactPhone}</p>}
+                  </div>
+                </div>
+                
+              <div className="grid grid-cols-1 gap-4">
+                  <div>
                 <input
                   type="text"
                   name="tinNumber"
-                  placeholder="TIN Number"
-                  onChange={handleInputChange}
-                  className="border p-2 rounded-lg w-full outline-none"
-                />
+                      placeholder="TIN Number *"
+                      value={formData.tinNumber}
+                      onChange={handleInputChange}
+                      className={`border p-2 rounded-lg w-full outline-none ${formErrors.tinNumber ? 'border-red-500' : ''}`}
+                    />
+                    {formErrors.tinNumber && <p className="text-red-500 text-xs mt-1">{formErrors.tinNumber}</p>}
+                  </div>
+                </div>
               </div>
             </div>
-          )}
 
-          {step === 2 && (
-            <div>
-              <h2 className="text-xl  gap-4  flex flex-col skew-y-2 font-semibold mb-4">Address</h2>
-              <div className="grid grid-cols-2 gap-4">
-                <input
-                  type="text"
-                  name="province"
-                  placeholder="Province"
-                  onChange={handleInputChange}
-                  className="border p-2 rounded-lg w-full outline-none"
-                />
-                <input
-                  type="text"
-                  name="district"
-                  placeholder="District"
-                  onChange={handleInputChange}
-                  className="border p-2 rounded-lg w-full outline-none"
-                />
-              </div>
-              <div className="grid grid-cols-2 mt-4 gap-4">
-                <input
-                  type="text"
-                  name="Sector"
-                  placeholder="sector"
-                  onChange={handleInputChange}
-                  className="border p-2 rounded-lg w-full outline-none"
-                />
-                <input
-                  type="text"
-                  name="cell"
-                  placeholder="Cell"
-                  onChange={handleInputChange}
-                  className="border p-2 rounded-lg w-full outline-none"
-                />
-              </div>
-            </div>
-          )}
-
-          {step === 3 && (
-            <div>
-              <h2 className="text-xl font-semibold mb-4">Documents</h2>
-              <p className="text-gray-600 mb-6">Upload Operational license document and Logo.</p>
-              <input
-                type="file"
-                name="logo"
-                onChange={handleFileChange}
-                className="border p-2 rounded-lg w-full outline-none"
-              />
-              <input
-                type="file"
-                name="operationalDocument"
-                onChange={handleFileChange}
-                className="border p-2 mt-4 rounded-lg w-full outline-none"
-              />
-            </div>
-          )}
-
-          {/* Navigation Buttons */}
-          <div className="mt-8 flex justify-between">
-            {step > 1 && (
-              <button onClick={prevStep} className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg">
-                Previous
-              </button>
-            )}
-            {step < 3 ? (
-              <button onClick={nextStep} className="bg-green-500 text-white px-4 py-2 rounded-lg">
-                Next Step
-              </button>
-            ) : (
+          {/* Submit Button */}
+          <div className="mt-8 flex justify-center">
               <button
-                disabled={isLoading}
+                disabled={isLoading || loading}
                 onClick={handleSubmit}
-                className={`bg-green-500 text-white px-4 py-2 rounded-lg 
-                  ${isLoading ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'}`}
+              className={`bg-green-500 text-white px-8 py-3 rounded-lg 
+                  ${(isLoading || loading) ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'}`}
               >
-                {isLoading ? 'Loading...' : 'Submit'}
+              {(isLoading || loading) ? 'Creating Organization...' : 'Create Organization'}
               </button>
-            )}
           </div>
         </div>
         <ImageSection url="/Images/art3.png" />

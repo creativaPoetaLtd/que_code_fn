@@ -5,7 +5,7 @@ import Navigation from "./Navigation";
 import { ArrowLeft, QrCode, Users, CreditCard, Search, Plus, Send, Smartphone } from "lucide-react";
 import Image from "next/image";
 import { useRouter, useParams } from "next/navigation";
-import { getUserBalance, getAllUsers } from "@/helpers/api";
+import { getUserBalance, getAllUsers, getEntityBalance } from "@/helpers/api";
 import { useAuthToken } from "@/hooks/use-auth-token";
 import { getUserIdFromToken, isTokenExpired } from "@/utils/jwtUtils";
 
@@ -54,7 +54,16 @@ const TransferPageLayout = () => {
         if (!userId) {
           console.warn('No userId available, skipping balance fetch');
         } else {
-          const response = await getUserBalance(userId);
+          // First try as user
+          let response;
+          try {
+            response = await getEntityBalance(userId, 'user');
+          } catch (userError) {
+            console.log('TransferPageLayout - user balance failed, trying organization:', userError);
+            // If user fails, try as organization
+            response = await getEntityBalance(userId, 'organization');
+          }
+          
           if (response.success && response.data) {
             setBalance(Number(response.data.balance));
           } else {
