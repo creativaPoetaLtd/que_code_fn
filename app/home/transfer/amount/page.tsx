@@ -258,21 +258,8 @@ const AmountPage = () => {
       return;
     }
 
-    // Validate restricted funds for organization transfers
-    if (recipient.type === 'organization' && userRestrictions.length > 0 && organizationCategory) {
-      // Check if user has enough unrestricted funds for this transfer
-      const totalRestrictedAmount = userRestrictions.reduce((sum, restriction) => 
-        sum + parseFloat(restriction.amount.toString()), 0
-      );
-      const totalBalance = currentBalance || 0;
-      const availableUnrestrictedAmount = totalBalance - totalRestrictedAmount;
-      
-      if (availableUnrestrictedAmount < Number(amount)) {
-        const restrictedCategories = userRestrictions.map(r => r.categoryName).join(', ');
-        setError(`Insufficient unrestricted balance. Available: ${availableUnrestrictedAmount.toLocaleString()} RWF, Required: ${Number(amount).toLocaleString()} RWF. You have restricted funds for: ${restrictedCategories}`);
-        return;
-      }
-    }
+    // Note: For organization transfers, allow backend to enforce unrestricted vs restricted balance rules.
+    // We still show informational UI above, but do not block submission here.
 
 
 
