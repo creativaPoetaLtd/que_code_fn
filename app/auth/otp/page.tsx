@@ -238,7 +238,6 @@ const OTPVerification: React.FC = () => {
 
                             <div className="flex items-center justify-between pt-4">
                                 <Button
-                                    // type="link"
                                     onClick={resendOTP}
                                     disabled={!canResend || loading}
                                     className="text-white font-medium"
