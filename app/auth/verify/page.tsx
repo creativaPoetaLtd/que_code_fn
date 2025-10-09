@@ -3,8 +3,7 @@ import { useEffect, useState, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { notification } from 'antd';
 import { ClipLoader } from 'react-spinners';
-import axios from 'axios';
-import baseUrl from '@/helpers/baseUrl';
+import { useVerifyOrganizationQuery, useVerifyOtpMutation } from '@/states/authentication';
 import ImageSection from '../ImageSection';
 
 const VerifyPageContent = () => {
@@ -12,99 +11,139 @@ const VerifyPageContent = () => {
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
   const otp = searchParams.get('otp');
-  
-  const [isVerifying, setIsVerifying] = useState(true);
+
   const [verificationStatus, setVerificationStatus] = useState<'success' | 'error' | null>(null);
+  const [skipOrgQuery, setSkipOrgQuery] = useState(false);
   const hasVerified = useRef(false);
 
+  const {
+    data: orgVerificationData,
+    error: orgVerificationError,
+    isLoading: isOrgVerifying,
+    isError: isOrgError,
+  } = useVerifyOrganizationQuery(token!, {
+    skip: !token || skipOrgQuery
+  });
+
+  const [verifyOtp, {
+    isLoading: isUserVerifying,
+    error: userVerificationError,
+  }] = useVerifyOtpMutation();
+
+  const isVerifying = isOrgVerifying || isUserVerifying;
+
   useEffect(() => {
-    // Prevent duplicate verification calls
     if (hasVerified.current) return;
-    hasVerified.current = true;
 
-    const verifyEmail = async () => {
-      if (!token || !otp) {
-        setVerificationStatus('error');
-        setIsVerifying(false);
-        notification.error({
-          message: 'Verification Failed',
-          description: 'No verification token or OTP provided.',
-          placement: 'topRight',
-        });
-        return;
-      }
+    if (!token) {
+      setVerificationStatus('error');
+      notification.error({
+        message: 'Verification Failed',
+        description: 'No verification token provided.',
+        placement: 'topRight',
+      });
+      return;
+    }
+  }, [token]);
 
-      try {
+  useEffect(() => {
+    if (orgVerificationData && !hasVerified.current) {
+      hasVerified.current = true;
+      setVerificationStatus('success');
+      notification.success({
+        message: 'Organization Verified Successfully',
+        description: 'Your organization has been verified. You can now log in to your account.',
+        placement: 'topRight',
+      });
 
-        // Try organization verification first, then fall back to user verification
-        let response;
-        let isOrganization = false;
-        
-        try {
-          response = await axios.get(`${baseUrl}/organizations/verify?token=${token}`);
-          isOrganization = true;
-        } catch (orgError) {
-          // If organization verification fails, try user verification
-          response = await axios.get(`${baseUrl}/users/verify-email?token=${token}`);
-          isOrganization = false;
-        }
+      setTimeout(() => {
+        router.replace('/auth/login');
+      }, 3000);
+    }
+  }, [orgVerificationData, router]);
+  useEffect(() => {
+    if (isOrgError && orgVerificationError && !hasVerified.current) {
+      const error = orgVerificationError as any;
 
-        
-        if (response.status === 200) {
-          setVerificationStatus('success');
-          const entityType = isOrganization ? 'Organization' : 'Account';
-          notification.success({
-            message: `${entityType} Verified Successfully`,
-            description: `Your ${entityType.toLowerCase()} has been verified. You can now log in to your account.`,
-            placement: 'topRight',
-          });
-          
-          // Redirect to login page after 3 seconds
-          setTimeout(() => {
-            router.replace('/auth/login');
-          }, 3000);
-        }
-      } catch (error: any) {
-        setVerificationStatus('error');
-        const errorMessage = error.response?.data?.message || 'Verification failed. Please try again.';
-        
-        // Handle "already verified" case specifically
-        if (errorMessage.toLowerCase().includes('already verified')) {
-          setVerificationStatus('success');
-          notification.success({
-            message: 'Already Verified',
-            description: 'Your account was already verified. You can now log in to your account.',
-            placement: 'topRight',
-          });
-          
-          // Redirect to login page after 3 seconds
-          setTimeout(() => {
-            router.replace('/auth/login');
-          }, 3000);
-        } else {
-          // Enhanced error handling for different types of verification failures
-          let errorTitle = 'Verification Failed';
-          let errorDescription = errorMessage;
-          
-          if (errorMessage.toLowerCase().includes('invalid') || errorMessage.toLowerCase().includes('expired')) {
-            errorDescription = 'The verification link is invalid or has expired. Please check your email for a new verification link.';
-          } else if (errorMessage.toLowerCase().includes('user')) {
-            errorDescription = 'An error occurred while fetching the user. Please try again or contact support.';
-          }
-          
+      if (error?.status === 400 || error?.status === 404) {
+        setSkipOrgQuery(true);
+
+        if (!otp) {
+          setVerificationStatus('error');
           notification.error({
-            message: errorTitle,
-            description: errorDescription,
+            message: 'OTP Required',
+            description: 'OTP is required for user verification. Please check your email for the OTP.',
             placement: 'topRight',
           });
+          return;
         }
-      } finally {
-        setIsVerifying(false);
-      }
-    };
+        verifyOtp({ token, otp })
+          .unwrap()
+          .then((response) => {
+            hasVerified.current = true;
+            setVerificationStatus('success');
+            notification.success({
+              message: 'Account Verified Successfully',
+              description: 'Your account has been verified. You can now log in to your account.',
+              placement: 'topRight',
+            });
 
-    verifyEmail();
-  }, [token, otp]);
+            setTimeout(() => {
+              router.replace('/auth/login');
+            }, 3000);
+          })
+          .catch((userErr) => {
+            hasVerified.current = true;
+            handleVerificationError(userErr);
+          });
+      } else {
+        hasVerified.current = true;
+        handleVerificationError(error);
+      }
+    }
+  }, [isOrgError, orgVerificationError, otp, token, verifyOtp, router]);
+
+  const handleVerificationError = (error: any) => {
+    setVerificationStatus('error');
+    const errorMessage = error?.data?.message || error?.message || 'Verification failed. Please try again.';
+
+    if (errorMessage.toLowerCase().includes('already verified')) {
+      setVerificationStatus('success');
+      notification.success({
+        message: 'Already Verified',
+        description: 'Your account was already verified. You can now log in to your account.',
+        placement: 'topRight',
+      });
+
+      setTimeout(() => {
+        router.replace('/auth/login');
+      }, 3000);
+    } else if (errorMessage.toLowerCase().includes('otp is required')) {
+      notification.error({
+        message: 'OTP Required',
+        description: 'OTP is required for user verification. Please check your email for the OTP.',
+        placement: 'topRight',
+      });
+    } else if (errorMessage.toLowerCase().includes('invalid') || errorMessage.toLowerCase().includes('expired')) {
+      notification.error({
+        message: 'Invalid or Expired Token',
+        description: 'The verification link is invalid or has expired. Please request a new verification link.',
+        placement: 'topRight',
+      });
+    } else if (errorMessage.toLowerCase().includes('not found')) {
+      notification.error({
+        message: 'Account Not Found',
+        description: 'No account found with the provided verification token.',
+        placement: 'topRight',
+      });
+    } else {
+      notification.error({
+        message: 'Verification Failed',
+        description: errorMessage,
+        placement: 'topRight',
+      });
+    }
+  };
 
   const renderContent = () => {
     if (isVerifying) {
@@ -148,7 +187,7 @@ const VerifyPageContent = () => {
           </div>
           <h2 className="text-2xl font-bold text-red-600 mb-2">Verification Failed</h2>
           <p className="text-gray-600 text-center mb-6">
-            The verification link is invalid or has expired. Please check your email for a new verification link.
+            We couldn't verify your account. Please check your email for a new verification link or contact support.
           </p>
           <div className="flex gap-4">
             <button
@@ -196,4 +235,4 @@ const VerifyPage = () => {
   );
 };
 
-export default VerifyPage; 
+export default VerifyPage;
