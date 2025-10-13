@@ -46,7 +46,6 @@ const useTokenInfo = () => {
       const payload = JSON.parse(atob(base64));
       return payload;
     } catch (error) {
-      console.error('Error decoding token:', error);
       return null;
     }
   };
@@ -114,24 +113,19 @@ const LoginForm: React.FC = () => {
 
   const onSubmit = async (data: LoginFormInputs) => {
     try {
-      console.log('Attempting login with credentials:', { email: data.email, password: '[HIDDEN]' });
-      
+
       // Try organization login first, then fall back to regular login
       let response;
       let isOrganization = false;
-      
+
       try {
-        console.log('Trying organization login...');
         response = await loginOrganization(data).unwrap();
         isOrganization = true;
-        console.log('Organization login successful:', response);
       } catch (orgError) {
-        console.log('Organization login failed, trying regular login...');
         response = await login(data).unwrap();
         isOrganization = false;
-        console.log('Regular login successful:', response);
       }
-      
+
       const { token, account } = response;
 
       setToken(token);
@@ -145,7 +139,7 @@ const LoginForm: React.FC = () => {
       // Determine account type for appropriate messaging
       const accountType = isOrganization ? 'organization' : (tokenInfo.accountType || 'user');
       const entityType = accountType === 'organization' ? 'Organization' : 'User';
-      
+
       notification.success({
         message: 'Login Successful',
         description: `Welcome back, ${tokenInfo.name}!`,
@@ -155,15 +149,9 @@ const LoginForm: React.FC = () => {
       // Redirect based on account type
       redirectAfterLogin(tokenInfo.id, accountType);
     } catch (error) {
-      console.error('Login error:', error);
       const err = error as APIError;
       const status = err?.status;
       const errorMessage = err?.data?.message || 'An error occurred during login';
-      
-      // Log detailed error information for debugging
-      console.log('Error status:', status);
-      console.log('Error message:', errorMessage);
-      console.log('Full error response:', err?.data);
 
       if (status === 404) {
         notification.error({
@@ -229,13 +217,11 @@ const LoginForm: React.FC = () => {
   useEffect(() => {
     const handleTokenMessage = (event: MessageEvent) => {
       if (event.origin !== mainUrl) {
-        console.error('Received message from unauthorized origin:', event.origin);
         return;
       }
 
       try {
         if (event.data && event.data.token) {
-          console.log('Token received from Google login');
           setToken(event.data.token);
 
           // Decode token to get user information
@@ -258,7 +244,6 @@ const LoginForm: React.FC = () => {
           }
         }
       } catch (error) {
-        console.error('Error processing message:', error);
         notification.error({
           message: 'Login Error',
           description: 'An error occurred during Google login.',
