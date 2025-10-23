@@ -127,7 +127,8 @@ export const transferMoney = async ({
   description, 
   categoryId,
   type = 'transfer',
-  applyConstraints = false
+  applyConstraints = false,
+  pin
 }: {
   senderUserId?: string;
   senderOrganizationId?: string;
@@ -138,6 +139,7 @@ export const transferMoney = async ({
   categoryId?: string;
   type?: string;
   applyConstraints?: boolean;
+  pin?: string;
 }) => {
   // Validate that exactly one sender and one receiver is provided
   const senderCount = (senderUserId ? 1 : 0) + (senderOrganizationId ? 1 : 0);
@@ -170,7 +172,8 @@ export const transferMoney = async ({
       description,
       categoryId,
       type,
-      applyConstraints
+      applyConstraints,
+      pin
     };
     
     // Add sender
@@ -452,6 +455,75 @@ export const getWalletRestrictions = async (walletId: string) => {
 // Transaction Details Function
 export const getTransactionDetails = async (transactionId: string) => {
   const res = await axios.get(`${baseUrl}/transactions/${transactionId}`, {
+    headers: getAuthHeaders()
+  });
+  return res.data;
+};
+
+// PIN-related API functions
+export const setupPin = async (pin: string) => {
+  const res = await axios.post(`${baseUrl}/users/pin/setup`, { pin }, {
+    headers: {
+      ...getAuthHeaders(),
+      "Content-Type": "application/json"
+    }
+  });
+  return res.data;
+};
+
+export const verifyPin = async (pin: string) => {
+  const res = await axios.post(`${baseUrl}/users/pin/verify`, { pin }, {
+    headers: {
+      ...getAuthHeaders(),
+      "Content-Type": "application/json"
+    }
+  });
+  return res.data;
+};
+
+export const changePin = async (currentPin: string, newPin: string) => {
+  const res = await axios.put(`${baseUrl}/users/pin/change`, { currentPin, newPin }, {
+    headers: {
+      ...getAuthHeaders(),
+      "Content-Type": "application/json"
+    }
+  });
+  return res.data;
+};
+
+export const resetPinAttempts = async () => {
+  const res = await axios.post(`${baseUrl}/users/pin/reset-attempts`, {}, {
+    headers: getAuthHeaders()
+  });
+  return res.data;
+};
+
+// PIN reset for locked accounts (requires verification)
+export const requestPinReset = async (verificationMethod: 'email' | 'sms') => {
+  const res = await axios.post(`${baseUrl}/users/pin/request-reset`, { verificationMethod }, {
+    headers: getAuthHeaders()
+  });
+  return res.data;
+};
+
+export const confirmPinReset = async (resetToken: string, newPin: string) => {
+  const res = await axios.post(`${baseUrl}/users/pin/confirm-reset`, { resetToken, newPin }, {
+    headers: getAuthHeaders()
+  });
+  return res.data;
+};
+
+// Check if user has PIN set up
+export const checkUserPinStatus = async () => {
+  const res = await axios.get(`${baseUrl}/users/pin/status`, {
+    headers: getAuthHeaders()
+  });
+  return res.data;
+};
+
+// Get detailed PIN status including attempts and lockout info
+export const getPinStatus = async () => {
+  const res = await axios.get(`${baseUrl}/users/pin/status`, {
     headers: getAuthHeaders()
   });
   return res.data;

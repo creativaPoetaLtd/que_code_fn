@@ -6,10 +6,12 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { ArrowLeft, Check, Shield, AlertCircle, Eye, EyeOff } from "lucide-react";
 import Navigation from "@/components/Navigation";
-import { getUserBalance, transferMoney, getTransactionCategories, getOrganizationBalance, getUserWallet, getWalletRestrictions, getEntityBalance, getCurrentUserInfo } from "@/helpers/api";
+import { getUserBalance, transferMoney, getTransactionCategories, getOrganizationBalance, getUserWallet, getWalletRestrictions, getEntityBalance, getCurrentUserInfo, checkUserPinStatus } from "@/helpers/api";
 import baseUrl from "@/helpers/baseUrl";
 import { useAuthToken } from "@/hooks/use-auth-token";
 import { getUserIdFromToken, isTokenExpired } from "@/utils/jwtUtils";
+import { PinSetupModal } from "@/components/PinSetupModal";
+import { PinResetModal } from "@/components/PinResetModal";
 
 interface Recipient {
   id: string;
@@ -42,6 +44,20 @@ const AmountPage = () => {
   const [organizationCategory, setOrganizationCategory] = useState<any>(null);
   const [organizationCategoryLoading, setOrganizationCategoryLoading] = useState(false);
   const { getToken } = useAuthToken();
+  const [showPinSetupModal, setShowPinSetupModal] = useState(false);
+  const [showPinResetModal, setShowPinResetModal] = useState(false);
+  const [checkingPinStatus, setCheckingPinStatus] = useState(true);
+
+  const handlePinSetupSuccess = async () => {
+    // After PIN setup, close modal and user can continue
+    setShowPinSetupModal(false);
+  };
+
+  const handlePinResetSuccess = () => {
+    // After PIN reset, close modal and allow user to try again
+    setShowPinResetModal(false);
+    setError("");
+  };
 
   const quickAmounts = [500, 1000, 2500, 5000, 10000, 25000];
 
@@ -101,11 +117,15 @@ const AmountPage = () => {
     } else {
       // If no recipient, redirect back
       router.push('/home/transfer');
+      return;
     }
-    // Fetch balance
-    const fetchBalance = async () => {
+
+    // Check PIN status and fetch balance
+    const checkPinAndBalance = async () => {
       setBalanceLoading(true);
+      setCheckingPinStatus(true);
       setBalanceError(null);
+      
       try {
         const token = getToken();
         let userId: string | null | undefined;
@@ -113,8 +133,19 @@ const AmountPage = () => {
           userId = getUserIdFromToken(token);
         }
         if (!userId) throw new Error('User not found');
-        
-        // Try user balance first, then organization balance if user fails
+
+        // Check PIN status first
+        try {
+          const pinStatus = await checkUserPinStatus();
+          if (!pinStatus.success || !pinStatus.data.hasPinSet) {
+            setShowPinSetupModal(true);
+          }
+        } catch (pinError) {
+          console.error('PIN status check failed:', pinError);
+          // Continue to balance check even if PIN check fails
+        }
+
+        // Fetch balance
         let response;
         try {
           response = await getEntityBalance(userId, 'user');
@@ -133,10 +164,12 @@ const AmountPage = () => {
         setBalanceError('Could not fetch balance');
       } finally {
         setBalanceLoading(false);
+        setCheckingPinStatus(false);
       }
     };
-    fetchBalance();
-  }, [router]);
+    
+    checkPinAndBalance();
+  }, [router, getToken]);
 
   // Load transaction categories
   useEffect(() => {
@@ -326,7 +359,8 @@ const AmountPage = () => {
         amount: Number(amount),
         description: "Payment",
         categoryId: selectedCategory?.id,
-        applyConstraints: applyConstraints
+        applyConstraints: applyConstraints,
+        pin
       });
       
       console.log('Transfer successful:', result);
@@ -339,7 +373,31 @@ const AmountPage = () => {
       router.push("/home/transfer/success");
     } catch (err: any) {
       console.error('Transfer failed:', err);
-      setError(err?.response?.data?.message || err?.message || 'Transfer failed');
+      
+      // Check if PIN setup is required
+      if (err?.response?.data?.requiresPinSetup) {
+        setShowPinSetupModal(true);
+        setTransferInProgress(false);
+        setLoading(false);
+        return;
+      }
+      
+      // Check if PIN is locked
+      if (err?.response?.data?.message?.includes('locked') || err?.response?.data?.lockedUntil) {
+        setShowPinResetModal(true);
+        setTransferInProgress(false);
+        setLoading(false);
+        return;
+      }
+      
+      // Handle PIN attempt errors with more specific feedback
+      const errorMessage = err?.response?.data?.message || err?.message || 'Transfer failed';
+      if (errorMessage.includes('PIN') && errorMessage.includes('attempt')) {
+        setError(`${errorMessage} You can reset your PIN if you've forgotten it.`);
+      } else {
+        setError(errorMessage);
+      }
+      
       setTransferInProgress(false);
       setLoading(false);
     }
@@ -373,7 +431,14 @@ const AmountPage = () => {
 
       {/* Main Content */}
       <div className="lg:ml-20 p-6 max-w-2xl mx-auto">
-        {step === 1 ? (
+        {checkingPinStatus ? (
+          /* Loading State */
+          <div className="text-center py-12">
+            <div className="w-12 h-12 border-4 border-green-200 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Setting up transfer...</h2>
+            <p className="text-gray-500">Checking security settings</p>
+          </div>
+        ) : step === 1 ? (
           // Step 1: Amount Entry
           <>
             {/* Recipient Card */}
@@ -644,7 +709,11 @@ const AmountPage = () => {
                       setError("");
                     }}
                     placeholder="••••"
-                    className="w-full text-2xl font-bold text-center py-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition"
+                    className={`w-full text-2xl font-bold text-center py-4 border rounded-xl focus:ring-2 transition ${
+                      pin.length === 0 ? 'border-gray-200 focus:ring-green-500 focus:border-green-500' :
+                      pin.length < 4 ? 'border-yellow-300 focus:ring-yellow-500 focus:border-yellow-500' :
+                      'border-green-500 focus:ring-green-500 focus:border-green-500'
+                    }`}
                     maxLength={4}
                   />
                   <button
@@ -656,6 +725,19 @@ const AmountPage = () => {
                   </button>
                 </div>
 
+                {/* PIN validation feedback */}
+                <div className="mt-2 text-center">
+                  {pin.length > 0 && pin.length < 4 && (
+                    <p className="text-sm text-yellow-600">Enter {4 - pin.length} more digit{4 - pin.length !== 1 ? 's' : ''}</p>
+                  )}
+                  {pin.length === 4 && (
+                    <p className="text-sm text-green-600 flex items-center justify-center">
+                      <Check className="w-4 h-4 mr-1" />
+                      PIN ready
+                    </p>
+                  )}
+                </div>
+
                 {error && (
                   <div className="mt-4 bg-red-50 border border-red-200 rounded-xl p-3">
                     <div className="flex items-center space-x-2 text-red-700">
@@ -664,6 +746,16 @@ const AmountPage = () => {
                     </div>
                   </div>
                 )}
+
+                <div className="mt-4 text-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowPinResetModal(true)}
+                    className="text-sm text-blue-600 hover:text-blue-800 underline"
+                  >
+                    Forgot PIN?
+                  </button>
+                </div>
 
                 <button
                   type="submit"
@@ -677,6 +769,17 @@ const AmountPage = () => {
           </>
         )}
       </div>
+
+      <PinSetupModal
+        open={showPinSetupModal}
+        onOpenChange={setShowPinSetupModal}
+        onSuccess={handlePinSetupSuccess}
+      />
+      <PinResetModal
+        open={showPinResetModal}
+        onOpenChange={setShowPinResetModal}
+        onSuccess={handlePinResetSuccess}
+      />
     </div>
   );
 };
