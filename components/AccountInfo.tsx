@@ -222,8 +222,7 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
                             </button>
                             <button
                                 onClick={() => {
-                                    localStorage.removeItem('authToken');
-                                    window.location.href = '/auth/login';
+                                    router.push('/logout');
                                 }}
                                 className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
                             >
