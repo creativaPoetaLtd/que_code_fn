@@ -19,7 +19,7 @@ import axios from "axios"
 import baseUrl from '@/helpers/baseUrl';
 import { useUserInfo } from "@/hooks/use-user-info"
 import { useAuthToken } from "@/hooks/use-auth-token"
-import { changePin } from "@/helpers/api"
+import { changePin, getPinStatus } from "@/helpers/api"
 
 export default function SettingsPage() {
     // Personal Info State
@@ -865,16 +865,21 @@ export default function SettingsPage() {
     const fetchPinStatus = async () => {
         setLoadingPinStatus(true);
         try {
-            // We'll need to add a PIN status API endpoint
-            // For now, we'll use a placeholder
-            setPinStatus({
-                hasPin: true, // This should come from API
-                isLocked: false,
-                attemptsLeft: 3,
-                lockedUntil: null
-            });
+            const result = await getPinStatus();
+            if (result.success) {
+                setPinStatus({
+                    hasPin: result.data?.hasPinSet,
+                    isLocked: result.data.isLocked,
+                    attemptsLeft: result.data.maxAttempts - result.data.pinAttempts,
+                    lockedUntil: result.data.lockedUntil ? new Date(result.data.lockedUntil) : null
+                });
+            } else {
+                console.error('Failed to fetch PIN status:', result.message);
+                setPinStatus(null);
+            }
         } catch (error) {
             console.error('Failed to fetch PIN status:', error);
+            setPinStatus(null);
         } finally {
             setLoadingPinStatus(false);
         }
@@ -1642,7 +1647,7 @@ export default function SettingsPage() {
                                                         pinStatus.attemptsLeft <= 1 ? 'text-red-600' :
                                                         pinStatus.attemptsLeft <= 2 ? 'text-yellow-600' : 'text-green-600'
                                                     }`}>
-                                                        {pinStatus.attemptsLeft}/3
+                                                        {pinStatus.attemptsLeft}/5
                                                     </span>
                                                 </div>
 
