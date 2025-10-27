@@ -19,6 +19,7 @@ import axios from "axios"
 import baseUrl from '@/helpers/baseUrl';
 import { useUserInfo } from "@/hooks/use-user-info"
 import { useAuthToken } from "@/hooks/use-auth-token"
+import { changePin, getPinStatus } from "@/helpers/api"
 
 export default function SettingsPage() {
     // Personal Info State
@@ -229,6 +230,7 @@ export default function SettingsPage() {
     useEffect(() => {
         if (userId && userInfo.isAuthenticated) {
         fetchUserAndProfile();
+        fetchPinStatus();
         }
     }, [userId, userInfo.isAuthenticated, getToken]);
 
@@ -824,6 +826,23 @@ export default function SettingsPage() {
     const [newPassword, setNewPassword] = useState("")
     const [confirmPassword, setConfirmPassword] = useState("")
 
+    // PIN states
+    const [showCurrentPin, setShowCurrentPin] = useState(false)
+    const [showNewPin, setShowNewPin] = useState(false)
+    const [currentPin, setCurrentPin] = useState("")
+    const [newPin, setNewPin] = useState("")
+    const [confirmNewPin, setConfirmNewPin] = useState("")
+    const [changingPin, setChangingPin] = useState(false)
+
+    // PIN status state
+    const [pinStatus, setPinStatus] = useState<{
+      hasPin: boolean;
+      isLocked: boolean;
+      attemptsLeft: number;
+      lockedUntil: Date | null;
+    } | null>(null);
+    const [loadingPinStatus, setLoadingPinStatus] = useState(false);
+
     const handleChangePassword = () => {
         if (newPassword !== confirmPassword) {
             toast({
@@ -841,6 +860,78 @@ export default function SettingsPage() {
         setCurrentPassword("")
         setNewPassword("")
         setConfirmPassword("")
+    }
+
+    const fetchPinStatus = async () => {
+        setLoadingPinStatus(true);
+        try {
+            const result = await getPinStatus();
+            if (result.success) {
+                setPinStatus({
+                    hasPin: result.data?.hasPinSet,
+                    isLocked: result.data.isLocked,
+                    attemptsLeft: result.data.maxAttempts - result.data.pinAttempts,
+                    lockedUntil: result.data.lockedUntil ? new Date(result.data.lockedUntil) : null
+                });
+            } else {
+                console.error('Failed to fetch PIN status:', result.message);
+                setPinStatus(null);
+            }
+        } catch (error) {
+            console.error('Failed to fetch PIN status:', error);
+            setPinStatus(null);
+        } finally {
+            setLoadingPinStatus(false);
+        }
+    }
+
+    const handleChangePin = async () => {
+        if (newPin !== confirmNewPin) {
+            toast({
+                title: "PINs don't match",
+                description: "New PIN and confirm PIN must match.",
+                variant: "destructive",
+            })
+            return
+        }
+
+        if (newPin.length !== 4 || !/^\d{4}$/.test(newPin)) {
+            toast({
+                title: "Invalid PIN",
+                description: "PIN must be exactly 4 digits.",
+                variant: "destructive",
+            })
+            return
+        }
+
+        setChangingPin(true)
+        try {
+            const result = await changePin(currentPin, newPin)
+            if (result.success) {
+                toast({
+                    title: "PIN changed",
+                    description: "Your transaction PIN has been changed successfully.",
+                })
+                setCurrentPin("")
+                setNewPin("")
+                setConfirmNewPin("")
+            } else {
+                toast({
+                    title: "Failed to change PIN",
+                    description: result.message || "An error occurred while changing your PIN.",
+                    variant: "destructive",
+                })
+            }
+        } catch (error: any) {
+            console.error('PIN change error:', error)
+            toast({
+                title: "Failed to change PIN",
+                description: error?.response?.data?.message || "An error occurred while changing your PIN.",
+                variant: "destructive",
+            })
+        } finally {
+            setChangingPin(false)
+        }
     }
 
     return (
@@ -1512,6 +1603,73 @@ export default function SettingsPage() {
                             <div className="grid gap-6 md:grid-cols-2">
                                 <Card>
                                     <CardHeader>
+                                        <CardTitle>PIN Status</CardTitle>
+                                        <CardDescription>Your transaction PIN security status</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        {loadingPinStatus ? (
+                                            <div className="flex items-center space-x-2">
+                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-500"></div>
+                                                <span>Loading PIN status...</span>
+                                            </div>
+                                        ) : pinStatus ? (
+                                            <div className="space-y-3">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-sm font-medium">PIN Setup:</span>
+                                                    <div className="flex items-center space-x-2">
+                                                        {pinStatus.hasPin ? (
+                                                            <>
+                                                                <CheckCircle className="w-4 h-4 text-green-600" />
+                                                                <span className="text-sm text-green-600">Set up</span>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <AlertCircle className="w-4 h-4 text-red-600" />
+                                                                <span className="text-sm text-red-600">Not set up</span>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {pinStatus.isLocked && (
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-sm font-medium">Status:</span>
+                                                        <div className="flex items-center space-x-2">
+                                                            <AlertCircle className="w-4 h-4 text-red-600" />
+                                                            <span className="text-sm text-red-600">Locked</span>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-sm font-medium">Attempts Left:</span>
+                                                    <span className={`text-sm font-medium ${
+                                                        pinStatus.attemptsLeft <= 1 ? 'text-red-600' :
+                                                        pinStatus.attemptsLeft <= 2 ? 'text-yellow-600' : 'text-green-600'
+                                                    }`}>
+                                                        {pinStatus.attemptsLeft}/5
+                                                    </span>
+                                                </div>
+
+                                                {pinStatus.lockedUntil && (
+                                                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                                                        <p className="text-sm text-red-700">
+                                                            <strong>PIN Locked:</strong> Too many failed attempts.
+                                                            Try again after {pinStatus.lockedUntil.toLocaleTimeString()}.
+                                                        </p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className="text-center py-4 text-gray-500">
+                                                Unable to load PIN status
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
+
+                                <Card>
+                                    <CardHeader>
                                         <CardTitle>Change Password</CardTitle>
                                         <CardDescription>Update your password to keep your account secure</CardDescription>
                                     </CardHeader>
@@ -1561,6 +1719,92 @@ export default function SettingsPage() {
                                             disabled={!currentPassword || !newPassword || !confirmPassword}
                                         >
                                             Update password
+                                        </Button>
+                                    </CardFooter>
+                                </Card>
+
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Change Transaction PIN</CardTitle>
+                                        <CardDescription>Update your 4-digit PIN for secure transactions</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="current-pin">Current PIN</Label>
+                                            <div className="relative">
+                                                <Input
+                                                    id="current-pin"
+                                                    type={showCurrentPin ? "text" : "password"}
+                                                    inputMode="numeric"
+                                                    pattern="[0-9]*"
+                                                    maxLength={4}
+                                                    value={currentPin}
+                                                    onChange={(e) => {
+                                                        const value = e.target.value.replace(/\D/g, "");
+                                                        setCurrentPin(value);
+                                                    }}
+                                                    placeholder="••••"
+                                                />
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="absolute right-0 top-0 h-full"
+                                                    onClick={() => setShowCurrentPin(!showCurrentPin)}
+                                                >
+                                                    {showCurrentPin ? <EyeOff size={16} /> : <Eye size={16} />}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="new-pin">New PIN</Label>
+                                            <div className="relative">
+                                                <Input
+                                                    id="new-pin"
+                                                    type={showNewPin ? "text" : "password"}
+                                                    inputMode="numeric"
+                                                    pattern="[0-9]*"
+                                                    maxLength={4}
+                                                    value={newPin}
+                                                    onChange={(e) => {
+                                                        const value = e.target.value.replace(/\D/g, "");
+                                                        setNewPin(value);
+                                                    }}
+                                                    placeholder="••••"
+                                                />
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="absolute right-0 top-0 h-full"
+                                                    onClick={() => setShowNewPin(!showNewPin)}
+                                                >
+                                                    {showNewPin ? <EyeOff size={16} /> : <Eye size={16} />}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="confirm-new-pin">Confirm new PIN</Label>
+                                            <Input
+                                                id="confirm-new-pin"
+                                                type="password"
+                                                inputMode="numeric"
+                                                pattern="[0-9]*"
+                                                maxLength={4}
+                                                value={confirmNewPin}
+                                                onChange={(e) => {
+                                                    const value = e.target.value.replace(/\D/g, "");
+                                                    setConfirmNewPin(value);
+                                                }}
+                                                placeholder="••••"
+                                            />
+                                        </div>
+                                    </CardContent>
+                                    <CardFooter>
+                                        <Button
+                                            onClick={handleChangePin}
+                                            className="bg-[#00B512] hover:bg-[#009E10]"
+                                            disabled={!currentPin || !newPin || !confirmNewPin || changingPin}
+                                        >
+                                            {changingPin ? "Updating..." : "Update PIN"}
                                         </Button>
                                     </CardFooter>
                                 </Card>
