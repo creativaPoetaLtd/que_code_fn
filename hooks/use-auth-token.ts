@@ -1,4 +1,6 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
+import { useRouter } from 'next/navigation';
+import { decodeJWT, isTokenExpired } from '@/utils/jwtUtils';
 
 const setCookie = (name: string, value: string, days: number = 1) => {
     const expires = new Date();
@@ -88,18 +90,38 @@ const getRawCookie = (name: string): string | null => {
 
 const TOKEN_KEY = 'token';
 
-export const useAuthToken = () => {
+export const useAuthToken = (enableAutoRedirect: boolean = true) => {
+    const router = useRouter();
+    const isRedirectingRef = useRef(false);
+
     const getToken = useCallback(() => {
-        if (typeof window !== 'undefined') {
-            return getCookie(TOKEN_KEY);
+        if (typeof window === 'undefined') return null;
+
+        const token = getCookie(TOKEN_KEY);
+        if (!token) return null;
+
+        // Validate JWT token
+        if (isTokenExpired(token)) {
+            console.warn('JWT token is expired, removing from cookies');
+            deleteCookie(TOKEN_KEY);
+            deleteCookie(`${TOKEN_KEY}_expires`);
+            return null;
         }
-        return null;
+
+        return token;
     }, []);
 
     const setToken = useCallback((token: string, expiryDays: number = 7) => {
-        if (typeof window !== 'undefined') {
-            setCookie(TOKEN_KEY, token, expiryDays);
+        if (typeof window === 'undefined') return false;
+
+        const payload = decodeJWT(token);
+        if (!payload) {
+            console.error('Invalid JWT token provided');
+            return false;
         }
+
+        setCookie(TOKEN_KEY, token, expiryDays);
+        return true;
     }, []);
 
     const removeToken = useCallback(() => {
@@ -113,17 +135,72 @@ export const useAuthToken = () => {
         return getToken() !== null;
     }, [getToken]);
 
-    const cleanupExpiredTokens = useCallback(() => {
-        if (typeof window !== 'undefined') {
-            getToken();
+    const redirectToLogin = useCallback(() => {
+        if (isRedirectingRef.current) return;
+
+        isRedirectingRef.current = true;
+        console.log('Token expired, redirecting to login...');
+
+        removeToken();
+        router.push('/auth/login');
+
+        setTimeout(() => {
+            isRedirectingRef.current = false;
+        }, 1000);
+    }, [router, removeToken]);
+
+    const checkTokenExpiration = useCallback(() => {
+        if (!enableAutoRedirect || typeof window === 'undefined') return;
+
+        const token = getCookie(TOKEN_KEY);
+        if (token && isTokenExpired(token)) {
+            console.warn('Token expired during check');
+            redirectToLogin();
         }
-    }, [getToken]);
+    }, [enableAutoRedirect, redirectToLogin]);
+
+    const cleanupExpiredTokens = useCallback(() => {
+        if (typeof window === 'undefined') return;
+
+        const token = getCookie(TOKEN_KEY);
+        if (token && isTokenExpired(token)) {
+            console.log('Cleaning up expired token');
+            removeToken();
+            if (enableAutoRedirect) {
+                redirectToLogin();
+            }
+        }
+    }, [removeToken, enableAutoRedirect, redirectToLogin]);
+
+    // Auto-check on mount and setup interval
+    useEffect(() => {
+        if (!enableAutoRedirect || typeof window === 'undefined') return;
+
+        checkTokenExpiration();
+        const interval = setInterval(checkTokenExpiration, 30000);
+
+        const handleFocus = () => checkTokenExpiration();
+        const handleVisibilityChange = () => {
+            if (!document.hidden) checkTokenExpiration();
+        };
+
+        window.addEventListener('focus', handleFocus);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            clearInterval(interval);
+            window.removeEventListener('focus', handleFocus);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [enableAutoRedirect, checkTokenExpiration]);
 
     return {
         getToken,
         setToken,
         removeToken,
         isTokenValid,
-        cleanupExpiredTokens
+        cleanupExpiredTokens,
+        checkTokenExpiration,
+        redirectToLogin
     };
 };

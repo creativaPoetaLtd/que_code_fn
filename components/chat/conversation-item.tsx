@@ -16,8 +16,8 @@ export default function ConversationItem({ conversation, isActive, onClick }: Co
     return (
         <div
             className={cn(
-                "p-3 sm:p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors",
-                isActive ? "bg-gray-50" : "",
+                "p-3 sm:p-4 border-b border-gray-100 cursor-pointer hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-200 transform hover:translate-x-1",
+                isActive ? "bg-gradient-to-r from-blue-100 to-indigo-100 border-l-4 border-l-blue-500 shadow-sm" : "",
             )}
             onClick={onClick}
         >
