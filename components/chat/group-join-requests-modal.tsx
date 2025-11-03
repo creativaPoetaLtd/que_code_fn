@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Loader2, AlertCircle, Check, X, Users } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { useGetGroupJoinRequestsQuery, useRespondToJoinRequestMutation } from "@/states/groupSlice"
+import { useGetGroupJoinRequestsQuery, useRespondToJoinRequestEnhancedMutation } from "@/states/groupSlice"
 import type { GroupJoinRequest } from "@/types/group.types"
 
 interface GroupJoinRequestsModalProps {
@@ -37,7 +37,7 @@ const GroupJoinRequestsModal: React.FC<GroupJoinRequestsModalProps> = ({
         },
     )
 
-    const [respondToJoinRequest, { isLoading: isResponding }] = useRespondToJoinRequestMutation()
+    const [respondToJoinRequest, { isLoading: isResponding }] = useRespondToJoinRequestEnhancedMutation()
     const [processingRequestId, setProcessingRequestId] = useState<string | null>(null)
 
     const requests: GroupJoinRequest[] = requestsData?.data?.requests || []
@@ -45,7 +45,11 @@ const GroupJoinRequestsModal: React.FC<GroupJoinRequestsModalProps> = ({
     const handleRespond = async (requestId: string, action: "approve" | "reject") => {
         setProcessingRequestId(requestId)
         try {
-            await respondToJoinRequest({ groupId, requestId, action, token }).unwrap()
+            await respondToJoinRequest({ 
+                requestId, 
+                action: action === "reject" ? "deny" : "approve", 
+                token 
+            }).unwrap()
             toast({
                 title: "Success",
                 description: `Request ${action === "approve" ? "approved" : "rejected"} successfully.`,

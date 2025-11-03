@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { User, Shield, Bell, CreditCard, Lock, Eye, EyeOff, Upload, ChevronRight, CheckCircle, AlertCircle, Smartphone, Globe, LogOut } from 'lucide-react'
 import { toast } from "@/hooks/use-toast"
 import Input from "@/components/ui/Input-ant"
-import Label from "@/components/ui/Label"
+import { Label } from "@/components/ui/label"
 import { Layout } from "antd"
 import Navigation from "@/components/Navigation"
 import React from "react"

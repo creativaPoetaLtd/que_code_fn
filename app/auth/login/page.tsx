@@ -98,10 +98,28 @@ const LoginForm: React.FC = () => {
       // User is already logged in with valid token
       redirectAfterLogin(tokenInfo.id, tokenInfo.accountType);
     }
-  }, [router]);
+  }, [router, returnUrl]);
 
   const redirectAfterLogin = (userId: string, accountType?: string) => {
-    // Redirect based on account type
+    // Check if there's a returnUrl to redirect to
+    if (returnUrl && returnUrl !== '/home') {
+      try {
+        // Handle both relative and absolute URLs
+        if (returnUrl.startsWith('/')) {
+          router.replace(returnUrl);
+          return;
+        } else if (returnUrl.startsWith('http')) {
+          // For absolute URLs, extract the path and query
+          const url = new URL(returnUrl);
+          router.replace(url.pathname + url.search);
+          return;
+        }
+      } catch (error) {
+        console.error('Error parsing returnUrl:', error);
+      }
+    }
+    
+    // Default redirect based on account type
     if (accountType === 'organization') {
       // For organizations, redirect to a different dashboard or home page
       router.replace(`/home/${userId}`);

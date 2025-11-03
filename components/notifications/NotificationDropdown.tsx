@@ -169,7 +169,7 @@ const NotificationDropdown: React.FC = () => {
 
             toast({
                 title: "Action Successful",
-                description: `Group invitation ${action === "accept" ? "accepted" : "declined"}.`,
+                description: `Group invitation ${action === "accept" ? "accepted" : "rejected"}.`,
             })
         } catch (error: any) {
             console.error("Failed to perform invitation action:", error)
@@ -219,7 +219,7 @@ const NotificationDropdown: React.FC = () => {
                 return "Reject"
             case "accept":
                 return "Accept"
-            case "decline":
+            case "reject":
                 return "Decline"
             default:
                 return actionType.charAt(0).toUpperCase() + actionType.slice(1)

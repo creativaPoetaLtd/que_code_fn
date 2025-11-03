@@ -154,9 +154,10 @@ export default function ChatPageClean() {
 
     // Event handlers
     const handleStartNewChat = (contact: any) => {
+        console.log("Starting new chat with:", contact)
         const newConversation = {
             id: Date.now(),
-            name: `${contact.contactUser.firstName} ${contact.contactUser.lastName}`,
+            name: `${contact.otherUser.firstName} ${contact.otherUser.lastName}`,
             isGroup: false as const,
             isContributionGroup: false as const,
             lastMessage: "",
@@ -164,9 +165,9 @@ export default function ChatPageClean() {
             unread: 0,
             avatar: "/placeholder.svg?height=40&width=40",
             online: false,
-            email: contact.contactUser.email,
-            phone: contact.contactUser.phone || "",
-            address: contact.contactUser.address || "",
+            email: contact.otherUser.email,
+            phone: contact.otherUser.phone || "",
+            address: contact.otherUser.address || "",
             joinedAt: contact.respondedAt || contact.invitedAt,
         }
 

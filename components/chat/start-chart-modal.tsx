@@ -31,19 +31,19 @@ export default function StartChatModal({ isOpen, onClose, onStartChat, existingC
     } = useGetAcceptedContactsQuery(token as string, {
         skip: !token,
     })
-
-    const contacts = acceptedContacts?.data || []
+    console.log("Accepted Contacts:", acceptedContacts)
+    const contacts = acceptedContacts?.contacts || []
 
     // Filter out contacts that already have conversations
     const availableContacts = contacts.filter((contact: any) => {
-        const contactName = `${contact.contactUser.firstName} ${contact.contactUser.lastName}`
+        const contactName = `${contact.otherUser.firstName} ${contact.otherUser.lastName}`
         return !existingConversations.some((conv) => !conv.isGroup && conv.name === contactName)
     })
 
     // Filter contacts based on search term
     const filteredContacts = availableContacts.filter((contact: any) => {
-        const fullName = `${contact.contactUser.firstName} ${contact.contactUser.lastName}`.toLowerCase()
-        const email = contact.contactUser.email.toLowerCase()
+        const fullName = `${contact.otherUser.firstName} ${contact.otherUser.lastName}`.toLowerCase()
+        const email = contact.otherUser.email.toLowerCase()
         const search = searchTerm.toLowerCase()
         return fullName.includes(search) || email.includes(search)
     })
@@ -54,7 +54,7 @@ export default function StartChatModal({ isOpen, onClose, onStartChat, existingC
         setSearchTerm("")
         toast({
             title: "Chat Started",
-            description: `Started a new conversation with ${contact.contactUser.firstName} ${contact.contactUser.lastName}`,
+            description: `Started a new conversation with ${contact.otherUser.firstName} ${contact.otherUser.lastName}`,
         })
     }
 
@@ -134,20 +134,20 @@ export default function StartChatModal({ isOpen, onClose, onStartChat, existingC
                                             <Avatar className="h-12 w-12 mr-3">
                                                 <AvatarImage
                                                     src={`/placeholder.svg?height=48&width=48`}
-                                                    alt={`${contact.contactUser.firstName} ${contact.contactUser.lastName}`}
+                                                    alt={`${contact.otherUser.firstName} ${contact.otherUser.lastName}`}
                                                 />
                                                 <AvatarFallback className="bg-blue-100 text-blue-600">
-                                                    {contact.contactUser.firstName?.charAt(0)}
-                                                    {contact.contactUser.lastName?.charAt(0)}
+                                                    {contact.otherUser.firstName?.charAt(0)}
+                                                    {contact.otherUser.lastName?.charAt(0)}
                                                 </AvatarFallback>
                                             </Avatar>
                                             <div className="flex-1">
                                                 <p className="font-medium text-gray-900">
-                                                    {contact.contactUser.firstName} {contact.contactUser.lastName}
+                                                    {contact.otherUser.firstName} {contact.otherUser.lastName}
                                                 </p>
-                                                <p className="text-sm text-gray-500">{contact.contactUser.email}</p>
+                                                <p className="text-sm text-gray-500">{contact.otherUser.email}</p>
                                                 <p className="text-xs text-gray-400">
-                                                    Connected {new Date(contact.respondedAt || contact.invitedAt).toLocaleDateString()}
+                                                    Connected {new Date(contact.createdAt).toLocaleDateString()}
                                                 </p>
                                             </div>
                                         </div>

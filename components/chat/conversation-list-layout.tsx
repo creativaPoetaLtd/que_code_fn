@@ -11,8 +11,10 @@ import EmptyState from "./empty-state"
 import StartChatModal from "./start-chart-modal"
 import GroupsModal from "./groups-modal"
 import JoinGroupByLinkModal from "./join-group-by-link-modal"
+import CreateGroupModalUpdated from "./create-group-modal"
 import type { Conversation } from "@/types"
 import { Send } from 'lucide-react'
+import { useAuthToken } from "@/hooks/use-auth-token"
 
 interface ConversationListLayoutProps {
     conversations: Conversation[]
@@ -44,6 +46,10 @@ export default function ConversationListLayout({
     const [isStartChatModalOpen, setIsStartChatModalOpen] = useState<boolean>(false)
     const [isGroupsModalOpen, setIsGroupsModalOpen] = useState<boolean>(false)
     const [isJoinGroupByLinkModalOpen, setIsJoinGroupByLinkModalOpen] = useState<boolean>(false)
+    const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState<boolean>(false)
+
+    const { getToken } = useAuthToken()
+    const token = getToken()
 
     // Filter conversations
     const filteredConversations = conversations.filter((conv) => {
@@ -64,9 +70,8 @@ export default function ConversationListLayout({
 
     return (
         <div
-            className={`${
-                showOnMobile ? "flex" : "hidden"
-            } md:flex flex-col w-full md:w-80 lg:w-96 border-r border-gray-200 bg-white h-full overflow-hidden`}
+            className={`${showOnMobile ? "flex" : "hidden"
+                } md:flex flex-col w-full md:w-80 lg:w-96 border-r border-gray-200 bg-white h-full overflow-hidden`}
         >
             {/* Header */}
             <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50">
@@ -83,6 +88,7 @@ export default function ConversationListLayout({
                     onAddContact={onAddContact}
                     onStartNewChat={() => setIsStartChatModalOpen(true)}
                     onViewMyGroups={() => setIsGroupsModalOpen(true)}
+                    onCreateGroup={() => setIsCreateGroupModalOpen(true)}
                     onJoinGroupByLink={() => setIsJoinGroupByLinkModalOpen(true)}
                     onViewContactRequests={onViewContactRequests}
                     pendingRequestsCount={pendingRequestsCount}
@@ -118,7 +124,7 @@ export default function ConversationListLayout({
                                 </p>
                             </div>
                         )}
-                        
+
                         {filteredConversations.map((conversation) => (
                             <div key={conversation.id} className="relative group">
                                 <ConversationItem
@@ -126,7 +132,7 @@ export default function ConversationListLayout({
                                     isActive={activeConversation.id === conversation.id}
                                     onClick={() => onConversationSelect(conversation)}
                                 />
-                                
+
                                 {/* Quick Send Money Button - Only for users */}
                                 {!conversation.isGroup && (
                                     <Button
@@ -183,6 +189,11 @@ export default function ConversationListLayout({
                     onJoinGroup?.(group)
                     setIsJoinGroupByLinkModalOpen(false)
                 }}
+            />
+            <CreateGroupModalUpdated
+                isOpen={isCreateGroupModalOpen}
+                onClose={() => setIsCreateGroupModalOpen(false)}
+                token={token}
             />
         </div>
     )

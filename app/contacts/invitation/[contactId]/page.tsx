@@ -1,308 +1,332 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { useParams, useSearchParams, useRouter } from "next/navigation"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { CheckCircle, XCircle, Loader2, AlertCircle, ArrowLeft, Home, User, Mail, Calendar } from "lucide-react"
-import { useRespondToInvitationMutation, useGetPendingInvitationsQuery } from "@/states/contactSlice"
-import { useAuthToken } from "@/hooks/use-auth-token"
-import { get } from "http"
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuthToken } from "@/hooks/use-auth-token";
+import { 
+  useGetInvitationByTokenQuery,
+  useRespondToInvitationByTokenMutation,
+  useRespondToInvitationEnhancedMutation
+} from "@/states/contactSlice";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "@/hooks/use-toast";
+import { 
+  Check, 
+  X, 
+  Clock, 
+  User, 
+  Mail, 
+  AlertCircle,
+  ArrowLeft,
+  UserPlus
+} from "lucide-react";
 
-type PageState = "loading" | "ready" | "responding" | "success" | "error" | "not-found" | "unauthorized"
-
-export default function InvitationDetailPage() {
-    const params = useParams()
-    const searchParams = useSearchParams()
-    const router = useRouter()
-    const { getToken } = useAuthToken()
-    const authToken = getToken();
-
-    const [pageState, setPageState] = useState<PageState>("loading")
-    const [errorMessage, setErrorMessage] = useState<string>("")
-    const [invitation, setInvitation] = useState<any>(null)
-    const [responseAction, setResponseAction] = useState<"accept" | "reject" | null>(null)
-
-    const contactId = params.contactId as string
-    const action = searchParams.get("action") as "accept" | "reject" | null
-
-    const {
-        data: pendingInvitations,
-        isLoading: isPendingLoading,
-        error: pendingError,
-    } = useGetPendingInvitationsQuery(authToken as string, {
-        skip: !authToken,
-    })
-
-    const [respondToInvitation, { isLoading: isResponding }] = useRespondToInvitationMutation()
-
-    useEffect(() => {
-        if (!authToken) {
-            setPageState("unauthorized")
-            setErrorMessage("Please log in to view this invitation.")
-            return
-        }
-
-        if (!contactId) {
-            setPageState("not-found")
-            setErrorMessage("Invalid invitation link.")
-            return
-        }
-
-        // If we have pending invitations data, find the specific invitation
-        if (pendingInvitations?.data?.received) {
-            const foundInvitation = pendingInvitations.data.received.find((inv: any) => inv.id === contactId)
-
-            if (foundInvitation) {
-                setInvitation(foundInvitation)
-                setPageState("ready")
-            } else if (!isPendingLoading) {
-                setPageState("not-found")
-                setErrorMessage("Invitation not found or has already been responded to.")
-            }
-        }
-    }, [authToken, contactId, pendingInvitations, isPendingLoading])
-
-    useEffect(() => {
-        // If there's an action in the URL, auto-respond
-        if (action && invitation && pageState === "ready") {
-            handleResponse(action)
-        }
-    }, [action, invitation, pageState])
-
-    const handleResponse = async (selectedAction: "accept" | "reject") => {
-        if (!authToken || !invitation) return
-
-        try {
-            setPageState("responding")
-            setResponseAction(selectedAction)
-
-            const result = await respondToInvitation({
-                contactId: invitation.id,
-                responseData: { action: selectedAction },
-                token: authToken,
-            }).unwrap()
-
-            setPageState("success")
-        } catch (error: any) {
-            console.error("Invitation response error:", error)
-
-            let errorMsg = "An unexpected error occurred. Please try again."
-
-            if (error?.data?.message) {
-                errorMsg = error.data.message
-            } else if (error?.message) {
-                errorMsg = error.message
-            }
-
-            setErrorMessage(errorMsg)
-            setPageState("error")
-        }
-    }
-
-    const renderContent = () => {
-        switch (pageState) {
-            case "loading":
-                return (
-                    <Card className="w-full max-w-md mx-auto">
-                        <CardContent className="flex flex-col items-center justify-center p-8">
-                            <Loader2 size={48} className="animate-spin text-blue-600 mb-4" />
-                            <h2 className="text-xl font-semibold mb-2">Loading Invitation</h2>
-                            <p className="text-gray-600 text-center">Please wait while we load the invitation details...</p>
-                        </CardContent>
-                    </Card>
-                )
-
-            case "ready":
-                return (
-                    <Card className="w-full max-w-md mx-auto">
-                        <CardHeader>
-                            <CardTitle className="flex items-center">
-                                <User size={20} className="mr-2 text-blue-600" />
-                                Contact Invitation
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-                            {/* Inviter Details */}
-                            <div className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg">
-                                <Avatar className="h-12 w-12">
-                                    <AvatarFallback className="text-lg">
-                                        {invitation.inviter.firstName?.charAt(0)}
-                                        {invitation.inviter.lastName?.charAt(0)}
-                                    </AvatarFallback>
-                                </Avatar>
-                                <div className="flex-1">
-                                    <h3 className="font-semibold text-lg">
-                                        {invitation.inviter.firstName} {invitation.inviter.lastName}
-                                    </h3>
-                                    <div className="flex items-center text-sm text-gray-600 mt-1">
-                                        <Mail size={14} className="mr-1" />
-                                        {invitation.inviter.email}
-                                    </div>
-                                    <div className="flex items-center text-sm text-gray-500 mt-1">
-                                        <Calendar size={14} className="mr-1" />
-                                        Invited: {new Date(invitation.invitedAt).toLocaleDateString()}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Invitation Message */}
-                            <div className="text-center p-4 bg-blue-50 rounded-lg">
-                                <p className="text-gray-700">
-                                    <strong>
-                                        {invitation.inviter.firstName} {invitation.inviter.lastName}
-                                    </strong>{" "}
-                                    wants to add you to their contacts.
-                                </p>
-                            </div>
-
-                            {/* Action Buttons */}
-                            <div className="flex gap-3">
-                                <Button
-                                    onClick={() => handleResponse("accept")}
-                                    disabled={isResponding}
-                                    className="flex-1 bg-green-600 hover:bg-green-700"
-                                >
-                                    <CheckCircle size={16} className="mr-2" />
-                                    Accept
-                                </Button>
-                                <Button
-                                    onClick={() => handleResponse("reject")}
-                                    disabled={isResponding}
-                                    variant="outline"
-                                    className="flex-1 text-red-600 border-red-600 hover:bg-red-50"
-                                >
-                                    <XCircle size={16} className="mr-2" />
-                                    Decline
-                                </Button>
-                            </div>
-
-                            {/* Navigation */}
-                            <div className="text-center pt-4 border-t">
-                                <Button variant="ghost" onClick={() => router.push("/contacts")} className="text-sm">
-                                    <ArrowLeft size={14} className="mr-1" />
-                                    Back to Contacts
-                                </Button>
-                            </div>
-                        </CardContent>
-                    </Card>
-                )
-
-            case "responding":
-                return (
-                    <Card className="w-full max-w-md mx-auto">
-                        <CardContent className="flex flex-col items-center justify-center p-8">
-                            <Loader2 size={48} className="animate-spin text-blue-600 mb-4" />
-                            <h2 className="text-xl font-semibold mb-2">
-                                {responseAction === "accept" ? "Accepting" : "Declining"} Invitation
-                            </h2>
-                            <p className="text-gray-600 text-center">Please wait...</p>
-                        </CardContent>
-                    </Card>
-                )
-
-            case "success":
-                const isAccepted = responseAction === "accept"
-                return (
-                    <Card className="w-full max-w-md mx-auto">
-                        <CardContent className="flex flex-col items-center justify-center p-8">
-                            <div className={`p-3 rounded-full mb-4 ${isAccepted ? "bg-green-100" : "bg-orange-100"}`}>
-                                {isAccepted ? (
-                                    <CheckCircle size={48} className="text-green-600" />
-                                ) : (
-                                    <XCircle size={48} className="text-orange-600" />
-                                )}
-                            </div>
-                            <h2 className="text-xl font-semibold mb-2">Invitation {isAccepted ? "Accepted" : "Declined"}</h2>
-                            <p className="text-gray-600 text-center mb-6">
-                                {isAccepted
-                                    ? `You have successfully accepted the contact invitation from ${invitation?.inviter.firstName} ${invitation?.inviter.lastName}. They have been added to your contacts.`
-                                    : `You have declined the contact invitation from ${invitation?.inviter.firstName} ${invitation?.inviter.lastName}.`}
-                            </p>
-                            <div className="flex gap-3">
-                                <Button onClick={() => router.push("/contacts")} className="flex items-center">
-                                    <ArrowLeft size={16} className="mr-2" />
-                                    View Contacts
-                                </Button>
-                                <Button variant="outline" onClick={() => router.push("/home")} className="flex items-center">
-                                    <Home size={16} className="mr-2" />
-                                    Home
-                                </Button>
-                            </div>
-                        </CardContent>
-                    </Card>
-                )
-
-            case "error":
-                return (
-                    <Card className="w-full max-w-md mx-auto">
-                        <CardContent className="flex flex-col items-center justify-center p-8">
-                            <div className="p-3 rounded-full bg-red-100 mb-4">
-                                <AlertCircle size={48} className="text-red-600" />
-                            </div>
-                            <h2 className="text-xl font-semibold mb-2">Error Processing Invitation</h2>
-                            <p className="text-gray-600 text-center mb-6">{errorMessage}</p>
-                            <div className="flex gap-3">
-                                <Button onClick={() => setPageState("ready")} className="flex items-center">
-                                    Try Again
-                                </Button>
-                                <Button variant="outline" onClick={() => router.push("/contacts")} className="flex items-center">
-                                    <ArrowLeft size={16} className="mr-2" />
-                                    Back to Contacts
-                                </Button>
-                            </div>
-                        </CardContent>
-                    </Card>
-                )
-
-            case "not-found":
-                return (
-                    <Card className="w-full max-w-md mx-auto">
-                        <CardContent className="flex flex-col items-center justify-center p-8">
-                            <div className="p-3 rounded-full bg-yellow-100 mb-4">
-                                <AlertCircle size={48} className="text-yellow-600" />
-                            </div>
-                            <h2 className="text-xl font-semibold mb-2">Invitation Not Found</h2>
-                            <p className="text-gray-600 text-center mb-6">{errorMessage}</p>
-                            <Button variant="outline" onClick={() => router.push("/contacts")} className="flex items-center">
-                                <ArrowLeft size={16} className="mr-2" />
-                                Back to Contacts
-                            </Button>
-                        </CardContent>
-                    </Card>
-                )
-
-            case "unauthorized":
-                return (
-                    <Card className="w-full max-w-md mx-auto">
-                        <CardContent className="flex flex-col items-center justify-center p-8">
-                            <div className="p-3 rounded-full bg-blue-100 mb-4">
-                                <AlertCircle size={48} className="text-blue-600" />
-                            </div>
-                            <h2 className="text-xl font-semibold mb-2">Login Required</h2>
-                            <p className="text-gray-600 text-center mb-6">{errorMessage}</p>
-                            <div className="flex gap-3">
-                                <Button onClick={() => router.push("/login")} className="flex items-center">
-                                    Login
-                                </Button>
-                                <Button variant="outline" onClick={() => router.push("/")} className="flex items-center">
-                                    <Home size={16} className="mr-2" />
-                                    Home
-                                </Button>
-                            </div>
-                        </CardContent>
-                    </Card>
-                )
-
-            default:
-                return null
-        }
-    }
-
-    return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-            <div className="w-full max-w-md">{renderContent()}</div>
-        </div>
-    )
+interface ContactInvitationPageProps {
+  params: {
+    contactId: string;
+  };
 }
+
+const ContactInvitationPage = ({ params }: ContactInvitationPageProps) => {
+  const router = useRouter();
+  const authHook = useAuthToken();
+  const token = authHook.getToken();
+  const { contactId: invitationToken } = params;
+  const [isResponding, setIsResponding] = useState(false);
+  const [hasResponded, setHasResponded] = useState(false);
+  const [responseAction, setResponseAction] = useState<"accept" | "decline" | null>(null);
+
+  // Get invitation details by token
+  const { 
+    data: invitationData, 
+    isLoading, 
+    error,
+    refetch
+  } = useGetInvitationByTokenQuery(invitationToken);
+
+  // Mutations for responding to invitation
+  const [respondByToken] = useRespondToInvitationByTokenMutation();
+  const [respondById] = useRespondToInvitationEnhancedMutation();
+
+  const invitation = invitationData?.invitation;
+  const isExpired = invitationData?.isExpired;
+  const canRespond = invitationData?.canRespond;
+
+  useEffect(() => {
+    // Check URL parameters for automatic action
+    const urlParams = new URLSearchParams(window.location.search);
+    const action = urlParams.get('action');
+    if (action === 'accept' || action === 'decline') {
+      setResponseAction(action);
+    }
+  }, []);
+
+  const handleResponse = async (action: "accept" | "decline") => {
+    if (!invitation || !canRespond) return;
+
+    setIsResponding(true);
+    setResponseAction(action);
+
+    try {
+      let result;
+      
+      if (token) {
+        // User is authenticated, use enhanced endpoint
+        result = await respondById({
+          invitationId: invitation.id,
+          action,
+          token,
+        }).unwrap();
+      } else {
+        // Public response via token
+        result = await respondByToken({
+          token: invitationToken,
+          action,
+        }).unwrap();
+      }
+
+      setHasResponded(true);
+      
+      toast({
+        title: action === "accept" ? "Invitation accepted!" : "Invitation declined",
+        description: result.message,
+      });
+
+      // Refetch to get updated status
+      refetch();
+      
+    } catch (error: any) {
+      console.error("Response error:", error);
+      toast({
+        title: "Error",
+        description: error.data?.message || `Failed to ${action} invitation`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsResponding(false);
+    }
+  };
+
+  const getInitials = (firstName?: string, lastName?: string) => {
+    if (!firstName || !lastName) return "??";
+    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "pending": return "secondary";
+      case "accepted": return "default";
+      case "declined": return "destructive";
+      case "expired": return "outline";
+      default: return "outline";
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin h-8 w-8 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading invitation...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !invitation) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <Card className="max-w-md w-full">
+          <CardHeader className="text-center">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="h-8 w-8 text-red-600" />
+            </div>
+            <CardTitle className="text-xl text-red-600">Invalid Invitation</CardTitle>
+            <CardDescription>
+              This invitation link is invalid or has been removed.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-center">
+            <Button 
+              variant="outline" 
+              onClick={() => router.push("/contacts")} 
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Contacts
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md mx-auto">
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <UserPlus className="h-8 w-8 text-blue-600" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900">Contact Invitation</h1>
+          <p className="text-gray-600 mt-2">
+            You've been invited to connect
+          </p>
+        </div>
+
+        <Card className="shadow-lg">
+          <CardHeader className="text-center">
+            <div className="flex justify-center mb-4">
+              <Avatar className="h-20 w-20">
+                <AvatarFallback className="text-lg">
+                  {getInitials(invitation.inviter?.firstName, invitation.inviter?.lastName)}
+                </AvatarFallback>
+              </Avatar>
+            </div>
+            
+            <CardTitle className="text-xl">
+              {invitation.inviter?.firstName} {invitation.inviter?.lastName}
+            </CardTitle>
+            
+            <CardDescription className="flex items-center justify-center gap-2 mt-2">
+              <Mail className="h-4 w-4" />
+              {invitation.inviter?.email}
+            </CardDescription>
+
+            <div className="flex justify-center mt-4">
+              <Badge variant={getStatusColor(invitation.status)}>
+                {invitation.status.charAt(0).toUpperCase() + invitation.status.slice(1)}
+              </Badge>
+            </div>
+          </CardHeader>
+
+          <CardContent className="space-y-6">
+            <div className="text-center">
+              <p className="text-gray-700">
+                <strong>{invitation.inviter?.firstName} {invitation.inviter?.lastName}</strong>
+                {" "}wants to add you to their contacts.
+              </p>
+              
+              <div className="flex items-center justify-center gap-4 mt-4 text-sm text-gray-500">
+                <div className="flex items-center gap-1">
+                  <Clock className="h-4 w-4" />
+                  Sent {new Date(invitation.invitedAt).toLocaleDateString()}
+                </div>
+                {invitation.expiresAt && (
+                  <div className="flex items-center gap-1">
+                    <AlertCircle className="h-4 w-4" />
+                    Expires {new Date(invitation.expiresAt).toLocaleDateString()}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {isExpired ? (
+              <div className="text-center">
+                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <Clock className="h-6 w-6 text-gray-500" />
+                </div>
+                <p className="text-gray-600 mb-4">This invitation has expired.</p>
+                <Button variant="outline" onClick={() => router.push("/contacts")} className="text-sm">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back to Contacts
+                </Button>
+              </div>
+            ) : invitation.status === "pending" && canRespond ? (
+              <div className="flex gap-3">
+                <Button
+                  onClick={() => handleResponse("accept")}
+                  disabled={isResponding}
+                  className="flex-1 bg-green-600 hover:bg-green-700"
+                >
+                  {isResponding && responseAction === "accept" ? (
+                    <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                  ) : (
+                    <Check className="h-4 w-4 mr-2" />
+                  )}
+                  Accept
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => handleResponse("decline")}
+                  disabled={isResponding}
+                  className="flex-1"
+                >
+                  {isResponding && responseAction === "decline" ? (
+                    <div className="animate-spin h-4 w-4 border-2 border-gray-600 border-t-transparent rounded-full mr-2"></div>
+                  ) : (
+                    <X className="h-4 w-4 mr-2" />
+                  )}
+                  Decline
+                </Button>
+              </div>
+            ) : (
+              <div className="text-center">
+                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <Check className="h-6 w-6 text-green-600" />
+                </div>
+                <p className="text-gray-700 mb-4">
+                  {invitation.status === "accepted" 
+                    ? `You have successfully accepted the contact invitation from ${invitation?.inviter?.firstName} ${invitation?.inviter?.lastName}. They have been added to your contacts.`
+                    : `You have declined this contact invitation.`
+                  }
+                </p>
+                <Button onClick={() => router.push("/contacts")} className="flex items-center">
+                  <User className="h-4 w-4 mr-2" />
+                  View Contacts
+                </Button>
+              </div>
+            )}
+
+            {invitation.status !== "pending" && !isExpired && (
+              <div className="pt-4 border-t text-center">
+                <p className="text-sm text-gray-500 mb-3">
+                  {invitation.status === "accepted" 
+                    ? "This invitation has already been accepted."
+                    : "This invitation has already been declined."
+                  }
+                </p>
+                <Button variant="outline" onClick={() => router.push("/contacts")} className="flex items-center">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back to Contacts
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <div className="text-center mt-6">
+          <p className="text-sm text-gray-500">
+            Don't have an account?{" "}
+            <a href="/auth/register" className="text-blue-600 hover:text-blue-500">
+              Sign up now
+            </a>
+          </p>
+        </div>
+
+        {hasResponded && invitation.status === "pending" && (
+          <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg text-center">
+            <p className="text-green-800 font-medium">
+              {responseAction === "accept" ? "Invitation accepted!" : "Invitation declined"}
+            </p>
+            <p className="text-green-600 text-sm mt-1">
+              {responseAction === "accept" 
+                ? "You are now connected and can view each other in your contacts."
+                : "The invitation has been declined and removed."
+              }
+            </p>
+            <Button variant="outline" onClick={() => router.push("/contacts")} className="flex items-center">
+              <User className="h-4 w-4 mr-2" />
+              Back to Contacts
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default ContactInvitationPage;

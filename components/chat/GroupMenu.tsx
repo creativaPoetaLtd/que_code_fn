@@ -1,0 +1,122 @@
+'use client'
+
+import { Button } from "@/components/ui/button"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+    Info,
+    Bell,
+    BellOff,
+    MoreVertical,
+    Trash2,
+    LogOut,
+    UserPlus,
+    Settings,
+    Eye
+} from 'lucide-react'
+
+interface GroupMenuProps {
+    group: any
+    isActiveMember: boolean
+    onManageAction: (action: string, group: any) => void
+}
+
+export default function GroupMenu({ group, isActiveMember, onManageAction }: GroupMenuProps) {
+    return (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-8 w-8 p-0 opacity-60 group-hover:opacity-100 transition-opacity hover:bg-gray-100"
+                >
+                    <MoreVertical size={16} />
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 shadow-lg border-gray-200">
+                                <DropdownMenuItem onClick={() => onManageAction("info", group)}>
+                    <Info size={16} className="text-green-500" />
+                    Group Info
+                </DropdownMenuItem>
+                
+                {isActiveMember && (
+                    <>
+                        <DropdownMenuItem 
+                            onClick={() => onManageAction("invite", group)}
+                            className="flex items-center gap-3 py-2.5 cursor-pointer hover:bg-gray-50"
+                        >
+                            <UserPlus size={16} className="text-green-500" />
+                            <span>Invite Members</span>
+                        </DropdownMenuItem>
+                        
+                        <DropdownMenuSeparator className="my-1" />
+                        
+                        <DropdownMenuItem 
+                            onClick={() => onManageAction("mute", group)}
+                            className="flex items-center gap-3 py-2.5 cursor-pointer hover:bg-gray-50"
+                        >
+                            <BellOff size={16} className="text-orange-500" />
+                            <span>Mute Notifications</span>
+                        </DropdownMenuItem>
+                        
+                        <DropdownMenuItem 
+                            onClick={() => onManageAction("unmute", group)}
+                            className="flex items-center gap-3 py-2.5 cursor-pointer hover:bg-gray-50"
+                        >
+                            <Bell size={16} className="text-green-500" />
+                            <span>Unmute Notifications</span>
+                        </DropdownMenuItem>
+                        
+                        {(group.userRole === "owner" || group.userRole === "admin") && (
+                            <>
+                                <DropdownMenuSeparator className="my-1" />
+                                <DropdownMenuItem 
+                                    onClick={() => onManageAction("settings", group)}
+                                    className="flex items-center gap-3 py-2.5 cursor-pointer hover:bg-gray-50"
+                                >
+                                    <Settings size={16} className="text-purple-500" />
+                                    <span>Group Settings</span>
+                                </DropdownMenuItem>
+                            </>
+                        )}
+                        
+                        <DropdownMenuSeparator className="my-1" />
+                        
+                        {group.userRole === "owner" ? (
+                            <DropdownMenuItem
+                                onClick={() => onManageAction("delete", group)}
+                                className="flex items-center gap-3 py-2.5 cursor-pointer hover:bg-red-50 text-red-600 focus:text-red-600"
+                            >
+                                <Trash2 size={16} />
+                                <span>Delete Group</span>
+                            </DropdownMenuItem>
+                        ) : (
+                            <DropdownMenuItem
+                                onClick={() => onManageAction("leave", group)}
+                                className="flex items-center gap-3 py-2.5 cursor-pointer hover:bg-red-50 text-red-600 focus:text-red-600"
+                            >
+                                <LogOut size={16} />
+                                <span>Leave Group</span>
+                            </DropdownMenuItem>
+                        )}
+                    </>
+                )}
+                
+                {!isActiveMember && (
+                    <DropdownMenuItem 
+                        onClick={() => onManageAction("view", group)}
+                        className="flex items-center gap-3 py-2.5 cursor-pointer hover:bg-gray-50"
+                    >
+                        <Eye size={16} className="text-gray-500" />
+                        <span>View Group</span>
+                    </DropdownMenuItem>
+                )}
+            </DropdownMenuContent>
+        </DropdownMenu>
+    )
+}

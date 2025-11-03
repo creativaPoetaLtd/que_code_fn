@@ -3,15 +3,21 @@ import { apiSlice } from "./apiSlice";
 
 export const groupSlice = apiSlice.injectEndpoints({
     endpoints: (builder) => ({
-        createGroup: builder.mutation<{ message: string; data: Group }, { groupData: CreateGroupRequest; token: string }>({
+        createGroup: builder.mutation<{ message: string; data: Group }, { groupData: CreateGroupRequest | FormData; token: string }>({
             query: ({ groupData, token }) => {
+                // Check if groupData is FormData (for file uploads) or regular object
+                const isFormData = groupData instanceof FormData;
                 return {
                     url: "/groups",
                     method: "POST",
                     body: groupData,
                     headers: {
-                        Accept: "application/json",
                         Authorization: `Bearer ${token}`,
+                        // Don't set Content-Type for FormData, let browser set it with boundary
+                        ...(isFormData ? {} : {
+                            "Accept": "application/json",
+                            "Content-Type": "application/json"
+                        }),
                     },
                 }
             },
@@ -58,7 +64,7 @@ export const groupSlice = apiSlice.injectEndpoints({
             },
             invalidatesTags: ["Group"],
         }),
-        
+
         inviteToGroup: builder.mutation<{ message: string; data: { successful: any[]; failed: any[]; totalInvited: number } }, { inviteData: InviteToGroupRequest; token: string }>({
             query: ({ inviteData, token }) => {
                 return {
@@ -213,6 +219,67 @@ export const groupSlice = apiSlice.injectEndpoints({
             },
             invalidatesTags: ["Group"],
         }),
+
+        // Enhanced invitation endpoints
+        getPendingInvitations: builder.query<
+            { data: { invitations: any[]; total: number } },
+            string
+        >({
+            query: (token: string) => ({
+                url: "/groups/invitations/pending",
+                method: "GET",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            }),
+            providesTags: ["GroupInvitation"],
+        }),
+
+        getPendingJoinRequests: builder.query<
+            { data: { requests: any[]; total: number } },
+            string
+        >({
+            query: (token: string) => ({
+                url: "/groups/requests/pending",
+                method: "GET",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            }),
+            providesTags: ["GroupJoinRequest"],
+        }),
+
+        respondToJoinRequestEnhanced: builder.mutation<
+            { message: string; data: any },
+            { requestId: string; action: 'approve' | 'deny'; rejectionReason?: string; token: string }
+        >({
+            query: ({ requestId, action, rejectionReason, token }) => ({
+                url: `/groups/requests/${requestId}/respond`,
+                method: "POST",
+                body: { action, rejectionReason },
+                headers: {
+                    Accept: "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+            }),
+            invalidatesTags: ["GroupJoinRequest", "Group", "GroupMember"],
+        }),
+
+        bulkRespondToJoinRequests: builder.mutation<
+            { message: string; data: any },
+            { requestIds: string[]; action: 'approve' | 'deny'; rejectionReason?: string; token: string }
+        >({
+            query: ({ requestIds, action, rejectionReason, token }) => ({
+                url: "/groups/requests/bulk-respond",
+                method: "POST",
+                body: { requestIds, action, rejectionReason },
+                headers: {
+                    Accept: "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+            }),
+            invalidatesTags: ["GroupJoinRequest", "Group", "GroupMember"],
+        }),
     }),
     overrideExisting: false,
 })
@@ -232,4 +299,9 @@ export const {
     useGetGroupJoinRequestsQuery,
     useRespondToJoinRequestMutation,
     useJoinGroupByLinkMutation,
+    // Enhanced invitation hooks
+    useGetPendingInvitationsQuery,
+    useGetPendingJoinRequestsQuery,
+    useRespondToJoinRequestEnhancedMutation,
+    useBulkRespondToJoinRequestsMutation,
 } = groupSlice

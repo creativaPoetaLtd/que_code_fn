@@ -35,5 +35,7 @@ export interface NotificationContextType {
     addNotification: (notification: Notification) => void
     markAsRead: (notificationId: string) => void
     clearNotifications: () => void
+    removeNotification: (notificationId: string) => void
+    removeContactRequestNotification: (userId: string) => void
     isConnected: boolean
 }

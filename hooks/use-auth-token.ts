@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useRouter } from 'next/navigation';
 import { decodeJWT, isTokenExpired } from '@/utils/jwtUtils';
+import { clearAllTokens } from '@/utils/tokenUtils';
 
 const setCookie = (name: string, value: string, days: number = 1) => {
     const expires = new Date();
@@ -102,9 +103,7 @@ export const useAuthToken = (enableAutoRedirect: boolean = true) => {
 
         // Validate JWT token
         if (isTokenExpired(token)) {
-            console.warn('JWT token is expired, removing from cookies');
-            deleteCookie(TOKEN_KEY);
-            deleteCookie(`${TOKEN_KEY}_expires`);
+            clearAllTokens();
             return null;
         }
 
@@ -116,7 +115,6 @@ export const useAuthToken = (enableAutoRedirect: boolean = true) => {
 
         const payload = decodeJWT(token);
         if (!payload) {
-            console.error('Invalid JWT token provided');
             return false;
         }
 
@@ -126,8 +124,7 @@ export const useAuthToken = (enableAutoRedirect: boolean = true) => {
 
     const removeToken = useCallback(() => {
         if (typeof window !== 'undefined') {
-            deleteCookie(TOKEN_KEY);
-            deleteCookie(`${TOKEN_KEY}_expires`);
+            clearAllTokens();
         }
     }, []);
 
@@ -139,7 +136,6 @@ export const useAuthToken = (enableAutoRedirect: boolean = true) => {
         if (isRedirectingRef.current) return;
 
         isRedirectingRef.current = true;
-        console.log('Token expired, redirecting to login...');
 
         removeToken();
         router.push('/auth/login');
@@ -154,7 +150,6 @@ export const useAuthToken = (enableAutoRedirect: boolean = true) => {
 
         const token = getCookie(TOKEN_KEY);
         if (token && isTokenExpired(token)) {
-            console.warn('Token expired during check');
             redirectToLogin();
         }
     }, [enableAutoRedirect, redirectToLogin]);
@@ -164,12 +159,28 @@ export const useAuthToken = (enableAutoRedirect: boolean = true) => {
 
         const token = getCookie(TOKEN_KEY);
         if (token && isTokenExpired(token)) {
-            console.log('Cleaning up expired token');
             removeToken();
             if (enableAutoRedirect) {
                 redirectToLogin();
             }
         }
+    }, [removeToken, enableAutoRedirect, redirectToLogin]);
+
+    const forceValidateToken = useCallback(() => {
+        if (typeof window === 'undefined') return false;
+
+        const token = getCookie(TOKEN_KEY);
+        if (!token) return false;
+
+        if (isTokenExpired(token)) {
+            removeToken();
+            if (enableAutoRedirect) {
+                redirectToLogin();
+            }
+            return false;
+        }
+
+        return true;
     }, [removeToken, enableAutoRedirect, redirectToLogin]);
 
     // Auto-check on mount and setup interval
@@ -201,6 +212,7 @@ export const useAuthToken = (enableAutoRedirect: boolean = true) => {
         isTokenValid,
         cleanupExpiredTokens,
         checkTokenExpiration,
-        redirectToLogin
+        redirectToLogin,
+        forceValidateToken
     };
 };

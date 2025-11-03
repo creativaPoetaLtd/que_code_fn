@@ -8,7 +8,7 @@ import baseUrl from "@/helpers/baseUrl";
 import { getUserBalance, getEntityBalance } from '@/helpers/api';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useNotifications } from "@/context/NotificationContext";
-import NotificationDropdown from "./notifications/NotificationDropdown";
+import NotificationBell from "./notifications/NotificationBell";
 import { useAuthToken } from "@/hooks/use-auth-token";
 
 
@@ -145,7 +145,7 @@ export const Header = () => {
                 </div>
 
                 {/* Notification Dropdown */}
-                <NotificationDropdown />
+                <NotificationBell />
 
                 {/* User Profile with Dropdown */}
                 <div className="relative">

@@ -18,36 +18,35 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
     </div>
 }) => {
     const router = useRouter();
-    const { isTokenValid, checkTokenExpiration } = useAuthToken(true); // Enable auto-redirect
+    const { isTokenValid, checkTokenExpiration, forceValidateToken } = useAuthToken(true); // Enable auto-redirect
     const [isChecking, setIsChecking] = useState(true);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
 
     useEffect(() => {
         const checkAuth = async () => {
             try {
-                // Check token expiration first
-                checkTokenExpiration();
+                // Force validate token with expiration check
+                const isValid = forceValidateToken();
                 
-                // Then check if token is valid
-                const valid = isTokenValid();
-                
-                if (!valid) {
-                    console.log('No valid token found, redirecting to login');
-                    router.push(redirectTo);
+                if (!isValid) {
+                    console.log('Token validation failed, redirecting to login');
+                    const currentUrl = window.location.pathname + window.location.search;
+                    router.push(`${redirectTo}?returnUrl=${encodeURIComponent(currentUrl)}`);
                     return;
                 }
                 
                 setIsAuthenticated(true);
             } catch (error) {
                 console.error('Authentication check failed:', error);
-                router.push(redirectTo);
+                const currentUrl = window.location.pathname + window.location.search;
+                router.push(`${redirectTo}?returnUrl=${encodeURIComponent(currentUrl)}`);
             } finally {
                 setIsChecking(false);
             }
         };
 
         checkAuth();
-    }, [isTokenValid, checkTokenExpiration, router, redirectTo]);
+    }, [forceValidateToken, router, redirectTo]);
 
     if (isChecking) {
         return <>{fallback}</>;

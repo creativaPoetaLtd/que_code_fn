@@ -8,12 +8,15 @@ import {
     DropdownMenuTrigger,
     DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
-import { MessageCirclePlus, UserPlus, Users, Link, ChevronDown, User } from 'lucide-react'
+import { MessageCirclePlus, UserPlus, Users, Link, ChevronDown, User, PlusCircle } from 'lucide-react'
+import { useGetPendingInvitationsUnifiedQuery } from "@/states/contactSlice"
+import { useAuthToken } from "@/hooks/use-auth-token"
 
 interface QuickActionsProps {
     onAddContact: () => void
     onStartNewChat: () => void
     onViewMyGroups: () => void
+    onCreateGroup: () => void
     onJoinGroupByLink: () => void
     onViewContactRequests: () => void
     pendingRequestsCount?: number
@@ -23,14 +26,27 @@ export default function QuickActions({
     onAddContact,
     onStartNewChat,
     onViewMyGroups,
+    onCreateGroup,
     onJoinGroupByLink,
     onViewContactRequests,
     pendingRequestsCount = 0,
 }: QuickActionsProps) {
+    const { getToken } = useAuthToken()
+    const token = getToken()
+
+    // Get pending contact requests count
+    const { data: pendingContactRequests } = useGetPendingInvitationsUnifiedQuery({
+        token: token!,
+        page: 1,
+        limit: 20
+    }, { skip: !token })
+
+    const contactRequestsCount = pendingContactRequests?.invitations?.length || 0
+
     return (
         <div className="space-y-3">
             {/* Contact Requests - Prominently displayed if there are pending requests */}
-            {pendingRequestsCount > 0 && (
+            {contactRequestsCount > 0 && (
                 <Button
                     variant="outline"
                     size="sm"
@@ -40,7 +56,7 @@ export default function QuickActions({
                     <UserPlus size={14} className="mr-2" />
                     Contact Requests
                     <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                        {pendingRequestsCount}
+                        {contactRequestsCount}
                     </span>
                 </Button>
             )}
@@ -70,7 +86,7 @@ export default function QuickActions({
                             <UserPlus size={14} className="mr-2" />
                             Add Contact
                         </DropdownMenuItem>
-                        {pendingRequestsCount === 0 && (
+                        {contactRequestsCount === 0 && (
                             <>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={onViewContactRequests} className="cursor-pointer">
@@ -98,6 +114,11 @@ export default function QuickActions({
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem onClick={onCreateGroup} className="cursor-pointer">
+                            <PlusCircle size={14} className="mr-2" />
+                            Create Group
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={onViewMyGroups} className="cursor-pointer">
                             <Users size={14} className="mr-2" />
                             My Groups

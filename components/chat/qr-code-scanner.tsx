@@ -718,6 +718,9 @@ export default function QRCodeScanner({ isOpen, onClose, onScanComplete, title =
                             <>
                                 <p className="text-xs text-gray-500">Point your camera at a QR code containing a profile link</p>
                                 <p className="text-xs text-gray-400 mt-1">Make sure the QR code is well-lit and clearly visible</p>
+                                <p className="text-xs text-gray-400 mt-1">
+                                    💡 QR codes are usually found on profile pages or contact cards
+                                </p>
                             </>
                         )}
                         {facingMode === "environment" && cameraActive && (
