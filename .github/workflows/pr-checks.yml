@@ -9,28 +9,25 @@ jobs:
   code-quality:
     name: Code Quality & Build
     runs-on: ubuntu-latest
-    
-    # Skip if PR is in draft mode
     if: github.event.pull_request.draft == false
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install pnpm
+      - name: Setup pnpm
         uses: pnpm/action-setup@v2
         with:
-          version: 10.20.0   # Match your local version
+          version: 10.20.0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '22'  # match your local node version
           cache: 'pnpm'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
 
       - name: Run ESLint
         run: pnpm run lint
