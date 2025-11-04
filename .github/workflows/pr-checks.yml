@@ -118,30 +118,6 @@ jobs:
             The subject "{subject}" found in the pull request title "{title}"
             didn't match the configured pattern. Please ensure that the subject
             doesn't start with an uppercase character.
-
-      - name: Check PR description
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const body = context.payload.pull_request.body || '';
-            const requiredSections = [
-              'What does this PR do?',
-              'Description of Task to be completed?',
-              'How should this be manually tested?'
-            ];
-            
-            const missingSections = requiredSections.filter(section => 
-              !body.includes(section)
-            );
-            
-            if (missingSections.length > 0) {
-              core.setFailed(`PR description is missing required sections: ${missingSections.join(', ')}`);
-            }
-            
-            if (body.length < 50) {
-              core.setFailed('PR description is too short. Please provide more details.');
-            }
-
   size-check:
     name: Bundle Size Check
     runs-on: ubuntu-latest
