@@ -1,0 +1,32 @@
+# Global owners - These users will be requested for review when someone opens a pull request
+* @creativaPoetaLtd
+
+# Frontend components and UI
+/components/ @creativaPoetaLtd
+/app/ @creativaPoetaLtd
+
+# Authentication and security related files
+/app/auth/ @creativaPoetaLtd
+/middleware.ts @creativaPoetaLtd
+/context/AuthContext.tsx @creativaPoetaLtd
+
+# API and backend logic
+/helpers/api.ts @creativaPoetaLtd
+/services/ @creativaPoetaLtd
+/states/ @creativaPoetaLtd
+
+# Configuration and build files
+*.json @creativaPoetaLtd
+*.config.* @creativaPoetaLtd
+/.github/ @creativaPoetaLtd
+/package.json @creativaPoetaLtd
+/tsconfig.json @creativaPoetaLtd
+/.eslintrc.json @creativaPoetaLtd
+
+# Documentation
+*.md @creativaPoetaLtd
+/docs/ @creativaPoetaLtd
+
+# Security sensitive files
+/.env* @creativaPoetaLtd
+/middleware.ts @creativaPoetaLtd
