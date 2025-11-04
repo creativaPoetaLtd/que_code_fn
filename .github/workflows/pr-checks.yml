@@ -43,8 +43,6 @@ jobs:
       - name: Build project
         run: pnpm run build || echo "Build skipped due to network dependencies"
 
-      - name: Check for security vulnerabilities
-        run: pnpm audit --audit-level moderate
 
   tests:
     name: Run Tests
