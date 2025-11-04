@@ -25,11 +25,10 @@ export const RecentTransactions: React.FC = () => {
         if (token && !isTokenExpired(token)) {
           userId = getUserIdFromToken(token);
         }
-        console.log('RecentTransactions - userId:', userId);
         if (!userId) throw new Error('User not found');
-        
+
         setCurrentUserId(userId);
-        
+
         // Get wallet info for display purposes
         let walletResponse;
         try {
@@ -37,23 +36,20 @@ export const RecentTransactions: React.FC = () => {
         } catch (userError) {
           walletResponse = await getOrganizationWallet(userId);
         }
-        
+
         if (walletResponse.success) {
           setCurrentUserWalletId(walletResponse.data.walletId);
         }
-        
-        console.log('RecentTransactions - fetching transactions for user:', userId);
-        
+
+
         const response = await getTransactionHistory(userId, { limit: 5 });
-        console.log('RecentTransactions - response:', response);
-        
+
         if (response.success) {
           setTransactions(response.data.transactions || []);
         } else {
           throw new Error(response.message || 'Failed to fetch transactions');
         }
       } catch (err) {
-        console.error('RecentTransactions - fetch error:', err);
         setError('Could not fetch transactions');
       } finally {
         setLoading(false);
@@ -69,7 +65,7 @@ export const RecentTransactions: React.FC = () => {
     const amount = isOutgoing ? -(transactionAmount + transactionFee) : transactionAmount;
     const displayName = transaction.description || (isOutgoing ? 'Money Sent' : 'Money Received');
     const transactionType = isOutgoing ? 'Sent' : 'Received';
-    
+
     return { amount, displayName, transactionType, isOutgoing };
   };
 
@@ -96,7 +92,7 @@ export const RecentTransactions: React.FC = () => {
       {/* Header */}
       <div className="flex justify-between items-center p-4 sm:p-6">
         <h3 className="text-xl sm:text-2xl text-[#00313A] font-semibold">Recent Transactions</h3>
-        <button 
+        <button
           onClick={() => router.push('/transactions')}
           className="text-sm text-gray-500 hover:text-gray-700 transition-colors duration-200 flex items-center gap-1"
         >

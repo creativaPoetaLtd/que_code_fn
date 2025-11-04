@@ -40,7 +40,6 @@ export default function ContactRequestModal({ isOpen, onClose }: ContactRequestM
     }, {
         skip: !token,
     })
-    console.log("Pending Invitations:", pendingInvitations);
     const {
         data: acceptedContacts,
         isLoading: isAcceptedLoading,

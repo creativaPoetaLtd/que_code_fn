@@ -49,8 +49,6 @@ const NotificationDropdown: React.FC = () => {
 
     const handleMarkAsRead = async (notificationId: string) => {
         try {
-            console.log("Marking notification as read:", notificationId)
-
             await markNotificationRead({ notificationId, token }).unwrap()
 
             // Optionally refresh notifications to get updated state

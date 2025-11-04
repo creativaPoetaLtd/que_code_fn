@@ -16,8 +16,6 @@ class SocketService {
         })
 
         this.socket.on("connect", () => {
-            console.log("Connected to socket server:", this.socket?.id)
-            // Join user's room for notifications
             this.socket?.emit("join", userId)
         })
 

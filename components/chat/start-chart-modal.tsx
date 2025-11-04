@@ -31,7 +31,6 @@ export default function StartChatModal({ isOpen, onClose, onStartChat, existingC
     } = useGetAcceptedContactsQuery(token as string, {
         skip: !token,
     })
-    console.log("Accepted Contacts:", acceptedContacts)
     const contacts = acceptedContacts?.contacts || []
 
     // Filter out contacts that already have conversations

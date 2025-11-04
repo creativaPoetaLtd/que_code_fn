@@ -32,7 +32,6 @@ export const useTokenExpiration = (options: UseTokenExpirationOptions = {}) => {
         if (isRedirectingRef.current) return;
 
         isRedirectingRef.current = true;
-        console.log('Token expired, cleaning up and redirecting...');
 
         // Clear token
         removeToken();

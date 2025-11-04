@@ -154,7 +154,6 @@ export default function ChatPageClean() {
 
     // Event handlers
     const handleStartNewChat = (contact: any) => {
-        console.log("Starting new chat with:", contact)
         const newConversation = {
             id: Date.now(),
             name: `${contact.otherUser.firstName} ${contact.otherUser.lastName}`,

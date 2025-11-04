@@ -11,7 +11,6 @@ import {
   CategoryBreakdown, 
   SpendingTrend, 
   RecentTransaction,
-  AnalyticsApiResponse,
   DateRange 
 } from '@/types/analytics.types';
 
@@ -31,20 +30,19 @@ export const useAnalyticsSummary = (dateRange: DateRange) => {
         const startDate = dateRange.startDate?.toISOString();
         const endDate = dateRange.endDate?.toISOString();
         
-        const response: AnalyticsApiResponse<AnalyticsSummary> = await getAnalyticsSummary(
+        const response = await getAnalyticsSummary(
           userId, 
           startDate, 
           endDate
         );
         
-        if (response.success) {
+        if (response.status === 200 && response.data) {
           setData(response.data);
         } else {
-          setError(response.message || 'Failed to fetch analytics summary');
+          setError('Failed to fetch analytics summary');
         }
       } catch (err) {
         setError('Failed to fetch analytics summary');
-        console.error('Analytics summary error:', err);
       } finally {
         setLoading(false);
       }
@@ -72,20 +70,19 @@ export const useAnalyticsCategoryBreakdown = (dateRange: DateRange) => {
         const startDate = dateRange.startDate?.toISOString();
         const endDate = dateRange.endDate?.toISOString();
         
-        const response: AnalyticsApiResponse<CategoryBreakdown[]> = await getAnalyticsCategoryBreakdown(
+        const response = await getAnalyticsCategoryBreakdown(
           userId, 
           startDate, 
           endDate
         );
         
-        if (response.success) {
+        if (response.status === 200 && response.data) {
           setData(response.data);
         } else {
-          setError(response.message || 'Failed to fetch category breakdown');
+          setError('Failed to fetch category breakdown');
         }
       } catch (err) {
         setError('Failed to fetch category breakdown');
-        console.error('Category breakdown error:', err);
       } finally {
         setLoading(false);
       }
@@ -113,21 +110,20 @@ export const useAnalyticsSpendingTrends = (dateRange: DateRange, interval: 'dail
         const startDate = dateRange.startDate?.toISOString();
         const endDate = dateRange.endDate?.toISOString();
         
-        const response: AnalyticsApiResponse<SpendingTrend[]> = await getAnalyticsSpendingTrends(
+        const response = await getAnalyticsSpendingTrends(
           userId, 
           startDate, 
           endDate, 
           interval
         );
         
-        if (response.success) {
+        if (response.status === 200 && response.data) {
           setData(response.data);
         } else {
-          setError(response.message || 'Failed to fetch spending trends');
+          setError('Failed to fetch spending trends');
         }
       } catch (err) {
         setError('Failed to fetch spending trends');
-        console.error('Spending trends error:', err);
       } finally {
         setLoading(false);
       }
@@ -152,20 +148,19 @@ export const useAnalyticsRecentTransactions = (limit: number = 10, type?: string
       setLoading(true);
       setError(null);
       try {
-        const response: AnalyticsApiResponse<RecentTransaction[]> = await getAnalyticsRecentTransactions(
+        const response = await getAnalyticsRecentTransactions(
           userId, 
           limit, 
           type
         );
         
-        if (response.success) {
+        if (response.status === 200 && response.data) {
           setData(response.data);
         } else {
-          setError(response.message || 'Failed to fetch recent transactions');
+          setError('Failed to fetch recent transactions');
         }
       } catch (err) {
         setError('Failed to fetch recent transactions');
-        console.error('Recent transactions error:', err);
       } finally {
         setLoading(false);
       }

@@ -27,7 +27,7 @@ export const OrganizationWallet: React.FC<OrganizationWalletProps> = ({
   const fetchWalletData = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       // Fetch wallet information
       const walletResponse = await getOrganizationWallet(organizationId);
@@ -43,7 +43,7 @@ export const OrganizationWallet: React.FC<OrganizationWalletProps> = ({
 
       // Fetch restrictions if wallet exists
       if (walletResponse.success && walletResponse.data.walletId) {
-        const restrictionsResponse = await getWalletRestrictions(walletResponse.data.walletId);
+        const restrictionsResponse: any = await getWalletRestrictions(walletResponse.data.walletId);
         if (restrictionsResponse.success) {
           setRestrictions(restrictionsResponse.data);
         }

@@ -63,7 +63,6 @@ export default function QRCodeScanner({ isOpen, onClose, onScanComplete, title =
                     setError("No camera found on this device")
                 }
             } catch (err) {
-                console.error("Failed to load QR scanner:", err)
                 setError("QR scanner library failed to load")
             }
         }
@@ -86,7 +85,7 @@ export default function QRCodeScanner({ isOpen, onClose, onScanComplete, title =
                 })
             }
         } catch (err) {
-            console.log("Permission API not supported")
+            throw new Error('Failed to check camera permissions');
         }
     }
 
@@ -134,7 +133,6 @@ export default function QRCodeScanner({ isOpen, onClose, onScanComplete, title =
             }
 
             const constraints = getCameraConstraints()
-            console.log("Requesting camera with constraints:", constraints)
 
             const stream = await navigator.mediaDevices.getUserMedia(constraints)
             streamRef.current = stream
@@ -167,7 +165,6 @@ export default function QRCodeScanner({ isOpen, onClose, onScanComplete, title =
                 })
             }
         } catch (err: any) {
-            console.error("Camera access error:", err)
 
             let errorMessage = "Unable to access camera"
 
@@ -386,7 +383,6 @@ export default function QRCodeScanner({ isOpen, onClose, onScanComplete, title =
                 setFlashOn(!flashOn)
             }
         } catch (err) {
-            console.error("Flash toggle error:", err)
             toast({
                 title: "Flash Error",
                 description: "Unable to control flashlight",
@@ -456,7 +452,6 @@ export default function QRCodeScanner({ isOpen, onClose, onScanComplete, title =
 
     // Handle successful QR scan
     const handleScanSuccess = (scannedData: string) => {
-        console.log("QR Code scanned:", scannedData)
 
         setScanResult(scannedData)
 

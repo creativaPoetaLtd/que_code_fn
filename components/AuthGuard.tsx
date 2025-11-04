@@ -29,7 +29,6 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
                 const isValid = forceValidateToken();
                 
                 if (!isValid) {
-                    console.log('Token validation failed, redirecting to login');
                     const currentUrl = window.location.pathname + window.location.search;
                     router.push(`${redirectTo}?returnUrl=${encodeURIComponent(currentUrl)}`);
                     return;
@@ -37,7 +36,6 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
                 
                 setIsAuthenticated(true);
             } catch (error) {
-                console.error('Authentication check failed:', error);
                 const currentUrl = window.location.pathname + window.location.search;
                 router.push(`${redirectTo}?returnUrl=${encodeURIComponent(currentUrl)}`);
             } finally {

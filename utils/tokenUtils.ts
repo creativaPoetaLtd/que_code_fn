@@ -165,7 +165,6 @@ export const clearAllTokens = () => {
     sessionStorage.removeItem('token');
     localStorage.removeItem('token');
 
-    console.log('All tokens cleared');
 };
 
 export const redirectToLogin = (returnUrl?: string) => {

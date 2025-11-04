@@ -50,12 +50,12 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         setNotifications((prev) => {
             const notification = prev.find(n => n.id === notificationId)
             const newNotifications = prev.filter(n => n.id !== notificationId)
-            
+
             // Decrease unread count if the removed notification was unread
             if (notification && !notification.isRead) {
                 setUnreadCount((prevCount) => Math.max(0, prevCount - 1))
             }
-            
+
             return newNotifications
         })
     }, [])
@@ -66,7 +66,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
                 // Remove contact request notifications from this specific user
                 const isContactRequest = n.type === 'CONTACT_REQUEST_RECEIVED' || n.type === 'contact_request'
                 const isFromUser = n.data?.userId === userId
-                
+
                 if (isContactRequest && isFromUser) {
                     // Decrease unread count if the notification was unread
                     if (!n.isRead) {
@@ -76,7 +76,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
                 }
                 return true // Keep other notifications
             })
-            
+
             return updatedNotifications
         })
     }, [])
@@ -107,7 +107,6 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     // Handle group invitations
     const handleGroupInvitation = useCallback(
         (invitation: any) => {
-            console.log("Received group invitation:", invitation)
 
             const notification: Notification = {
                 id: `group-invite-${Date.now()}`,
@@ -134,7 +133,6 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     // Handle contact requests
     const handleContactRequest = useCallback(
         (request: any) => {
-            console.log("Received contact request:", request)
 
             const notification: Notification = {
                 id: request.id || `contact-request-${Date.now()}`,
@@ -168,7 +166,6 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     // Handle group join approved notifications
     const handleGroupJoinApproved = useCallback(
         (data: any) => {
-            console.log("Received group join approved:", data)
             const notification: Notification = {
                 id: data.id || `group-join-approved-${Date.now()}`,
                 type: "group_join_approved",
@@ -192,7 +189,6 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     // Handle group join rejected notifications
     const handleGroupJoinRejected = useCallback(
         (data: any) => {
-            console.log("Received group join rejected:", data)
             const notification: Notification = {
                 id: data.id || `group-join-rejected-${Date.now()}`,
                 type: "group_join_rejected",
@@ -217,7 +213,6 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     // Handle group join request notifications (for admins)
     const handleGroupJoinRequest = useCallback(
         (data: any) => {
-            console.log("Received group join request:", data)
             const notification: Notification = {
                 id: data.id || `group-join-request-${Date.now()}`,
                 type: "group_join_request",
@@ -247,7 +242,6 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     // Handle group created notifications
     const handleGroupCreated = useCallback(
         (data: any) => {
-            console.log("Group created notification:", data)
             const notification: Notification = {
                 id: data.id || `group-created-${Date.now()}`,
                 type: "group_created",
@@ -276,23 +270,19 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
             const userId = getUserIdFromToken(token)
 
             if (userId) {
-                console.log("Connecting to socket with user ID:", userId)
 
                 // Connect to socket
                 const socket = socketService.connect(userId)
 
                 socket.on("connect", () => {
                     setIsConnected(true)
-                    console.log("Socket connected for notifications")
                 })
 
                 socket.on("disconnect", () => {
                     setIsConnected(false)
-                    console.log("Socket disconnected")
                 })
 
                 socket.on("connect_error", (error) => {
-                    console.error("Socket connection error:", error)
                     setIsConnected(false)
                 })
 

@@ -6,12 +6,13 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { ArrowLeft, Check, Shield, AlertCircle, Eye, EyeOff } from "lucide-react";
 import Navigation from "@/components/Navigation";
-import { getUserBalance, transferMoney, getTransactionCategories, getOrganizationBalance, getUserWallet, getWalletRestrictions, getEntityBalance, getCurrentUserInfo, checkUserPinStatus } from "@/helpers/api";
+import { getUserBalance, transferMoney, getTransactionCategories, getUserWallet, getWalletRestrictions, getEntityBalance, checkUserPinStatus } from "@/helpers/api";
 import baseUrl from "@/helpers/baseUrl";
 import { useAuthToken } from "@/hooks/use-auth-token";
 import { getUserIdFromToken, isTokenExpired } from "@/utils/jwtUtils";
 import { PinSetupModal } from "@/components/PinSetupModal";
 import { PinResetModal } from "@/components/PinResetModal";
+import { getCurrentUserInfo } from "@/utils/tokenUtils";
 
 interface Recipient {
   id: string;
@@ -64,7 +65,7 @@ const AmountPage = () => {
   // Function to fetch organization category
   const fetchOrganizationCategory = async () => {
     if (recipient?.type !== 'organization') return;
-    
+
     setOrganizationCategoryLoading(true);
     try {
       const response = await fetch(`${baseUrl}/organizations/${recipient.id}/category`);
@@ -82,7 +83,7 @@ const AmountPage = () => {
   // Function to fetch user restrictions
   const fetchUserRestrictions = async () => {
     if (recipient?.type !== 'organization') return;
-    
+
     setRestrictionsLoading(true);
     try {
       const token = getToken();
@@ -93,17 +94,14 @@ const AmountPage = () => {
       if (!currentUserId) return;
 
       const walletResponse = await getUserWallet(currentUserId);
-      console.log('Wallet response:', walletResponse);
       if (walletResponse.success) {
-        console.log('Wallet data:', walletResponse.data);
-        console.log('Wallet ID:', walletResponse.data.walletId);
-        const restrictionsResponse = await getWalletRestrictions(walletResponse.data.walletId);
+        const restrictionsResponse: any = await getWalletRestrictions(walletResponse.data.walletId);
         if (restrictionsResponse.success) {
           setUserRestrictions(restrictionsResponse.data);
         }
       }
     } catch (err) {
-      console.error('Error fetching user restrictions:', err);
+      throw err;
     } finally {
       setRestrictionsLoading(false);
     }
@@ -125,7 +123,7 @@ const AmountPage = () => {
       setBalanceLoading(true);
       setCheckingPinStatus(true);
       setBalanceError(null);
-      
+
       try {
         const token = getToken();
         let userId: string | null | undefined;
@@ -136,7 +134,7 @@ const AmountPage = () => {
 
         // Check PIN status first
         try {
-          const pinStatus = await checkUserPinStatus();
+          const pinStatus: any = await checkUserPinStatus();
           if (!pinStatus.success || !pinStatus.data.hasPinSet) {
             setShowPinSetupModal(true);
           }
@@ -150,11 +148,9 @@ const AmountPage = () => {
         try {
           response = await getEntityBalance(userId, 'user');
         } catch (userError) {
-          console.log('User balance failed, trying organization:', userError);
-          // If user fails, try as organization
           response = await getEntityBalance(userId, 'organization');
         }
-        
+
         if (response.success && response.data) {
           setCurrentBalance(Number(response.data.balance));
         } else {
@@ -167,7 +163,7 @@ const AmountPage = () => {
         setCheckingPinStatus(false);
       }
     };
-    
+
     checkPinAndBalance();
   }, [router, getToken]);
 
@@ -176,18 +172,18 @@ const AmountPage = () => {
     const fetchCategories = async () => {
       setCategoriesLoading(true);
       try {
-        const response = await getTransactionCategories();
+        const response: any = await getTransactionCategories();
         if (response.success) {
           setCategories(response.data);
-          
+
           // For organizations, automatically select organization category and disable constraints
-           if (recipient?.type === 'organization' && organizationCategory) {
-             const orgCategory = response.data.find((cat: any) => cat.id === organizationCategory.id);
+          if (recipient?.type === 'organization' && organizationCategory) {
+            const orgCategory = response.data.find((cat: any) => cat.id === organizationCategory.id);
             if (orgCategory) {
               setSelectedCategory(orgCategory);
             }
             setApplyConstraints(false); // Organizations don't use constraints
-           } else if (recipient?.type !== 'organization') {
+          } else if (recipient?.type !== 'organization') {
             // For individual users, use 'Other' as default
             const defaultCategory = response.data.find((cat: any) => cat.name === 'Other');
             if (defaultCategory) {
@@ -266,7 +262,6 @@ const AmountPage = () => {
 
     // Prevent duplicate submissions
     if (transferInProgress || loading) {
-      console.log('Transfer already in progress, ignoring duplicate request');
       return;
     }
 
@@ -291,66 +286,39 @@ const AmountPage = () => {
       return;
     }
 
-    // Note: For organization transfers, allow backend to enforce unrestricted vs restricted balance rules.
-    // We still show informational UI above, but do not block submission here.
-
-
-
     setTransferInProgress(true);
     setLoading(true);
     setError("");
-    
+
     try {
       // Get current user info to determine sender type
       const currentUserInfo = getCurrentUserInfo();
-      console.log('Current user info:', currentUserInfo);
-      console.log('Account type detected:', currentUserInfo.accountType);
-      console.log('User ID:', currentUserInfo.userId);
-      console.log('Organization ID:', currentUserInfo.organizationId);
-      
       if (!currentUserInfo.userId && !currentUserInfo.organizationId) {
         console.error('No user ID or organization ID found in token');
         throw new Error("User not found");
       }
-      
+
       // Determine sender parameters based on account type
       let senderUserId: string | undefined;
       let senderOrganizationId: string | undefined;
-      
+
       if (currentUserInfo.accountType === 'organization') {
         senderOrganizationId = currentUserInfo.organizationId || undefined;
       } else {
         senderUserId = currentUserInfo.userId || undefined;
       }
-      
+
       // Determine receiver parameters based on recipient type
       let receiverUserId: string | undefined;
       let receiverOrganizationId: string | undefined;
-      
+
       if (recipient.type === 'organization') {
         receiverOrganizationId = recipient.id;
       } else {
         receiverUserId = recipient.id;
       }
-      
-      console.log('Initiating transfer with data:', {
-        senderUserId,
-        senderOrganizationId,
-        receiverUserId,
-        receiverOrganizationId,
-        amount: Number(amount),
-        categoryId: selectedCategory?.id,
-        accountType: currentUserInfo.accountType
-      });
-      
-      // Additional debugging for wallet issue
-      console.log('Transfer parameters being sent:', {
-        senderUserId: senderUserId || 'undefined',
-        senderOrganizationId: senderOrganizationId || 'undefined',
-        receiverUserId: receiverUserId || 'undefined',
-        receiverOrganizationId: receiverOrganizationId || 'undefined'
-      });
-      
+
+
       const result = await transferMoney({
         senderUserId,
         senderOrganizationId,
@@ -362,18 +330,15 @@ const AmountPage = () => {
         applyConstraints: applyConstraints,
         pin
       });
-      
-      console.log('Transfer successful:', result);
-      
+
       sessionStorage.setItem('transferResult', JSON.stringify(result));
-      
+
       setTransferInProgress(false);
       setLoading(false);
-      
+
       router.push("/home/transfer/success");
     } catch (err: any) {
-      console.error('Transfer failed:', err);
-      
+
       // Check if PIN setup is required
       if (err?.response?.data?.requiresPinSetup) {
         setShowPinSetupModal(true);
@@ -381,7 +346,7 @@ const AmountPage = () => {
         setLoading(false);
         return;
       }
-      
+
       // Check if PIN is locked
       if (err?.response?.data?.message?.includes('locked') || err?.response?.data?.lockedUntil) {
         setShowPinResetModal(true);
@@ -389,7 +354,7 @@ const AmountPage = () => {
         setLoading(false);
         return;
       }
-      
+
       // Handle PIN attempt errors with more specific feedback
       const errorMessage = err?.response?.data?.message || err?.message || 'Transfer failed';
       if (errorMessage.includes('PIN') && errorMessage.includes('attempt')) {
@@ -397,7 +362,7 @@ const AmountPage = () => {
       } else {
         setError(errorMessage);
       }
-      
+
       setTransferInProgress(false);
       setLoading(false);
     }
@@ -418,8 +383,8 @@ const AmountPage = () => {
 
       {/* Header */}
       <div className="bg-white shadow-sm px-4 py-4 flex items-center lg:ml-20">
-        <button 
-          onClick={() => step === 1 ? router.back() : setStep(1)} 
+        <button
+          onClick={() => step === 1 ? router.back() : setStep(1)}
           className="mr-3 p-2 hover:bg-gray-100 rounded-full transition"
         >
           <ArrowLeft className="w-5 h-5 text-gray-700" />
@@ -479,7 +444,7 @@ const AmountPage = () => {
               <label className="block text-sm font-medium text-gray-700 mb-4">
                 How much would you like to send?
               </label>
-              
+
               <div className="relative mb-6">
                 <input
                   type="text"
@@ -500,13 +465,12 @@ const AmountPage = () => {
                     key={quickAmount}
                     onClick={() => handleAmountSelect(quickAmount)}
                     disabled={quickAmount > (currentBalance || 0)}
-                    className={`py-3 px-4 rounded-xl font-medium transition ${
-                      amount === quickAmount.toString()
-                        ? 'bg-green-600 text-white'
-                        : (quickAmount > (currentBalance || 0))
+                    className={`py-3 px-4 rounded-xl font-medium transition ${amount === quickAmount.toString()
+                      ? 'bg-green-600 text-white'
+                      : (quickAmount > (currentBalance || 0))
                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                      }`}
                   >
                     {quickAmount.toLocaleString()}
                   </button>
@@ -514,80 +478,77 @@ const AmountPage = () => {
               </div>
             </div>
 
-             {/* Category Selection - Only show for individual users, not organizations */}
-             {recipient.type !== 'organization' && (
-               <div className="bg-white rounded-3xl p-6 mb-6 shadow-sm border border-gray-100">
-                 <label className="block text-sm font-medium text-gray-700 mb-4">
-                   Select Category
-                 </label>
-                 
-                 {categoriesLoading ? (
-                   <div className="text-center py-4">Loading categories...</div>
-                 ) : (
-                   <div className="grid grid-cols-2 gap-3">
-                     {categories.map((category) => (
-                       <button
-                         key={category.id}
-                         onClick={() => setSelectedCategory(category)}
-                         className={`py-3 px-4 rounded-xl font-medium transition text-left ${
-                           selectedCategory?.id === category.id
-                             ? 'bg-green-600 text-white'
-                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                         }`}
-                       >
-                         {category.name}
-                       </button>
-                     ))}
-                   </div>
-                 )}
-               </div>
-             )}
+            {/* Category Selection - Only show for individual users, not organizations */}
+            {recipient.type !== 'organization' && (
+              <div className="bg-white rounded-3xl p-6 mb-6 shadow-sm border border-gray-100">
+                <label className="block text-sm font-medium text-gray-700 mb-4">
+                  Select Category
+                </label>
 
-             {/* Apply Constraints Toggle - Only show for individual users, not organizations */}
-             {recipient.type !== 'organization' && (
-               <div className="bg-white rounded-3xl p-6 mb-6 shadow-sm border border-gray-100">
-                 <div className="flex items-center justify-between">
-                   <div className="flex-1">
-                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                       Apply Spending Constraints
-                     </label>
-                     <p className="text-xs text-gray-500">
-                       When enabled, the recipient will only be able to spend this money on the selected category
-                     </p>
-                   </div>
-                   <button
-                     onClick={() => setApplyConstraints(!applyConstraints)}
-                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                       applyConstraints ? 'bg-green-600' : 'bg-gray-200'
-                     }`}
-                   >
-                     <span
-                       className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                         applyConstraints ? 'translate-x-6' : 'translate-x-1'
-                       }`}
-                     />
-                   </button>
-                 </div>
-                 
-                 {/* Constraints Warning */}
-                 {applyConstraints && (
-                   <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-                     <div className="flex items-start space-x-3">
-                       <Shield className="w-5 h-5 text-amber-600 mt-0.5" />
-                       <div>
-                         <p className="text-sm font-medium text-amber-800">
-                           Spending Constraints Active
-                         </p>
-                         <p className="text-xs text-amber-700 mt-1">
-                           The recipient will only be able to spend this money on the selected category. 
-                           {!selectedCategory && " Please select a category above."}
-                         </p>
-                       </div>
-                     </div>
-                   </div>
-                 )}
-               </div>
-             )}
+                {categoriesLoading ? (
+                  <div className="text-center py-4">Loading categories...</div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    {categories.map((category) => (
+                      <button
+                        key={category.id}
+                        onClick={() => setSelectedCategory(category)}
+                        className={`py-3 px-4 rounded-xl font-medium transition text-left ${selectedCategory?.id === category.id
+                          ? 'bg-green-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                      >
+                        {category.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Apply Constraints Toggle - Only show for individual users, not organizations */}
+            {recipient.type !== 'organization' && (
+              <div className="bg-white rounded-3xl p-6 mb-6 shadow-sm border border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Apply Spending Constraints
+                    </label>
+                    <p className="text-xs text-gray-500">
+                      When enabled, the recipient will only be able to spend this money on the selected category
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setApplyConstraints(!applyConstraints)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${applyConstraints ? 'bg-green-600' : 'bg-gray-200'
+                      }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${applyConstraints ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Constraints Warning */}
+                {applyConstraints && (
+                  <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                    <div className="flex items-start space-x-3">
+                      <Shield className="w-5 h-5 text-amber-600 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-amber-800">
+                          Spending Constraints Active
+                        </p>
+                        <p className="text-xs text-amber-700 mt-1">
+                          The recipient will only be able to spend this money on the selected category.
+                          {!selectedCategory && " Please select a category above."}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Organization Transfer Information */}
             {recipient.type === 'organization' && (
@@ -599,7 +560,7 @@ const AmountPage = () => {
                     <p className="text-sm text-blue-700 mb-3">
                       When you send money to an organization, the money becomes unrestricted and can be spent on any category by the organization.
                     </p>
-                    
+
                     {/* Organization Category */}
                     {organizationCategoryLoading ? (
                       <div className="bg-white border border-blue-200 rounded-lg p-3">
@@ -612,7 +573,7 @@ const AmountPage = () => {
                         <p className="text-xs text-blue-600">{organizationCategory.description}</p>
                       </div>
                     ) : null}
-                    
+
                     {/* User Restrictions */}
                     {userRestrictions.length > 0 && (
                       <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-3">
@@ -698,7 +659,7 @@ const AmountPage = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-3">
                   Enter your 4-digit PIN
                 </label>
-                
+
                 <div className="relative">
                   <input
                     type={showPin ? "text" : "password"}
@@ -709,11 +670,10 @@ const AmountPage = () => {
                       setError("");
                     }}
                     placeholder="••••"
-                    className={`w-full text-2xl font-bold text-center py-4 border rounded-xl focus:ring-2 transition ${
-                      pin.length === 0 ? 'border-gray-200 focus:ring-green-500 focus:border-green-500' :
+                    className={`w-full text-2xl font-bold text-center py-4 border rounded-xl focus:ring-2 transition ${pin.length === 0 ? 'border-gray-200 focus:ring-green-500 focus:border-green-500' :
                       pin.length < 4 ? 'border-yellow-300 focus:ring-yellow-500 focus:border-yellow-500' :
-                      'border-green-500 focus:ring-green-500 focus:border-green-500'
-                    }`}
+                        'border-green-500 focus:ring-green-500 focus:border-green-500'
+                      }`}
                     maxLength={4}
                   />
                   <button
