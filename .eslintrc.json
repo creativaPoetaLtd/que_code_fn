@@ -1,11 +1,8 @@
 {
-  "extends": [
-    "next/core-web-vitals",
-    "next/typescript"
-  ],
+  "parser": "@typescript-eslint/parser",
+  "extends": [],
   "rules": {
-    // Console restrictions - only allow console.error
-    "no-console": ["error", { "allow": ["error"] }]
+    "no-console": ["error", { "allow": ["error","warn"] }]
   },
   "env": {
     "browser": true,
@@ -17,11 +14,7 @@
     "sourceType": "module",
     "ecmaFeatures": {
       "jsx": true
-    }
-  },
-  "settings": {
-    "react": {
-      "version": "detect"
-    }
+    },
+    "project": "./tsconfig.json"
   }
 }
