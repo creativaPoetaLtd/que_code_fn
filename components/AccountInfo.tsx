@@ -11,8 +11,8 @@ interface AccountInfoProps {
 }
 
 const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
-        const router = useRouter();
-    
+    const router = useRouter();
+
     const [user, setUser] = useState({ firstName: '', lastName: '', qrCode: '' });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -22,21 +22,15 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
 
     useEffect(() => {
         const fetchUserData = async () => {
-            console.log('AccountInfo received userId:', userId);
-            console.log('Type of userId:', typeof userId);
-            console.log('URL pathname:', window.location.pathname);
-
             const authToken = localStorage.getItem('authToken');
             if (authToken) {
                 try {
                     const base64Url = authToken.split('.')[1];
                     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
                     const payload = JSON.parse(atob(base64));
-                    console.log('Token payload:', payload);
 
                     if (!userId || userId === 'undefined') {
                         const tokenUserId = payload?.userId || payload?.id || payload?.sub;
-                        console.log('Fallback userId from token:', tokenUserId);
 
                         if (tokenUserId) {
                             await fetchUserDataById(tokenUserId);
@@ -44,7 +38,7 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
                         }
                     }
                 } catch (tokenError) {
-                    console.error('Error decoding token:', tokenError);
+                    throw new Error('Invalid token');
                 }
             }
 
@@ -58,27 +52,23 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
             setBalanceLoading(true);
             setBalanceError(null);
             try {
-                console.log('AccountInfo - fetching balance for userId:', userId);
-                
+
                 // First try as user
                 let response;
                 try {
                     response = await getEntityBalance(userId, 'user');
-                    console.log('AccountInfo - user balance response received:', response);
                 } catch (userError) {
-                    console.log('AccountInfo - user balance failed, trying organization:', userError);
                     // If user fails, try as organization
                     response = await getEntityBalance(userId, 'organization');
-                    console.log('AccountInfo - organization balance response received:', response);
+                    throw userError;
                 }
-                
+
                 if (response.success && response.data) {
                     setBalance(Number(response.data.balance));
                 } else {
                     setBalanceError('Invalid balance data received');
                 }
             } catch (err) {
-                console.error('AccountInfo - balance fetch error:', err);
                 setBalanceError('Could not fetch balance');
             } finally {
                 setBalanceLoading(false);
@@ -92,16 +82,10 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
 
                 const authToken = localStorage.getItem('authToken');
                 const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {};
-
-                console.log('Fetching user data for ID:', id);
-
                 // Try user endpoint first, then organization endpoint
                 const userUrl = `${baseUrl}/users/${id}`;
                 const organizationUrl = `${baseUrl}/organizations/${id}`;
                 const profileUrl = `${baseUrl}/profiles?userId=${encodeURIComponent(id)}&organizationId=${encodeURIComponent(id)}`;
-                console.log('User API URL:', userUrl);
-                console.log('Organization API URL:', organizationUrl);
-                console.log('Profile API URL:', profileUrl);
 
                 const [userRes, organizationRes, profileRes] = await Promise.allSettled([
                     axios.get(userUrl, { headers }),
@@ -116,33 +100,25 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
                 // Check if user data was successful
                 if (userRes.status === 'fulfilled') {
                     const userData = userRes.value.data;
-                    console.log('User data received:', userData);
                     firstName = userData.firstName || '';
                     lastName = userData.lastName || '';
                 } else if (organizationRes.status === 'fulfilled') {
                     // If user failed but organization succeeded, use organization data
                     const orgData = organizationRes.value.data;
-                    console.log('Organization data received:', orgData);
                     firstName = orgData.name || '';
                     lastName = '';
                 } else {
                     const userErr = userRes.reason;
                     const orgErr = organizationRes.reason;
-                    console.error('Error fetching user data:', userErr);
-                    console.error('Error fetching organization data:', orgErr);
                 }
 
                 if (profileRes.status === 'fulfilled') {
                     const profile = profileRes.value.data;
-                    console.log('Profile data received:', profile);
                     qrCode = profile.qrCode || '';
                 } else {
                     const err = profileRes.reason;
-                    console.error('Error fetching user profile:', err);
                     if (axios.isAxiosError(err)) {
                         const status = err.response?.status;
-                        console.error('Profile API Error Status:', status);
-                        console.error('Profile API Error Data:', err.response?.data);
                         if (status === 400) {
                             // Keep non-blocking; still show user names if available
                             setError((prev) => prev ?? 'Missing profile query.');
@@ -160,7 +136,6 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
                     qrCode,
                 });
             } catch (error) {
-                console.error('Unexpected error fetching profile/user:', error);
                 setError('Failed to load user data. Please try again.');
             } finally {
                 setLoading(false);
@@ -174,9 +149,8 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
         try {
             const userLink = `https://yourdomain.com/welcome/${userId}`;
             await navigator.clipboard.writeText(userLink);
-            console.log('URL copied to clipboard');
         } catch (error) {
-            console.error('Failed to copy URL:', error);
+            throw new Error('Failed to copy link');
         }
     };
 
@@ -189,7 +163,7 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
                     url: userLink,
                 });
             } catch (error) {
-                console.error('Error sharing:', error);
+                throw new Error('Failed to share link');
             }
         } else {
             handleCopy();
@@ -245,7 +219,7 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
                 <h3 className="text-xl sm:text-2xl font-bold text-[#00313A] mt-1">
                     {user.firstName} {user.lastName}
                 </h3>
-                
+
                 {/* Balance Display */}
                 <div className="mt-4 p-4 bg-gradient-to-r from-[#00313A] to-[#00252e] rounded-lg">
                     <p className="text-sm text-gray-300 mb-1">Available Balance</p>
@@ -308,9 +282,9 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
                 </div>
 
                 <div className="flex justify-center gap-8 sm:gap-12 mt-6 sm:mt-8">
-                    <button 
-                    onClick={() => router.push('/home/transfer')}
-                    className="flex flex-col items-center group"
+                    <button
+                        onClick={() => router.push('/home/transfer')}
+                        className="flex flex-col items-center group"
                     >
                         <span className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-2 group-hover:bg-green-200 transition-colors">
                             <Send size={24} className="text-green-600" />

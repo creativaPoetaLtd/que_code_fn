@@ -43,13 +43,6 @@ export default function RespondToGroupInvitationPage() {
             return
         }
 
-        // Check if user is authenticated
-        if (!authToken) {
-            setResponseState("unauthorized")
-            setErrorMessage("Please log in to respond to this group invitation.")
-            return
-        }
-
         const details: GroupInvitationDetails = {
             membershipId,
             action: action as "accept" | "reject",
@@ -57,13 +50,21 @@ export default function RespondToGroupInvitationPage() {
         }
 
         setInvitationDetails(details)
-        // Automatically process the invitation
+        // Process the invitation (will handle auth inside the handler)
         handleInvitationResponse(details)
     }, [searchParams, authToken])
+
+    // Retry invitation response when user gets authenticated
+    useEffect(() => {
+        if (authToken && invitationDetails && responseState === "unauthorized") {
+            handleInvitationResponse(invitationDetails)
+        }
+    }, [authToken, invitationDetails, responseState])
 
     const handleInvitationResponse = async (details: GroupInvitationDetails) => {
         if (!authToken) {
             setResponseState("unauthorized")
+            setErrorMessage("Please log in to respond to this group invitation.")
             return
         }
 
@@ -229,7 +230,13 @@ export default function RespondToGroupInvitationPage() {
                             <h2 className="text-xl font-semibold mb-2">Login Required</h2>
                             <p className="text-gray-600 text-center mb-6">{errorMessage}</p>
                             <div className="flex gap-3">
-                                <Button onClick={() => router.push("/auth/login")} className="flex items-center">
+                                <Button 
+                                    onClick={() => {
+                                        const currentUrl = window.location.href;
+                                        router.push(`/auth/login?returnUrl=${encodeURIComponent(currentUrl)}`);
+                                    }} 
+                                    className="flex items-center"
+                                >
                                     Login
                                 </Button>
                                 <Button variant="outline" onClick={() => router.push("/")} className="flex items-center">

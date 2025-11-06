@@ -1,6 +1,51 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+interface AuthState {
+    token: string | null;
+    isAuthenticated: boolean;
+    isProtected: boolean;
+    isAuthRoute: boolean;
+    isPublicInvitation: boolean;
+}
+
+function decodeTokenPayload(token: string): any | null {
+    try {
+        const [, payload] = token.split('.');
+        const padded = payload + '='.repeat((4 - (payload.length % 4)) % 4);
+        const decoded = atob(padded.replace(/-/g, '+').replace(/_/g, '/'));
+        return JSON.parse(decoded);
+    } catch (error) {
+        return null;
+    }
+}
+
+
+function isTokenExpired(token: string): boolean {
+    const payload = decodeTokenPayload(token);
+    if (!payload || !payload.exp) return true;
+
+    const now = Math.floor(Date.now() / 1000);
+    return payload.exp < now;
+}
+
+function extractTokenFromCookie(value: string): string | null {
+    try {
+        const cookieData = JSON.parse(value);
+        if (cookieData.expires && Date.now() > cookieData.expires) return null;
+        return cookieData.value || cookieData;
+    } catch {
+        return value;
+    }
+}
+
+function getToken(request: NextRequest): string | null {
+    const cookie = request.cookies.get('token');
+    if (cookie) return extractTokenFromCookie(cookie.value);
+    const authHeader = request.headers.get('authorization');
+    return authHeader ? authHeader.replace('Bearer ', '') : null;
+}
+
 const protectedRoutes = [
     '/chat',
     '/profile',
@@ -9,6 +54,11 @@ const protectedRoutes = [
     '/home',
     '/groups/',
     '/contacts/',
+];
+
+const publicInvitationRoutes = [
+    '/groups/respond',
+    '/contacts/invitation',
 ];
 
 const authRoutes = [
@@ -20,65 +70,120 @@ const authRoutes = [
     '/signup',
 ];
 
-export function middleware(request: NextRequest) {
-    const { pathname, searchParams } = request.nextUrl;
-    
-    // Check for token in cookies (for SSR) and Authorization header (for client-side)
-    const token = request.cookies.get('token') || 
-                  request.headers.get('authorization')?.replace('Bearer ', '');
-    
-    const isAuthenticated = !!token;
-
-    const isProtectedRoute = protectedRoutes.some(route =>
-        pathname === route || pathname.startsWith(route.endsWith('/') ? route : route + '/')
+function isProtectedRoute(path: string): boolean {
+    return protectedRoutes.some(route =>
+        path === route || path.startsWith(route.endsWith('/') ? route : route + '/')
     );
+}
 
-    const isAuthRoute = authRoutes.some(route => pathname.startsWith(route));
+function isPublicInvitationRoute(path: string): boolean {
+    return publicInvitationRoutes.some(route => path.startsWith(route));
+}
 
-    // Special handling for home routes with userId
-    if (pathname.startsWith('/home/') && pathname !== '/home') {
-        // Extract userId from pathname (e.g., /home/123 -> 123)
-        const pathParts = pathname.split('/');
-        const urlUserId = pathParts[2]; // Get the userId part
+function isAuthRoute(path: string): boolean {
+    return authRoutes.some(route => path.startsWith(route));
+}
+
+function redirectToLogin(request: NextRequest): NextResponse {
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = '/auth/login';
+    loginUrl.searchParams.set('returnUrl', request.nextUrl.pathname + request.nextUrl.search);
+    return NextResponse.redirect(loginUrl);
+}
+
+function redirectToHome(request: NextRequest): NextResponse {
+    const homeUrl = request.nextUrl.clone();
+    homeUrl.pathname = '/home';
+    homeUrl.searchParams.delete('returnUrl');
+    return NextResponse.redirect(homeUrl);
+}
+
+function redirectToReturnUrl(request: NextRequest, returnUrl: string): NextResponse | null {
+    try {
+        // Decode the URL in case it's encoded
+        const decodedUrl = decodeURIComponent(returnUrl);
         
-        if (!isAuthenticated) {
-            // No token, redirect to login
-            const loginUrl = request.nextUrl.clone();
-            loginUrl.pathname = '/auth/login';
-            loginUrl.searchParams.set('returnUrl', pathname + request.nextUrl.search);
-            return NextResponse.redirect(loginUrl);
+        // Handle relative URLs
+        if (decodedUrl.startsWith('/') && !decodedUrl.startsWith('//')) {
+            const redirectUrl = request.nextUrl.clone();
+            const [path, query] = decodedUrl.split('?');
+            redirectUrl.pathname = path;
+            redirectUrl.search = query || '';
+            return NextResponse.redirect(redirectUrl);
         }
-
-        // If authenticated, let the client-side component handle the userId validation
-        // This ensures the user can only access their own home page
-        return NextResponse.next();
-    }
-
-    if (isProtectedRoute && !isAuthenticated) {
-        const loginUrl = request.nextUrl.clone();
-        loginUrl.pathname = '/auth/login';
-        loginUrl.searchParams.set('returnUrl', pathname + request.nextUrl.search);
-        return NextResponse.redirect(loginUrl);
-    }
-
-    if (isAuthRoute && isAuthenticated) {
-        const returnUrl = searchParams.get('returnUrl');
-
-        if (returnUrl) {
-            if (returnUrl.startsWith('/') && !returnUrl.startsWith('//')) {
+        
+        // Handle absolute URLs that match our domain
+        if (decodedUrl.startsWith('http')) {
+            const url = new URL(decodedUrl);
+            const currentHost = request.nextUrl.host;
+            
+            // Only redirect to same domain for security
+            if (url.host === currentHost) {
                 const redirectUrl = request.nextUrl.clone();
-                redirectUrl.pathname = returnUrl.split('?')[0];
-                redirectUrl.search = returnUrl.includes('?') ? returnUrl.split('?')[1] : '';
+                redirectUrl.pathname = url.pathname;
+                redirectUrl.search = url.search;
                 return NextResponse.redirect(redirectUrl);
             }
         }
-
-        const homeUrl = request.nextUrl.clone();
-        homeUrl.pathname = '/home';
-        homeUrl.searchParams.delete('returnUrl');
-        return NextResponse.redirect(homeUrl);
+    } catch (error) {
+        // If URL parsing fails, return null
+        console.error('Error parsing returnUrl:', error);
     }
     
+    return null;
+}
+
+function getAuthState(request: NextRequest): AuthState {
+    const token = getToken(request);
+    const isAuthenticated = token ? !isTokenExpired(token) : false;
+    const { pathname } = request.nextUrl;
+    return {
+        token,
+        isAuthenticated,
+        isProtected: isProtectedRoute(pathname),
+        isAuthRoute: isAuthRoute(pathname),
+        isPublicInvitation: isPublicInvitationRoute(pathname),
+    };
+}
+
+function handleExpiredToken(request: NextRequest): NextResponse {
+    const response = redirectToLogin(request);
+    response.cookies.set('token', '', {
+        expires: new Date(0),
+        path: '/',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+    });
+    return response;
+}
+
+function handleAuthenticatedAuthRoute(request: NextRequest): NextResponse {
+    const returnUrl = request.nextUrl.searchParams.get('returnUrl');
+    const redirect = returnUrl ? redirectToReturnUrl(request, returnUrl) : null;
+    return redirect || redirectToHome(request);
+}
+
+export function middleware(request: NextRequest) {
+    const state = getAuthState(request);
+    
+    // Allow public access to invitation routes
+    if (state.isPublicInvitation) {
+        return NextResponse.next();
+    }
+    
+    if (state.token && isTokenExpired(state.token)) {
+        return handleExpiredToken(request);
+    }
+
+    if (state.isProtected && !state.isAuthenticated) {
+        return redirectToLogin(request);
+    }
+
+    if (state.isAuthRoute && state.isAuthenticated) {
+        return handleAuthenticatedAuthRoute(request);
+    }
+
     return NextResponse.next();
 }
 

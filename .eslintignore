@@ -1,0 +1,57 @@
+# ESLint ignore file
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+.next/
+out/
+dist/
+build/
+
+# Environment files
+.env*
+
+# IDE files
+.vscode/
+.idea/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+
+# Package manager files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Logs
+*.log
+
+# Cache directories
+.cache/
+.parcel-cache/
+
+# Configuration files (these often have different formatting needs)
+*.config.js
+*.config.mjs
+*.config.ts
+postcss.config.mjs
+tailwind.config.ts
+next.config.mjs
+
+# Documentation that doesn't need strict linting
+*.md
+
+# Generated files
+components.json
+
+# Test files (add when tests are added)
+# **/*.test.ts
+# **/*.test.tsx
+# **/*.spec.ts
+# **/*.spec.tsx

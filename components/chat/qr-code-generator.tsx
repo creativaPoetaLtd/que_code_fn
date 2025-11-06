@@ -44,7 +44,9 @@ export default function QRCodeGenerator({ value, size = 200, title, description 
                     text: description || "Scan this QR code",
                     url: value,
                 })
-                .catch((error) => console.log("Error sharing", error))
+                .catch((error) => {
+                    throw error;
+                })
         } else {
             copyToClipboard()
         }
