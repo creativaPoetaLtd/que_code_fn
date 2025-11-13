@@ -13,6 +13,7 @@ interface ConversationItemProps {
 }
 
 export default function ConversationItem({ conversation, isActive, onClick }: ConversationItemProps) {
+    console.log("Conversation Item Render:", conversation);
     return (
         <div
             className={cn(
@@ -31,7 +32,7 @@ export default function ConversationItem({ conversation, isActive, onClick }: Co
                         <div className="relative">
                             <Avatar className="h-10 w-10">
                                 <AvatarImage src={conversation.avatar || "/placeholder.svg"} alt={conversation.name} />
-                                <AvatarFallback>{conversation.name.charAt(0)}</AvatarFallback>
+                                <AvatarFallback>{(conversation.name || 'U').charAt(0).toUpperCase()}</AvatarFallback>
                             </Avatar>
                             {conversation.online && (
                                 <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></span>

@@ -270,55 +270,60 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
             const userId = getUserIdFromToken(token)
 
             if (userId) {
+                // Get existing socket connection (managed by ChatContext)
+                const socket = socketService.getSocket()
 
-                // Connect to socket
-                const socket = socketService.connect(userId)
+                if (socket) {
+                    // Listen to connection status from existing socket
+                    const handleConnect = () => setIsConnected(true)
+                    const handleDisconnect = () => setIsConnected(false)
+                    const handleConnectError = () => setIsConnected(false)
 
-                socket.on("connect", () => {
-                    setIsConnected(true)
-                })
+                    socket.on("connect", handleConnect)
+                    socket.on("disconnect", handleDisconnect)
+                    socket.on("connect_error", handleConnectError)
 
-                socket.on("disconnect", () => {
-                    setIsConnected(false)
-                })
+                    // Set up event listeners for notifications
+                    socketService.onNotification(handleNotification)
+                    socketService.onGroupInvitation(handleGroupInvitation)
+                    socketService.onContactRequest(handleContactRequest)
+                    socket.on("CONTACT_REQUEST_RECEIVED", handleContactRequest)
+                    socket.on("groupJoinApproved", handleGroupJoinApproved)
+                    socket.on("groupJoinRejected", handleGroupJoinRejected)
+                    socket.on("groupJoinRequest", handleGroupJoinRequest)
+                    socket.on("groupCreated", handleGroupCreated)
 
-                socket.on("connect_error", (error) => {
-                    setIsConnected(false)
-                })
+                    // Update connection status based on current state
+                    setIsConnected(socket.connected)
 
-                // Set up event listeners
-                socketService.onNotification(handleNotification)
-                socketService.onGroupInvitation(handleGroupInvitation)
-                socketService.onContactRequest(handleContactRequest)
-                socket.on("CONTACT_REQUEST_RECEIVED", handleContactRequest) // Add specific handler for contact requests
-                socket.on("groupJoinApproved", handleGroupJoinApproved) // New listener
-                socket.on("groupJoinRejected", handleGroupJoinRejected) // New listener
-                socket.on("groupJoinRequest", handleGroupJoinRequest) // New listener for join requests
-                socket.on("groupCreated", handleGroupCreated) // New listener for group creation
-
-                return () => {
-                    // Clean up listeners
-                    socketService.offNotification(handleNotification)
-                    socketService.offGroupInvitation(handleGroupInvitation)
-                    socketService.offContactRequest(handleContactRequest)
-                    socket.off("CONTACT_REQUEST_RECEIVED", handleContactRequest) // Clean up contact request handler
-                    socket.off("groupJoinApproved", handleGroupJoinApproved) // Clean up
-                    socket.off("groupJoinRejected", handleGroupJoinRejected) // Clean up
-                    socket.off("groupJoinRequest", handleGroupJoinRequest) // Clean up
-                    socket.off("groupCreated", handleGroupCreated) // Clean up
-                    socketService.disconnect()
-                    setIsConnected(false)
-                    if (reconnectTimeoutRef.current) {
-                        clearTimeout(reconnectTimeoutRef.current)
+                    return () => {
+                        // Clean up listeners only
+                        socket.off("connect", handleConnect)
+                        socket.off("disconnect", handleDisconnect)
+                        socket.off("connect_error", handleConnectError)
+                        socketService.offNotification(handleNotification)
+                        socketService.offGroupInvitation(handleGroupInvitation)
+                        socketService.offContactRequest(handleContactRequest)
+                        socket.off("CONTACT_REQUEST_RECEIVED", handleContactRequest)
+                        socket.off("groupJoinApproved", handleGroupJoinApproved)
+                        socket.off("groupJoinRejected", handleGroupJoinRejected)
+                        socket.off("groupJoinRequest", handleGroupJoinRequest)
+                        socket.off("groupCreated", handleGroupCreated)
+                        setIsConnected(false)
+                        if (reconnectTimeoutRef.current) {
+                            clearTimeout(reconnectTimeoutRef.current)
+                        }
                     }
+                } else {
+                    console.warn("No socket connection available for notifications")
+                    setIsConnected(false)
                 }
             } else {
                 console.warn("Could not extract user ID from token")
+                setIsConnected(false)
             }
         } else {
-            console.warn("No valid token found, not connecting to socket")
-            // Disconnect if token is invalid or expired
-            socketService.disconnect()
+            console.warn("No valid token found")
             setIsConnected(false)
         }
     }, [

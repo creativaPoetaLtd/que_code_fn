@@ -205,6 +205,19 @@ export const useAuthToken = (enableAutoRedirect: boolean = true) => {
         };
     }, [enableAutoRedirect, checkTokenExpiration]);
 
+    const getUserId = useCallback((): string | null => {
+        const token = getToken();
+        if (!token) return null;
+        
+        try {
+            const decoded = decodeJWT(token);
+            if (!decoded) return null;
+            return (decoded as any).id || (decoded as any).userId || null;
+        } catch (error) {
+            return null;
+        }
+    }, [getToken]);
+
     return {
         getToken,
         setToken,
@@ -213,6 +226,7 @@ export const useAuthToken = (enableAutoRedirect: boolean = true) => {
         cleanupExpiredTokens,
         checkTokenExpiration,
         redirectToLogin,
-        forceValidateToken
+        forceValidateToken,
+        getUserId
     };
 };

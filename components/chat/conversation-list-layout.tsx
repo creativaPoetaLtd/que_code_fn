@@ -27,6 +27,7 @@ interface ConversationListLayoutProps {
     onStartNewChat?: (contact: any) => void
     onJoinGroup?: (group: any) => void
     pendingRequestsCount?: number
+    isLoading?: boolean
 }
 
 export default function ConversationListLayout({
@@ -40,6 +41,7 @@ export default function ConversationListLayout({
     onStartNewChat,
     onJoinGroup,
     pendingRequestsCount = 3,
+    isLoading = false,
 }: ConversationListLayoutProps) {
     const [searchTerm, setSearchTerm] = useState<string>("")
     const [activeFilter, setActiveFilter] = useState<FilterType>("all")
@@ -53,7 +55,7 @@ export default function ConversationListLayout({
 
     // Filter conversations
     const filteredConversations = conversations.filter((conv) => {
-        const matchesSearch = conv.name.toLowerCase().includes(searchTerm.toLowerCase())
+        const matchesSearch = (conv.name || '').toLowerCase().includes(searchTerm.toLowerCase())
         switch (activeFilter) {
             case "users":
                 return matchesSearch && !conv.isGroup
@@ -112,7 +114,12 @@ export default function ConversationListLayout({
 
             {/* Conversation List */}
             <div className="flex-1 overflow-y-auto">
-                {filteredConversations.length > 0 ? (
+                {isLoading ? (
+                    <div className="flex items-center justify-center h-32">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                        <span className="ml-2 text-gray-500">Loading conversations...</span>
+                    </div>
+                ) : filteredConversations.length > 0 ? (
                     <div>
                         {/* Section Header */}
                         {searchTerm === "" && (

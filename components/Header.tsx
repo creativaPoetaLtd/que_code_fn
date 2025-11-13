@@ -8,6 +8,7 @@ import baseUrl from "@/helpers/baseUrl";
 import { getUserBalance, getEntityBalance } from '@/helpers/api';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useNotifications } from "@/context/NotificationContext";
+import { useChat } from "@/context/ChatContext";
 import NotificationBell from "./notifications/NotificationBell";
 import { useAuthToken } from "@/hooks/use-auth-token";
 
@@ -22,8 +23,20 @@ export const Header = () => {
     const [balanceError, setBalanceError] = useState<string | null>(null);
 
     const router = useRouter();
-    const { isConnected } = useNotifications();
+    const notifications = useNotifications();
     const { getToken } = useAuthToken();
+    
+    // Try to get chat context, but don't fail if it's not available
+    let chat;
+    try {
+        chat = useChat();
+    } catch (error) {
+        // ChatContext is not available on this page
+        chat = null;
+    }
+    
+    // Use chat connection status if available, otherwise use notifications
+    const isConnected = chat?.isConnected ?? notifications.isConnected;
 
     // Fetch userId from token and then fetch user profile
     React.useEffect(() => {

@@ -11,6 +11,7 @@ import {
     DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import { Conversation } from "@/types"
+import { useChat } from "@/context/ChatContext"
 import { 
     ArrowLeft, 
     Info, 
@@ -20,7 +21,10 @@ import {
     UserPlus, 
     Settings,
     Users,
-    Circle
+    Circle,
+    Wifi,
+    Lock,
+    Trash2
 } from "lucide-react"
 
 interface ChatHeaderProps {
@@ -36,6 +40,8 @@ export default function ChatHeader({
     onViewProfile, 
     onInviteToGroup 
 }: ChatHeaderProps) {
+    const chat = useChat()
+    
     const getOnlineStatus = () => {
         if (conversation.isGroup) {
             return `${conversation.online || 0} online`
@@ -88,6 +94,14 @@ export default function ChatHeader({
                                 {conversation.members}
                             </Badge>
                         )}
+                        <Badge variant={chat.isConnected ? "default" : "destructive"} className="text-xs">
+                            <Wifi size={8} className="mr-1" />
+                            {chat.isConnected ? "Connected" : "Offline"}
+                        </Badge>
+                        <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
+                            <Lock size={8} className="mr-1" />
+                            Encrypted
+                        </Badge>
                     </div>
                     <p className="text-xs sm:text-sm text-gray-500 truncate">
                         {getOnlineStatus()}
@@ -172,6 +186,21 @@ export default function ChatHeader({
                         <DropdownMenuItem className="cursor-pointer">
                             <Settings size={14} className="mr-2" />
                             Chat Settings
+                        </DropdownMenuItem>
+                        
+                        <DropdownMenuItem 
+                            onClick={() => chat.initializeEncryption()}
+                            className="cursor-pointer"
+                        >
+                            <Lock size={14} className="mr-2" />
+                            Initialize Encryption
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                            onClick={() => chat.activeChat && chat.deleteChat(chat.activeChat)}
+                            className="cursor-pointer text-red-600 hover:text-red-700"
+                        >
+                            <Trash2 size={14} className="mr-2" />
+                            Delete Chat
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>

@@ -548,8 +548,8 @@ export default function CreateGroupModalUpdated({
                                                             alt={`${contact.otherUser.firstName} ${contact.otherUser.lastName}`}
                                                         />
                                                         <AvatarFallback>
-                                                            {contact.otherUser.firstName.charAt(0)}
-                                                            {contact.otherUser.lastName.charAt(0)}
+                                                            {(contact.otherUser.firstName || '').charAt(0).toUpperCase()}
+                                                            {(contact.otherUser.lastName || '').charAt(0).toUpperCase()}
                                                         </AvatarFallback>
                                                     </Avatar>
                                                     <span>
@@ -599,8 +599,8 @@ export default function CreateGroupModalUpdated({
                                                         alt={`${contact.otherUser.firstName} ${contact.otherUser.lastName}`}
                                                     />
                                                     <AvatarFallback>
-                                                        {contact.otherUser.firstName.charAt(0)}
-                                                        {contact.otherUser.lastName.charAt(0)}
+                                                        {(contact.otherUser.firstName || '').charAt(0).toUpperCase()}
+                                                        {(contact.otherUser.lastName || '').charAt(0).toUpperCase()}
                                                     </AvatarFallback>
                                                 </Avatar>
                                                 <div>

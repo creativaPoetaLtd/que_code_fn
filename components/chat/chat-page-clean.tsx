@@ -177,28 +177,67 @@ export default function ChatPageClean() {
         })
     }
 
-    const handleJoinGroup = (group: any) => {
-        const newConversation = {
-            id: Date.now(),
-            name: group.name,
-            isGroup: true as const,
-            isContributionGroup: false as const,
-            lastMessage: "",
-            timestamp: "Now",
-            unread: 0,
-            avatar: group.avatar || "/placeholder.svg?height=40&width=40",
-            members: group.memberCount || 0,
-            online: 0,
-            description: group.description,
-            createdAt: group.createdAt,
-            createdBy: group.createdBy,
-        }
+    const handleJoinGroup = async (group: any) => {
+        try {
+            const token = getToken();
+            if (!token) {
+                toast({
+                    title: "Authentication Error",
+                    description: "Please log in to join the group chat",
+                    variant: "destructive"
+                });
+                return;
+            }
 
-        addConversation(newConversation)
-        toast({
-            title: "Joined Group",
-            description: `You have joined ${newConversation.name}`,
-        })
+            // Call the backend to join/create the group chat
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/chats/group/${group.id}/join`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to join group chat');
+            }
+
+            const data = await response.json();
+
+            // Create a conversation object for the group chat
+            const groupConversation = {
+                id: data.data.chatId, // Use the actual chat ID from backend
+                name: group.name,
+                isGroup: true as const,
+                isContributionGroup: false as const,
+                lastMessage: "",
+                timestamp: "Now",
+                unread: 0,
+                avatar: group.profilePictureUrl || "/placeholder.svg?height=40&width=40",
+                members: group.memberCount || 0,
+                online: 0,
+                description: group.description,
+                createdAt: group.createdAt,
+                createdBy: group.createdBy,
+            };
+
+            // Add conversation and set as active
+            addConversation(groupConversation);
+
+            toast({
+                title: "Group Chat Opened",
+                description: `Welcome to ${group.name}! Your chat is ready.`,
+            });
+
+        } catch (error) {
+            console.error("Error joining group chat:", error);
+            toast({
+                title: "Error",
+                description: error instanceof Error ? error.message : "Failed to join group chat",
+                variant: "destructive"
+            });
+        }
     }
 
     const handleViewProfile = () => {
@@ -219,7 +258,7 @@ export default function ChatPageClean() {
         <Layout className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
             <div className="flex min-h-screen">
                 <Navigation />
-                
+
                 <main className="flex-1 lg:ml-20 w-full max-w-full overflow-x-hidden">
                     <div className="flex-1 flex flex-col md:flex-row overflow-hidden h-[calc(100vh-100px)] md:h-screen shadow-lg">
                         {/* Conversation List */}
@@ -262,23 +301,33 @@ export default function ChatPageClean() {
                 onClose={() => setIsRequestMoneyModalOpen(false)}
                 conversation={activeConversation}
             />
-            <AddContactModal 
-                isOpen={isAddContactModalOpen} 
-                onClose={() => setIsAddContactModalOpen(false)} 
+            <AddContactModal
+                isOpen={isAddContactModalOpen}
+                onClose={() => setIsAddContactModalOpen(false)}
             />
             <UserProfileModal
                 isOpen={isUserProfileModalOpen}
                 onClose={() => setIsUserProfileModalOpen(false)}
-                user={activeConversation.isGroup ? null : (activeConversation as Contact)}
+                user={activeConversation.isGroup ? null : {
+                    id: (activeConversation as Contact).id.toString(),
+                    firstName: (activeConversation as Contact).name.split(' ')[0] || '',
+                    lastName: (activeConversation as Contact).name.split(' ').slice(1).join(' ') || '',
+                    email: (activeConversation as Contact).email || '',
+                    phone: (activeConversation as Contact).phone,
+                    isOnline: (activeConversation as Contact).online,
+                    profile: {
+                        profileImage: (activeConversation as Contact).avatar
+                    }
+                }}
             />
             <GroupProfileModal
                 isOpen={isGroupProfileModalOpen}
                 onClose={() => setIsGroupProfileModalOpen(false)}
                 group={activeConversation.isGroup ? (activeConversation as Group) : null}
             />
-            <ContactRequestModal 
-                isOpen={isContactRequestModalOpen} 
-                onClose={() => setIsContactRequestModalOpen(false)} 
+            <ContactRequestModal
+                isOpen={isContactRequestModalOpen}
+                onClose={() => setIsContactRequestModalOpen(false)}
             />
             <InviteToGroupModal
                 isOpen={isInviteToGroupModalOpen}
