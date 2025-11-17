@@ -56,11 +56,10 @@ const GroupJoinRequestsModal: React.FC<GroupJoinRequestsModalProps> = ({
             })
             refetch() // Refetch requests to update the list
         } catch (err: any) {
-            console.error("Failed to respond to join request:", err)
             toast({
                 title: "Error",
-                description: err?.data?.message || `Failed to ${action} request.`,
-                variant: "destructive",
+                description: err?.message || "Failed to respond to join request",
+                variant: "destructive"
             })
         } finally {
             setProcessingRequestId(null)

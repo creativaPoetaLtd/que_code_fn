@@ -5,13 +5,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
-import { Mail, Phone, MapPin, DollarSign, User, MessageCircle } from "lucide-react"
-import type { Contact } from "@/types"
+import { Mail, Phone, MapPin, DollarSign, User as UserIcon, MessageCircle } from "lucide-react"
+import type { User } from "@/types"
 
 interface UserProfileModalProps {
     isOpen: boolean
     onClose: () => void
-    user: Contact | null
+    user: User | null
 }
 
 export default function UserProfileModal({ isOpen, onClose, user }: UserProfileModalProps) {
@@ -22,22 +22,27 @@ export default function UserProfileModal({ isOpen, onClose, user }: UserProfileM
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                     <div className="flex items-center">
-                        <User size={20} className="text-blue-600 mr-2" />
+                        <UserIcon size={20} className="text-blue-600 mr-2" />
                         <DialogTitle>User Profile</DialogTitle>
                     </div>
                 </DialogHeader>
 
                 <div className="flex flex-col items-center py-6">
                     <Avatar className="h-20 w-20">
-                        <AvatarImage src={user.avatar} alt={user.name} />
-                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                        <AvatarImage src={user.profile?.profileImage || "/placeholder.svg?height=80&width=80"} alt={`${user.firstName || ''} ${user.lastName || ''}`.trim()} />
+                        <AvatarFallback>{((user.firstName || '') + (user.lastName || '')).charAt(0).toUpperCase() || 'U'}</AvatarFallback>
                     </Avatar>
-                    <h3 className="mt-4 mb-1 text-xl font-semibold">{user.name}</h3>
+                    <h3 className="mt-4 mb-1 text-xl font-semibold">{`${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Unknown User'}</h3>
                     <div className="flex items-center mb-4">
-                        <Badge variant={user.online ? "default" : "secondary"} className={user.online ? "bg-green-500" : ""}>
-                            {user.online ? "Online" : "Offline"}
+                        <Badge variant={user.isOnline ? "default" : "secondary"} className={user.isOnline ? "bg-green-500" : ""}>
+                            {user.isOnline ? "Online" : "Offline"}
                         </Badge>
-                        <span className="ml-2 text-sm text-gray-500">Member since {user.joinedAt}</span>
+                        <span className="ml-2 text-sm text-gray-500">
+                            {user.lastSeen 
+                                ? `Last seen ${new Date(user.lastSeen).toLocaleDateString()}`
+                                : 'Member'
+                            }
+                        </span>
                     </div>
 
                     <Separator className="w-full my-4" />
@@ -46,19 +51,19 @@ export default function UserProfileModal({ isOpen, onClose, user }: UserProfileM
                         <div className="flex items-center">
                             <Mail size={16} className="mr-2 text-gray-500" />
                             <span className="text-sm text-gray-500 w-20">Email:</span>
-                            <span className="font-medium">{user.email}</span>
+                            <span className="font-medium">{user.email || 'Not provided'}</span>
                         </div>
 
                         <div className="flex items-center">
                             <Phone size={16} className="mr-2 text-gray-500" />
                             <span className="text-sm text-gray-500 w-20">Phone:</span>
-                            <span className="font-medium">{user.phone}</span>
+                            <span className="font-medium">{user.phone || 'Not provided'}</span>
                         </div>
 
                         <div className="flex items-center">
                             <MapPin size={16} className="mr-2 text-gray-500" />
                             <span className="text-sm text-gray-500 w-20">Address:</span>
-                            <span className="font-medium">{user.address}</span>
+                            <span className="font-medium">{'Not provided'}</span>
                         </div>
                     </div>
 

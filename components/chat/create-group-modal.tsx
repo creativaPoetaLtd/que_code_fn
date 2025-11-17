@@ -272,7 +272,6 @@ export default function CreateGroupModalUpdated({
                 })
             }
         } catch (error: any) {
-            console.error('Group creation error:', error)
             toast({
                 title: "Error",
                 description: error?.data?.message || "Failed to create group",
@@ -548,8 +547,8 @@ export default function CreateGroupModalUpdated({
                                                             alt={`${contact.otherUser.firstName} ${contact.otherUser.lastName}`}
                                                         />
                                                         <AvatarFallback>
-                                                            {contact.otherUser.firstName.charAt(0)}
-                                                            {contact.otherUser.lastName.charAt(0)}
+                                                            {(contact.otherUser.firstName || '').charAt(0).toUpperCase()}
+                                                            {(contact.otherUser.lastName || '').charAt(0).toUpperCase()}
                                                         </AvatarFallback>
                                                     </Avatar>
                                                     <span>
@@ -599,8 +598,8 @@ export default function CreateGroupModalUpdated({
                                                         alt={`${contact.otherUser.firstName} ${contact.otherUser.lastName}`}
                                                     />
                                                     <AvatarFallback>
-                                                        {contact.otherUser.firstName.charAt(0)}
-                                                        {contact.otherUser.lastName.charAt(0)}
+                                                        {(contact.otherUser.firstName || '').charAt(0).toUpperCase()}
+                                                        {(contact.otherUser.lastName || '').charAt(0).toUpperCase()}
                                                     </AvatarFallback>
                                                 </Avatar>
                                                 <div>

@@ -25,6 +25,6 @@ const baseQueryWithReauth = async (args: any, api: any, extraOptions: any) => {
 export const apiSlice = createApi({
     reducerPath: 'api',
     baseQuery: baseQueryWithReauth,
-    tagTypes: ['Group', 'GroupMember', 'GroupInvitation', 'GroupJoinRequest', 'Notification', 'Contact', 'ContactInvitation', 'User'],
+    tagTypes: ['Group', 'GroupMember', 'GroupInvitation', 'GroupJoinRequest', 'Notification', 'Contact', 'ContactInvitation', 'User', 'Chat', 'ChatMessage', 'ChatStatus'],
     endpoints: () => ({})
 })

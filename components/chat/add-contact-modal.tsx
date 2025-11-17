@@ -118,7 +118,6 @@ export default function AddContactModal({ isOpen, onClose }: AddContactModalProp
                 handleClose()
             }, 3000)
         } catch (error: any) {
-            console.error("Invitation error:", error)
             setQrStep("input")
 
             const errorMessage = error?.data?.message || error?.message || "Failed to send invitation"
