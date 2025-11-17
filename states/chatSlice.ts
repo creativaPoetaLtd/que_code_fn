@@ -69,6 +69,15 @@ export const chatSlice = apiSlice.injectEndpoints({
             invalidatesTags: ["Chat"]
         }),
 
+        // Join group chat
+        joinGroupChat: builder.mutation({
+            query: ({ groupId }) => ({
+                url: `/chats/group/${groupId}/join`,
+                method: "POST"
+            }),
+            invalidatesTags: ["Chat"]
+        }),
+
         // Delete chat
         deleteChat: builder.mutation({
             query: ({ chatId }) => ({
@@ -97,6 +106,7 @@ export const {
     useMarkMessagesAsReadMutation,
     useGetChatParticipantsStatusQuery,
     useCreateGroupChatMutation,
+    useJoinGroupChatMutation,
     useDeleteChatMutation,
     useInitializeUserEncryptionMutation
 } = chatSlice;

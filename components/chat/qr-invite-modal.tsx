@@ -83,8 +83,6 @@ export default function QRInviteModal({ isOpen, onClose }: QRInviteModalProps) {
                 handleClose()
             }, 3000)
         } catch (error: any) {
-            console.error("Invitation error:", error)
-
             const errorMessage = error?.data?.message || error?.message || "Failed to send invitation"
 
             toast({

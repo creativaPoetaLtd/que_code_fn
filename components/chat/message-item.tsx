@@ -1,25 +1,22 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
-import type { Message, LegacyMessage } from "@/types"
+import type { Message, LegacyMessage } from "@/types/chat.types"
 import { useMemo } from "react"
 
 interface MessageItemProps {
     message: Message | LegacyMessage
 }
 
-// Type guard to check if message is legacy format
 function isLegacyMessage(message: Message | LegacyMessage): message is LegacyMessage {
     return 'isMe' in message && 'message' in message;
 }
 
 export default function MessageItem({ message }: MessageItemProps) {
-    // Handle both message formats
     const isLegacy = isLegacyMessage(message);
 
     let messageContent: any = isLegacy ? message.message : message.content;
     const isMe = isLegacy ? message.isMe : (message as any).isMe || false;
 
-    // Simple sender name extraction since message transformation now handles the complex logic
     const senderDisplayName = useMemo(() => {
         if (isLegacy) {
             return String(message.sender || 'Unknown User');
@@ -27,17 +24,14 @@ export default function MessageItem({ message }: MessageItemProps) {
 
         const sender = message.sender as any;
         
-        // At this point, sender should be a string due to the transformation in real-chat-page.tsx
         if (typeof sender === 'string') {
             return sender;
         }
         
-        // Fallback handling for any edge cases
         if (!sender || typeof sender !== 'object') {
             return 'Unknown User';
         }
 
-        // If somehow an object made it through, extract the name
         if (sender.name) return String(sender.name);
         if (sender.firstName && sender.lastName) return `${sender.firstName} ${sender.lastName}`.trim();
         if (sender.firstName) return String(sender.firstName);
@@ -49,11 +43,7 @@ export default function MessageItem({ message }: MessageItemProps) {
         return 'Unknown User';
     }, [isLegacy, message.sender]);
 
-
-
-    // Handle case where content might be an object instead of string
     if (typeof messageContent === 'object' && messageContent !== null) {
-        // If it's an object, try to extract the actual content
         if (messageContent.content) {
             messageContent = messageContent.content;
         } else if (messageContent.text) {
@@ -61,12 +51,10 @@ export default function MessageItem({ message }: MessageItemProps) {
         } else if (messageContent.message) {
             messageContent = messageContent.message;
         } else {
-            // If we can't find a reasonable text field, stringify it
             messageContent = JSON.stringify(messageContent);
         }
     }
 
-    // Ensure messageContent is always a string
     messageContent = String(messageContent || '');
 
     const avatar = isLegacy ? message.avatar : (message.sender as any)?.avatar || (message.sender as any)?.profile?.profileImage;
@@ -96,8 +84,7 @@ export default function MessageItem({ message }: MessageItemProps) {
                     {timestamp}
                 </p>
 
-                {/* Show read receipts for new message format */}
-                {!isLegacy && message.readBy.length > 0 && (
+                {!isLegacy && message.readBy && message.readBy.length > 0 && (
                     <div className="text-xs text-gray-400 mt-1">
                         Read by {message.readBy.length} {message.readBy.length === 1 ? 'person' : 'people'}
                     </div>

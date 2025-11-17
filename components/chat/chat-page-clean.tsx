@@ -1,16 +1,14 @@
 'use client'
 
+import { useState } from "react"
 import { Layout } from "antd"
 import ChatArea from "@/components/chat/chat-area"
 import ConversationListLayout from "@/components/chat/conversation-list-layout"
 import Navigation from "@/components/Navigation"
-import { useChatLayout } from "@/hooks/use-chat-layout"
+import { useChatOperations } from "@/hooks/use-chat-operations"
 import { useChatModals } from "@/hooks/use-chat-modals"
-import { useAuthToken } from "@/hooks/use-auth-token"
-import { toast } from "@/hooks/use-toast"
-import type { Contact, Group } from "@/types"
+import type { Chat } from "@/types/chat.types"
 
-// Modal components
 import SendMoneyModal from "@/components/chat/send-money-modal"
 import RequestMoneyModal from "@/components/chat/request-money-modal"
 import AddContactModal from "@/components/chat/add-contact-modal"
@@ -19,119 +17,21 @@ import GroupProfileModal from "@/components/chat/group-profile-modal"
 import ContactRequestModal from "@/components/chat/contact-request"
 import InviteToGroupModal from "@/components/chat/invite-to-group-modal"
 
-// Sample data - in real app this would come from API
-export const SAMPLE_CONVERSATIONS = [
-    {
-        id: 1,
-        name: "Design Team",
-        isGroup: true as const,
-        isContributionGroup: false as const,
-        lastMessage: "Let's finalize the mockups by EOD",
-        timestamp: "10:45 AM",
-        unread: 3,
-        avatar: "/placeholder.svg?height=40&width=40",
-        members: 8,
-        online: 5,
-        description: "Team responsible for UI/UX design across all products",
-        createdAt: "2023-05-15",
-        createdBy: "Alex Johnson",
-    },
-    {
-        id: 2,
-        name: "Marketing Campaign",
-        isGroup: true as const,
-        isContributionGroup: false as const,
-        lastMessage: "I've shared the social media calendar",
-        timestamp: "Yesterday",
-        unread: 0,
-        avatar: "/placeholder.svg?height=40&width=40",
-        members: 6,
-        online: 2,
-        description: "Group for Q4 marketing campaign planning",
-        createdAt: "2023-09-01",
-        createdBy: "Maya Rodriguez",
-    },
-    {
-        id: 3,
-        name: "Sarah Johnson",
-        isGroup: false as const,
-        isContributionGroup: false as const,
-        lastMessage: "Can we schedule a call tomorrow?",
-        timestamp: "Yesterday",
-        unread: 1,
-        avatar: "/placeholder.svg?height=40&width=40",
-        online: true,
-        email: "sarah.johnson@example.com",
-        phone: "+1 555-123-4567",
-        address: "123 Main St, San Francisco, CA",
-        joinedAt: "2023-01-15",
-    },
-    {
-        id: 4,
-        name: "Product Launch",
-        isGroup: true as const,
-        isContributionGroup: false as const,
-        lastMessage: "The MVP is ready for testing",
-        timestamp: "Monday",
-        unread: 0,
-        avatar: "/placeholder.svg?height=40&width=40",
-        members: 12,
-        online: 7,
-        description: "Group for new product launch coordination",
-        createdAt: "2023-08-15",
-        createdBy: "John Smith",
-    },
-    {
-        id: 5,
-        name: "Michael Chen",
-        isGroup: false as const,
-        isContributionGroup: false as const,
-        lastMessage: "I've reviewed your proposal",
-        timestamp: "Monday",
-        unread: 0,
-        avatar: "/placeholder.svg?height=40&width=40",
-        online: false,
-        email: "michael.chen@example.com",
-        phone: "+1 555-987-6543",
-        address: "456 Oak Ave, Seattle, WA",
-        joinedAt: "2023-03-10",
-    },
-]
-
-export const SAMPLE_MESSAGES = [
-    {
-        id: 1,
-        sender: "Sarah Johnson",
-        message: "Hi team! I've created a new invitation for our project kickoff.",
-        timestamp: "10:30 AM",
-        isMe: false,
-        avatar: "/placeholder.svg?height=40&width=40",
-    },
-    {
-        id: 2,
-        sender: "You",
-        message: "Thanks Sarah! I'll check it out right away.",
-        timestamp: "10:32 AM",
-        isMe: true,
-        avatar: "/placeholder.svg?height=40&width=40",
-    },
-]
-
 const { Content } = Layout
 
 export default function ChatPageClean() {
-    const { getToken } = useAuthToken(true) // Enable auto-redirect on token expiration
-    const token: string | null = getToken()
-
-    // Custom hooks for state management
     const {
         conversations,
-        activeConversation,
-        showMobileConversationList,
-        setShowMobileConversationList,
-        handleConversationSelect,
-        addConversation,
-    } = useChatLayout({ initialConversations: SAMPLE_CONVERSATIONS })
+        activeChat,
+        messages,
+        isLoading,
+        isConnected,
+        typingUsers,
+        onlineUsers,
+        setActiveChat,
+        handleStartNewChat,
+        handleJoinGroup,
+    } = useChatOperations()
 
     const {
         isSendMoneyModalOpen,
@@ -152,96 +52,26 @@ export default function ChatPageClean() {
         setIsInviteToGroupModalOpen,
     } = useChatModals()
 
-    // Event handlers
-    const handleStartNewChat = (contact: any) => {
-        const newConversation = {
-            id: Date.now(),
-            name: `${contact.otherUser.firstName} ${contact.otherUser.lastName}`,
-            isGroup: false as const,
-            isContributionGroup: false as const,
-            lastMessage: "",
-            timestamp: "Now",
-            unread: 0,
-            avatar: "/placeholder.svg?height=40&width=40",
-            online: false,
-            email: contact.otherUser.email,
-            phone: contact.otherUser.phone || "",
-            address: contact.otherUser.address || "",
-            joinedAt: contact.respondedAt || contact.invitedAt,
-        }
+    const [showMobileConversationList, setShowMobileConversationList] = useState(true)
+    const [selectedChat, setSelectedChat] = useState<Chat | null>(null)
 
-        addConversation(newConversation)
-        toast({
-            title: "Chat Started",
-            description: `Started a new conversation with ${newConversation.name}`,
+    const handleConversationSelect = (conversation: any) => {
+        setSelectedChat({
+            id: conversation.id,
+            name: conversation.name,
+            isGroup: conversation.isGroup,
+            avatar: conversation.avatar,
+            participants: conversation.participants || [],
+            unreadCount: conversation.unreadCount || 0,
+            isOnline: conversation.isOnline || false,
+            memberCount: conversation.memberCount
         })
-    }
-
-    const handleJoinGroup = async (group: any) => {
-        try {
-            const token = getToken();
-            if (!token) {
-                toast({
-                    title: "Authentication Error",
-                    description: "Please log in to join the group chat",
-                    variant: "destructive"
-                });
-                return;
-            }
-
-            // Call the backend to join/create the group chat
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/chats/group/${group.id}/join`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to join group chat');
-            }
-
-            const data = await response.json();
-
-            // Create a conversation object for the group chat
-            const groupConversation = {
-                id: data.data.chatId, // Use the actual chat ID from backend
-                name: group.name,
-                isGroup: true as const,
-                isContributionGroup: false as const,
-                lastMessage: "",
-                timestamp: "Now",
-                unread: 0,
-                avatar: group.profilePictureUrl || "/placeholder.svg?height=40&width=40",
-                members: group.memberCount || 0,
-                online: 0,
-                description: group.description,
-                createdAt: group.createdAt,
-                createdBy: group.createdBy,
-            };
-
-            // Add conversation and set as active
-            addConversation(groupConversation);
-
-            toast({
-                title: "Group Chat Opened",
-                description: `Welcome to ${group.name}! Your chat is ready.`,
-            });
-
-        } catch (error) {
-            console.error("Error joining group chat:", error);
-            toast({
-                title: "Error",
-                description: error instanceof Error ? error.message : "Failed to join group chat",
-                variant: "destructive"
-            });
-        }
+        setActiveChat(conversation.id)
+        setShowMobileConversationList(false)
     }
 
     const handleViewProfile = () => {
-        if (activeConversation.isGroup) {
+        if (selectedChat?.isGroup) {
             setIsGroupProfileModalOpen(true)
         } else {
             setIsUserProfileModalOpen(true)
@@ -249,9 +79,14 @@ export default function ChatPageClean() {
     }
 
     const handleInviteToGroup = () => {
-        if (activeConversation.isGroup) {
+        if (selectedChat?.isGroup) {
             setIsInviteToGroupModalOpen(true)
         }
+    }
+
+    const getUserFromChat = () => {
+        if (!selectedChat || selectedChat.isGroup) return undefined
+        return selectedChat.participants.find(p => p.userId !== activeChat)?.user as any
     }
 
     return (
@@ -261,10 +96,15 @@ export default function ChatPageClean() {
 
                 <main className="flex-1 lg:ml-20 w-full max-w-full overflow-x-hidden">
                     <div className="flex-1 flex flex-col md:flex-row overflow-hidden h-[calc(100vh-100px)] md:h-screen shadow-lg">
-                        {/* Conversation List */}
+                        {!isConnected && (
+                            <div className="bg-yellow-100 border-yellow-400 text-yellow-700 px-4 py-2 border-b">
+                                <p className="text-sm">Connecting to chat server...</p>
+                            </div>
+                        )}
+
                         <ConversationListLayout
                             conversations={conversations}
-                            activeConversation={activeConversation}
+                            activeConversation={selectedChat || conversations[0]}
                             onConversationSelect={handleConversationSelect}
                             showOnMobile={showMobileConversationList}
                             onAddContact={() => setIsAddContactModalOpen(true)}
@@ -272,68 +112,78 @@ export default function ChatPageClean() {
                             onQuickSendMoney={(conversation) => openSendMoneyModal(conversation.name)}
                             onStartNewChat={handleStartNewChat}
                             onJoinGroup={handleJoinGroup}
+                            isLoading={isLoading}
                         />
 
-                        {/* Chat Area */}
-                        <ChatArea
-                            conversation={activeConversation}
-                            messages={SAMPLE_MESSAGES}
-                            showOnMobile={!showMobileConversationList}
-                            onBackClick={() => setShowMobileConversationList(true)}
-                            onSendMoney={() => openSendMoneyModal()}
-                            onRequestMoney={() => setIsRequestMoneyModalOpen(true)}
-                            onViewProfile={handleViewProfile}
-                            onInviteToGroup={handleInviteToGroup}
-                        />
+                        {selectedChat ? (
+                            <ChatArea
+                                conversation={selectedChat as any}
+                                messages={messages}
+                                showOnMobile={!showMobileConversationList}
+                                onBackClick={() => setShowMobileConversationList(true)}
+                                onSendMoney={() => openSendMoneyModal(selectedChat.name)}
+                                onRequestMoney={() => setIsRequestMoneyModalOpen(true)}
+                                onViewProfile={handleViewProfile}
+                                onInviteToGroup={handleInviteToGroup}
+                                typingUsers={typingUsers}
+                                onlineUsers={onlineUsers}
+                            />
+                        ) : (
+                            <div className="flex-1 flex items-center justify-center bg-gray-50">
+                                <div className="text-center">
+                                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                                        Select a conversation
+                                    </h3>
+                                    <p className="text-gray-500">
+                                        Choose a conversation from the list to start chatting
+                                    </p>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </main>
             </div>
 
-            {/* Modals */}
             <SendMoneyModal
                 isOpen={isSendMoneyModalOpen}
                 onClose={closeSendMoneyModal}
                 recipient={selectedRecipient}
-                currentConversation={activeConversation}
+                currentConversation={selectedChat as any}
             />
+
             <RequestMoneyModal
                 isOpen={isRequestMoneyModalOpen}
                 onClose={() => setIsRequestMoneyModalOpen(false)}
-                conversation={activeConversation}
+                conversation={selectedChat as any}
             />
+
             <AddContactModal
                 isOpen={isAddContactModalOpen}
                 onClose={() => setIsAddContactModalOpen(false)}
             />
+
             <UserProfileModal
                 isOpen={isUserProfileModalOpen}
                 onClose={() => setIsUserProfileModalOpen(false)}
-                user={activeConversation.isGroup ? null : {
-                    id: (activeConversation as Contact).id.toString(),
-                    firstName: (activeConversation as Contact).name.split(' ')[0] || '',
-                    lastName: (activeConversation as Contact).name.split(' ').slice(1).join(' ') || '',
-                    email: (activeConversation as Contact).email || '',
-                    phone: (activeConversation as Contact).phone,
-                    isOnline: (activeConversation as Contact).online,
-                    profile: {
-                        profileImage: (activeConversation as Contact).avatar
-                    }
-                }}
+                user={getUserFromChat()}
             />
+
             <GroupProfileModal
                 isOpen={isGroupProfileModalOpen}
                 onClose={() => setIsGroupProfileModalOpen(false)}
-                group={activeConversation.isGroup ? (activeConversation as Group) : null}
+                group={selectedChat?.isGroup ? selectedChat as any : undefined}
             />
+
             <ContactRequestModal
                 isOpen={isContactRequestModalOpen}
                 onClose={() => setIsContactRequestModalOpen(false)}
             />
+
             <InviteToGroupModal
                 isOpen={isInviteToGroupModalOpen}
                 onClose={() => setIsInviteToGroupModalOpen(false)}
-                group={activeConversation.isGroup ? activeConversation : null}
-                token={token}
+                group={selectedChat as any}
+                token={null}
             />
         </Layout>
     )

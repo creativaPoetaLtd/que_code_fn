@@ -71,11 +71,9 @@ const JoinGroupByLinkModal: React.FC<JoinGroupByLinkModalProps> = ({ isOpen, onC
                 title: "Success",
                 description: result.message,
             })
-            onGroupJoined(result.data) // Pass the joined group data back
-            // onClose()
+            onGroupJoined(result.data)
             setLinkOrQrData("")
         } catch (error: any) {
-            console.error("Failed to join group:", error.message)
             const errorMessage = error?.data?.message || error?.message || "Failed to join group."
             toast({
                 title: "Error",

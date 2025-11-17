@@ -126,4 +126,5 @@ export interface LegacyMessage {
   }
 
 export * from './analytics.types';
+export * from './chat.types';
   

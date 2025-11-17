@@ -9,7 +9,7 @@ import { Search, MessageCircle, Users, Loader2, AlertCircle } from "lucide-react
 import { toast } from "@/hooks/use-toast"
 import { useGetAcceptedContactsQuery } from "@/states/contactSlice"
 import { useAuthToken } from "@/hooks/use-auth-token"
-import type { Conversation } from "@/types"
+import type { Conversation } from "@/types/chat.types"
 
 interface StartChatModalProps {
     isOpen: boolean

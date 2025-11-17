@@ -138,7 +138,6 @@ export default function InviteToGroupModal({ isOpen, onClose, group, token }: In
 
             onClose()
         } catch (error: any) {
-            console.error("Invite error:", error.message || error)
             const errorMessage = error?.data?.message || error?.message || "Failed to send invitations"
             toast({
                 title: "Error",

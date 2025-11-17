@@ -12,7 +12,7 @@ import StartChatModal from "./start-chart-modal"
 import GroupsModal from "./groups-modal"
 import JoinGroupByLinkModal from "./join-group-by-link-modal"
 import CreateGroupModalUpdated from "./create-group-modal"
-import type { Conversation } from "@/types"
+import type { Conversation } from "@/types/chat.types"
 import { Send } from 'lucide-react'
 import { useAuthToken } from "@/hooks/use-auth-token"
 

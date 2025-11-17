@@ -272,7 +272,6 @@ export default function CreateGroupModalUpdated({
                 })
             }
         } catch (error: any) {
-            console.error('Group creation error:', error)
             toast({
                 title: "Error",
                 description: error?.data?.message || "Failed to create group",

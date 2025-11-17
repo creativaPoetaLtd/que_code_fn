@@ -10,7 +10,7 @@ import {
     DropdownMenuTrigger,
     DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
-import { Conversation } from "@/types"
+import { Conversation } from "@/types/chat.types"
 import { useChat } from "@/context/ChatContext"
 import { 
     ArrowLeft, 
@@ -44,9 +44,9 @@ export default function ChatHeader({
     
     const getOnlineStatus = () => {
         if (conversation.isGroup) {
-            return `${conversation.online || 0} online`
+            return `${conversation.isOnline ? 1 : 0} online`
         }
-        return conversation.online ? 'Online' : 'Last seen recently'
+        return conversation.isOnline ? 'Online' : 'Last seen recently'
     }
 
     const getInitials = (name: string) => {
@@ -75,7 +75,7 @@ export default function ChatHeader({
                             {getInitials(conversation.name)}
                         </AvatarFallback>
                     </Avatar>
-                    {!conversation.isGroup && conversation.online && (
+                    {!conversation.isGroup && conversation.isOnline && (
                         <Circle 
                             size={10} 
                             className="absolute -bottom-0.5 -right-0.5 fill-green-500 text-green-500 border-2 border-white rounded-full" 
@@ -91,7 +91,7 @@ export default function ChatHeader({
                         {conversation.isGroup && (
                             <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700">
                                 <Users size={10} className="mr-1" />
-                                {conversation.members}
+                                {conversation.memberCount}
                             </Badge>
                         )}
                         <Badge variant={chat.isConnected ? "default" : "destructive"} className="text-xs">

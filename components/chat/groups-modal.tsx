@@ -11,7 +11,7 @@ import {
     useDeleteGroupMutation,
 } from "@/states/groupSlice"
 import { useAuthToken } from "@/hooks/use-auth-token"
-import type { Conversation } from "@/types"
+import type { Conversation } from "@/types/chat.types"
 
 import GroupsHeader from './GroupsHeader'
 import GroupsGrid from './GroupsGrid'

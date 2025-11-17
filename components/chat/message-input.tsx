@@ -75,7 +75,6 @@ export default function MessageInput({ onSendMessage = () => { } }: MessageInput
     return (
         <div className="bg-white p-3 sm:p-4 border-t border-gray-200 shadow-sm flex-shrink-0">
             <div className="flex items-center gap-1 sm:gap-2">
-                {/* Attachments area */}
                 <div className="relative" ref={dropdownRef}>
                     <Button
                         variant="ghost"
@@ -99,7 +98,6 @@ export default function MessageInput({ onSendMessage = () => { } }: MessageInput
                     <ImageIcon size={16} className="sm:size-20 text-gray-500" />
                 </Button>
 
-                {/* Input Field */}
                 <div className="relative flex-1">
                     <Input
                         placeholder="Type a message... (encrypted)"
@@ -128,7 +126,6 @@ export default function MessageInput({ onSendMessage = () => { } }: MessageInput
                         disabled={!isConnected}
                     />
                     
-                    {/* Encryption indicator */}
                     <div className="absolute left-2 top-1/2 transform -translate-y-1/2">
                         <Lock size={12} className="text-green-500" />
                     </div>
@@ -142,7 +139,6 @@ export default function MessageInput({ onSendMessage = () => { } }: MessageInput
                     </Button>
                 </div>
 
-                {/* Send Button */}
                 <Button
                     onClick={handleSendMessage}
                     size="icon"

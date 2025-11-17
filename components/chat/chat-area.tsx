@@ -6,7 +6,7 @@ import { Send, Coins } from "lucide-react"
 import ChatHeader from "./chat-header"
 import MessageItem from "./message-item"
 import MessageInput from "./message-input"
-import type { Conversation, Message, LegacyMessage } from "@/types"
+import type { Conversation, Message, LegacyMessage } from "@/types/chat.types"
 
 interface ChatAreaProps {
     conversation: Conversation
@@ -35,23 +35,18 @@ export default function ChatArea({
 }: ChatAreaProps) {
     const messagesEndRef = useRef<HTMLDivElement>(null)
 
-    // Scroll to bottom when messages change
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }),
-            console.log("messages", messages);
-
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
     }, [messages])
 
     return (
         <div className={`${showOnMobile ? "flex" : "hidden"} md:flex flex-col flex-1 bg-gradient-to-b from-gray-50 to-gray-100 h-full`}>
-            {/* Chat Header */}
             <ChatHeader
                 conversation={conversation}
                 onBackClick={onBackClick}
                 onViewProfile={onViewProfile}
-                onInviteToGroup={onInviteToGroup} // Pass the prop to ChatHeader
+                onInviteToGroup={onInviteToGroup}
             />
-            {/* Quick Actions */}
             <div className="flex gap-2 p-3 sm:p-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white flex-shrink-0">
                 <Button
                     onClick={onSendMoney}
@@ -69,7 +64,6 @@ export default function ChatArea({
                     Request Money
                 </Button>
             </div>
-            {/* Messages */}
             <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-4">
                 {messages.length > 0 ? (
                     <>
@@ -77,7 +71,6 @@ export default function ChatArea({
                             <MessageItem key={message.id} message={message} />
                         ))}
 
-                        {/* Typing indicators */}
                         {typingUsers && typingUsers.length > 0 && (
                             <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
                                 <div className="flex space-x-1">
@@ -110,7 +103,6 @@ export default function ChatArea({
                     </div>
                 )}
             </div>
-            {/* Message Input */}
             <MessageInput />
         </div>
     )

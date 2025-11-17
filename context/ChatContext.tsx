@@ -3,30 +3,24 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
 import { socketService } from "@/services/socketService";
 import { useAuthToken } from "@/hooks/use-auth-token";
-import { 
-    Conversation, 
-    Message, 
-    TypingUser, 
-    OnlineUser, 
-    ChatParticipantStatus 
+import { useGetUserChatsQuery, useGetChatMessagesQuery } from "@/states/chatSlice";
+import {
+    Conversation,
+    Message,
+    TypingUser,
+    OnlineUser,
+    ChatParticipantStatus
 } from "@/types/chat.types";
 import { toast } from "@/hooks/use-toast";
 
 interface ChatContextType {
-    // Connection status
     isConnected: boolean;
-    
-    // Chat management
     conversations: Conversation[];
     activeChat: string | null;
     messages: Record<string, Message[]>;
-    
-    // Real-time features
     typingUsers: TypingUser[];
     onlineUsers: OnlineUser[];
     participantsStatus: Record<string, ChatParticipantStatus[]>;
-    
-    // Actions
     setActiveChat: (chatId: string | null) => void;
     sendMessage: (chatId: string, content: string, messageType?: "text" | "image" | "file" | "money") => void;
     markMessagesAsRead: (chatId: string) => void;
@@ -35,15 +29,11 @@ interface ChatContextType {
     createGroupChat: (participantIds: string[], groupName?: string) => void;
     deleteChat: (chatId: string) => void;
     initializeEncryption: (password?: string) => void;
-    
-    // Legacy methods for backward compatibility
     joinChat: (chatId: string) => void;
     leaveChat: (chatId: string) => void;
     markMessageRead: (chatId: string, messageId: string) => void;
     addMessage: (message: Message) => void;
     updateMessageReadStatus: (chatId: string, messageId: string, readBy: any) => void;
-    
-    // Data refresh
     refreshConversations: () => void;
     refreshMessages: (chatId: string) => void;
 }
@@ -56,8 +46,9 @@ interface ChatProviderProps {
 
 export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     const { getToken, getUserId } = useAuthToken();
-    
-    // State management
+    const userId = getUserId();
+    const token = getToken();
+
     const [isConnected, setIsConnected] = useState(false);
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [activeChat, setActiveChat] = useState<string | null>(null);
@@ -65,38 +56,33 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
     const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
     const [participantsStatus, setParticipantsStatus] = useState<Record<string, ChatParticipantStatus[]>>({});
-    
-    // Connect to socket when user is authenticated
+
+    const { data: chatsData, refetch: refetchChats } = useGetUserChatsQuery(undefined, {
+        skip: !token
+    });
+
+    const { data: messagesData, refetch: refetchMessages } = useGetChatMessagesQuery(
+        { chatId: activeChat || '', page: 1, limit: 50 },
+        { skip: !activeChat || !token }
+    );
+
     useEffect(() => {
-        const userId = getUserId();
-        const token = getToken();
-        
         if (userId && token) {
             const socket = socketService.connect(userId, token);
-            
+
             const handleConnect = () => {
-                console.log('Chat: Connected to socket successfully');
                 setIsConnected(true);
-                // Initialize encryption for the user
                 socketService.initializeEncryption();
-                // Get online users
                 socketService.getOnlineUsers();
             };
-            
-            const handleDisconnect = () => {
-                console.log('Chat: Disconnected from socket');
-                setIsConnected(false);
-            };
-            
-            const handleConnectError = (error: any) => {
-                console.error('Chat: Connection error:', error);
-                setIsConnected(false);
-            };
-            
+
+            const handleDisconnect = () => setIsConnected(false);
+            const handleConnectError = () => setIsConnected(false);
+
             socket.on('connect', handleConnect);
             socket.on('disconnect', handleDisconnect);
             socket.on('connect_error', handleConnectError);
-            
+
             return () => {
                 socket.off('connect', handleConnect);
                 socket.off('disconnect', handleDisconnect);
@@ -105,32 +91,21 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
                 setIsConnected(false);
             };
         }
-    }, []); // Remove dependencies to prevent reconnections
-    
-    // Set up real-time event listeners
+    }, []);
+
     useEffect(() => {
-        if (!isConnected) return;
-        
-        const userId = getUserId();
-        
-        // Message events
+        if (!isConnected || !userId) return;
+
         const handleNewMessage = (message: Message) => {
-            console.log('New message received:', message);
-            
-            // Add isMe flag
-            const enhancedMessage = {
-                ...message,
-                isMe: message.sender.id === userId
-            };
-            
+            const enhancedMessage = { ...message, isMe: message.sender.id === userId };
+
             setMessages(prev => ({
                 ...prev,
                 [message.chatId]: [...(prev[message.chatId] || []), enhancedMessage]
             }));
-            
-            // Update conversation with latest message
-            setConversations(prev => prev.map(conv => 
-                conv.id === message.chatId 
+
+            setConversations(prev => prev.map(conv =>
+                conv.id === message.chatId
                     ? {
                         ...conv,
                         lastMessage: {
@@ -143,8 +118,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
                     }
                     : conv
             ));
-            
-            // Show notification if not active chat
+
             if (message.chatId !== activeChat && message.sender.id !== userId) {
                 toast({
                     title: `New message from ${message.sender.name}`,
@@ -153,58 +127,52 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
                 });
             }
         };
-        
+
         const handleMessageDelivered = (data: { chatId: string; messageId: string; deliveredAt: Date }) => {
             setMessages(prev => ({
                 ...prev,
-                [data.chatId]: prev[data.chatId]?.map(msg => 
-                    msg.id === data.messageId 
+                [data.chatId]: prev[data.chatId]?.map(msg =>
+                    msg.id === data.messageId
                         ? { ...msg, status: 'delivered', deliveredAt: data.deliveredAt }
                         : msg
                 ) || []
             }));
         };
-        
+
         const handleMessagesRead = (data: { chatId: string; readBy: string; readAt: Date }) => {
             setMessages(prev => ({
                 ...prev,
-                [data.chatId]: prev[data.chatId]?.map(msg => 
+                [data.chatId]: prev[data.chatId]?.map(msg =>
                     msg.status === 'delivered' && msg.sender.id !== userId
                         ? { ...msg, status: 'read', readAt: data.readAt }
                         : msg
                 ) || []
             }));
         };
-        
-        // Typing events
+
         const handleUserTyping = (data: TypingUser) => {
-            if (data.userId === userId) return; // Don't show own typing
-            
+            if (data.userId === userId) return;
+
             setTypingUsers(prev => {
                 const filtered = prev.filter(u => u.userId !== data.userId || u.chatId !== data.chatId);
-                return data.isTyping 
-                    ? [...filtered, data]
-                    : filtered;
+                return data.isTyping ? [...filtered, data] : filtered;
             });
         };
-        
-        // Online status events
+
         const handleOnlineUsers = (users: OnlineUser[]) => {
             setOnlineUsers(users);
-            
-            // Update conversations with online status
+
             setConversations(prev => prev.map(conv => {
                 const onlineCount = users.filter(u => conv.participants.some(p => p.userId === u.userId)).length;
                 return {
                     ...conv,
-                    isOnline: conv.isGroup 
+                    isOnline: conv.isGroup
                         ? onlineCount > 0
-                        : users.some(u => conv.participants.some(p => p.userId === u.userId && p.userId !== userId)),
-                    online: conv.isGroup ? onlineCount : (users.some(u => conv.participants.some(p => p.userId === u.userId && p.userId !== userId)) ? 1 : 0)
+                        : users.some(u => conv.participants.some(p => p.userId === u.userId && p.userId !== userId))
                 };
             }));
         };
-        
+
         const handleUserStatusChanged = (data: { userId: string; isOnline: boolean; lastSeen?: Date }) => {
             setOnlineUsers(prev => {
                 const updatedUsers = data.isOnline
@@ -214,24 +182,21 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
                         lastSeen: data.lastSeen || new Date()
                     }]
                     : prev.filter(u => u.userId !== data.userId);
-                
-                // Update conversations with new online status
+
                 setConversations(convs => convs.map(conv => {
                     const onlineCount = updatedUsers.filter(u => conv.participants.some(p => p.userId === u.userId)).length;
                     return {
                         ...conv,
-                        isOnline: conv.isGroup 
+                        isOnline: conv.isGroup
                             ? onlineCount > 0
-                            : updatedUsers.some(u => conv.participants.some(p => p.userId === u.userId && p.userId !== userId)),
-                        online: conv.isGroup ? onlineCount : (updatedUsers.some(u => conv.participants.some(p => p.userId === u.userId && p.userId !== userId)) ? 1 : 0)
+                            : updatedUsers.some(u => conv.participants.some(p => p.userId === u.userId && p.userId !== userId))
                     };
                 }));
-                
+
                 return updatedUsers;
             });
         };
-        
-        // Chat management events
+
         const handleChatDeleted = (data: { chatId: string; deletedBy: string }) => {
             setConversations(prev => prev.filter(conv => conv.id !== data.chatId));
             setMessages(prev => {
@@ -239,56 +204,39 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
                 delete newMessages[data.chatId];
                 return newMessages;
             });
-            
+
             if (activeChat === data.chatId) {
                 setActiveChat(null);
             }
-            
+
             toast({
                 title: "Chat Deleted",
                 description: data.deletedBy === userId ? "You deleted this chat" : "This chat was deleted",
                 duration: 3000,
             });
         };
-        
-        const handleNewGroupChat = (data: any) => {
+
+        const handleGroupChatEvent = () => {
             toast({
-                title: "New Group Chat",
-                description: "You've been added to a new group chat",
+                title: "Group Chat Updated",
+                description: "Group chat has been updated",
                 duration: 3000,
             });
             refreshConversations();
         };
-        
-        const handleGroupChatCreated = (data: { chatId: string; participants: string[] }) => {
-            console.log('Group chat created:', data);
-            toast({
-                title: "Group Chat Created",
-                description: "Your group chat has been created successfully",
-                duration: 3000,
-            });
-            refreshConversations();
-        };
-        
+
         const handleChatParticipantsStatus = (data: { chatId: string; participants: ChatParticipantStatus[] }) => {
             setParticipantsStatus(prev => ({
                 ...prev,
                 [data.chatId]: data.participants
             }));
         };
-        
-        const handleEncryptionInitialized = (data: { userId: string; publicKey: string; initialized: boolean }) => {
-            console.log('Encryption initialized for user:', data.userId);
-        };
-        
+
         const handleJoinedChat = (data: { chatId: string }) => {
-            console.log('Joined chat:', data.chatId);
-            // Get participants status when joining a chat
             socketService.getChatParticipantsStatus(data.chatId);
         };
-        
+
         const handleError = (error: { message: string }) => {
-            console.error('Socket error:', error);
             toast({
                 title: "Error",
                 description: error.message,
@@ -296,8 +244,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
                 duration: 5000,
             });
         };
-        
-        // Register event listeners
+
         socketService.onNewMessage(handleNewMessage);
         socketService.onMessageDelivered(handleMessageDelivered);
         socketService.onMessagesRead(handleMessagesRead);
@@ -305,15 +252,14 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         socketService.onOnlineUsers(handleOnlineUsers);
         socketService.onUserStatusChanged(handleUserStatusChanged);
         socketService.onChatDeleted(handleChatDeleted);
-        socketService.onNewGroupChat(handleNewGroupChat);
-        socketService.onGroupChatCreated(handleGroupChatCreated);
+        socketService.onNewGroupChat(handleGroupChatEvent);
+        socketService.onGroupChatCreated(handleGroupChatEvent);
         socketService.onChatParticipantsStatus(handleChatParticipantsStatus);
-        socketService.onEncryptionInitialized(handleEncryptionInitialized);
+        socketService.onEncryptionInitialized(() => { });
         socketService.onJoinedChat(handleJoinedChat);
         socketService.onError(handleError);
-        
+
         return () => {
-            // Cleanup event listeners
             socketService.offNewMessage(handleNewMessage);
             socketService.offMessageDelivered(handleMessageDelivered);
             socketService.offMessagesRead(handleMessagesRead);
@@ -321,22 +267,19 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
             socketService.offOnlineUsers(handleOnlineUsers);
             socketService.offUserStatusChanged(handleUserStatusChanged);
             socketService.offChatDeleted(handleChatDeleted);
-            socketService.offNewGroupChat(handleNewGroupChat);
-            socketService.offGroupChatCreated(handleGroupChatCreated);
+            socketService.offNewGroupChat(handleGroupChatEvent);
+            socketService.offGroupChatCreated(handleGroupChatEvent);
             socketService.offChatParticipantsStatus(handleChatParticipantsStatus);
-            socketService.offEncryptionInitialized(handleEncryptionInitialized);
             socketService.offJoinedChat(handleJoinedChat);
             socketService.offError(handleError);
         };
-    }, [isConnected, activeChat, getUserId]);
-    
-    // Join/leave chat when active chat changes
+    }, [isConnected, activeChat, userId]);
+
     useEffect(() => {
         if (activeChat && isConnected) {
             socketService.joinChat(activeChat);
-            // Mark messages as read when joining
             socketService.markMessageRead(activeChat, '');
-            
+
             return () => {
                 if (activeChat) {
                     socketService.leaveChat(activeChat);
@@ -344,88 +287,41 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
             };
         }
     }, [activeChat, isConnected]);
-    
-    // Load conversations on mount
-    const refreshConversations = useCallback(async () => {
-        const token = getToken();
-        if (!token) return;
-        
-        try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/chats`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                setConversations(data.data || []);
-            }
-        } catch (error) {
-            console.error('Error fetching conversations:', error);
-        }
-    }, [getToken]);
-    
-    // Load messages for a specific chat
-    const refreshMessages = useCallback(async (chatId: string) => {
-        const token = getToken();
-        const userId = getUserId();
-        if (!token) return;
-        
-        try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/chats/${chatId}/messages`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                const messagesWithIsMe = (data.data?.messages || []).map((msg: Message) => ({
-                    ...msg,
-                    isMe: msg.sender.id === userId
-                }));
-                
-                setMessages(prev => ({
-                    ...prev,
-                    [chatId]: messagesWithIsMe
-                }));
-            }
-        } catch (error) {
-            console.error('Error fetching messages:', error);
-        }
-    }, [getToken, getUserId]);
-    
-    // Load messages when active chat changes
+
     useEffect(() => {
-        if (activeChat && isConnected) {
-            refreshMessages(activeChat);
+        if (chatsData?.data) {
+            setConversations(chatsData.data);
         }
-    }, [activeChat, isConnected, refreshMessages]);
-    
-    // Load initial data
+    }, [chatsData]);
+
     useEffect(() => {
-        const userId = getUserId();
-        const token = getToken();
-        
-        if (userId && token) {
-            refreshConversations();
-            // If there's an active chat, load its messages
-            if (activeChat) {
-                refreshMessages(activeChat);
-            }
+        if (messagesData?.data?.messages && activeChat) {
+            const messagesWithIsMe = messagesData.data.messages.map((msg: Message) => ({
+                ...msg,
+                isMe: msg.sender.id === userId
+            }));
+
+            setMessages(prev => ({
+                ...prev,
+                [activeChat]: messagesWithIsMe
+            }));
         }
-    }, [getUserId, getToken, refreshConversations, activeChat, refreshMessages]);
-    
-    // Actions
+    }, [messagesData, activeChat, userId]);
+
+    const refreshConversations = useCallback(() => {
+        refetchChats();
+    }, [refetchChats]);
+
+    const refreshMessages = useCallback((chatId: string) => {
+        if (chatId === activeChat) {
+            refetchMessages();
+        }
+    }, [activeChat, refetchMessages]);
+
     const sendMessage = useCallback((chatId: string, content: string, messageType: "text" | "image" | "file" | "money" = "text") => {
         if (isConnected && content.trim()) {
             socketService.sendMessage(chatId, content.trim(), messageType);
-            
-            // Optimistically add message to UI
-            const userId = getUserId();
+
             const tempMessage: Message = {
                 id: `temp_${Date.now()}`,
                 chatId,
@@ -440,81 +336,80 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
                 },
                 isMe: true
             };
-            
+
             setMessages(prev => ({
                 ...prev,
                 [chatId]: [...(prev[chatId] || []), tempMessage]
             }));
         }
-    }, [isConnected, getUserId]);
-    
+    }, [isConnected, userId]);
+
     const markMessagesAsRead = useCallback((chatId: string) => {
         if (isConnected) {
             socketService.markMessageRead(chatId, '');
         }
     }, [isConnected]);
-    
+
     const startTyping = useCallback((chatId: string) => {
         if (isConnected) {
             socketService.startTyping(chatId);
         }
     }, [isConnected]);
-    
+
     const stopTyping = useCallback((chatId: string) => {
         if (isConnected) {
             socketService.stopTyping(chatId);
         }
     }, [isConnected]);
-    
+
     const createGroupChat = useCallback((participantIds: string[], groupName?: string) => {
         if (isConnected) {
             socketService.createGroupChat(participantIds, groupName);
         }
     }, [isConnected]);
-    
+
     const deleteChat = useCallback((chatId: string) => {
         if (isConnected) {
             socketService.deleteChat(chatId);
         }
     }, [isConnected]);
-    
+
     const initializeEncryption = useCallback((password?: string) => {
         if (isConnected) {
             socketService.initializeEncryption(password);
         }
     }, [isConnected]);
-    
-    // Legacy methods for backward compatibility
+
     const joinChat = useCallback((chatId: string) => {
         socketService.joinChat(chatId);
     }, []);
-    
+
     const leaveChat = useCallback((chatId: string) => {
         socketService.leaveChat(chatId);
     }, []);
-    
+
     const markMessageRead = useCallback((chatId: string, messageId: string) => {
         socketService.markMessageRead(chatId, messageId);
     }, []);
-    
+
     const addMessage = useCallback((message: Message) => {
         setMessages(prev => ({
             ...prev,
             [message.chatId]: [...(prev[message.chatId] || []), message]
         }));
     }, []);
-    
+
     const updateMessageReadStatus = useCallback((chatId: string, messageId: string, readBy: any) => {
         setMessages(prev => ({
             ...prev,
-            [chatId]: prev[chatId]?.map(msg => 
-                msg.id === messageId 
+            [chatId]: prev[chatId]?.map(msg =>
+                msg.id === messageId
                     ? { ...msg, readBy: [...(msg.readBy || []), readBy] }
                     : msg
             ) || []
         }));
     }, []);
-    
+
     const value: ChatContextType = {
         isConnected,
         conversations,
@@ -533,14 +428,13 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         initializeEncryption,
         refreshConversations,
         refreshMessages,
-        // Legacy methods
         joinChat,
         leaveChat,
         markMessageRead,
         addMessage,
         updateMessageReadStatus
     };
-    
+
     return (
         <ChatContext.Provider value={value}>
             {children}
@@ -556,6 +450,5 @@ export const useChat = () => {
     return context;
 };
 
-// Export for backward compatibility
 export const useEnhancedChat = useChat;
 export const EnhancedChatProvider = ChatProvider;
