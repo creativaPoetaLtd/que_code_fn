@@ -99,10 +99,39 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         const handleNewMessage = (message: Message) => {
             const enhancedMessage = { ...message, isMe: message.sender.id === userId };
 
-            setMessages(prev => ({
-                ...prev,
-                [message.chatId]: [...(prev[message.chatId] || []), enhancedMessage]
-            }));
+            // Check if message already exists to prevent duplicates
+            setMessages(prev => {
+                const existingMessages = prev[message.chatId] || [];
+                const messageExists = existingMessages.some(msg => 
+                    msg.id === message.id || // Same ID
+                    (msg.id.startsWith('temp_') && // Replace temp message
+                     msg.chatId === message.chatId && 
+                     msg.content === message.content &&
+                     msg.messageType === message.messageType &&
+                     msg.sender.id === message.sender.id)
+                );
+                
+                if (messageExists) {
+                    // Replace temp message with real one, or ignore duplicate
+                    return {
+                        ...prev,
+                        [message.chatId]: existingMessages.map(msg => 
+                            (msg.id.startsWith('temp_') && 
+                             msg.chatId === message.chatId && 
+                             msg.content === message.content &&
+                             msg.messageType === message.messageType &&
+                             msg.sender.id === message.sender.id)
+                                ? enhancedMessage 
+                                : msg
+                        )
+                    };
+                }
+                
+                return {
+                    ...prev,
+                    [message.chatId]: [...existingMessages, enhancedMessage]
+                };
+            });
 
             setConversations(prev => prev.map(conv =>
                 conv.id === message.chatId
@@ -393,11 +422,20 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     }, []);
 
     const addMessage = useCallback((message: Message) => {
-        setMessages(prev => ({
-            ...prev,
-            [message.chatId]: [...(prev[message.chatId] || []), message]
-        }));
-    }, []);
+        setMessages(prev => {
+            const existingMessages = prev[message.chatId] || [];
+            const messageExists = existingMessages.some(msg => msg.id === message.id);
+            
+            if (messageExists) {
+                return prev; // Don't add duplicate
+            }
+            
+            return {
+                ...prev,
+                [message.chatId]: [...existingMessages, { ...message, isMe: message.sender.id === userId }]
+            };
+        });
+    }, [userId]);
 
     const updateMessageReadStatus = useCallback((chatId: string, messageId: string, readBy: any) => {
         setMessages(prev => ({
