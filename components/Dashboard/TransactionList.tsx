@@ -64,12 +64,13 @@ const response = await getTransactionHistory(userId, {
   };
 
   const getTransactionDisplayInfo = (transaction: Transaction) => {
-    const isOutgoing = transaction.senderId === currentUserId;
+    // Use backend-calculated transaction type instead of frontend calculation
+    const isOutgoing = transaction.type === 'sent';
     const transactionAmount = Number(transaction.amount) || 0;
     const transactionFee = Number(transaction.fee) || 0;
     const amount = isOutgoing ? -(transactionAmount + transactionFee) : transactionAmount;
     const displayName = transaction.description || (isOutgoing ? 'Money Sent' : 'Money Received');
-    
+
     return { amount, displayName, isOutgoing };
   };
 

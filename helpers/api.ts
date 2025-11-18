@@ -385,11 +385,61 @@ export const getAnalyticsSpendingTrends = async (userId: string, startDate?: str
   return res.data;
 };
 
-export const getAnalyticsRecentTransactions = async (userId: string, limit: number = 10, type?: string) => {
+export const getAnalyticsRecentTransactions = async (
+  userId: string, 
+  limit: number = 10, 
+  type?: string,
+  startDate?: string,
+  endDate?: string
+) => {
   const params = new URLSearchParams({ userId, limit: limit.toString() });
   if (type) params.append('type', type);
+  if (startDate) params.append('startDate', startDate);
+  if (endDate) params.append('endDate', endDate);
   
   const res = await axios.get(`${baseUrl}/analytics/recent-transactions?${params.toString()}`, {
+    headers: getAuthHeaders()
+  });
+  return res.data;
+};
+
+export const getAnalyticsSpendingComparison = async (userId: string, startDate?: string, endDate?: string, interval: string = 'daily') => {
+  const params = new URLSearchParams({ userId, interval });
+  if (startDate) params.append('startDate', startDate);
+  if (endDate) params.append('endDate', endDate);
+  
+  const res = await axios.get(`${baseUrl}/analytics/spending-comparison?${params.toString()}`, {
+    headers: getAuthHeaders()
+  });
+  return res.data;
+};
+
+export const getAnalyticsPeriodSummary = async (
+  userId: string,
+  startDate: string,
+  endDate: string,
+  interval: 'daily' | 'weekly' | 'monthly' = 'daily'
+) => {
+  const params = new URLSearchParams({ userId, startDate, endDate, interval });
+  
+  const res = await axios.get(`${baseUrl}/analytics/period-summary?${params.toString()}`, {
+    headers: getAuthHeaders()
+  });
+  return res.data;
+};
+
+export const getTransactionsByCategory = async (
+  userId: string, 
+  categoryId: string, 
+  startDate?: string, 
+  endDate?: string,
+  limit: number = 10
+) => {
+  const params = new URLSearchParams({ userId, categoryId, limit: limit.toString() });
+  if (startDate) params.append('startDate', startDate);
+  if (endDate) params.append('endDate', endDate);
+  
+  const res = await axios.get(`${baseUrl}/analytics/category-transactions?${params.toString()}`, {
     headers: getAuthHeaders()
   });
   return res.data;

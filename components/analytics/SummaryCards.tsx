@@ -1,9 +1,10 @@
 'use client'
-import React from 'react'
+import React, { useMemo } from 'react'
 import { Card } from '@/components/ui/card'
 import { TrendingUp, TrendingDown, DollarSign, Wallet } from 'lucide-react'
 import { DateRange } from '@/types/analytics.types'
 import { useAnalyticsSummary } from '@/hooks/use-analytics'
+import moment from 'moment'
 
 interface SummaryCardsProps {
     dateRange: DateRange;
@@ -13,60 +14,71 @@ interface SummaryCardProps {
     title: string
     amount: string
     percentage?: number
+    comparisonText?: string
     type: 'income' | 'expense' | 'balance'
     icon: React.ReactNode
     loading?: boolean
 }
 
-const SummaryCard = ({ title, amount, percentage, type, icon, loading }: SummaryCardProps) => {
+const SummaryCard = ({ 
+    title, 
+    amount, 
+    percentage, 
+    comparisonText,
+    type, 
+    icon, 
+    loading 
+}: SummaryCardProps) => {
     const isPositive = percentage ? percentage > 0 : false
     const isBalance = type === 'balance'
     
     if (loading) {
         return (
-            <Card className="p-6 animate-pulse">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gray-200 rounded-lg"></div>
-                        <div>
-                            <div className="h-4 bg-gray-200 rounded w-20 mb-2"></div>
-                            <div className="h-8 bg-gray-200 rounded w-24"></div>
-                        </div>
-                    </div>
-                    <div className="h-6 bg-gray-200 rounded w-16"></div>
+            <Card className="p-6 animate-pulse transition-all duration-300">
+                <div className="flex items-center justify-between mb-3">
+                    <div className="w-10 h-10 bg-gray-200 rounded-lg"></div>
+                </div>
+                <div className="space-y-2">
+                    <div className="h-4 bg-gray-200 rounded w-24"></div>
+                    <div className="h-8 bg-gray-200 rounded w-32"></div>
+                    <div className="h-4 bg-gray-200 rounded w-20"></div>
                 </div>
             </Card>
         )
     }
     
     return (
-        <Card className="p-6">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${
-                        type === 'income' ? 'bg-green-100 text-green-600' :
-                        type === 'expense' ? 'bg-red-100 text-red-600' :
-                        'bg-blue-100 text-blue-600'
-                    }`}>
-                        {icon}
-                    </div>
-                    <div>
-                        <p className="text-sm text-gray-600">{title}</p>
-                        <h3 className="text-2xl font-semibold mt-1">${amount}</h3>
-                    </div>
+        <Card className="p-6 hover:shadow-md transition-shadow">
+            <div className="flex items-start justify-between mb-3">
+                <div className={`p-2.5 rounded-lg ${
+                    type === 'income' ? 'bg-green-100 text-green-600' :
+                    type === 'expense' ? 'bg-red-100 text-red-600' :
+                    'bg-blue-100 text-blue-600'
+                }`}>
+                    {icon}
                 </div>
                 
                 {percentage !== undefined && (
-                    <div className={`flex items-center gap-1 px-2 py-1 rounded text-xs ${
+                    <div className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold ${
                         isBalance ? 
-                            (isPositive ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600') :
+                            (isPositive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700') :
                             type === 'income' ? 
-                                (isPositive ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600') :
-                                (isPositive ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600')
+                                (isPositive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700') :
+                                (isPositive ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700')
                     }`}>
-                        {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                        {isPositive ? '↑' : '↓'}
                         {Math.abs(percentage)}%
                     </div>
+                )}
+            </div>
+            
+            <div>
+                <p className="text-sm font-medium text-gray-600 mb-1">{title}</p>
+                <h3 className="text-3xl font-bold text-gray-900 mb-2">RWF {amount}</h3>
+                {comparisonText && (
+                    <p className="text-xs text-gray-500">
+                        {comparisonText}
+                    </p>
                 )}
             </div>
         </Card>
@@ -75,6 +87,44 @@ const SummaryCard = ({ title, amount, percentage, type, icon, loading }: Summary
 
 const SummaryCards: React.FC<SummaryCardsProps> = ({ dateRange }) => {
     const { data, loading, error } = useAnalyticsSummary(dateRange)
+
+    // Calculate previous period date range for comparison
+    const previousDateRange = useMemo(() => {
+        if (!dateRange.startDate || !dateRange.endDate) return null
+
+        const start = moment(dateRange.startDate)
+        const end = moment(dateRange.endDate)
+        const daysDiff = end.diff(start, 'days')
+
+        return {
+            startDate: start.clone().subtract(daysDiff + 1, 'days').toDate(),
+            endDate: start.clone().subtract(1, 'day').toDate()
+        }
+    }, [dateRange])
+
+    // Fetch previous period data
+    const { data: previousData } = useAnalyticsSummary(previousDateRange || dateRange)
+
+    // Calculate percentage changes
+    const calculateChangePercent = (current: number, previous: number): number => {
+        if (previous === 0) return 0
+        return Math.round(((current - previous) / Math.abs(previous)) * 100)
+    }
+
+    const getComparisonText = (current: number, previous: number, type: string): string => {
+        if (previous === 0) return 'No previous data'
+        const change = current - previous
+        const symbol = change >= 0 ? '↑' : '↓'
+        const absChange = Math.abs(change).toLocaleString()
+        
+        if (type === 'income') {
+            return change >= 0 ? `+RWF ${absChange} vs last period` : `-RWF ${absChange} vs last period`
+        } else if (type === 'expense') {
+            return change >= 0 ? `+RWF ${absChange} vs last period` : `-RWF ${absChange} vs last period`
+        } else {
+            return change >= 0 ? `+RWF ${absChange} vs last period` : `-RWF ${absChange} vs last period`
+        }
+    }
 
     const formatAmount = (amount: number) => {
         return new Intl.NumberFormat('en-US', { 
@@ -93,24 +143,40 @@ const SummaryCards: React.FC<SummaryCardsProps> = ({ dateRange }) => {
         )
     }
 
+    const expenseChange = data && previousData 
+        ? calculateChangePercent(data.totalExpenses, previousData.totalExpenses)
+        : undefined
+    const incomeChange = data && previousData
+        ? calculateChangePercent(data.totalIncome, previousData.totalIncome)
+        : undefined
+    const balanceChange = data && previousData
+        ? calculateChangePercent(data.netBalance, previousData.netBalance)
+        : undefined
+
     const summaryData = data ? [
         {
             title: 'Total Expenses',
             amount: formatAmount(data.totalExpenses),
+            percentage: expenseChange,
+            comparisonText: getComparisonText(data.totalExpenses, previousData?.totalExpenses || 0, 'expense'),
             type: 'expense' as const,
-            icon: <DollarSign className="h-4 w-4" />
+            icon: <DollarSign className="h-5 w-5" />
         },
         {
             title: 'Total Income',
             amount: formatAmount(data.totalIncome),
+            percentage: incomeChange,
+            comparisonText: getComparisonText(data.totalIncome, previousData?.totalIncome || 0, 'income'),
             type: 'income' as const,
-            icon: <TrendingUp className="h-4 w-4" />
+            icon: <TrendingUp className="h-5 w-5" />
         },
         {
             title: 'Net Balance',
             amount: formatAmount(data.netBalance),
+            percentage: balanceChange,
+            comparisonText: getComparisonText(data.netBalance, previousData?.netBalance || 0, 'balance'),
             type: 'balance' as const,
-            icon: <Wallet className="h-4 w-4" />
+            icon: <Wallet className="h-5 w-5" />
         }
     ] : []
 
@@ -133,6 +199,8 @@ const SummaryCards: React.FC<SummaryCardsProps> = ({ dateRange }) => {
                         key={index}
                         title={item.title}
                         amount={item.amount}
+                        percentage={item.percentage}
+                        comparisonText={item.comparisonText}
                         type={item.type}
                         icon={item.icon}
                         loading={false}

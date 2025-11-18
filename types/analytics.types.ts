@@ -31,7 +31,7 @@ export interface RecentTransaction {
   referenceId: string;
   amount: number;
   type: 'sent' | 'received';
-  status: string;
+  status: 'completed' | 'pending' | 'failed';
   description: string;
   createdAt: string;
   category: {
@@ -42,6 +42,8 @@ export interface RecentTransaction {
   otherParty: {
     walletId: string;
     userId: string;
+    firstName?: string;
+    lastName?: string;
   };
 }
 
@@ -58,5 +60,53 @@ export interface DateRange {
 
 export interface AnalyticsFilters {
   dateRange: DateRange;
+  interval: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  accountType?: string;
+}
+
+export interface ComparisonData {
+  label: string;
+  current: number;
+  previous: number;
+}
+
+export interface ViewType {
+  value: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  label: string;
+}
+
+export interface AnalyticsState {
+  dateRange: DateRange;
   interval: 'daily' | 'weekly' | 'monthly';
+  activeView: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  accountType: string;
+}
+
+export interface SpendingComparisonDataPoint {
+  label: string;
+  amount: number;
+}
+
+export interface SpendingPeriod {
+  data: SpendingComparisonDataPoint[];
+  total: number;
+}
+
+export interface PeriodInfo {
+  current: {
+    startDate: string;
+    endDate: string;
+  };
+  previous: {
+    startDate: string;
+    endDate: string;
+  };
+  interval: string;
+}
+
+export interface SpendingComparison {
+  currentPeriod: SpendingPeriod;
+  previousPeriod: SpendingPeriod;
+  percentageChange: number;
+  periodInfo: PeriodInfo;
 }

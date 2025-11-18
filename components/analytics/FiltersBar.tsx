@@ -10,30 +10,20 @@ const { RangePicker } = DatePicker
 
 interface FiltersBarProps {
   dateRange: DateRange;
-  interval: 'daily' | 'weekly' | 'monthly';
   onDateRangeChange: (dateRange: DateRange) => void;
-  onIntervalChange: (interval: 'daily' | 'weekly' | 'monthly') => void;
 }
 
 const FiltersBar: React.FC<FiltersBarProps> = ({ 
   dateRange, 
-  interval, 
-  onDateRangeChange, 
-  onIntervalChange 
+  onDateRangeChange
 }) => {
     const [selectedPeriod, setSelectedPeriod] = useState('30days')
-
+    
     const periodOptions = [
-        { value: '7days', label: 'Last 7 days' },
-        { value: '30days', label: 'Last 30 days' },
-        { value: '90days', label: 'Last 90 days' },
-        { value: 'custom', label: 'Custom range' }
-    ]
-
-    const intervalOptions = [
-        { value: 'daily', label: 'Daily' },
-        { value: 'weekly', label: 'Weekly' },
-        { value: 'monthly', label: 'Monthly' }
+        { value: 'today', label: 'Today' },
+        { value: '7days', label: 'This Week' },
+        { value: '30days', label: 'This Month' },
+        { value: '90days', label: 'Last 90 days' }
     ]
 
     const handlePeriodChange = (value: string) => {
@@ -41,6 +31,12 @@ const FiltersBar: React.FC<FiltersBarProps> = ({
         const now = new Date()
         
         switch (value) {
+            case 'today':
+                onDateRangeChange({
+                    startDate: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+                    endDate: now
+                })
+                break
             case '7days':
                 onDateRangeChange({
                     startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
@@ -74,31 +70,30 @@ const FiltersBar: React.FC<FiltersBarProps> = ({
     }
 
     return (
-        <Card className="p-4">
-            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-                <div className="flex items-center gap-2">
-                    <CalendarIcon className="h-4 w-4 text-gray-500" />
-                    <span className="text-sm font-medium text-gray-700">Filters:</span>
+        <Card className="p-5 bg-white border border-gray-200">
+            <div className="space-y-4">
+                {/* Title */}
+                <div>
+                    <h3 className="text-sm font-semibold text-gray-900">Filters</h3>
                 </div>
-                
-                <div className="flex flex-col sm:flex-row gap-3">
-                    <Select
-                        value={selectedPeriod}
-                        onChange={handlePeriodChange}
-                        options={periodOptions}
-                        className="w-40"
-                        placeholder="Select period"
-                    />
-                    
-                    <Select
-                        value={interval}
-                        onChange={onIntervalChange}
-                        options={intervalOptions}
-                        className="w-32"
-                        placeholder="Interval"
-                    />
-                    
-                    {selectedPeriod === 'custom' && (
+
+                {/* Filter Inputs Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    {/* Period Type */}
+                    <div className="space-y-1">
+                        <label className="text-xs font-medium text-gray-700 block">Period Type</label>
+                        <Select
+                            value={selectedPeriod}
+                            onChange={handlePeriodChange}
+                            options={periodOptions}
+                            className="w-full"
+                            size="large"
+                        />
+                    </div>
+
+                    {/* Date Range */}
+                    <div className="space-y-1">
+                        <label className="text-xs font-medium text-gray-700 block">Date Range</label>
                         <RangePicker
                             value={dateRange.startDate && dateRange.endDate ? [
                                 dayjs(dateRange.startDate as Date),
@@ -106,16 +101,13 @@ const FiltersBar: React.FC<FiltersBarProps> = ({
                             ] as [Dayjs, Dayjs] : undefined}
                             onChange={handleDateRangeChange}
                             format="MMM DD, YYYY"
-                            className="w-64"
+                            className="w-full"
+                            size="large"
+                            placeholder={['Start Date', 'End Date']}
+                            allowClear={false}
+                            inputReadOnly={false}
                         />
-                    )}
-                    
-                    {selectedPeriod !== 'custom' && (
-                        <div className="flex items-center text-sm text-gray-600">
-                            {dateRange.startDate ? dayjs(dateRange.startDate as Date).format('MMM DD, YYYY') : ''} - 
-                            {dateRange.endDate ? dayjs(dateRange.endDate as Date).format('MMM DD, YYYY') : ''}
-                        </div>
-                    )}
+                    </div>
                 </div>
             </div>
         </Card>
