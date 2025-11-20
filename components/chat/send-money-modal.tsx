@@ -186,7 +186,7 @@ export default function SendMoneyModal({ isOpen, onClose, recipient = "", curren
                         ) : (
                             <Avatar className="mr-3">
                                 <AvatarImage src={contact.avatar || "/placeholder.svg"} alt={contact.name} />
-                                <AvatarFallback>{contact.name.charAt(0)}</AvatarFallback>
+                                <AvatarFallback>{(contact.name || 'C').charAt(0).toUpperCase()}</AvatarFallback>
                             </Avatar>
                         )}
                         <span className="font-medium">{contact.name}</span>

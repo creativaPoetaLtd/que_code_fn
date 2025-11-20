@@ -2,14 +2,15 @@
 
 import { useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Input from "../ui/Input-ant"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
-import { UserPlus, Search, User, Mail, Phone, QrCode, Link, Loader2 } from "lucide-react"
+import { UserPlus, Search, User, Mail, Phone, QrCode, Link, Loader2, CheckCircle, Camera, Scan } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import QRCodeScanner from "./qr-code-scanner"
-import { useInviteContactMutation } from "@/states/contactSlice"
+import { useSendContactInvitationByPublicIdMutation } from "@/states/contactSlice"
 import { useAuthToken } from "@/hooks/use-auth-token"
 import { extractPublicIdFromLink, validatePublicId } from "@/utils/profile-link"
 
@@ -35,9 +36,12 @@ export default function AddContactModal({ isOpen, onClose }: AddContactModalProp
     const [searchResults, setSearchResults] = useState<ContactSearchResult[]>([])
     const [isQRScannerOpen, setIsQRScannerOpen] = useState<boolean>(false)
     const [extractedPublicId, setExtractedPublicId] = useState<string>("")
+    const [activeTab, setActiveTab] = useState<string>("qr")
+    const [qrStep, setQrStep] = useState<"input" | "scanning" | "success">("input")
+    const [inviteeName, setInviteeName] = useState<string>("")
 
     // Redux hooks
-    const [inviteContact, { isLoading: isInviting }] = useInviteContactMutation()
+    const [sendInvitationByPublicId, { isLoading: isInviting }] = useSendContactInvitationByPublicIdMutation()
     const { getToken } = useAuthToken()
     const token = getToken();
 
@@ -94,19 +98,27 @@ export default function AddContactModal({ isOpen, onClose }: AddContactModalProp
         }
 
         try {
-            const result = await inviteContact({
-                invitationData: { publicId },
+            setQrStep("scanning")
+            
+            const result = await sendInvitationByPublicId({
+                publicId,
                 token,
             }).unwrap()
+
+            setInviteeName(result.data.inviteeName)
+            setQrStep("success")
 
             toast({
                 title: "Invitation Sent",
                 description: `Invitation sent successfully to ${result.data.inviteeName}`,
             })
 
-            handleClose()
+            // Auto close after 3 seconds
+            setTimeout(() => {
+                handleClose()
+            }, 3000)
         } catch (error: any) {
-            console.error("Invitation error:", error)
+            setQrStep("input")
 
             const errorMessage = error?.data?.message || error?.message || "Failed to send invitation"
 
@@ -161,6 +173,9 @@ export default function AddContactModal({ isOpen, onClose }: AddContactModalProp
         setStep(1)
         setSearchResults([])
         setExtractedPublicId("")
+        setActiveTab("qr")
+        setQrStep("input")
+        setInviteeName("")
         onClose()
     }
 
@@ -211,7 +226,7 @@ export default function AddContactModal({ isOpen, onClose }: AddContactModalProp
                             </label>
                             <div className="space-y-2">
                                 <Input
-                                    placeholder="Enter profile link or public ID (e.g., b92d32fae059)"
+                                    placeholder="Enter profile link or public ID (e.g., http://localhost:3000/welcome/41317198-27e2-4c65-bbd8-97a92b6b665c)"
                                     value={profileLink}
                                     onChange={(e) => setProfileLink(e.target.value)}
                                     onKeyDown={(e) => e.key === "Enter" && handleProfileLinkSubmit()}

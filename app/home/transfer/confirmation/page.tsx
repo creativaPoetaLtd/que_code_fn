@@ -5,9 +5,10 @@ import Navigation from "@/components/Navigation";
 import { ArrowLeft, CheckCircle, Shield, Clock, CreditCard, Smartphone } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { transferMoney, getUserBalance, getCurrentUserInfo } from "@/helpers/api";
+import { transferMoney, getUserBalance } from "@/helpers/api";
 import { useAuthToken } from "@/hooks/use-auth-token";
 import { getUserIdFromToken, isTokenExpired } from "@/utils/jwtUtils";
+import { getCurrentUserInfo } from "@/utils/tokenUtils";
 
 interface Recipient {
   id: string;
@@ -35,7 +36,7 @@ const ConfirmationPage = () => {
     const selectedRecipient = sessionStorage.getItem('selectedRecipient');
     const transferAmount = sessionStorage.getItem('transferAmount');
     const constraintData = sessionStorage.getItem('constraintData');
-    
+
     if (selectedRecipient) {
       const recipientData = JSON.parse(selectedRecipient);
       setRecipient(recipientData);
@@ -43,7 +44,7 @@ const ConfirmationPage = () => {
       if (transferAmount) {
         setAmount(transferAmount);
       }
-      
+
       // Load category data if available
       if (constraintData) {
         const { selectedCategory } = JSON.parse(constraintData);
@@ -85,40 +86,35 @@ const ConfirmationPage = () => {
     setIsLoading(true);
     setTransferError(null);
     try {
-      // Get current user info to determine sender type
       const currentUserInfo = getCurrentUserInfo();
-      console.log('Current user info:', currentUserInfo);
-      console.log('Account type detected:', currentUserInfo.accountType);
-      console.log('User ID:', currentUserInfo.userId);
-      console.log('Organization ID:', currentUserInfo.organizationId);
-      
+
       if (!currentUserInfo.userId && !currentUserInfo.organizationId) {
         console.error('No user ID or organization ID found in token');
         throw new Error("User not found");
       }
       if (!recipient) throw new Error('Recipient not found');
-      
+
       // Determine sender parameters based on account type
       let senderUserId: string | undefined;
       let senderOrganizationId: string | undefined;
-      
+
       if (currentUserInfo.accountType === 'organization') {
         senderOrganizationId = currentUserInfo.organizationId || undefined;
       } else {
         senderUserId = currentUserInfo.userId || undefined;
       }
-      
+
       // Determine receiver parameters based on recipient type
       let receiverUserId: string | undefined;
       let receiverOrganizationId: string | undefined;
-      
+
       if (recipient.type === 'organization') {
         receiverOrganizationId = recipient.id;
       } else {
         receiverUserId = recipient.id;
       }
-      
-      const result = await transferMoney({ 
+
+      const result = await transferMoney({
         senderUserId,
         senderOrganizationId,
         receiverUserId,
@@ -194,7 +190,7 @@ const ConfirmationPage = () => {
           {/* Transaction Details */}
           <div className="pt-6">
             <h4 className="font-semibold text-gray-900 mb-4">Transaction Summary</h4>
-            
+
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <span className="text-gray-600">Transfer Amount</span>
@@ -202,12 +198,12 @@ const ConfirmationPage = () => {
                   RWF {parseFloat(amount).toLocaleString()}
                 </span>
               </div>
-              
+
               <div className="flex justify-between items-center">
                 <span className="text-gray-600">Transaction Fee</span>
                 <span className="font-medium text-green-600">Free</span>
               </div>
-              
+
               <div className="border-t border-gray-100 pt-4">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Total Amount</span>
@@ -255,13 +251,13 @@ const ConfirmationPage = () => {
             <CreditCard className="w-5 h-5" />
             <span>Account Balance</span>
           </h4>
-          
+
           <div className="space-y-3">
             <div className="flex justify-between items-center">
               <span className="text-gray-600">Current Balance</span>
               <span className="font-medium text-gray-900">RWF {currentBalance?.toLocaleString() || "Loading..."}</span>
             </div>
-            
+
             <div className="flex justify-between items-center">
               <span className="text-gray-600">After Transfer</span>
               <span className="font-medium text-gray-900">RWF {remainingBalance.toLocaleString()}</span>

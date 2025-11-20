@@ -52,7 +52,7 @@ export default function GroupProfileModal({ isOpen, onClose, group }: GroupProfi
                         ) : (
                             <Avatar className="h-16 w-16 mr-4">
                                 <AvatarImage src={group.avatar} alt={group.name} />
-                                <AvatarFallback>{group.name.charAt(0)}</AvatarFallback>
+                                <AvatarFallback>{(group.name || 'G').charAt(0).toUpperCase()}</AvatarFallback>
                             </Avatar>
                         )}
 
@@ -105,7 +105,7 @@ export default function GroupProfileModal({ isOpen, onClose, group }: GroupProfi
                                     <div className="flex items-center">
                                         <Avatar className="h-8 w-8 mr-2">
                                             <AvatarImage src={member.avatar} alt={member.name} />
-                                            <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
+                                            <AvatarFallback>{(member.name || 'M').charAt(0).toUpperCase()}</AvatarFallback>
                                         </Avatar>
                                         <div>
                                             <span className="font-medium">{member.name}</span>

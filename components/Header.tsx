@@ -8,7 +8,8 @@ import baseUrl from "@/helpers/baseUrl";
 import { getUserBalance, getEntityBalance } from '@/helpers/api';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useNotifications } from "@/context/NotificationContext";
-import NotificationDropdown from "./notifications/NotificationDropdown";
+import { useChat } from "@/context/ChatContext";
+import NotificationBell from "./notifications/NotificationBell";
 import { useAuthToken } from "@/hooks/use-auth-token";
 
 
@@ -22,10 +23,20 @@ export const Header = () => {
     const [balanceError, setBalanceError] = useState<string | null>(null);
 
     const router = useRouter();
-    const { isConnected } = useNotifications();
+    const notifications = useNotifications();
     const { getToken } = useAuthToken();
-
-    console.log("Connection Status:", isConnected);
+    
+    // Try to get chat context, but don't fail if it's not available
+    let chat;
+    try {
+        chat = useChat();
+    } catch (error) {
+        // ChatContext is not available on this page
+        chat = null;
+    }
+    
+    // Use chat connection status if available, otherwise use notifications
+    const isConnected = chat?.isConnected ?? notifications.isConnected;
 
     // Fetch userId from token and then fetch user profile
     React.useEffect(() => {
@@ -38,7 +49,7 @@ export const Header = () => {
                 const id = payload?.userId || payload?.id || payload?.sub;
                 if (id) setUserId(id);
             } catch (e) {
-                console.error("Error parsing token:", e);
+                throw new Error("Invalid token");
             }
         }
     }, [getToken]);
@@ -54,7 +65,7 @@ export const Header = () => {
                 const data = res.data;
                 setProfileImage(data.profileImage || null);
             } catch (err) {
-                console.error("Error fetching user profile:", err);
+                throw new Error("Error fetching user profile");
             }
         };
         fetchUser();
@@ -72,11 +83,9 @@ export const Header = () => {
                 try {
                     response = await getEntityBalance(userId, 'user');
                 } catch (userError) {
-                    console.log('Header - user balance failed, trying organization:', userError);
-                    // If user fails, try as organization
                     response = await getEntityBalance(userId, 'organization');
                 }
-                
+
                 if (response.success && response.data) {
                     setBalance(Number(response.data.balance));
                 } else {
@@ -84,7 +93,6 @@ export const Header = () => {
                 }
             } catch (err) {
                 setBalanceError('Could not fetch balance');
-                console.error("Error fetching balance:", err);
             } finally {
                 setBalanceLoading(false);
             }
@@ -145,7 +153,7 @@ export const Header = () => {
                 </div>
 
                 {/* Notification Dropdown */}
-                <NotificationDropdown />
+                <NotificationBell />
 
                 {/* User Profile with Dropdown */}
                 <div className="relative">

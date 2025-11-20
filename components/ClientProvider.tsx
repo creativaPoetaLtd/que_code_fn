@@ -5,12 +5,17 @@ import type React from "react"
 import store from "@/lib/redux-store"
 import { Provider } from "react-redux"
 import { NotificationProvider } from "@/context/NotificationContext"
+import { ChatProvider } from "@/context/ChatContext"
 
 
 const ClientProvider = ({ children }: { children: React.ReactNode }) => {
     return (
         <Provider store={store}>
-            <NotificationProvider>{children}</NotificationProvider>
+            <NotificationProvider>
+                <ChatProvider>
+                    {children}
+                </ChatProvider>
+            </NotificationProvider>
         </Provider>
     )
 }

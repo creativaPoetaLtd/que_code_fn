@@ -138,7 +138,6 @@ export default function InviteToGroupModal({ isOpen, onClose, group, token }: In
 
             onClose()
         } catch (error: any) {
-            console.error("Invite error:", error.message || error)
             const errorMessage = error?.data?.message || error?.message || "Failed to send invitations"
             toast({
                 title: "Error",
@@ -259,8 +258,8 @@ export default function InviteToGroupModal({ isOpen, onClose, group, token }: In
                                                 alt={`${contact.contactUser.firstName} ${contact.contactUser.lastName}`}
                                             />
                                             <AvatarFallback className="bg-blue-100 text-blue-600">
-                                                {contact.contactUser.firstName.charAt(0)}
-                                                {contact.contactUser.lastName.charAt(0)}
+                                                {(contact.contactUser.firstName || '').charAt(0).toUpperCase()}
+                                                {(contact.contactUser.lastName || '').charAt(0).toUpperCase()}
                                             </AvatarFallback>
                                         </Avatar>
                                         <div className="flex-1">

@@ -1,0 +1,48 @@
+# Prettier ignore file
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+.next/
+out/
+dist/
+build/
+
+# Environment files
+.env*
+
+# IDE files
+.vscode/
+.idea/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+
+# Package manager files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Logs
+*.log
+
+# Cache directories
+.cache/
+.parcel-cache/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Generated files
+*.min.js
+*.min.css
+
+# Documentation that shouldn't be formatted
+CHANGELOG.md

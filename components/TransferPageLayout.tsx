@@ -59,7 +59,6 @@ const TransferPageLayout = () => {
           try {
             response = await getEntityBalance(userId, 'user');
           } catch (userError) {
-            console.log('TransferPageLayout - user balance failed, trying organization:', userError);
             // If user fails, try as organization
             response = await getEntityBalance(userId, 'organization');
           }

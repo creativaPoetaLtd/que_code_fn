@@ -9,9 +9,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CheckCircle, XCircle, UserPlus, AlertCircle, Clock, Users, Loader2 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import {
-    useGetPendingInvitationsQuery,
+    useGetPendingInvitationsUnifiedQuery,
     useGetAcceptedContactsQuery,
-    useRespondToInvitationMutation,
+    useRespondToInvitationEnhancedMutation,
 } from "@/states/contactSlice"
 import { useAuthToken } from "@/hooks/use-auth-token"
 
@@ -33,7 +33,11 @@ export default function ContactRequestModal({ isOpen, onClose }: ContactRequestM
         isLoading: isPendingLoading,
         error: pendingError,
         refetch: refetchPending,
-    } = useGetPendingInvitationsQuery(token as string, {
+    } = useGetPendingInvitationsUnifiedQuery({
+        token: token as string,
+        page: 1,
+        limit: 20
+    }, {
         skip: !token,
     })
     const {
@@ -46,9 +50,9 @@ export default function ContactRequestModal({ isOpen, onClose }: ContactRequestM
     })
 
 
-    const [respondToInvitation, { isLoading: isResponding }] = useRespondToInvitationMutation()
+    const [respondToInvitation, { isLoading: isResponding }] = useRespondToInvitationEnhancedMutation()
 
-    const handleResponse = async (contactId: string, action: "accept" | "reject", inviterName: string) => {
+    const handleResponse = async (invitationId: string, action: "accept" | "decline", inviterName: string) => {
         if (!token) {
             toast({
                 title: "Authentication Error",
@@ -60,17 +64,17 @@ export default function ContactRequestModal({ isOpen, onClose }: ContactRequestM
 
         try {
             const result = await respondToInvitation({
-                contactId,
-                responseData: { action },
+                invitationId,
+                action,
                 token,
             }).unwrap()
 
             toast({
-                title: action === "accept" ? "Contact Request Accepted" : "Contact Request Rejected",
+                title: action === "accept" ? "Contact Request Accepted" : "Contact Request Declined",
                 description:
                     action === "accept"
                         ? `${inviterName} has been added to your contacts`
-                        : `Contact request from ${inviterName} has been rejected`,
+                        : `Contact request from ${inviterName} has been declined`,
             })
 
             // Refetch pending invitations to update the list
@@ -95,10 +99,10 @@ export default function ContactRequestModal({ isOpen, onClose }: ContactRequestM
         onClose()
     }
 
-    // Extract data
-    const receivedInvitations = pendingInvitations?.data?.received || []
-    const sentInvitations = pendingInvitations?.data?.sent || []
-    const completedContacts = acceptedContacts?.data || []
+    // Extract data - Updated to match the new API response format
+    const receivedInvitations = pendingInvitations?.invitations || []
+    const sentInvitations: any[] = [] // We don't need sent invitations for this component
+    const completedContacts = acceptedContacts?.contacts || []
 
     // Loading states
     const isLoading = isPendingLoading || (activeFilter === "completed" && isAcceptedLoading)
@@ -149,7 +153,7 @@ export default function ContactRequestModal({ isOpen, onClose }: ContactRequestM
                         <TabsList className="grid w-full grid-cols-2 mb-4">
                             <TabsTrigger value="pending" className="flex items-center gap-2">
                                 <Clock size={16} />
-                                Pending ({receivedInvitations.length + sentInvitations.length})
+                                Pending ({receivedInvitations.length})
                             </TabsTrigger>
                             <TabsTrigger value="completed" className="flex items-center gap-2">
                                 <Users size={16} />
@@ -234,7 +238,7 @@ export default function ContactRequestModal({ isOpen, onClose }: ContactRequestM
                                                                     onClick={() =>
                                                                         handleResponse(
                                                                             invitation.id,
-                                                                            "reject",
+                                                                            "decline",
                                                                             `${invitation.inviter.firstName} ${invitation.inviter.lastName}`,
                                                                         )
                                                                     }
@@ -254,51 +258,7 @@ export default function ContactRequestModal({ isOpen, onClose }: ContactRequestM
                                             </div>
                                         )}
 
-                                        {/* Sent Invitations (ones you're waiting for response) */}
-                                        {sentInvitations.length > 0 && (
-                                            <div>
-                                                <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
-                                                    <Clock size={16} className="mr-2 text-blue-500" />
-                                                    Sent Requests ({sentInvitations.length})
-                                                </h3>
-                                                <div className="space-y-3">
-                                                    {sentInvitations.map((invitation: any) => (
-                                                        <div
-                                                            key={invitation.id}
-                                                            className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg"
-                                                        >
-                                                            <div className="flex items-center">
-                                                                <Avatar className="h-10 w-10 mr-3">
-                                                                    <AvatarImage
-                                                                        src={`/placeholder.svg?height=40&width=40`}
-                                                                        alt={`${invitation.invitee.firstName} ${invitation.invitee.lastName}`}
-                                                                    />
-                                                                    <AvatarFallback>
-                                                                        {invitation.invitee.firstName?.charAt(0)}
-                                                                        {invitation.invitee.lastName?.charAt(0)}
-                                                                    </AvatarFallback>
-                                                                </Avatar>
-                                                                <div>
-                                                                    <p className="font-medium">
-                                                                        {invitation.invitee.firstName} {invitation.invitee.lastName}
-                                                                    </p>
-                                                                    <p className="text-xs text-gray-500">{invitation.invitee.email}</p>
-                                                                    <p className="text-xs text-gray-400">
-                                                                        Sent: {new Date(invitation.invitedAt).toLocaleDateString()}
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-                                                            <Badge variant="secondary">
-                                                                <Clock size={12} className="mr-1" />
-                                                                Pending
-                                                            </Badge>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {receivedInvitations.length === 0 && sentInvitations.length === 0 && (
+                                        {receivedInvitations.length === 0 && (
                                             <div className="text-center py-8">
                                                 <AlertCircle size={40} className="mx-auto mb-2 text-gray-400" />
                                                 <p className="text-gray-500">No pending contact requests</p>
@@ -333,20 +293,20 @@ export default function ContactRequestModal({ isOpen, onClose }: ContactRequestM
                                                     <Avatar className="h-10 w-10 mr-3">
                                                         <AvatarImage
                                                             src={`/placeholder.svg?height=40&width=40`}
-                                                            alt={`${contact.contactUser.firstName} ${contact.contactUser.lastName}`}
+                                                            alt={`${contact.otherUser?.firstName} ${contact.otherUser?.lastName}`}
                                                         />
                                                         <AvatarFallback>
-                                                            {contact.contactUser.firstName?.charAt(0)}
-                                                            {contact.contactUser.lastName?.charAt(0)}
+                                                            {contact.otherUser?.firstName?.charAt(0)}
+                                                            {contact.otherUser?.lastName?.charAt(0)}
                                                         </AvatarFallback>
                                                     </Avatar>
                                                     <div>
                                                         <p className="font-medium">
-                                                            {contact.contactUser.firstName} {contact.contactUser.lastName}
+                                                            {contact.otherUser?.firstName} {contact.otherUser?.lastName}
                                                         </p>
-                                                        <p className="text-xs text-gray-500">{contact.contactUser.email}</p>
+                                                        <p className="text-xs text-gray-500">{contact.otherUser?.email}</p>
                                                         <p className="text-xs text-gray-400">
-                                                            Connected: {new Date(contact.respondedAt || contact.invitedAt).toLocaleDateString()}
+                                                            Connected: {new Date(contact.createdAt).toLocaleDateString()}
                                                         </p>
                                                     </div>
                                                 </div>

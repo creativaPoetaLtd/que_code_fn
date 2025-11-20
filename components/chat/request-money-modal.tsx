@@ -129,7 +129,7 @@ export default function RequestMoneyModal({ isOpen, onClose, conversation }: Req
                                     >
                                         <Avatar className="mr-2 h-8 w-8">
                                             <AvatarImage src={participant.avatar} alt={participant.name} />
-                                            <AvatarFallback>{participant.name.charAt(0)}</AvatarFallback>
+                                            <AvatarFallback>{(participant.name || 'P').charAt(0).toUpperCase()}</AvatarFallback>
                                         </Avatar>
                                         <span>{participant.name}</span>
                                     </label>
