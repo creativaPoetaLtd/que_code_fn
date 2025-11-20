@@ -134,8 +134,9 @@ const AmountPage = () => {
 
         // Check PIN status first
         try {
-          const pinStatus: any = await checkUserPinStatus();
-          if (!pinStatus.success || !pinStatus.data.hasPinSet) {
+          const pinStatusResponse: any = await checkUserPinStatus();
+          const pinStatus = pinStatusResponse.data;
+          if (!pinStatus.success || !pinStatus.data?.hasPinSet) {
             setShowPinSetupModal(true);
           }
         } catch (pinError) {

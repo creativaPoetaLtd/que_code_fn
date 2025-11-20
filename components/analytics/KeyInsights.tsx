@@ -66,20 +66,20 @@ const InsightCard = ({ title, description, value, type, icon }: InsightCardProps
 
 const KeyInsights: React.FC<KeyInsightsProps> = ({ dateRange }) => {
     const { data: summaryData, loading: summaryLoading } = useAnalyticsSummary(dateRange)
-    const { data: categoryData, loading: categoryLoading } = useAnalyticsCategoryBreakdown(dateRange)
+    const { data: categoryData = [], loading: categoryLoading } = useAnalyticsCategoryBreakdown(dateRange)
 
     const loading = summaryLoading || categoryLoading
 
     const generateInsights = () => {
         const insights = []
 
-        if (summaryData && categoryData.length > 0) {
+        if (summaryData && Array.isArray(categoryData) && categoryData.length > 0) {
             const topCategory = categoryData[0]
             if (topCategory) {
                 insights.push({
                     title: 'Top Spending Category',
                     description: `${topCategory.categoryName} accounts for ${topCategory.percentage.toFixed(1)}% of expenses`,
-                    value: `$${topCategory.totalAmount.toLocaleString()}`,
+                    value: `RWF ${topCategory.totalAmount.toLocaleString()}`,
                     type: 'info' as const,
                     icon: <Target className="h-5 w-5" />
                 })
@@ -90,7 +90,7 @@ const KeyInsights: React.FC<KeyInsightsProps> = ({ dateRange }) => {
                 insights.push({
                     title: 'Average Transaction',
                     description: `Based on ${summaryData.expenseCount} transactions this period`,
-                    value: `$${avgTransaction.toFixed(0)}`,
+                    value: `RWF ${avgTransaction.toFixed(0)}`,
                     type: 'info' as const,
                     icon: <Calendar className="h-5 w-5" />
                 })
@@ -100,7 +100,7 @@ const KeyInsights: React.FC<KeyInsightsProps> = ({ dateRange }) => {
                 insights.push({
                     title: 'Positive Balance',
                     description: 'Your income exceeded expenses this period',
-                    value: `$${summaryData.netBalance.toLocaleString()}`,
+                    value: `RWF ${summaryData.netBalance.toLocaleString()}`,
                     type: 'positive' as const,
                     icon: <TrendingUp className="h-5 w-5" />
                 })
@@ -108,7 +108,7 @@ const KeyInsights: React.FC<KeyInsightsProps> = ({ dateRange }) => {
                 insights.push({
                     title: 'Spending Alert',
                     description: 'Your expenses exceeded income this period',
-                    value: `$${Math.abs(summaryData.netBalance).toLocaleString()}`,
+                    value: `RWF ${Math.abs(summaryData.netBalance).toLocaleString()}`,
                     type: 'warning' as const,
                     icon: <AlertTriangle className="h-5 w-5" />
                 })

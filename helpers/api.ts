@@ -161,14 +161,71 @@ const createAnalyticsUrl = (endpoint: string, userId: string, params: Record<str
 export const getAnalyticsSummary = (userId: string, startDate?: string, endDate?: string) =>
   apiGet(createAnalyticsUrl('summary', userId, { startDate, endDate }));
 
-export const getAnalyticsCategoryBreakdown = (userId: string, startDate?: string, endDate?: string) =>
-  apiGet(createAnalyticsUrl('category-breakdown', userId, { startDate, endDate }));
+export const getAnalyticsCategoryBreakdown = (userId: string, startDate?: string, endDate?: string, type: 'expenses' | 'income' = 'expenses') =>
+  apiGet(createAnalyticsUrl('category-breakdown', userId, { startDate, endDate, type }));
 
 export const getAnalyticsSpendingTrends = (userId: string, startDate?: string, endDate?: string, interval = 'daily') =>
   apiGet(createAnalyticsUrl('spending-trends', userId, { startDate, endDate, interval }));
 
-export const getAnalyticsRecentTransactions = (userId: string, limit = 10, type?: string) =>
-  apiGet(createAnalyticsUrl('recent-transactions', userId, { limit, type }));
+export const getAnalyticsRecentTransactions = async (
+  userId: string, 
+  limit: number = 10, 
+  type?: string,
+  startDate?: string,
+  endDate?: string
+) => {
+  const params = new URLSearchParams({ userId, limit: limit.toString() });
+  if (type) params.append('type', type);
+  if (startDate) params.append('startDate', startDate);
+  if (endDate) params.append('endDate', endDate);
+
+  const res = await axios.get(`${baseUrl}/analytics/recent-transactions?${params.toString()}`, {
+    headers: getAuthHeaders()
+  });
+  return res.data;
+};
+
+export const getAnalyticsSpendingComparison = async (userId: string, startDate?: string, endDate?: string, interval: string = 'daily') => {
+  const params = new URLSearchParams({ userId, interval });
+  if (startDate) params.append('startDate', startDate);
+  if (endDate) params.append('endDate', endDate);
+  
+  const res = await axios.get(`${baseUrl}/analytics/spending-comparison?${params.toString()}`, {
+    headers: getAuthHeaders()
+  });
+  return res.data;
+};
+
+export const getAnalyticsPeriodSummary = async (
+  userId: string,
+  startDate: string,
+  endDate: string,
+  interval: 'daily' | 'weekly' | 'monthly' = 'daily'
+) => {
+  const params = new URLSearchParams({ userId, startDate, endDate, interval });
+  
+  const res = await axios.get(`${baseUrl}/analytics/period-summary?${params.toString()}`, {
+    headers: getAuthHeaders()
+  });
+  return res.data;
+};
+
+export const getTransactionsByCategory = async (
+  userId: string, 
+  categoryId: string, 
+  startDate?: string, 
+  endDate?: string,
+  limit: number = 10
+) => {
+  const params = new URLSearchParams({ userId, categoryId, limit: limit.toString() });
+  if (startDate) params.append('startDate', startDate);
+  if (endDate) params.append('endDate', endDate);
+  
+  const res = await axios.get(`${baseUrl}/analytics/category-transactions?${params.toString()}`, {
+    headers: getAuthHeaders()
+  });
+  return res.data;
+};
 
 // Wallet restrictions and transaction details
 export const getWalletRestrictions = (walletId: string) =>

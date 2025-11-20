@@ -18,7 +18,7 @@ interface SpendingTrendsProps {
 }
 
 const SpendingTrends: React.FC<SpendingTrendsProps> = ({ dateRange, interval }) => {
-    const { data, loading, error } = useAnalyticsSpendingTrends(dateRange, interval)
+    const { data = [], loading, error } = useAnalyticsSpendingTrends(dateRange, interval)
 
     const formatDate = (dateString: string, interval: string) => {
         const date = moment(dateString)
@@ -34,7 +34,7 @@ const SpendingTrends: React.FC<SpendingTrendsProps> = ({ dateRange, interval }) 
         }
     }
 
-    const trendData: TrendData[] = data.map(item => ({
+    const trendData: TrendData[] = (data || []).map(item => ({
         date: item.date,
         amount: item.totalSpent,
         formattedDate: formatDate(item.date, interval)

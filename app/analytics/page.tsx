@@ -4,10 +4,13 @@ import { Header } from '@/components/Header'
 import Navigation from '@/components/Navigation'
 import FiltersBar from '../../components/analytics/FiltersBar'
 import SummaryCards from '../../components/analytics/SummaryCards'
+import ComparisonChart from '../../components/analytics/ComparisonChart'
+import TransactionTable from '../../components/analytics/TransactionTable'
 import CategoryBreakdown from '../../components/analytics/CategoryBreakdown'
-import SpendingTrends from '../../components/analytics/SpendingTrends'
 import KeyInsights from '../../components/analytics/KeyInsights'
 import { DateRange } from '@/types/analytics.types'
+
+type ViewType = 'daily' | 'weekly' | 'monthly' | 'yearly'
 
 const AnalyticsPage = () => {
     // State for filters
@@ -16,7 +19,33 @@ const AnalyticsPage = () => {
         endDate: new Date()
     });
     
-    const [interval, setInterval] = useState<'daily' | 'weekly' | 'monthly'>('daily');
+    // Helper function to determine optimal interval based on date range
+    const calculateOptimalInterval = (start: Date, end: Date): 'daily' | 'weekly' | 'monthly' | 'yearly' => {
+        const durationDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (durationDays === 1) return 'daily';
+        if (durationDays <= 7) return 'daily'; 
+        if (durationDays <= 31) return 'weekly';
+        if (durationDays <= 365) return 'monthly';
+        return 'yearly';
+    };
+
+    // Calculate interval based on current date range
+    const [interval, setInterval] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>(() => 
+        calculateOptimalInterval(
+            new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+            new Date()
+        )
+    );
+
+    // Update interval whenever date range changes
+    const handleDateRangeChange = (newDateRange: DateRange) => {
+        setDateRange(newDateRange);
+        if (newDateRange.startDate && newDateRange.endDate) {
+            const newInterval = calculateOptimalInterval(newDateRange.startDate, newDateRange.endDate);
+            setInterval(newInterval);
+        }
+    };
     return (
         <div className="flex flex-col min-h-screen bg-gray-50">
             {/* Desktop Sidebar */}
@@ -32,34 +61,37 @@ const AnalyticsPage = () => {
                     <div className="space-y-6">
                         {/* Page Title & Filters */}
                         <div className="mb-8">
-                            <h1 className="text-2xl font-bold text-gray-900 mb-2">Analytics</h1>
+                            <h1 className="text-3xl font-bold text-gray-900 mb-1">Analytics</h1>
                             <p className="text-gray-600 mb-6">Track your spending patterns and financial insights.</p>
                             <FiltersBar 
                                 dateRange={dateRange}
-                                interval={interval}
-                                onDateRangeChange={setDateRange}
-                                onIntervalChange={setInterval}
+                                onDateRangeChange={handleDateRangeChange}
                             />
                         </div>
 
-                        {/* Summary Metrics */}
+                        {/* Summary Cards */}
                         <SummaryCards dateRange={dateRange} />
+
+                        {/* Comparison Chart */}
+                        <ComparisonChart dateRange={dateRange} interval={interval} />
 
                         {/* Charts Section */}
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                             {/* Category Breakdown */}
-                            <div className="lg:col-span-5">
+                            <div className="lg:col-span-6">
                                 <CategoryBreakdown dateRange={dateRange} />
                             </div>
 
-                            {/* Spending Trends */}
-                            <div className="lg:col-span-7">
-                                <SpendingTrends dateRange={dateRange} interval={interval} />
+                            {/* Key Insights */}
+                            <div className="lg:col-span-6">
+                                <KeyInsights dateRange={dateRange} />
                             </div>
                         </div>
 
-                        {/* Key Insights */}
-                        <KeyInsights dateRange={dateRange} />
+
+                        {/* Transaction Table - Shows Daily/Weekly/Monthly/Yearly View */}
+                        <TransactionTable dateRange={dateRange} activeView={interval} />
+
                     </div>
                 </div>
             </main>

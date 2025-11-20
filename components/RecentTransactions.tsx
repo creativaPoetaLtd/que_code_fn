@@ -59,7 +59,7 @@ export const RecentTransactions: React.FC = () => {
   }, []);
 
   const getTransactionDisplayInfo = (transaction: Transaction) => {
-    const isOutgoing = transaction.senderWalletId === currentUserWalletId;
+    const isOutgoing = transaction.type === 'sent';
     const transactionAmount = Number(transaction.amount) || 0;
     const transactionFee = Number(transaction.fee) || 0;
     const amount = isOutgoing ? -(transactionAmount + transactionFee) : transactionAmount;
