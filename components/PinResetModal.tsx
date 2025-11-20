@@ -41,7 +41,7 @@ export const PinResetModal: React.FC<PinResetModalProps> = ({
     setError("");
 
     try {
-      await requestPinReset(verificationMethod);
+      const response = await requestPinReset(verificationMethod);
       setStep('verify');
     } catch (err: any) {
       console.error("PIN reset request error:", err);
@@ -70,7 +70,9 @@ export const PinResetModal: React.FC<PinResetModalProps> = ({
 
     setLoading(true);
     try {
-      await confirmPinReset(resetToken, newPin);
+      const response = await confirmPinReset(resetToken, newPin);
+      
+      // Success! Close modal and reset state
       onOpenChange(false);
       setStep('method');
       setResetToken("");
