@@ -48,11 +48,30 @@ export const Header = () => {
             try {
                 const authToken = getToken();
                 const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {};
-                const res = await axios.get(`${baseUrl}/users/${userId}`, { headers });
-                const data = res.data;
-                setProfileImage(data.profileImage || null);
+                // Try user endpoint first, then organization endpoint
+                const userUrl = `${baseUrl}/users/${userId}`;
+                const organizationUrl = `${baseUrl}/organizations/${userId}`;
+
+                const [userRes, organizationRes] = await Promise.allSettled([
+                    axios.get(userUrl, { headers }),
+                    axios.get(organizationUrl, { headers }),
+                ]);
+
+                // Check if user data was successful
+                if (userRes.status === 'fulfilled') {
+                    const data = userRes.value.data;
+                    setProfileImage(data.profileImage || null);
+                } else if (organizationRes.status === 'fulfilled') {
+                    // If user failed but organization succeeded, use organization data
+                    const data = organizationRes.value.data;
+                    setProfileImage(data.profileImage || null);
+                } else {
+                    // Both failed, but don't throw - just leave profileImage as null
+                    setProfileImage(null);
+                }
             } catch (err) {
-                throw new Error("Error fetching user profile");
+                // Don't throw error, just set profileImage to null
+                setProfileImage(null);
             }
         };
         fetchUser();
