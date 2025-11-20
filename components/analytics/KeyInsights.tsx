@@ -66,14 +66,14 @@ const InsightCard = ({ title, description, value, type, icon }: InsightCardProps
 
 const KeyInsights: React.FC<KeyInsightsProps> = ({ dateRange }) => {
     const { data: summaryData, loading: summaryLoading } = useAnalyticsSummary(dateRange)
-    const { data: categoryData, loading: categoryLoading } = useAnalyticsCategoryBreakdown(dateRange)
+    const { data: categoryData = [], loading: categoryLoading } = useAnalyticsCategoryBreakdown(dateRange)
 
     const loading = summaryLoading || categoryLoading
 
     const generateInsights = () => {
         const insights = []
 
-        if (summaryData && categoryData.length > 0) {
+        if (summaryData && Array.isArray(categoryData) && categoryData.length > 0) {
             const topCategory = categoryData[0]
             if (topCategory) {
                 insights.push({

@@ -45,8 +45,8 @@ export const useAnalyticsSummary = (dateRange: DateRange) => {
           endDate
         );
         
-        if (response.status === 200 && response.data) {
-          setData(response.data);
+        if (response.status === 200 && response.data?.data) {
+          setData(response.data.data);
         } else {
           setError('Failed to fetch analytics summary');
         }
@@ -66,8 +66,9 @@ export const useAnalyticsSummary = (dateRange: DateRange) => {
 /**
  * Hook to fetch category breakdown data
  * Returns spending distribution by categories
+ * Can filter by type (expenses or income)
  */
-export const useAnalyticsCategoryBreakdown = (dateRange: DateRange) => {
+export const useAnalyticsCategoryBreakdown = (dateRange: DateRange, type: 'expenses' | 'income' = 'expenses') => {
   const [data, setData] = useState<CategoryBreakdown[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -86,11 +87,12 @@ export const useAnalyticsCategoryBreakdown = (dateRange: DateRange) => {
         const response = await getAnalyticsCategoryBreakdown(
           userId, 
           startDate, 
-          endDate
+          endDate,
+          type
         );
         
-        if (response.status === 200 && response.data) {
-          setData(response.data);
+        if (response.status === 200 && response.data?.data) {
+          setData(response.data.data);
         } else {
           setError('Failed to fetch category breakdown');
         }
@@ -102,7 +104,7 @@ export const useAnalyticsCategoryBreakdown = (dateRange: DateRange) => {
     };
 
     fetchData();
-  }, [userId, isAuthenticated, dateRange.startDate, dateRange.endDate]);
+  }, [userId, isAuthenticated, dateRange.startDate, dateRange.endDate, type]);
 
   return { data, loading, error };
 };
@@ -130,12 +132,12 @@ export const useAnalyticsSpendingTrends = (dateRange: DateRange, interval: 'dail
         const response = await getAnalyticsSpendingTrends(
           userId, 
           startDate, 
-          endDate, 
+          endDate,
           interval
         );
         
-        if (response.status === 200 && response.data) {
-          setData(response.data);
+        if (response.status === 200 && response.data?.data) {
+          setData(response.data.data);
         } else {
           setError('Failed to fetch spending trends');
         }
@@ -175,8 +177,8 @@ export const useAnalyticsRecentTransactions = (limit: number = 10, type?: string
           type
         );
         
-        if (response.status === 200 && response.data) {
-          setData(response.data);
+        if (response.status === 200 && response.data?.data) {
+          setData(response.data.data);
         } else {
           setError('Failed to fetch recent transactions');
         }

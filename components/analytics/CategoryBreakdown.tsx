@@ -20,13 +20,14 @@ interface CategoryBreakdownProps {
 }
 
 const CategoryBreakdown: React.FC<CategoryBreakdownProps> = ({ dateRange }) => {
-    const { data, loading, error } = useAnalyticsCategoryBreakdown(dateRange)
+    const [filterType, setFilterType] = useState<'expenses' | 'income'>('expenses')
+    const { data = [], loading, error } = useAnalyticsCategoryBreakdown(dateRange, filterType)
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
 
     // Color palette for categories
     const colors = ['#1e40af', '#f97316', '#e11d48', '#059669', '#7c3aed', '#0891b2', '#dc2626', '#ca8a04']
 
-    const categoryData: CategoryData[] = data.map((item, index) => ({
+    const categoryData: CategoryData[] = (data || []).map((item, index) => ({
         name: item.categoryName,
         value: item.percentage,
         color: colors[index % colors.length],
@@ -81,8 +82,34 @@ const CategoryBreakdown: React.FC<CategoryBreakdownProps> = ({ dateRange }) => {
     return (
         <Card className="p-6">
             <div className="mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Category Breakdown</h3>
-                <p className="text-sm text-gray-600">Spending distribution by categories</p>
+                <div className="flex justify-between items-start mb-4">
+                    <div>
+                        <h3 className="text-lg font-semibold text-gray-900">Category Breakdown</h3>
+                        <p className="text-sm text-gray-600">Spending distribution by categories</p>
+                    </div>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setFilterType('expenses')}
+                            className={`px-4 py-2 rounded font-medium transition-colors ${
+                                filterType === 'expenses'
+                                    ? 'bg-red-600 text-white'
+                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                            }`}
+                        >
+                            Expenses
+                        </button>
+                        <button
+                            onClick={() => setFilterType('income')}
+                            className={`px-4 py-2 rounded font-medium transition-colors ${
+                                filterType === 'income'
+                                    ? 'bg-green-600 text-white'
+                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                            }`}
+                        >
+                            Income
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <div className="flex flex-col lg:flex-row gap-6" role="region" aria-label="Category spending breakdown">

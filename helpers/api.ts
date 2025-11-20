@@ -161,8 +161,8 @@ const createAnalyticsUrl = (endpoint: string, userId: string, params: Record<str
 export const getAnalyticsSummary = (userId: string, startDate?: string, endDate?: string) =>
   apiGet(createAnalyticsUrl('summary', userId, { startDate, endDate }));
 
-export const getAnalyticsCategoryBreakdown = (userId: string, startDate?: string, endDate?: string) =>
-  apiGet(createAnalyticsUrl('category-breakdown', userId, { startDate, endDate }));
+export const getAnalyticsCategoryBreakdown = (userId: string, startDate?: string, endDate?: string, type: 'expenses' | 'income' = 'expenses') =>
+  apiGet(createAnalyticsUrl('category-breakdown', userId, { startDate, endDate, type }));
 
 export const getAnalyticsSpendingTrends = (userId: string, startDate?: string, endDate?: string, interval = 'daily') =>
   apiGet(createAnalyticsUrl('spending-trends', userId, { startDate, endDate, interval }));
