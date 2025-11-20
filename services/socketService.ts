@@ -448,6 +448,23 @@ class SocketService {
         }
     }
 
+    // Listen for money received events
+    onMoneyReceived(callback: (data: { amount: number; from: string; transactionId: string; chatId: string }) => void) {
+        if (this.socket) {
+            this.socket.on("money_received", callback)
+        }
+    }
+
+    offMoneyReceived(callback?: (data: any) => void) {
+        if (this.socket) {
+            if (callback) {
+                this.socket.off("money_received", callback)
+            } else {
+                this.socket.off("money_received")
+            }
+        }
+    }
+
     getSocket() {
         return this.socket
     }
