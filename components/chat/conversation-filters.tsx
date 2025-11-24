@@ -31,19 +31,19 @@ export default function ConversationFilters({
                 <TabsList className="grid w-full grid-cols-3 h-8 bg-gray-100">
                     <TabsTrigger 
                         value="all" 
-                        className="text-xs data-[state=active]:bg-white data-[state=active]:text-blue-600"
+                        className="text-xs data-[state=active]:bg-white data-[state=active]:text-[#00B512]"
                     >
                         All ({totalCount})
                     </TabsTrigger>
                     <TabsTrigger 
                         value="users" 
-                        className="text-xs data-[state=active]:bg-white data-[state=active]:text-blue-600"
+                        className="text-xs data-[state=active]:bg-white data-[state=active]:text-[#00B512]"
                     >
                         Users ({userCount})
                     </TabsTrigger>
                     <TabsTrigger 
                         value="groups" 
-                        className="text-xs data-[state=active]:bg-white data-[state=active]:text-blue-600"
+                        className="text-xs data-[state=active]:bg-white data-[state=active]:text-[#00B512]"
                     >
                         Groups ({groupCount})
                     </TabsTrigger>

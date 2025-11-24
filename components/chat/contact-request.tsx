@@ -137,7 +137,7 @@ export default function ContactRequestModal({ isOpen, onClose }: ContactRequestM
                 <DialogHeader>
                     <div className="flex items-center justify-between">
                         <div className="flex items-center">
-                            <UserPlus size={20} className="text-blue-600 mr-2" />
+                            <UserPlus size={20} className="text-[#00B512] mr-2" />
                             <DialogTitle>Contact Requests</DialogTitle>
                         </div>
                         {receivedInvitations.length > 0 && <Badge variant="secondary">{receivedInvitations.length} pending</Badge>}
