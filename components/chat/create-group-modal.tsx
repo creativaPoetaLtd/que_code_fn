@@ -291,11 +291,11 @@ export default function CreateGroupModalUpdated({
             <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <div className="flex items-center">
-                        <div className={`${isContributionGroup ? "bg-green-100" : "bg-blue-100"} p-2 rounded-full mr-3`}>
+                        <div className={`${isContributionGroup ? "bg-green-100" : "bg-green-100"} p-2 rounded-full mr-3`}>
                             {isContributionGroup ? (
                                 <Coins size={20} className="text-green-600" />
                             ) : (
-                                <Users size={20} className="text-blue-600" />
+                                <Users size={20} className="text-[#00B512]" />
                             )}
                         </div>
                         <DialogTitle>{isContributionGroup ? "Create Contribution Group" : "Create Group"}</DialogTitle>
@@ -622,7 +622,9 @@ export default function CreateGroupModalUpdated({
                         <Button variant="outline" onClick={handleClose}>
                             Cancel
                         </Button>
-                        <Button onClick={handleSubmit} disabled={isCreating}>
+                        <Button onClick={handleSubmit} disabled={isCreating}
+                        className='bg-[#00B512] text-white'
+                        >
                             {isCreating && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                             Create {hasFundraising ? "Fundraising Group" : "Group"}
                         </Button>

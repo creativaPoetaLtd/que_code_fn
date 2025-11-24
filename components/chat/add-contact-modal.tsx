@@ -202,82 +202,92 @@ export default function AddContactModal({ isOpen, onClose }: AddContactModalProp
     }
 
     return (
-        <>
-            <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <div className="flex items-center">
-                            <div className="bg-blue-100 p-2 rounded-full mr-3">
-                                <UserPlus size={20} className="text-blue-600" />
-                            </div>
-                            <DialogTitle>Add Contact</DialogTitle>
-                        </div>
-                    </DialogHeader>
+      <>
+        <Dialog open={isOpen} onOpenChange={open => !open && handleClose()}>
+          <DialogContent className='sm:max-w-md'>
+            <DialogHeader>
+              <div className='flex items-center'>
+                <div className='bg-green-100 p-2 rounded-full mr-3'>
+                  <UserPlus size={20} className='text-[#00B512]' />
+                </div>
+                <DialogTitle>Add Contact</DialogTitle>
+              </div>
+            </DialogHeader>
 
+            <div className='py-4'>
+              {/* Profile Link Input Section */}
+              <div className='mb-6'>
+                <label className='block text-sm font-medium text-gray-700 mb-2'>
+                  <div className='flex items-center'>
+                    <Link size={16} className='mr-2' />
+                    <span>Profile Link or Public ID</span>
+                  </div>
+                </label>
+                <div className='space-y-2'>
+                  <Input
+                    placeholder='Enter profile link or public ID (e.g., http://localhost:3000/welcome/41317198-27e2-4c65-bbd8-97a92b6b665c)'
+                    value={profileLink}
+                    onChange={e => setProfileLink(e.target.value)}
+                    onKeyDown={e =>
+                      e.key === 'Enter' && handleProfileLinkSubmit()
+                    }
+                  />
+                  <Button
+                    onClick={handleProfileLinkSubmit}
+                    disabled={isInviting || !profileLink.trim()}
+                    className='w-full bg-[#00B512] text-white'
+                  >
+                    {isInviting ? (
+                      <>
+                        <Loader2 size={16} className='mr-2 animate-spin' />
+                        Sending Invitation...
+                      </>
+                    ) : (
+                      'Send Invitation'
+                    )}
+                  </Button>
+                </div>
+                {extractedPublicId && (
+                  <p className='text-xs text-green-600 mt-1'>
+                    Extracted Public ID: {extractedPublicId}
+                  </p>
+                )}
+              </div>
 
-                    <div className="py-4">
-                        {/* Profile Link Input Section */}
-                        <div className="mb-6">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                <div className="flex items-center">
-                                    <Link size={16} className="mr-2" />
-                                    <span>Profile Link or Public ID</span>
-                                </div>
-                            </label>
-                            <div className="space-y-2">
-                                <Input
-                                    placeholder="Enter profile link or public ID (e.g., http://localhost:3000/welcome/41317198-27e2-4c65-bbd8-97a92b6b665c)"
-                                    value={profileLink}
-                                    onChange={(e) => setProfileLink(e.target.value)}
-                                    onKeyDown={(e) => e.key === "Enter" && handleProfileLinkSubmit()}
-                                />
-                                <Button
-                                    onClick={handleProfileLinkSubmit}
-                                    disabled={isInviting || !profileLink.trim()}
-                                    className="w-full"
-                                >
-                                    {isInviting ? (
-                                        <>
-                                            <Loader2 size={16} className="mr-2 animate-spin" />
-                                            Sending Invitation...
-                                        </>
-                                    ) : (
-                                        "Send Invitation"
-                                    )}
-                                </Button>
-                            </div>
-                            {extractedPublicId && (
-                                <p className="text-xs text-green-600 mt-1">Extracted Public ID: {extractedPublicId}</p>
-                            )}
-                        </div>
+              <Separator className='my-4' />
 
-                        <Separator className="my-4" />
+              {/* QR Code Scanner Section */}
+              <div className='text-center mb-6'>
+                <p className='text-sm text-gray-500 mb-3'>Or scan a QR code</p>
+                <Button
+                  onClick={() => setIsQRScannerOpen(true)}
+                  variant='outline'
+                  disabled={isInviting}
+                >
+                  <QrCode size={16} className='mr-2' />
+                  Scan QR Code
+                </Button>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant='outline'
+                onClick={handleClose}
+                disabled={isInviting}
+              >
+                Cancel
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-                        {/* QR Code Scanner Section */}
-                        <div className="text-center mb-6">
-                            <p className="text-sm text-gray-500 mb-3">Or scan a QR code</p>
-                            <Button onClick={() => setIsQRScannerOpen(true)} variant="outline" disabled={isInviting}>
-                                <QrCode size={16} className="mr-2" />
-                                Scan QR Code
-                            </Button>
-                        </div>
-                    </div>
-                    <DialogFooter>
-
-                        <Button variant="outline" onClick={handleClose} disabled={isInviting}>
-                            Cancel
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* QR Code Scanner Modal */}
-            <QRCodeScanner
-                isOpen={isQRScannerOpen}
-                onClose={() => setIsQRScannerOpen(false)}
-                onScanComplete={handleScanComplete}
-                title="Scan Contact QR Code"
-            />
-        </>
-    )
+        {/* QR Code Scanner Modal */}
+        <QRCodeScanner
+          isOpen={isQRScannerOpen}
+          onClose={() => setIsQRScannerOpen(false)}
+          onScanComplete={handleScanComplete}
+          title='Scan Contact QR Code'
+        />
+      </>
+    );
 }

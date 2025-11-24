@@ -89,57 +89,66 @@ const JoinGroupByLinkModal: React.FC<JoinGroupByLinkModalProps> = ({ isOpen, onC
     }
 
     return (
-        <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-            <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                        <Link size={20} className="text-blue-600" />
-                        Join Group by Link/QR
-                    </DialogTitle>
-                    <DialogDescription>Enter the group's access link or QR code data to join.</DialogDescription>
-                </DialogHeader>
+      <Dialog open={isOpen} onOpenChange={open => !open && handleClose()}>
+        <DialogContent className='sm:max-w-md'>
+          <DialogHeader>
+            <DialogTitle className='flex items-center gap-2'>
+              <Link size={20} className='text-[#00B512]' />
+              Join Group by Link/QR
+            </DialogTitle>
+            <DialogDescription>
+              Enter the group's access link or QR code data to join.
+            </DialogDescription>
+          </DialogHeader>
 
-                <div className="py-4 space-y-4">
-                    <div>
-                        <label htmlFor="group-link" className="block text-sm font-medium text-gray-700 mb-1">
-                            Group Link or QR Code Data
-                        </label>
-                        <Input
-                            id="group-link"
-                            placeholder="e.g., https://your-app.com/groups/join?access_token=xyz..."
-                            value={linkOrQrData}
-                            onChange={(e) => setLinkOrQrData(e.target.value)}
-                        />
-                        <p className="text-xs text-gray-500 mt-1">
-                            Paste the full group access link or the extracted QR code data.
-                        </p>
-                    </div>
+          <div className='py-4 space-y-4'>
+            <div>
+              <label
+                htmlFor='group-link'
+                className='block text-sm font-medium text-gray-700 mb-1'
+              >
+                Group Link or QR Code Data
+              </label>
+              <Input
+                id='group-link'
+                placeholder='e.g., https://your-app.com/groups/join?access_token=xyz...'
+                value={linkOrQrData}
+                onChange={e => setLinkOrQrData(e.target.value)}
+              />
+              <p className='text-xs text-gray-500 mt-1'>
+                Paste the full group access link or the extracted QR code data.
+              </p>
+            </div>
 
-                    {/* Placeholder for QR code scanner if needed in the future */}
-                    <div className="flex items-center justify-center text-gray-400 text-sm">
-                        <QrCode size={20} className="mr-2" />
-                        <span>(QR code scanning feature coming soon)</span>
-                    </div>
-                </div>
+            {/* Placeholder for QR code scanner if needed in the future */}
+            <div className='flex items-center justify-center text-gray-400 text-sm'>
+              <QrCode size={20} className='mr-2' />
+              <span>(QR code scanning feature coming soon)</span>
+            </div>
+          </div>
 
-                <DialogFooter>
-                    <Button variant="outline" onClick={handleClose}>
-                        Cancel
-                    </Button>
-                    <Button onClick={handleJoin} disabled={isLoading || !linkOrQrData.trim()}>
-                        {isLoading ? (
-                            <>
-                                <Loader2 size={16} className="mr-2 animate-spin" />
-                                Joining...
-                            </>
-                        ) : (
-                            "Join Group"
-                        )}
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    )
+          <DialogFooter>
+            <Button variant='outline' onClick={handleClose}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleJoin}
+              disabled={isLoading || !linkOrQrData.trim()}
+              className='bg-[#00B512] text-white'
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 size={16} className='mr-2 animate-spin' />
+                  Joining...
+                </>
+              ) : (
+                'Join Group'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
 }
 
 export default JoinGroupByLinkModal
