@@ -21,6 +21,7 @@ const getAuthHeaders = () => {
 const apiGet = (url: string) => axios.get(`${baseUrl}${url}`, { headers: getAuthHeaders() });
 const apiPost = (url: string, data: any) => axios.post(`${baseUrl}${url}`, data, { headers: getAuthHeaders() });
 const apiPut = (url: string, data: any) => axios.put(`${baseUrl}${url}`, data, { headers: getAuthHeaders() });
+const apiDelete = (url: string) => axios.delete(`${baseUrl}${url}`, { headers: getAuthHeaders() });
 
 
 export const getUserWallet = async (userId: string) => {
@@ -253,3 +254,54 @@ export const confirmPinReset = (resetToken: string, newPin: string) =>
   pinRequest('confirm-reset', { resetToken, newPin });
 export const checkUserPinStatus = () => pinGet('status');
 export const getPinStatus = () => pinGet('status');
+// Actions & Sub-actions Wizard
+export const createActionStepA = (organizationId: string, payload: Record<string, any>) =>
+  apiPost(`/organizations/${organizationId}/actions/wizard/step-a`, payload);
+
+export const updateActionStepB = (actionId: string, payload: Record<string, any>) =>
+  apiPut(`/actions/${actionId}/wizard/step-b`, payload);
+
+export const createSubAction = (actionId: string, payload: Record<string, any>) =>
+  apiPost(`/actions/${actionId}/sub-actions`, payload);
+
+export const updateActionStepD = (actionId: string, payload: Record<string, any>) =>
+  apiPut(`/actions/${actionId}/wizard/step-d`, payload);
+
+export const updateActionStepE = (actionId: string, payload: Record<string, any>) =>
+  apiPut(`/actions/${actionId}/wizard/step-e`, payload);
+
+export const updateActionStepF = (actionId: string, payload: Record<string, any>) =>
+  apiPut(`/actions/${actionId}/wizard/step-f`, payload);
+
+export const updateActionStepG = (actionId: string, payload: Record<string, any>) =>
+  apiPut(`/actions/${actionId}/wizard/step-g`, payload);
+
+export const updateActionStepH = (actionId: string, payload: Record<string, any>) =>
+  apiPut(`/actions/${actionId}/wizard/step-h`, payload);
+
+export const publishAction = (actionId: string, payload: Record<string, any>) =>
+  apiPut(`/actions/${actionId}/publish`, payload);
+
+export const updateAction = (actionId: string, payload: Record<string, any>) =>
+  apiPut(`/actions/${actionId}`, payload);
+
+export const deleteAction = (actionId: string) =>
+  apiDelete(`/actions/${actionId}`);
+
+export const updateSubAction = (subActionId: string, payload: Record<string, any>) =>
+  apiPut(`/sub-actions/${subActionId}`, payload);
+
+export const deleteSubAction = (subActionId: string) =>
+  apiDelete(`/sub-actions/${subActionId}`);
+
+export const getOrganizationActions = (organizationId: string, params?: { status?: string; type?: string }) => {
+  const searchParams = new URLSearchParams();
+  if (params?.status) searchParams.append('status', params.status);
+  if (params?.type) searchParams.append('type', params.type);
+  const query = searchParams.toString() ? `?${searchParams.toString()}` : '';
+  return apiGet(`/organizations/${organizationId}/actions${query}`);
+};
+
+export const getActionById = (actionId: string) => apiGet(`/actions/${actionId}`);
+
+export const getSubActions = (actionId: string) => apiGet(`/actions/${actionId}/sub-actions`);
