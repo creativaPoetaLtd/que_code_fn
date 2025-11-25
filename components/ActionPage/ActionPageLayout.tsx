@@ -1,154 +1,215 @@
 'use client';
-import React, { useState } from "react";
-import { Table, Button, Dropdown } from "antd";
-import { PlusOutlined, MoreOutlined } from "@ant-design/icons";
+
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Table, Button, Dropdown, Tag, message, Empty } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import type { MenuProps } from "antd";
-import AddActionModal from "./AddActionModal";
-import InviteModal from "./InviteModal";
-import { Action } from "@/types/action.types";
+import { MoreOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
+import dayjs from "dayjs";
+import { OrganizationAction } from "@/types/action.types";
+import { deleteAction, getOrganizationActions } from "@/helpers/api";
+import { useUserInfo } from "@/hooks/use-user-info";
+import ActionWizardModal from "./ActionWizardModal";
+
+interface TableAction extends OrganizationAction {
+    key: string;
+}
 
 const ActionPageLayout: React.FC = () => {
-    const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
-    const [isInviteModalOpen, setIsInviteModalOpen] = useState<boolean>(false);
-    const [currentAction, setCurrentAction] = useState<Action | null>(null);
+    const { accountType, userId } = useUserInfo();
+    const isOrganization = accountType === 'organization';
+    const [actions, setActions] = useState<OrganizationAction[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [wizardOpen, setWizardOpen] = useState(false);
 
-    const [actions, setActions] = useState<Action[]>([
-        { key: 1, name: "Miss Rwanda", type: "Vote", dueDate: "12 Dec 2024", dueTime: "00:00" },
-        { key: 2, name: "Miss Rwanda", type: "Vote", dueDate: "12 Dec 2024", dueTime: "00:00" },
-        { key: 3, name: "Miss Rwanda", type: "Vote", dueDate: "12 Dec 2024", dueTime: "00:00" },
-        { key: 4, name: "Miss Rwanda", type: "Vote", dueDate: "12 Dec 2024", dueTime: "00:00" },
-        { key: 5, name: "Miss Rwanda", type: "Vote", dueDate: "12 Dec 2024", dueTime: "00:00" },
-    ]);
+    const fetchActions = useCallback(async () => {
+        if (!userId) return;
+        try {
+            setLoading(true);
+            const response = await getOrganizationActions(userId);
+            const data = response.data?.data ?? response.data ?? [];
+            setActions(Array.isArray(data) ? data : []);
+        } catch (err: any) {
+            console.error(err);
+            message.error(err?.response?.data?.message || 'Failed to load actions');
+        } finally {
+            setLoading(false);
+        }
+    }, [userId]);
 
-    const showAddModal = () => setIsAddModalOpen(true);
+    useEffect(() => {
+        if (isOrganization && userId) {
+            fetchActions();
+        }
+    }, [isOrganization, userId, fetchActions]);
 
-    const showInviteModal = (action: Action) => {
-        setCurrentAction(action);
-        setIsInviteModalOpen(true);
+    const handleDelete = async (actionId: string) => {
+        try {
+            setLoading(true);
+            await deleteAction(actionId);
+            message.success('Action archived');
+            fetchActions();
+        } catch (err: any) {
+            console.error(err);
+            message.error(err?.response?.data?.message || 'Failed to delete action');
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const handleAddAction = (newAction: Action) => {
-        setActions([...actions, newAction]);
-        setIsAddModalOpen(false);
-    };
-
-    const getActionMenu = (action: Action): MenuProps => ({
+    const getActionMenu = (action: OrganizationAction): MenuProps => ({
         items: [
             {
-                key: 'edit',
-                label: 'Edit'
-            },
-            {
-                key: 'invite',
-                label: 'Invite',
-                onClick: () => showInviteModal(action)
+                key: 'view',
+                label: 'View Details',
+                onClick: () => {
+                    window.open(`/welcome/${action.id}`, '_blank');
+                },
             },
             {
                 key: 'delete',
-                label: 'Delete'
-            }
-        ]
+                label: 'Archive',
+                danger: true,
+                onClick: () => handleDelete(action.id),
+            },
+        ],
     });
 
-    const columns: ColumnsType<Action> = [
+    const tableData: TableAction[] = useMemo(
+        () =>
+            actions.map((action) => ({
+                ...action,
+                key: action.id,
+            })),
+        [actions],
+    );
+
+    const columns: ColumnsType<TableAction> = [
         {
             title: "Name",
             dataIndex: "name",
             key: "name",
-            responsive: ["xs", "sm", "md", "lg"],
-            className: "font-medium"
+            className: "font-medium",
+            render: (text, record) => (
+                <div>
+                    <p className="font-semibold text-[#00313A]">{text}</p>
+                    {record.shortDescription && (
+                        <p className="text-xs text-gray-500 line-clamp-1">{record.shortDescription}</p>
+                    )}
+                </div>
+            ),
         },
         {
             title: "Type",
             dataIndex: "type",
             key: "type",
-            responsive: ["sm", "md", "lg"],
-            render: (text) => (
-                <span className="px-2 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-medium">
-                    {text}
-                </span>
-            )
+            render: (value) => <Tag color="green">{value}</Tag>,
         },
         {
-            title: "Due Date",
-            dataIndex: "dueDate",
-            key: "dueDate",
-            responsive: ["md", "lg"],
-            className: "text-gray-600"
+            title: "Status",
+            dataIndex: "status",
+            key: "status",
+            render: (status) => (
+                <Tag color={status === 'published' ? 'green' : status === 'draft' ? 'orange' : 'default'} className="uppercase">
+                    {status}
+                </Tag>
+            ),
         },
         {
-            title: "Due Time",
-            dataIndex: "dueTime",
-            key: "dueTime",
-            responsive: ["md", "lg"],
-            className: "text-gray-600"
+            title: "Visibility",
+            dataIndex: ["visibility", "mode"],
+            key: "visibility",
+            render: (value) => <span className="text-gray-600 capitalize">{value || 'public'}</span>,
         },
         {
-            title: "Action",
+            title: "Schedule",
+            dataIndex: ["availability", "startsAt"],
+            key: "schedule",
+            render: (_, record) => {
+                const start = record.availability?.startsAt ? dayjs(record.availability.startsAt).format('DD MMM, HH:mm') : 'TBD';
+                const end = record.availability?.endsAt ? dayjs(record.availability.endsAt).format('DD MMM, HH:mm') : 'TBD';
+                return (
+                    <div className="text-sm text-gray-600">
+                        <p>Start: {start}</p>
+                        <p>End: {end}</p>
+                    </div>
+                );
+            },
+        },
+        {
+            title: "Actions",
             key: "action",
+            align: "center",
             render: (_, record) => (
                 <Dropdown menu={getActionMenu(record)} trigger={["click"]}>
-                    <Button
-                        icon={<MoreOutlined />}
-                        className="border-none shadow-none hover:bg-gray-100"
-                    />
+                    <Button icon={<MoreOutlined />} className="border-none shadow-none hover:bg-gray-100" />
                 </Dropdown>
             ),
-            responsive: ["sm", "md", "lg"],
-            width: 80,
-            align: "center"
         },
     ];
 
+    if (!isOrganization) {
+        return (
+            <div className="p-8 bg-white rounded-3xl border border-gray-100 text-center h-full flex flex-col items-center justify-center space-y-4">
+                <p className="text-2xl font-bold text-[#00313A]">Organization Area Only</p>
+                <p className="text-gray-600">
+                    Switch to an organization profile to create and manage actions, tickets, and QR experiences.
+                </p>
+            </div>
+        );
+    }
+
     return (
-        <div className="p-4 md:p-8 bg-white shadow-md rounded-lg overflow-auto h-full">
-            <div className="mb-6 flex flex-col md:flex-row justify-between items-center">
-                <h2 className="text-xl md:text-2xl font-bold text-gray-800">Search Actions</h2>
-                <Button
-                    type="primary"
-                    onClick={showAddModal}
-                    icon={<PlusOutlined />}
-                    className="mt-4 md:mt-0 bg-[#00B512] hover:bg-[#39ac44] border-none shadow-md"
-                >
-                    Add Action
-                </Button>
+        <div className="p-4 md:p-8 bg-white shadow-md rounded-3xl h-full flex flex-col">
+            <div className="mb-6 flex flex-col md:flex-row justify-between gap-4">
+                <div>
+                    <p className="text-sm uppercase tracking-[0.3em] text-[#00B512] font-semibold">Actions</p>
+                    <h2 className="text-2xl font-bold text-[#00313A]">Organization Actions</h2>
+                    <p className="text-sm text-gray-600">Design QR-powered experiences and manage them in one place.</p>
+                </div>
+                <div className="flex gap-3">
+                    <Button icon={<ReloadOutlined />} onClick={fetchActions}>
+                        Refresh
+                    </Button>
+                    <Button
+                        type="primary"
+                        icon={<PlusOutlined />}
+                        className="bg-[#00B512] border-none hover:bg-[#009e10]"
+                        onClick={() => setWizardOpen(true)}
+                    >
+                        New Action
+                    </Button>
+                </div>
             </div>
 
-            <div className="bg-gray-50 p-4 rounded-lg mb-6">
-                <p className="text-gray-600">
-                    Manage your actions and invite participants. Select actions to perform bulk operations.
+            <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 mb-6">
+                <p className="text-sm text-emerald-800">
+                    Need inspiration? Build tickets, donations, group payments, or memberships. The wizard walks you through steps A–I.
                 </p>
             </div>
 
-            <Table
-                dataSource={actions}
-                columns={columns}
-                pagination={{
-                    pageSize: 5,
-                    className: "mt-6"
-                }}
-                rowSelection={{
-                    type: "checkbox",
-                    columnWidth: 48
-                }}
-                scroll={{ x: 'max-content' }}
-                className="border border-gray-200 rounded-lg overflow-hidden"
-                rowClassName="hover:bg-gray-50 transition-colors"
-            />
+            <div className="flex-1 overflow-auto">
+                <Table
+                    loading={loading}
+                    dataSource={tableData}
+                    columns={columns}
+                    pagination={{ pageSize: 6, showSizeChanger: false }}
+                    rowSelection={{ type: 'checkbox' }}
+                    locale={{
+                        emptyText: <Empty description="No actions yet. Create your first one to get started." />,
+                    }}
+                    className="border border-gray-100 rounded-2xl"
+                />
+            </div>
 
-            <AddActionModal
-                isOpen={isAddModalOpen}
-                onCancel={() => setIsAddModalOpen(false)}
-                onSubmit={handleAddAction}
-                currentActionCount={actions.length}
-            />
-
-            <InviteModal
-                isOpen={isInviteModalOpen}
-                onCancel={() => setIsInviteModalOpen(false)}
-                currentAction={currentAction}
-            />
+            {userId && (
+                <ActionWizardModal
+                    open={wizardOpen}
+                    onClose={() => setWizardOpen(false)}
+                    organizationId={userId}
+                    onCompleted={fetchActions}
+                />
+            )}
         </div>
     );
 };

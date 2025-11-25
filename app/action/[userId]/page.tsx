@@ -21,6 +21,8 @@ import { useAuthToken } from '@/hooks/use-auth-token';
 import { useUserInfo } from '@/hooks/use-user-info';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import jsPDF from 'jspdf';
+import ActionWizardModal from '@/components/ActionPage/ActionWizardModal';
+import { createSubAction, updateSubAction } from '@/helpers/api';
 
 interface QrObject {
     id: string;
@@ -109,6 +111,19 @@ const ActionsByAccountPage = () => {
     const [subActions, setSubActions] = useState<SubAction[]>([]);
     const [subActionsLoading, setSubActionsLoading] = useState(false);
     const [isSubActionsModalOpen, setIsSubActionsModalOpen] = useState(false);
+    const [wizardOpen, setWizardOpen] = useState(false);
+    const [editingActionId, setEditingActionId] = useState<string | null>(null);
+    const [creatingSubAction, setCreatingSubAction] = useState(false);
+    const [subActionError, setSubActionError] = useState<string | null>(null);
+    const [newSubAction, setNewSubAction] = useState({
+        name: '',
+        price: '',
+        seatType: '',
+        stock: '',
+        description: '',
+    });
+    const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'published' | 'archived'>('all');
+    const [editingSubActionId, setEditingSubActionId] = useState<string | null>(null);
 
     useEffect(() => {
         if (paramUserId && paramUserId !== 'undefined') {
@@ -151,14 +166,19 @@ const ActionsByAccountPage = () => {
 
                 if (organizationRes.status === 'fulfilled') {
                     setAccountMode('organization');
-                    const orgActionsResponse = await axios.get(`${baseUrl}/organizations/${targetUserId}/actions/public`, {
-                        headers,
-                    });
-                    if (orgActionsResponse.data?.success && Array.isArray(orgActionsResponse.data.data)) {
-                        setOrganizationActions(orgActionsResponse.data.data);
-                    } else {
-                        setOrganizationActions([]);
+                    const searchParams = new URLSearchParams();
+                    if (statusFilter !== 'all') {
+                        searchParams.append('status', statusFilter);
                     }
+                    const query = searchParams.toString();
+                    const orgActionsResponse = await axios.get(
+                        `${baseUrl}/organizations/${targetUserId}/actions${query ? `?${query}` : ''}`,
+                        {
+                            headers,
+                        },
+                    );
+                    const actionPayload = orgActionsResponse.data?.data ?? orgActionsResponse.data ?? [];
+                    setOrganizationActions(Array.isArray(actionPayload) ? actionPayload : []);
                     setPurchasedActions([]);
                     return;
                 }
@@ -176,7 +196,7 @@ const ActionsByAccountPage = () => {
                 setLoading(false);
             }
         },
-        [getToken],
+        [getToken, statusFilter],
     );
 
     useEffect(() => {
@@ -357,7 +377,83 @@ const ActionsByAccountPage = () => {
     const handleOrganizationActionClick = (action: OrganizationAction) => {
         setSelectedAction(action);
         setIsSubActionsModalOpen(true);
+        resetSubActionForm();
+        setSubActionError(null);
         fetchSubActions(action.id);
+    };
+
+    const handleWizardCompleted = () => {
+        setWizardOpen(false);
+        setEditingActionId(null);
+        if (effectiveUserId) {
+            fetchData(effectiveUserId);
+        }
+    };
+
+    const handleWizardClose = () => {
+        setWizardOpen(false);
+        setEditingActionId(null);
+    };
+
+    const handleSubActionFieldChange = (field: string, value: string) => {
+        setNewSubAction((prev) => ({ ...prev, [field]: value }));
+    };
+
+    const resetSubActionForm = () => {
+        setNewSubAction({
+            name: '',
+            price: '',
+            seatType: '',
+            stock: '',
+            description: '',
+        });
+        setEditingSubActionId(null);
+    };
+
+    const handleSaveSubAction = async () => {
+        if (!selectedAction) return;
+        if (!newSubAction.name || !newSubAction.price) {
+            setSubActionError('Name and price are required.');
+            return;
+        }
+        try {
+            setCreatingSubAction(true);
+            setSubActionError(null);
+            const payload: Record<string, any> = {
+                name: newSubAction.name,
+                price: Number(newSubAction.price),
+                description: newSubAction.description || null,
+                stock: newSubAction.stock ? Number(newSubAction.stock) : null,
+                metadata: {},
+            };
+            if (newSubAction.seatType) {
+                payload.metadata.seatType = newSubAction.seatType;
+            }
+            if (editingSubActionId) {
+                await updateSubAction(editingSubActionId, payload);
+            } else {
+                await createSubAction(selectedAction.id, payload);
+            }
+            resetSubActionForm();
+            fetchSubActions(selectedAction.id);
+        } catch (err: any) {
+            const message = err?.response?.data?.message || err?.message || 'Failed to create sub action';
+            setSubActionError(message);
+        } finally {
+            setCreatingSubAction(false);
+        }
+    };
+
+    const handleEditSubActionClick = (subAction: SubAction) => {
+        setNewSubAction({
+            name: subAction.name || '',
+            price: subAction.price ? String(subAction.price) : '',
+            seatType: subAction.metadata?.seatType || '',
+            stock: subAction.stock !== null && subAction.stock !== undefined ? String(subAction.stock) : '',
+            description: subAction.description || '',
+        });
+        setEditingSubActionId(subAction.id);
+        setSubActionError(null);
     };
 
     const renderPurchasedActions = () => {
@@ -492,58 +588,121 @@ const ActionsByAccountPage = () => {
         }
 
         return (
-            <div className="grid gap-6 md:grid-cols-2">
-                {organizationActions.map((action) => (
-                    <button
-                        type="button"
-                        key={action.id}
-                        onClick={() => handleOrganizationActionClick(action)}
-                        className="text-left bg-white/95 rounded-3xl border border-[#00B512]/10 shadow-lg shadow-emerald-50/60 p-6 hover:shadow-emerald-200 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[#00B512]/40"
-                    >
-                        <div className="flex items-start justify-between gap-4">
-                            <div>
-                                <h3 className="text-2xl font-bold text-[#00313A] leading-tight">{action.name}</h3>
-                                {action.shortDescription && (
-                                    <p className="text-sm text-[#00313A]/70 mt-2 line-clamp-3">{action.shortDescription}</p>
+            <div className="space-y-4">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex flex-wrap gap-4 items-center">
+                        <div>
+                            <label className="block text-xs font-semibold text-[#00313A] uppercase mb-1">Status</label>
+                            <select
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value as 'all' | 'draft' | 'published' | 'archived')}
+                                className="rounded-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B512]/40"
+                            >
+                                <option value="all">All</option>
+                                <option value="published">Published</option>
+                                <option value="draft">Draft</option>
+                                <option value="archived">Archived</option>
+                            </select>
+                        </div>
+                        <button
+                            onClick={() => fetchData(effectiveUserId)}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-gray-200 text-sm font-semibold text-[#00313A] hover:bg-gray-50"
+                        >
+                            <Loader2 className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                            Refresh
+                        </button>
+                    </div>
+                    <div className="flex justify-end">
+                        <button
+                            onClick={() => {
+                                setEditingActionId(null);
+                                setWizardOpen(true);
+                            }}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#00B512] text-white text-sm font-semibold shadow hover:bg-[#009a0f] transition-colors"
+                        >
+                            <Sparkles className="w-4 h-4" />
+                            Create New Action
+                        </button>
+                    </div>
+                </div>
+                <div className="grid gap-6 md:grid-cols-2">
+                    {organizationActions.map((action) => (
+                        <button
+                            type="button"
+                            key={action.id}
+                            onClick={() => handleOrganizationActionClick(action)}
+                            className="text-left bg-white/95 rounded-3xl border border-[#00B512]/10 shadow-lg shadow-emerald-50/60 p-6 hover:shadow-emerald-200 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[#00B512]/40"
+                        >
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <h3 className="text-2xl font-bold text-[#00313A] leading-tight">{action.name}</h3>
+                                    {action.shortDescription && (
+                                        <p className="text-sm text-[#00313A]/70 mt-2 line-clamp-3">{action.shortDescription}</p>
+                                    )}
+                                </div>
+                                {action.status && (
+                                    <span
+                                        className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${
+                                            action.status === 'published'
+                                                ? 'bg-[#00B512]/10 text-[#00B512]'
+                                                : 'bg-gray-100 text-gray-600'
+                                        }`}
+                                    >
+                                        {action.status}
+                                    </span>
                                 )}
                             </div>
-                            {action.status && (
-                                <span
-                                    className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${
-                                        action.status === 'published'
-                                            ? 'bg-[#00B512]/10 text-[#00B512]'
-                                            : 'bg-gray-100 text-gray-600'
-                                    }`}
-                                >
-                                    {action.status}
-                                </span>
-                            )}
-                        </div>
 
-                        <div className="mt-5 space-y-3 text-sm text-[#00313A]/80">
-                            {action.availability?.startsAt && (
-                                <div className="flex items-center gap-2">
-                                    <Calendar className="w-4 h-4 text-[#00B512]" />
-                                    <span className="font-semibold">Starts:</span>
-                                    <span>{formatDate(action.availability.startsAt)}</span>
+                            <div className="mt-5 space-y-3 text-sm text-[#00313A]/80">
+                                {action.availability?.startsAt && (
+                                    <div className="flex items-center gap-2">
+                                        <Calendar className="w-4 h-4 text-[#00B512]" />
+                                        <span className="font-semibold">Starts:</span>
+                                        <span>{formatDate(action.availability.startsAt)}</span>
+                                    </div>
+                                )}
+                                {action.availability?.endsAt && (
+                                    <div className="flex items-center gap-2">
+                                        <Clock className="w-4 h-4 text-[#00B512]" />
+                                        <span className="font-semibold">Ends:</span>
+                                        <span>{formatDate(action.availability.endsAt)}</span>
+                                    </div>
+                                )}
+                                {action.pricing?.mode && (
+                                    <div className="flex items-center gap-2">
+                                        <DollarSign className="w-4 h-4 text-[#00B512]" />
+                                        <span className="font-semibold capitalize">{action.pricing.mode} pricing</span>
+                                    </div>
+                                )}
+                            </div>
+                            {action.status === 'draft' && (
+                                <div className="mt-4">
+                                    <span
+                                        role="button"
+                                        tabIndex={0}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setEditingActionId(action.id);
+                                            setWizardOpen(true);
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                setEditingActionId(action.id);
+                                                setWizardOpen(true);
+                                            }
+                                        }}
+                                        className="inline-flex items-center gap-2 px-3 py-2 rounded-full border border-[#00B512] text-[#00B512] text-xs font-semibold hover:bg-[#00B512] hover:text-white transition-colors cursor-pointer"
+                                    >
+                                        <Sparkles className="w-4 h-4" />
+                                        Continue Setup
+                                    </span>
                                 </div>
                             )}
-                            {action.availability?.endsAt && (
-                                <div className="flex items-center gap-2">
-                                    <Clock className="w-4 h-4 text-[#00B512]" />
-                                    <span className="font-semibold">Ends:</span>
-                                    <span>{formatDate(action.availability.endsAt)}</span>
-                                </div>
-                            )}
-                            {action.pricing?.mode && (
-                                <div className="flex items-center gap-2">
-                                    <DollarSign className="w-4 h-4 text-[#00B512]" />
-                                    <span className="font-semibold capitalize">{action.pricing.mode} pricing</span>
-                                </div>
-                            )}
-                        </div>
-                    </button>
-                ))}
+                        </button>
+                    ))}
+                </div>
             </div>
         );
     };
@@ -670,6 +829,68 @@ const ActionsByAccountPage = () => {
                                 )}
                             </div>
 
+                            {accountMode === 'organization' && (
+                                <div className="bg-gray-50 border border-[#00B512]/10 rounded-2xl p-4 space-y-3">
+                                    <h4 className="text-sm font-semibold text-[#00313A]">Add Sub-action</h4>
+                                    <div className="grid gap-3 md:grid-cols-2">
+                                        <input
+                                            type="text"
+                                            placeholder="Name"
+                                            value={newSubAction.name}
+                                            onChange={(e) => handleSubActionFieldChange('name', e.target.value)}
+                                            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B512]/40"
+                                        />
+                                        <input
+                                            type="number"
+                                            placeholder="Price"
+                                            value={newSubAction.price}
+                                            onChange={(e) => handleSubActionFieldChange('price', e.target.value)}
+                                            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B512]/40"
+                                        />
+                                        <input
+                                            type="text"
+                                            placeholder="Seat / Zone"
+                                            value={newSubAction.seatType}
+                                            onChange={(e) => handleSubActionFieldChange('seatType', e.target.value)}
+                                            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B512]/40"
+                                        />
+                                        <input
+                                            type="number"
+                                            placeholder="Stock (optional)"
+                                            value={newSubAction.stock}
+                                            onChange={(e) => handleSubActionFieldChange('stock', e.target.value)}
+                                            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B512]/40"
+                                        />
+                                    </div>
+                                    <textarea
+                                        placeholder="Description (optional)"
+                                        value={newSubAction.description}
+                                        onChange={(e) => handleSubActionFieldChange('description', e.target.value)}
+                                        className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B512]/40"
+                                        rows={3}
+                                    />
+                                    {subActionError && <p className="text-sm text-red-500">{subActionError}</p>}
+                                    <div className="flex items-center gap-3">
+                                        {editingSubActionId && (
+                                            <button
+                                                type="button"
+                                                onClick={resetSubActionForm}
+                                                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50"
+                                            >
+                                                Cancel Edit
+                                            </button>
+                                        )}
+                                        <button
+                                            onClick={handleSaveSubAction}
+                                            disabled={creatingSubAction}
+                                            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full bg-[#00B512] text-white text-sm font-semibold shadow hover:bg-[#009a0f] disabled:opacity-60"
+                                        >
+                                            {creatingSubAction ? 'Saving...' : editingSubActionId ? 'Update Sub-action' : 'Add Sub-action'}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
                             <div>
                                 <h3 className="text-lg font-bold text-[#00313A] mb-4 flex items-center gap-2">
                                     <Sparkles className="w-5 h-5 text-[#00B512]" />
@@ -712,7 +933,21 @@ const ActionsByAccountPage = () => {
                                                                 <p className="text-xs text-[#00313A]/60">{subAction.stock} available</p>
                                                             )}
                                                         </div>
+                                                    <div className="flex items-center gap-2">
+                                                        {accountMode === 'organization' && selectedAction?.status === 'published' && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleEditSubActionClick(subAction);
+                                                                }}
+                                                                className="text-xs font-semibold text-[#00B512] hover:underline"
+                                                            >
+                                                                Edit
+                                                            </button>
+                                                        )}
                                                     </div>
+                                                </div>
                                                 </div>
                                             ))}
                                     </div>
@@ -732,6 +967,16 @@ const ActionsByAccountPage = () => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {accountMode === 'organization' && effectiveUserId && (
+                <ActionWizardModal
+                    open={wizardOpen}
+                    onClose={handleWizardClose}
+                    organizationId={effectiveUserId}
+                    onCompleted={handleWizardCompleted}
+                    editingActionId={editingActionId}
+                />
+            )}
         </div>
     );
 };
