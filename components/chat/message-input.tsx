@@ -7,6 +7,8 @@ import OptionsDropdown from "./options-dropdown"
 import { toast } from "@/hooks/use-toast"
 import Input from "../ui/Input-ant"
 import { useChat } from "@/context/ChatContext"
+import MediaUploadModal from "./media-upload-modal"
+import { uploadMediaMessage } from "@/services/mediaService"
 
 interface MessageInputProps {
     onSendMessage?: (message: string) => void
@@ -15,6 +17,9 @@ interface MessageInputProps {
 export default function MessageInput({ onSendMessage = () => { } }: MessageInputProps) {
     const [messageText, setMessageText] = useState<string>("")
     const [showOptions, setShowOptions] = useState<boolean>(false)
+    const [showMediaModal, setShowMediaModal] = useState<boolean>(false)
+    const [uploading, setUploading] = useState<boolean>(false)
+    const [uploadProgress, setUploadProgress] = useState<number>(0)
     const dropdownRef = useRef<HTMLDivElement | null>(null)
     
     // Use unified chat context
@@ -25,7 +30,8 @@ export default function MessageInput({ onSendMessage = () => { } }: MessageInput
         sendMessage: contextSendMessage,
         startTyping,
         stopTyping,
-        isConnected
+        isConnected,
+        addMessage
     } = chat
 
     // Close dropdown when clicking outside
@@ -72,31 +78,87 @@ export default function MessageInput({ onSendMessage = () => { } }: MessageInput
         })
     }
 
+    const handleMediaUpload = async (file: File, caption: string) => {
+        if (!activeChat) {
+            toast({
+                title: "Error",
+                description: "No active chat selected",
+                variant: "destructive"
+            })
+            return
+        }
+
+        setUploading(true)
+        setUploadProgress(0)
+
+        try {
+            const result = await uploadMediaMessage(
+                activeChat,
+                file,
+                caption,
+                (progress) => {
+                    setUploadProgress(progress.percentage)
+                }
+            )
+
+            if (result.success && result.data) {
+                // Add message to local state immediately
+                if (addMessage) {
+                    addMessage(result.data as any)
+                }
+                
+                toast({
+                    title: "Media sent",
+                    description: "Your media has been sent successfully",
+                })
+                setShowMediaModal(false)
+            } else {
+                toast({
+                    title: "Upload failed",
+                    description: result.message || "Failed to upload media",
+                    variant: "destructive"
+                })
+            }
+        } catch (error) {
+            console.error('Error uploading media:', error)
+            toast({
+                title: "Upload failed",
+                description: "An error occurred while uploading",
+                variant: "destructive"
+            })
+        } finally {
+            setUploading(false)
+            setUploadProgress(0)
+        }
+    }
+
     return (
-        <div className="bg-white p-3 sm:p-4 border-t border-gray-200 shadow-sm flex-shrink-0">
-            <div className="flex items-center gap-1 sm:gap-2">
-                <div className="relative" ref={dropdownRef}>
+        <>
+            <div className="bg-white p-3 sm:p-4 border-t border-gray-200 shadow-sm flex-shrink-0">
+                <div className="flex items-center gap-1 sm:gap-2">
+                    <div className="relative" ref={dropdownRef}>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setShowOptions(!showOptions)}
+                            className={`transition-all duration-300 h-8 w-8 sm:h-10 sm:w-10 ${showOptions ? "bg-gray-100" : ""}`}
+                            aria-label="Attachments"
+                        >
+                            <Paperclip size={16} className="sm:size-20 text-gray-500" />
+                        </Button>
+
+                        <OptionsDropdown isOpen={showOptions} onOptionSelect={handleOptionSelect} />
+                    </div>
+
                     <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => setShowOptions(!showOptions)}
-                        className={`transition-all duration-300 h-8 w-8 sm:h-10 sm:w-10 ${showOptions ? "bg-gray-100" : ""}`}
-                        aria-label="Attachments"
+                        onClick={() => setShowMediaModal(true)}
+                        className="hover:bg-gray-100 transition-colors h-8 w-8 sm:h-10 sm:w-10"
+                        aria-label="Add media"
                     >
-                        <Paperclip size={16} className="sm:size-20 text-gray-500" />
+                        <ImageIcon size={16} className="sm:size-20 text-gray-500" />
                     </Button>
-
-                    <OptionsDropdown isOpen={showOptions} onOptionSelect={handleOptionSelect} />
-                </div>
-
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="hover:bg-gray-100 transition-colors h-8 w-8 sm:h-10 sm:w-10"
-                    aria-label="Add image"
-                >
-                    <ImageIcon size={16} className="sm:size-20 text-gray-500" />
-                </Button>
 
                 <div className="relative flex-1">
                     <Input
@@ -150,5 +212,15 @@ export default function MessageInput({ onSendMessage = () => { } }: MessageInput
                 </Button>
             </div>
         </div>
+
+        {/* Media Upload Modal */}
+        <MediaUploadModal
+            isOpen={showMediaModal}
+            onClose={() => setShowMediaModal(false)}
+            onUpload={handleMediaUpload}
+            uploading={uploading}
+            uploadProgress={uploadProgress}
+        />
+    </>
     )
 }
