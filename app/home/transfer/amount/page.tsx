@@ -170,23 +170,23 @@ const AmountPage = () => {
 
   // Load transaction categories
   useEffect(() => {
+    if (!recipient) return; // Wait for recipient to be loaded
+
     const fetchCategories = async () => {
       setCategoriesLoading(true);
       try {
         const response: any = await getTransactionCategories();
-        if (response.success) {
-          setCategories(response.data);
-
-          // For organizations, automatically select organization category and disable constraints
-          if (recipient?.type === 'organization' && organizationCategory) {
-            const orgCategory = response.data.find((cat: any) => cat.id === organizationCategory.id);
+        if (response.data?.success && response.data?.data) {
+          const categoriesData = response.data.data;
+          setCategories(categoriesData);
+          if (recipient.type === 'organization' && organizationCategory) {
+            const orgCategory = categoriesData.find((cat: any) => cat.id === organizationCategory.id);
             if (orgCategory) {
               setSelectedCategory(orgCategory);
             }
-            setApplyConstraints(false); // Organizations don't use constraints
-          } else if (recipient?.type !== 'organization') {
-            // For individual users, use 'Other' as default
-            const defaultCategory = response.data.find((cat: any) => cat.name === 'Other');
+            setApplyConstraints(false);
+          } else if (recipient.type !== 'organization') {
+            const defaultCategory = categoriesData.find((cat: any) => cat.name === 'Other');
             if (defaultCategory) {
               setSelectedCategory(defaultCategory);
             }
@@ -199,9 +199,8 @@ const AmountPage = () => {
       }
     };
     fetchCategories();
-  }, [recipient?.type]);
+  }, [recipient, organizationCategory]);
 
-  // Fetch organization category and user restrictions when recipient changes
   useEffect(() => {
     if (recipient?.type === 'organization') {
       fetchOrganizationCategory();
@@ -209,7 +208,6 @@ const AmountPage = () => {
     }
   }, [recipient]);
 
-  // Set organization category when it's loaded
   useEffect(() => {
     if (recipient?.type === 'organization' && organizationCategory && categories.length > 0) {
       const orgCategory = categories.find((cat: any) => cat.id === organizationCategory.id);
@@ -397,7 +395,7 @@ const AmountPage = () => {
 
       {/* Main Content */}
       <div className="lg:ml-20 p-6 max-w-2xl mx-auto">
-        {checkingPinStatus ? (
+        {checkingPinStatus || !recipient ? (
           /* Loading State */
           <div className="text-center py-12">
             <div className="w-12 h-12 border-4 border-green-200 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
@@ -487,13 +485,37 @@ const AmountPage = () => {
                 </label>
 
                 {categoriesLoading ? (
-                  <div className="text-center py-4">Loading categories...</div>
+                  <div className="text-center py-4 text-gray-500">
+                    <div className="animate-pulse">Loading categories...</div>
+                  </div>
+                ) : categories.length === 0 ? (
+                  <div className="text-center py-4 text-gray-500">
+                    <p>No categories available</p>
+                    <button
+                      onClick={() => {
+                        setCategoriesLoading(true);
+                        getTransactionCategories()
+                          .then((response: any) => {
+                            if (response.data?.success && response.data?.data) {
+                              setCategories(response.data.data);
+                            }
+                          })
+                          .catch((err) => console.error('Retry failed:', err))
+                          .finally(() => setCategoriesLoading(false));
+                      }}
+                      className="mt-2 text-green-600 hover:text-green-700 text-sm font-medium"
+                    >
+                      Try Again
+                    </button>
+                  </div>
                 ) : (
                   <div className="grid grid-cols-2 gap-3">
                     {categories.map((category) => (
                       <button
                         key={category.id}
-                        onClick={() => setSelectedCategory(category)}
+                        onClick={() => {
+                          setSelectedCategory(category);
+                        }}
                         className={`py-3 px-4 rounded-xl font-medium transition text-left ${selectedCategory?.id === category.id
                           ? 'bg-green-600 text-white'
                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
