@@ -4,24 +4,21 @@ import { useState, useCallback, useEffect } from 'react';
 import { useAuthToken } from '@/hooks/use-auth-token';
 import { useChat } from '@/context/ChatContext';
 import {
-  useGetUserChatsQuery,
-  useGetChatMessagesQuery,
-  useCreateOrGetDMChatMutation,
-  useSendMessageMutation,
-  useMarkMessagesAsReadMutation,
-  useCreateGroupChatMutation,
-  useJoinGroupChatMutation,
-  useDeleteChatMutation,
+    useGetUserChatsQuery,
+    useCreateOrGetDMChatMutation,
+    useSendMessageMutation,
+    useMarkMessagesAsReadMutation,
+    useCreateGroupChatMutation,
+    useJoinGroupChatMutation,
+    useDeleteChatMutation,
 } from '@/states/chatSlice';
 import { toast } from '@/hooks/use-toast';
+import { parseMessageContent } from '@/utils/messageUtils';
 import type {
-  Chat,
-  Message,
-  LegacyMessage,
-  Conversation,
-  CreateOrGetDMChatData,
-  SendMessageData,
-  CreateGroupChatData,
+    Chat,
+    Message,
+    Conversation,
+    CreateGroupChatData,
 } from '@/types/chat.types';
 
 interface UseChatOperationsReturn {
@@ -42,81 +39,81 @@ interface UseChatOperationsReturn {
 }
 
 export function useChatOperations(): UseChatOperationsReturn {
-  const { getToken, getUserId } = useAuthToken(true);
-  const token = getToken();
-  const userId = getUserId();
+    const { getToken, getUserId } = useAuthToken(true);
+    const token = getToken();
+    const userId = getUserId();
 
-  const {
-    activeChat: contextActiveChat,
-    setActiveChat: setContextActiveChat,
-    messages: contextMessages,
-    typingUsers,
-    onlineUsers,
-    isConnected,
-    conversations: enhancedConversations,
-    refreshConversations: contextRefreshConversations,
-    initializeEncryption,
-  } = useChat();
+    const {
+        activeChat: contextActiveChat,
+        setActiveChat: setContextActiveChat,
+        messages: contextMessages,
+        typingUsers,
+        onlineUsers,
+        isConnected,
+        conversations: enhancedConversations,
+        refreshConversations: contextRefreshConversations,
+        initializeEncryption,
+    } = useChat();
 
-  const {
-    data: chatsData,
-    error: chatsError,
-    isLoading: chatsLoading,
-    refetch: refetchChats,
-  } = useGetUserChatsQuery(undefined, {
-    skip: !token,
-  });
+    const {
+        data: chatsData,
+        error: chatsError,
+        isLoading: chatsLoading,
+        refetch: refetchChats,
+    } = useGetUserChatsQuery(undefined, {
+        skip: !token,
+    });
 
-  const [createOrGetDMChat, { isLoading: isCreatingDMChat }] =
-    useCreateOrGetDMChatMutation();
-  const [sendMessage, { isLoading: isSendingMessage }] =
-    useSendMessageMutation();
-  const [markAsRead] = useMarkMessagesAsReadMutation();
-  const [createGroupChat, { isLoading: isCreatingGroup }] =
-    useCreateGroupChatMutation();
-  const [joinGroupChat, { isLoading: isJoiningGroup }] =
-    useJoinGroupChatMutation();
-  const [deleteChat] = useDeleteChatMutation();
+    const [createOrGetDMChat, { isLoading: isCreatingDMChat }] =
+        useCreateOrGetDMChatMutation();
+    const [sendMessage, { isLoading: isSendingMessage }] =
+        useSendMessageMutation();
+    const [markAsRead] = useMarkMessagesAsReadMutation();
+    const [createGroupChat, { isLoading: isCreatingGroup }] =
+        useCreateGroupChatMutation();
+    const [joinGroupChat, { isLoading: isJoiningGroup }] =
+        useJoinGroupChatMutation();
+    const [deleteChat] = useDeleteChatMutation();
 
-  const [activeChat, setActiveChat] = useState<string | null>(
-    contextActiveChat
-  );
+    const [activeChat, setActiveChat] = useState<string | null>(
+        contextActiveChat
+    );
 
-  useEffect(() => {
-    setActiveChat(contextActiveChat);
-  }, [contextActiveChat]);
+    useEffect(() => {
+        setActiveChat(contextActiveChat);
+    }, [contextActiveChat]);
 
-  useEffect(() => {
-    if (isConnected && initializeEncryption) {
-      initializeEncryption();
-    }
-  }, [isConnected, initializeEncryption]);
+    useEffect(() => {
+        if (isConnected && initializeEncryption) {
+            initializeEncryption();
+        }
+    }, [isConnected, initializeEncryption]);
 
-  useEffect(() => {
-    if (chatsError) {
-      toast({
-        title: 'Error loading chats',
-        description: 'Failed to load your conversations. Please try again.',
-        variant: 'destructive',
-      });
-    }
-  }, [chatsError]);
+    useEffect(() => {
+        if (chatsError) {
+            toast({
+                title: 'Error loading chats',
+                description: 'Failed to load your conversations. Please try again.',
+                variant: 'destructive',
+            });
+        }
+    }, [chatsError]);
 
-    const conversations: Conversation[] = enhancedConversations?.length 
+    const conversations: Conversation[] = enhancedConversations?.length
         ? enhancedConversations.map((conv: any) => ({
             id: conv.id,
             name: conv.name,
             isGroup: conv.isGroup,
             lastMessage: conv.lastMessage?.content ? {
-                content: conv.lastMessage.content,
+                content: parseMessageContent(conv.lastMessage.content, conv.lastMessage.messageType),
                 messageType: conv.lastMessage.messageType,
                 createdAt: conv.lastMessage.createdAt,
                 sender: conv.lastMessage.sender
             } : null,
-            timestamp: conv.lastMessage?.createdAt 
-                ? new Date(conv.lastMessage.createdAt).toLocaleTimeString() 
+            timestamp: conv.lastMessage?.createdAt
+                ? new Date(conv.lastMessage.createdAt).toLocaleTimeString()
                 : "",
-            unreadCount: conv.unreadCount,
+            unreadCount: conv.unreadCount || 0,
             avatar: conv.avatar || "/placeholder.svg?height=40&width=40",
             isOnline: conv.isOnline,
             memberCount: conv.memberCount,
@@ -129,16 +126,16 @@ export function useChatOperations(): UseChatOperationsReturn {
             name: chat.name,
             isGroup: chat.isGroup,
             lastMessage: chat.lastMessage ? {
-                content: chat.lastMessage.content,
+                content: parseMessageContent(chat.lastMessage.content, chat.lastMessage.messageType),
                 messageType: chat.lastMessage.messageType,
                 createdAt: chat.lastMessage.createdAt,
                 sender: chat.lastMessage.sender
             } : null,
-            timestamp: chat.lastMessage?.createdAt 
-                ? new Date(chat.lastMessage.createdAt).toLocaleTimeString() 
+            timestamp: chat.lastMessage?.createdAt
+                ? new Date(chat.lastMessage.createdAt).toLocaleTimeString()
                 : "",
-            unreadCount: chat.unreadCount,
-            avatar: chat.avatar || "/placeholder.svg?height=40&width=40", 
+            unreadCount: chat.unreadCount || 0,
+            avatar: chat.avatar || "/placeholder.svg?height=40&width=40",
             isOnline: chat.isOnline,
             memberCount: chat.memberCount,
             email: chat.isGroup ? undefined : chat.participants.find(p => p.userId !== userId)?.user.email,
@@ -146,7 +143,6 @@ export function useChatOperations(): UseChatOperationsReturn {
             participants: chat.participants
         })) || []
 
-    // Return messages with all fields intact (including media fields)
     const messages: Message[] = activeChat ? (contextMessages[activeChat] || []) : []
 
     const handleStartNewChat = useCallback(async (contact: any) => {
@@ -156,7 +152,7 @@ export function useChatOperations(): UseChatOperationsReturn {
             }).unwrap()
 
             setContextActiveChat(result.data.chatId)
-            
+
             toast({
                 title: "Chat Started",
                 description: `Started a new conversation with ${contact.otherUser.firstName} ${contact.otherUser.lastName}`,
@@ -180,7 +176,7 @@ export function useChatOperations(): UseChatOperationsReturn {
 
             setContextActiveChat(result.data.chatId)
             contextRefreshConversations?.()
-            
+
             toast({
                 title: "Group Chat Opened",
                 description: `Welcome to ${group.name}! Your chat is ready.`,
@@ -197,7 +193,7 @@ export function useChatOperations(): UseChatOperationsReturn {
     const handleCreateGroupChat = useCallback(async (data: CreateGroupChatData) => {
         try {
             const result = await createGroupChat(data).unwrap()
-            
+
             toast({
                 title: "Group Created",
                 description: "Your group chat has been created successfully",
@@ -216,7 +212,7 @@ export function useChatOperations(): UseChatOperationsReturn {
     const handleDeleteChat = useCallback(async (chatId: string) => {
         try {
             await deleteChat({ chatId }).unwrap()
-            
+
             toast({
                 title: "Chat Deleted",
                 description: "The chat has been deleted successfully",
