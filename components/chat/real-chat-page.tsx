@@ -8,6 +8,8 @@ import Navigation from '@/components/Navigation';
 import { useChatOperations } from '@/hooks/use-chat-operations';
 import { useChatModals } from '@/hooks/use-chat-modals';
 import type { Chat, Conversation } from '@/types/chat.types';
+import { useSidebar } from '@/context/SidebarContext';
+import { cn } from '@/lib/utils';
 
 import SendMoneyModal from '@/components/chat/send-money-modal';
 import RequestMoneyModal from '@/components/chat/request-money-modal';
@@ -20,6 +22,7 @@ import InviteToGroupModal from '@/components/chat/invite-to-group-modal';
 const { Content } = Layout;
 
 export default function RealChatPage() {
+  const { isExpanded } = useSidebar();
   const {
     conversations,
     activeChat,
@@ -86,7 +89,10 @@ export default function RealChatPage() {
     <div className='flex min-h-screen'>
       <Navigation />
 
-      <main className='flex-1 lg:ml-20 w-full max-w-full overflow-x-hidden'>
+      <main className={cn(
+        'flex-1 w-full max-w-full overflow-x-hidden transition-all duration-300',
+        isExpanded ? 'lg:ml-64' : 'lg:ml-20'
+      )}>
         <div className='flex-1 flex flex-col md:flex-row overflow-hidden h-[calc(100vh-100px)] md:h-screen shadow-lg'>
           {!isConnected && (
             <div className='bg-yellow-100 border-yellow-400 text-yellow-700 px-4 py-2 border-b'>

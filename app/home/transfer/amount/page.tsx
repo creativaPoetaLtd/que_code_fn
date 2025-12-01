@@ -13,6 +13,8 @@ import { getUserIdFromToken, isTokenExpired } from "@/utils/jwtUtils";
 import { PinSetupModal } from "@/components/PinSetupModal";
 import { PinResetModal } from "@/components/PinResetModal";
 import { getCurrentUserInfo } from "@/utils/tokenUtils";
+import { useSidebar } from "@/context/SidebarContext";
+import { cn } from "@/lib/utils";
 
 interface Recipient {
   id: string;
@@ -25,6 +27,7 @@ interface Recipient {
 
 const AmountPage = () => {
   const router = useRouter();
+  const { isExpanded } = useSidebar();
   const [amount, setAmount] = useState("");
   const [pin, setPin] = useState("");
   const [showPin, setShowPin] = useState(false);
@@ -383,7 +386,10 @@ const AmountPage = () => {
       <Navigation />
 
       {/* Header */}
-      <div className="bg-white shadow-sm px-4 py-4 flex items-center lg:ml-20">
+      <div className={cn(
+        "bg-white shadow-sm px-4 py-4 flex items-center transition-all duration-300",
+        isExpanded ? "lg:ml-64" : "lg:ml-20"
+      )}>
         <button
           onClick={() => step === 1 ? router.back() : setStep(1)}
           className="mr-3 p-2 hover:bg-gray-100 rounded-full transition"
@@ -396,7 +402,10 @@ const AmountPage = () => {
       </div>
 
       {/* Main Content */}
-      <div className="lg:ml-20 p-6 max-w-2xl mx-auto">
+      <div className={cn(
+        "p-6 max-w-2xl mx-auto transition-all duration-300",
+        isExpanded ? "lg:ml-64" : "lg:ml-20"
+      )}>
         {checkingPinStatus ? (
           /* Loading State */
           <div className="text-center py-12">

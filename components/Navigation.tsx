@@ -16,9 +16,14 @@ import {
     MessageCircle,
     ScanLine,
     CreditCard,
+    PanelLeftClose,
+    PanelLeft,
+    TrendingUp,
+    Wallet
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuthToken } from "@/hooks/use-auth-token"
+import { useSidebar } from "@/context/SidebarContext"
 
 interface NavigationItem {
     id: string
@@ -29,7 +34,7 @@ interface NavigationItem {
 }
 
 export default function Navigation() {
-    const [isExpanded, setIsExpanded] = useState<boolean>(false)
+    const { isExpanded, toggleSidebar } = useSidebar()
     const [activeItem, setActiveItem] = useState<string>("Home")
     const [userId, setUserId] = useState<string>("")
     const [isReady, setIsReady] = useState<boolean>(false)
@@ -71,17 +76,17 @@ export default function Navigation() {
 
     const navigationItems: NavigationItem[] = [
         { id: "Home", icon: <Home size={24} />, label: "Home", path: userId ? `/home/${userId}` : '/home' },
-        { id: "Statistics", icon: <BarChart2 size={24} />, label: "Statistics", path: userId ? `/statistics/${userId}` : '/statistics' },
+        { id: "Statistics", icon: <TrendingUp size={24} />, label: "Statistics", path: userId ? `/statistics/${userId}` : '/statistics' },
         { id: "Scan", icon: <ScanLine size={24} />, label: "Scan", path: "", isCenterButton: true },
         { id: "Actions", icon: <FileText size={24} />, label: "Actions", path: userId ? `/action/${userId}` : '/action' },
         { id: "Chat", icon: <MessageCircle size={24} />, label: "Chat", path: userId ? `/chat` : '/chat' },
-        { id: "Transactions", icon: <CreditCard size={24} />, label: "Transactions", path: "/transactions" },
+        { id: "Transactions", icon: <Wallet size={24} />, label: "Transactions", path: "/transactions" },
     ]
 
     const mainMenuItems: NavigationItem[] = [
         { id: "Home", icon: <Home size={24} />, label: "Home", path: userId ? `/home/${userId}` : '/home' },
-        { id: "Statistics", icon: <BarChart2 size={24} />, label: "Statistics", path: userId ? `/statistics/${userId}` : '/statistics' },
-        { id: "Transactions", icon: <CreditCard size={24} />, label: "Transactions", path: "/transactions" },
+        { id: "Statistics", icon: <TrendingUp size={24} />, label: "Statistics", path: userId ? `/statistics/${userId}` : '/statistics' },
+        { id: "Transactions", icon: <Wallet size={24} />, label: "Transactions", path: "/transactions" },
         { id: "Actions", icon: <FileText size={24} />, label: "Action", path: userId ? `/action/${userId}` : '/action' },
         { id: "Chat", icon: <MessageCircle size={24} />, label: "Chat", path: userId ? `/chat` : '/chat' },
     ]
@@ -125,21 +130,30 @@ export default function Navigation() {
                     isExpanded ? "w-64" : "w-20",
                 )}
             >
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setIsExpanded(!isExpanded)}
-                    className="absolute -right-3 top-8 bg-[#00313A] text-white hover:bg-[#003D52] z-10"
-                >
-                    {isExpanded ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
-                </Button>
-
                 <div className="flex flex-col h-full">
-                    <div className="flex items-center justify-center py-6 border-b border-[#003D52]">
+                    {/* Logo and Toggle Section */}
+                    <div className="flex items-center justify-between px-4 py-6 border-b border-[#003D52]">
                         {isExpanded ? (
-                            <div className="h-8 w-32 bg-white/20 rounded flex items-center justify-center text-white">LOGO</div>
+                            <>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-white font-bold text-xl">QueCode</span>
+                                </div>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={toggleSidebar}
+                                    className="h-10 w-10 text-white hover:bg-[#00B512] hover:text-[#00313A] rounded-lg transition-all hover:scale-110"
+                                >
+                                    <PanelLeftClose size={22} />
+                                </Button>
+                            </>
                         ) : (
-                            <div className="h-8 w-8 bg-white/20 rounded flex items-center justify-center text-white">L</div>
+                            <button
+                                onClick={toggleSidebar}
+                                className="h-10 w-10 mx-auto bg-[#004D5C] rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-lg hover:bg-[#00B512] hover:text-[#00313A] transition-all hover:scale-105"
+                            >
+                                QC
+                            </button>
                         )}
                     </div>
 
@@ -150,9 +164,11 @@ export default function Navigation() {
                                     key={item.id}
                                     onClick={() => handleClick(item.id, item.path)}
                                     className={cn(
-                                        "w-[80%] flex items-center px-4 py-3 transition-colors mb-2",
+                                        "w-[80%] flex items-center px-3 py-2.5 transition-all mb-2 rounded-lg duration-200",
                                         isExpanded ? "justify-start" : "justify-center",
-                                        activeItem === item.id ? "bg-[#00B512] text-white rounded-r-full" : "text-white hover:bg-[#003D52]",
+                                        activeItem === item.id 
+                                            ? "bg-gradient-to-r from-[#00B512] to-[#1fd331] text-white shadow-lg" 
+                                            : "text-white hover:bg-[#004D5C] hover:shadow-md",
                                     )}
                                 >
                                     <span className="inline-flex items-center justify-center">{item.icon}</span>
@@ -168,9 +184,11 @@ export default function Navigation() {
                                 key={item.id}
                                 onClick={() => handleClick(item.id, item.path)}
                                 className={cn(
-                                    "w-[80%] mx-auto flex items-center px-4 py-3 transition-colors mb-2",
+                                    "w-[80%] mx-auto flex items-center px-3 py-2.5 transition-all mb-2 rounded-lg duration-200",
                                     isExpanded ? "justify-start" : "justify-center",
-                                    activeItem === item.id ? "bg-[#00B512] text-white rounded-r-full" : "text-white hover:bg-[#003D52]",
+                                    activeItem === item.id 
+                                        ? "bg-gradient-to-r from-[#00B512] to-[#1fd331] text-white shadow-lg" 
+                                        : "text-white hover:bg-[#004D5C] hover:shadow-md",
                                 )}
                             >
                                 <span className="inline-flex items-center justify-center">{item.icon}</span>

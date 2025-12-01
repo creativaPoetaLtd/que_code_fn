@@ -8,11 +8,14 @@ import { useParams, useRouter } from 'next/navigation';
 import RecentActions from "./RecentActions";
 import Navigation from "./Navigation";
 import { useAuthToken } from '@/hooks/use-auth-token';
+import { useSidebar } from '@/context/SidebarContext';
+import { cn } from '@/lib/utils';
 
 export const HomePageLayout = () => {
     const params = useParams();
     const router = useRouter();
     const { getToken } = useAuthToken();
+    const { isExpanded } = useSidebar();
     const [userId, setUserId] = useState<string>("");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string>("");
@@ -192,7 +195,10 @@ export const HomePageLayout = () => {
             <Navigation />
 
             {/* Main Content */}
-            <main className="flex-1 flex flex-col p-8 lg:ml-20 transition-all duration-300">
+            <main className={cn(
+                "flex-1 flex flex-col p-8 transition-all duration-300",
+                isExpanded ? "lg:ml-64" : "lg:ml-20"
+            )}>
                 <div className="flex-1 overflow-y-auto pb-24 lg:pb-8">
                     {/* Header */}
                     <Header />

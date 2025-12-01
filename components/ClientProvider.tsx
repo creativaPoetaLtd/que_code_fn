@@ -6,6 +6,7 @@ import store from "@/lib/redux-store"
 import { Provider } from "react-redux"
 import { NotificationProvider } from "@/context/NotificationContext"
 import { ChatProvider } from "@/context/ChatContext"
+import { SidebarProvider } from "@/context/SidebarContext"
 
 
 const ClientProvider = ({ children }: { children: React.ReactNode }) => {
@@ -13,7 +14,9 @@ const ClientProvider = ({ children }: { children: React.ReactNode }) => {
         <Provider store={store}>
             <NotificationProvider>
                 <ChatProvider>
-                    {children}
+                    <SidebarProvider>
+                        {children}
+                    </SidebarProvider>
                 </ChatProvider>
             </NotificationProvider>
         </Provider>

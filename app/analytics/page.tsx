@@ -9,10 +9,13 @@ import TransactionTable from '../../components/analytics/TransactionTable'
 import CategoryBreakdown from '../../components/analytics/CategoryBreakdown'
 import KeyInsights from '../../components/analytics/KeyInsights'
 import { DateRange } from '@/types/analytics.types'
+import { useSidebar } from '@/context/SidebarContext'
+import { cn } from '@/lib/utils'
 
 type ViewType = 'daily' | 'weekly' | 'monthly' | 'yearly'
 
 const AnalyticsPage = () => {
+    const { isExpanded } = useSidebar();
     // State for filters
     const [dateRange, setDateRange] = useState<DateRange>({
         startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Last 30 days
@@ -52,7 +55,10 @@ const AnalyticsPage = () => {
             <Navigation />
 
             {/* Main Content */}
-            <main className="flex-1 flex flex-col p-8 lg:ml-20 transition-all duration-300">
+            <main className={cn(
+                "flex-1 flex flex-col p-8 transition-all duration-300",
+                isExpanded ? "lg:ml-64" : "lg:ml-20"
+            )}>
                 <div className="flex-1 overflow-y-auto pb-24 lg:pb-8">
                     {/* Header */}
                     <Header />
