@@ -16,10 +16,14 @@ import UserProfileModal from '@/components/chat/user-profile-modal';
 import GroupProfileModal from '@/components/chat/group-profile-modal';
 import ContactRequestModal from '@/components/chat/contact-request';
 import InviteToGroupModal from '@/components/chat/invite-to-group-modal';
+import { useAuthToken } from '@/hooks/use-auth-token';
 
 const { Content } = Layout;
 
 export default function RealChatPage() {
+  const { getToken } = useAuthToken();
+  const token = getToken();
+
   const {
     conversations,
     activeChat,
@@ -31,9 +35,7 @@ export default function RealChatPage() {
     setActiveChat,
     handleStartNewChat,
     handleJoinGroup,
-    refreshConversations,
   } = useChatOperations();
-
   const {
     isSendMoneyModalOpen,
     isRequestMoneyModalOpen,
@@ -66,6 +68,7 @@ export default function RealChatPage() {
           ? `${conversation.otherUser.firstName} ${conversation.otherUser.lastName}`
           : 'Unknown Contact'),
       isGroup: conversation.isGroup,
+      groupId: conversation.groupId, // Include groupId
       avatar: conversation.avatar,
       participants: conversation.participants || [],
       unreadCount: conversation.unreadCount || 0,
@@ -169,7 +172,8 @@ export default function RealChatPage() {
         <GroupProfileModal
           isOpen={isGroupProfileModalOpen}
           onClose={() => setIsGroupProfileModalOpen(false)}
-          group={selectedChat?.isGroup ? (selectedChat as any) : undefined}
+          groupId={selectedChat?.isGroup ? selectedChat.groupId || null : null}
+          token={token || ''}
         />
 
         <ContactRequestModal
@@ -181,7 +185,7 @@ export default function RealChatPage() {
           isOpen={isInviteToGroupModalOpen}
           onClose={() => setIsInviteToGroupModalOpen(false)}
           group={selectedChat as any}
-          token={null}
+          token={token || ''}
         />
       </main>
     </div>

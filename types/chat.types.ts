@@ -37,6 +37,7 @@ export interface Conversation {
   id: string;
   name?: string; // Make optional to match Chat interface
   isGroup: boolean;
+  groupId?: string; // The actual group ID for group chats
   lastMessage?: LastMessage | null;
   timestamp?: string;
   unreadCount: number;
@@ -52,6 +53,7 @@ export interface Chat {
   id: string;
   name?: string; // Optional since DM chats might not have names
   isGroup: boolean;
+  groupId?: string; // The actual group ID for group chats
   avatar?: string;
   participants: Participant[];
   unreadCount: number;

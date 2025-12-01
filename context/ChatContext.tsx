@@ -175,7 +175,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
                         conv.id !== activeChat; // Not the currently active chat
 
                     return {
-                        ...conv,
+                        ...conv, // Preserve all fields including groupId
                         lastMessage: {
                             content: message.content,
                             messageType: message.messageType,
@@ -233,7 +233,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
             if (data.readBy === userId) {
                 setConversations(prev => prev.map(conv =>
                     conv.id === data.chatId
-                        ? { ...conv, unreadCount: 0 }
+                        ? { ...conv, unreadCount: 0 } // ...conv already preserves all fields
                         : conv
                 ));
             }
@@ -254,7 +254,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
             setConversations(prev => prev.map(conv => {
                 const onlineCount = users.filter(u => conv.participants.some(p => p.userId === u.userId)).length;
                 return {
-                    ...conv,
+                    ...conv, // Preserve all fields including groupId
                     isOnline: conv.isGroup
                         ? onlineCount > 0
                         : users.some(u => conv.participants.some(p => p.userId === u.userId && p.userId !== userId))
@@ -275,7 +275,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
                 setConversations(convs => convs.map(conv => {
                     const onlineCount = updatedUsers.filter(u => conv.participants.some(p => p.userId === u.userId)).length;
                     return {
-                        ...conv,
+                        ...conv, // Preserve all fields including groupId
                         isOnline: conv.isGroup
                             ? onlineCount > 0
                             : updatedUsers.some(u => conv.participants.some(p => p.userId === u.userId && p.userId !== userId))
@@ -387,7 +387,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
             // Reset unread count for active chat
             setConversations(prev => prev.map(conv =>
                 conv.id === activeChat
-                    ? { ...conv, unreadCount: 0 }
+                    ? { ...conv, unreadCount: 0 } // ...conv already preserves all fields
                     : conv
             ));
 
@@ -465,7 +465,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
                 const updatedConversations = prev.map(conv =>
                     conv.id === chatId
                         ? {
-                            ...conv,
+                            ...conv, // Preserve all fields including groupId
                             lastMessage: {
                                 content: content.trim(),
                                 messageType,

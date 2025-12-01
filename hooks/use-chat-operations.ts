@@ -98,12 +98,12 @@ export function useChatOperations(): UseChatOperationsReturn {
             });
         }
     }, [chatsError]);
-
     const conversations: Conversation[] = enhancedConversations?.length
         ? enhancedConversations.map((conv: any) => ({
             id: conv.id,
             name: conv.name,
             isGroup: conv.isGroup,
+            groupId: conv.groupId, // Include groupId
             lastMessage: conv.lastMessage?.content ? {
                 content: parseMessageContent(conv.lastMessage.content, conv.lastMessage.messageType),
                 messageType: conv.lastMessage.messageType,
@@ -125,6 +125,7 @@ export function useChatOperations(): UseChatOperationsReturn {
             id: chat.id,
             name: chat.name,
             isGroup: chat.isGroup,
+            groupId: chat.groupId, // Include groupId
             lastMessage: chat.lastMessage ? {
                 content: parseMessageContent(chat.lastMessage.content, chat.lastMessage.messageType),
                 messageType: chat.lastMessage.messageType,

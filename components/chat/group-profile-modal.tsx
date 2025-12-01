@@ -5,147 +5,183 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
-import { Users, Calendar, DollarSign, Info, MessageCircle, UserPlus } from "lucide-react"
-import type { Group } from "@/types"
+import { Users, Info, MessageCircle, UserPlus, Loader2 } from "lucide-react"
+import { useGetGroupByIdQuery, useGetGroupMembersQuery } from "@/states/groupSlice"
+import GroupProgressBar from "./group-progress-bar"
+import DeadlineCounter from "./deadline-counter"
+import GroupMembersList from "./group-members-list"
 
 interface GroupProfileModalProps {
     isOpen: boolean
     onClose: () => void
-    group: Group | null
+    groupId: string | null
+    token: string
 }
 
-interface GroupMember {
-    id: number
-    name: string
-    avatar: string
-    role: string
-}
+export default function GroupProfileModal({ isOpen, onClose, groupId, token }: GroupProfileModalProps) {
+    const { data: groupData, isLoading: isLoadingGroup } = useGetGroupByIdQuery(
+        { groupId: groupId!, token },
+        { skip: !groupId || !token }
+    )
+    // Fetch group members
+    const { data: membersData, isLoading: isLoadingMembers } = useGetGroupMembersQuery(
+        { groupId: groupId!, token },
+        { skip: !groupId || !token }
+    )
 
-export default function GroupProfileModal({ isOpen, onClose, group }: GroupProfileModalProps) {
-    if (!group) return null
+    const group = groupData?.data
+    const members = membersData?.data?.members || []
 
-    // Mock group members
-    const groupMembers: GroupMember[] = [
-        { id: 1, name: "Alex Johnson", avatar: "/placeholder.svg?height=40&width=40", role: "Admin" },
-        { id: 2, name: "Maya Rodriguez", avatar: "/placeholder.svg?height=40&width=40", role: "Member" },
-        { id: 3, name: "Sam Taylor", avatar: "/placeholder.svg?height=40&width=40", role: "Member" },
-        { id: 4, name: "Jordan Lee", avatar: "/placeholder.svg?height=40&width=40", role: "Member" },
-    ]
+    const isLoading = isLoadingGroup || isLoadingMembers
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="sm:max-w-lg">
+            <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <div className="flex items-center">
                         <Users size={20} className="text-blue-600 mr-2" />
-                        <DialogTitle>{group.isContributionGroup ? "Contribution Group" : "Group"} Details</DialogTitle>
+                        <DialogTitle>Group Details</DialogTitle>
                     </div>
                 </DialogHeader>
 
-                <div className="flex flex-col py-6">
-                    <div className="flex items-center mb-4">
-                        {group.isGroup ? (
-                            <div className="bg-[#00313A] h-16 w-16 rounded-full flex items-center justify-center text-white mr-4">
-                                <Users size={32} />
+                {!groupId ? (
+                    <div className="text-center py-8 text-gray-500">
+                        <Users size={48} className="mx-auto mb-4 text-gray-400" />
+                        <p className="text-lg font-medium mb-2">No group selected</p>
+                        <p className="text-sm">Please select a group chat to view details</p>
+                    </div>
+                ) : isLoading ? (
+                    <div className="flex justify-center items-center py-12">
+                        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                    </div>
+                ) : group ? (
+                    <div className="flex flex-col py-6 space-y-4">
+                        {/* Group Header */}
+                        <div className="flex items-center mb-4">
+                            {group.profilePictureUrl || group.picture ? (
+                                <Avatar className="h-16 w-16 mr-4">
+                                    <AvatarImage src={group.profilePictureUrl || group.picture} alt={group.name} />
+                                    <AvatarFallback>{(group.name || 'G').charAt(0).toUpperCase()}</AvatarFallback>
+                                </Avatar>
+                            ) : (
+                                <div className="bg-[#00313A] h-16 w-16 rounded-full flex items-center justify-center text-white mr-4">
+                                    <Users size={32} />
+                                </div>
+                            )}
+
+                            <div className="flex-1">
+                                <h3 className="text-xl font-semibold mb-1">{group.name}</h3>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                                        {group.memberCount} {group.memberCount === 1 ? 'member' : 'members'}
+                                    </Badge>
+                                    <Badge variant="outline" className={
+                                        group.privacyType === 'private'
+                                            ? 'bg-red-50 text-red-700 border-red-200'
+                                            : group.privacyType === 'require_approval'
+                                                ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
+                                                : 'bg-green-50 text-green-700 border-green-200'
+                                    }>
+                                        {group.privacyType === 'private' ? 'Private' : group.privacyType === 'require_approval' ? 'Approval Required' : 'Public'}
+                                    </Badge>
+                                    {group.userRole && (
+                                        <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                                            {group.userRole.charAt(0).toUpperCase() + group.userRole.slice(1)}
+                                        </Badge>
+                                    )}
+                                </div>
+                                {group.ownerName && (
+                                    <p className="text-sm text-gray-500 mt-1">
+                                        Owner: {group.ownerName}
+                                    </p>
+                                )}
                             </div>
-                        ) : (
-                            <Avatar className="h-16 w-16 mr-4">
-                                <AvatarImage src={group.avatar} alt={group.name} />
-                                <AvatarFallback>{(group.name || 'G').charAt(0).toUpperCase()}</AvatarFallback>
-                            </Avatar>
+                        </div>
+
+                        {/* Group Description */}
+                        {group.description && (
+                            <div>
+                                <h4 className="font-semibold text-sm mb-1">About</h4>
+                                <p className="text-gray-700 text-sm">{group.description}</p>
+                            </div>
                         )}
 
-                        <div>
-                            <h3 className="text-xl font-semibold mb-0">{group.name}</h3>
-                            <div className="flex items-center">
-                                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                                    {group.members} members
-                                </Badge>
-                                <span className="ml-2 text-sm text-gray-500">Created {group.createdAt}</span>
+                        {/* Fundraising Section */}
+                        {group.hasFundraising && group.fundraisingTarget && (
+                            <div className="space-y-2">
+                                <GroupProgressBar
+                                    currentAmount={group.fundraisingCurrentAmount}
+                                    targetAmount={group.fundraisingTarget}
+                                />
+                                {group.expirationDate && (
+                                    <DeadlineCounter expirationDate={group.expirationDate} />
+                                )}
                             </div>
-                        </div>
-                    </div>
+                        )}
 
-                    <p className="mb-4 text-gray-700">{group.description || "No description available."}</p>
-
-                    {group.isContributionGroup && (
-                        <div className="bg-gray-50 p-4 rounded-lg mb-4">
-                            <div className="flex justify-between items-center mb-2">
-                                <span className="font-semibold">Contribution Progress</span>
-                                <span>
-                                    ${group.collectedAmount} of ${group.targetAmount}
-                                </span>
-                            </div>
-                            <Progress value={group.contributionProgress} className="h-2" />
-                            <div className="flex justify-between items-center mt-2">
-                                <div className="flex items-center">
-                                    <Calendar size={16} className="text-gray-500 mr-2" />
-                                    <span className="text-sm text-gray-500">Deadline: {group.deadline}</span>
-                                </div>
-                                <Button size="sm" className="bg-[#00B512] hover:bg-[#009E10]">
-                                    <DollarSign size={14} className="mr-1" />
-                                    Contribute
-                                </Button>
-                            </div>
-                        </div>
-                    )}
-
-                    <Separator className="my-4" />
-
-                    <div>
-                        <div className="flex items-center mb-2">
-                            <Users size={16} className="mr-2" />
-                            <h4 className="font-medium">Members</h4>
-                        </div>
-
-                        <div className="space-y-2 max-h-48 overflow-y-auto">
-                            {groupMembers.map((member) => (
-                                <div key={member.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-md">
-                                    <div className="flex items-center">
-                                        <Avatar className="h-8 w-8 mr-2">
-                                            <AvatarImage src={member.avatar} alt={member.name} />
-                                            <AvatarFallback>{(member.name || 'M').charAt(0).toUpperCase()}</AvatarFallback>
-                                        </Avatar>
-                                        <div>
-                                            <span className="font-medium">{member.name}</span>
-                                            <Badge
-                                                variant="outline"
-                                                className={
-                                                    member.role === "Admin" ? "bg-amber-50 text-amber-700 border-amber-200 ml-2" : "ml-2"
-                                                }
-                                            >
-                                                {member.role}
-                                            </Badge>
-                                        </div>
+                        {/* Additional Info Prompt */}
+                        {group.hasAdditionalInfo && group.additionalInfoPrompt && (
+                            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                                <div className="flex items-start gap-2">
+                                    <Info size={16} className="text-amber-600 mt-0.5 shrink-0" />
+                                    <div>
+                                        <h4 className="font-semibold text-sm text-amber-900 mb-1">Additional Information</h4>
+                                        <p className="text-sm text-amber-800">{group.additionalInfoPrompt}</p>
                                     </div>
-                                    <Button variant="ghost" size="icon">
-                                        <MessageCircle size={16} />
-                                    </Button>
                                 </div>
-                            ))}
+                            </div>
+                        )}
+
+                        <Separator className="my-4" />
+
+                        {/* Group Members */}
+                        <div>
+                            <div className="flex items-center justify-between mb-3">
+                                <h4 className="font-semibold flex items-center">
+                                    <Users size={16} className="mr-2" />
+                                    Members ({members.length})
+                                </h4>
+                            </div>
+
+                            <GroupMembersList
+                                members={members}
+                                isLoading={isLoadingMembers}
+                                maxHeight="max-h-64"
+                            />
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex justify-center gap-3 mt-6 flex-wrap">
+                            <Button onClick={onClose} className="bg-[#00B512] hover:bg-[#009E10]">
+                                <MessageCircle size={16} className="mr-2" />
+                                Message Group
+                            </Button>
+                            {(group.userRole === 'owner' || group.userRole === 'admin') && (
+                                <Button variant="outline">
+                                    <UserPlus size={16} className="mr-2" />
+                                    Add Members
+                                </Button>
+                            )}
+                        </div>
+
+                        {/* Group Info Footer */}
+                        <div className="text-xs text-gray-500 text-center space-y-1">
+                            <p>Created {new Date(group.createdAt).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                            })}</p>
+                            {group.maxMembers && (
+                                <p>Max capacity: {group.maxMembers} members</p>
+                            )}
                         </div>
                     </div>
-
-                    <div className="flex justify-center gap-4 mt-6">
-                        <Button onClick={onClose} className="bg-[#00B512] hover:bg-[#009E10]">
-                            <MessageCircle size={16} className="mr-2" />
-                            Message Group
-                        </Button>
-                        <Button variant="outline">
-                            <UserPlus size={16} className="mr-2" />
-                            Add Members
-                        </Button>
-                        {group.isContributionGroup && (
-                            <Button variant="outline">
-                                <Info size={16} className="mr-2" />
-                                Contribution Details
-                            </Button>
-                        )}
+                ) : (
+                    <div className="text-center py-8 text-gray-500">
+                        Group not found
                     </div>
-                </div>
+                )}
             </DialogContent>
         </Dialog>
     )
 }
-

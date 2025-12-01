@@ -129,3 +129,23 @@ export interface JoinGroupByLinkRequest {
     accessToken?: string
     qrCodeData?: string
 }
+
+export interface GroupMember {
+    id: string
+    userId: string
+    userName: string
+    userEmail: string
+    role: 'owner' | 'admin' | 'member'
+    status: 'pending' | 'active' | 'left' | 'removed' | 'rejected'
+    joinedAt?: string
+    invitedAt: string
+    invitedByName?: string
+}
+
+export interface GroupMembersResponse {
+    members: GroupMember[]
+    total: number
+    page: number
+    limit: number
+    totalPages: number
+}

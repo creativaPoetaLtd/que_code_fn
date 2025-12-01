@@ -1,4 +1,4 @@
-import { CreateGroupRequest, Group, InviteToGroupRequest, JoinGroupByLinkRequest, JoinGroupRequest } from "@/types/group.types";
+import { CreateGroupRequest, Group, GroupMembersResponse, InviteToGroupRequest, JoinGroupByLinkRequest, JoinGroupRequest } from "@/types/group.types";
 import { apiSlice } from "./apiSlice";
 
 export const groupSlice = apiSlice.injectEndpoints({
@@ -83,7 +83,7 @@ export const groupSlice = apiSlice.injectEndpoints({
             invalidatesTags: (result, error, { inviteData }) => [{ type: "Group", id: inviteData.groupId }, "GroupMember"],
         }),
 
-        getGroupMembers: builder.query<{ data: any[] }, { groupId: string; token: string }>({
+        getGroupMembers: builder.query<{ data: GroupMembersResponse }, { groupId: string; token: string }>({
             query: ({ groupId, token }) => {
                 return {
                     url: `/groups/${groupId}/members`,
