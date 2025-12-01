@@ -46,8 +46,9 @@ interface ChatProviderProps {
 
 export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     const { getToken, getUserId } = useAuthToken();
-    const userId = getUserId();
-    const token = getToken();
+    // Use state to track token and userId changes dynamically
+    const [userId, setUserId] = useState<string | null>(null);
+    const [token, setToken] = useState<string | null>(null);
 
     const [isConnected, setIsConnected] = useState(false);
     const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -56,6 +57,28 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
     const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
     const [participantsStatus, setParticipantsStatus] = useState<Record<string, ChatParticipantStatus[]>>({});
+
+    // Monitor token and userId changes
+    useEffect(() => {
+        const currentToken = getToken();
+        const currentUserId = getUserId();
+        setToken(currentToken);
+        setUserId(currentUserId);
+
+        // Listen for token changes via custom event
+        const handleAuthTokenChange = (event: CustomEvent) => {
+            const newToken = getToken();
+            const newUserId = getUserId();
+            setToken(newToken);
+            setUserId(newUserId);
+        };
+
+        window.addEventListener('authTokenChanged', handleAuthTokenChange as EventListener);
+
+        return () => {
+            window.removeEventListener('authTokenChanged', handleAuthTokenChange as EventListener);
+        };
+    }, [getToken, getUserId]);
 
     const { data: chatsData, refetch: refetchChats } = useGetUserChatsQuery(undefined, {
         skip: !token
@@ -176,7 +199,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
             if (message.chatId !== activeChat && message.sender.id !== userId) {
                 toast({
-                    title: `New message from ${message.sender.name}`,
+                    title: `New message from ${message.sender.lastName}`,
                     description: message.content.substring(0, 100),
                     duration: 3000,
                 });

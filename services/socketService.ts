@@ -7,7 +7,7 @@ class SocketService {
 
     connect(userId: string, token?: string) {
         this.connectionCount++
-        
+
         if (this.socket?.connected) {
             console.log(`Socket already connected. Connection count: ${this.connectionCount}`)
             return this.socket
@@ -15,10 +15,10 @@ class SocketService {
 
         this.userId = userId
         console.log(`Creating new socket connection. Connection count: ${this.connectionCount}`)
-        
+
         const finalToken = token || localStorage.getItem('token');
-        
-        this.socket = io(process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:5500", {
+
+        this.socket = io(process.env.NEXT_PUBLIC_SOCKET_URL, {
             transports: ["websocket", "polling"],
             autoConnect: true,
             auth: {
@@ -47,10 +47,10 @@ class SocketService {
         return this.socket
     }
 
-        disconnect() {
+    disconnect() {
         this.connectionCount = Math.max(0, this.connectionCount - 1)
         console.log(`Disconnect requested. Connection count: ${this.connectionCount}`)
-        
+
         // Only actually disconnect when no contexts are using the socket
         if (this.connectionCount === 0 && this.socket) {
             console.log("Actually disconnecting socket")

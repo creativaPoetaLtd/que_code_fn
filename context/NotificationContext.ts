@@ -28,6 +28,25 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     const [isConnected, setIsConnected] = useState(false)
     const { getToken } = useAuthToken()
     const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+    const [authToken, setAuthToken] = useState<string | null>(null)
+
+    // Monitor token changes to trigger reconnection
+    useEffect(() => {
+        const token = getToken()
+        setAuthToken(token)
+        
+        // Listen for token changes via custom event
+        const handleAuthTokenChange = (event: CustomEvent) => {
+            const newToken = getToken()
+            setAuthToken(newToken)
+        }
+        
+        window.addEventListener('authTokenChanged', handleAuthTokenChange as EventListener)
+        
+        return () => {
+            window.removeEventListener('authTokenChanged', handleAuthTokenChange as EventListener)
+        }
+    }, [getToken])
 
     const addNotification = useCallback((notification: Notification) => {
         setNotifications((prev) => [notification, ...prev])
@@ -263,11 +282,9 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     )
 
     useEffect(() => {
-        const token = getToken()
-
-        if (token && !isTokenExpired(token)) {
+        if (authToken && !isTokenExpired(authToken)) {
             // Extract user ID from JWT token
-            const userId = getUserIdFromToken(token)
+            const userId = getUserIdFromToken(authToken)
 
             if (userId) {
                 // Get existing socket connection (managed by ChatContext)
@@ -327,7 +344,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
             setIsConnected(false)
         }
     }, [
-        getToken,
+        authToken,
         handleNotification,
         handleGroupInvitation,
         handleContactRequest,
