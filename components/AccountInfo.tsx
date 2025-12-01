@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
-import { Copy, CreditCard, Send, Share2 } from 'lucide-react';
+import { Copy, CreditCard, Send, Share2, User, Download, Square, Plus } from 'lucide-react';
 import baseUrl from '@/helpers/baseUrl';
 import { getUserBalance, getEntityBalance } from '@/helpers/api';
 
@@ -213,89 +213,87 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
 
 
     return (
-        <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 md:p-8">
-            <div className="mb-6 sm:mb-8">
-                <p className="text-sm sm:text-md font-medium text-[#00313A]">Hello👋 Welcome Back!!</p>
-                <h3 className="text-xl sm:text-2xl font-bold text-[#00313A] mt-1">
-                    {user.firstName} {user.lastName}
-                </h3>
-
-                {/* Balance Display */}
-                <div className="mt-4 p-4 bg-gradient-to-r from-[#00313A] to-[#00252e] rounded-lg">
-                    <p className="text-sm text-gray-300 mb-1">Available Balance</p>
-                    <h4 className="text-2xl font-bold text-white">
-                        {balanceLoading ? 'Loading...' : balanceError ? balanceError : `RWF ${balance?.toLocaleString()}`}
-                    </h4>
-                    <div className="flex items-center space-x-1 mt-1">
-                        <span className="text-xs text-green-400">+12.5% this month</span>
-                    </div>
-                </div>
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            {/* Header with Profile Link */}
+            <div className="p-4 sm:p-6 border-b border-gray-100 flex justify-end">
+                <button 
+                    onClick={() => router.push('/profile')}
+                    className="flex items-center gap-2 px-4 py-2 rounded-full border-2 border-[#00B512] text-[#00B512] hover:bg-[#00B512]/5 transition-colors text-sm font-medium"
+                >
+                    <User size={18} />
+                    <span>See your profile page</span>
+                </button>
             </div>
 
-            <div className="max-w-md mx-auto">
-                <div className="flex justify-center mb-4">
-                    <div className="bg-[#EEF4FF] p-3 sm:p-4 rounded-lg">
-                        {user.qrCode ? (
-                            <img
-                                src={user.qrCode}
-                                alt="QR Code"
-                                className="w-32 sm:w-40 md:w-48 h-auto object-contain"
-                            />
-                        ) : (
-                            <div className="w-32 sm:w-40 md:w-48 h-32 sm:h-40 md:h-48 bg-gray-200 rounded flex items-center justify-center">
-                                <span className="text-gray-500">No QR Code</span>
-                            </div>
-                        )}
-                    </div>
+            {/* QR Code Section */}
+            <div className="p-6 sm:p-8 flex flex-col items-center">
+                <div className="bg-[#00B512]/10 border-2 border-[#00B512] p-6 sm:p-8 rounded-3xl mb-6">
+                    {user.qrCode ? (
+                        <img
+                            src={user.qrCode}
+                            alt="QR Code"
+                            className="w-48 sm:w-56 h-auto object-contain"
+                        />
+                    ) : (
+                        <div className="w-48 sm:w-56 h-48 sm:h-56 bg-gray-300 rounded-lg flex items-center justify-center">
+                            <span className="text-gray-600">No QR Code</span>
+                        </div>
+                    )}
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mt-4">
-                    <div className="w-full sm:w-auto">
-                        <p className="text-sm md:text-md text-gray-600 px-3 py-2 bg-[#EEF4FF] rounded-lg truncate max-w-[280px] sm:max-w-none">
-                            <a
-                                href={userLink}
-                                className="text-[#00313A] hover:underline"
-                                target="_blank"
-                                rel="noopener noreferrer"
+                {/* Share Link Section */}
+                <div className="w-full max-w-2xl mb-6">
+                    <div className="flex flex-col sm:flex-row items-center gap-3 bg-gray-50 rounded-2xl p-3 sm:p-4">
+                        <input
+                            type="text"
+                            value={userLink}
+                            readOnly
+                            className="flex-1 bg-transparent text-xs sm:text-sm text-gray-600 outline-none"
+                        />
+                        <div className="flex gap-2">
+                            <button
+                                onClick={handleCopy}
+                                className="flex items-center justify-center w-10 h-10 rounded-full bg-[#00313A] hover:bg-[#004D5C] transition text-white"
+                                aria-label="Copy"
+                                title="Copy"
                             >
-                                {userLink}
-                            </a>
-                        </p>
-                    </div>
-
-                    <div className="flex gap-3">
-                        <button
-                            onClick={handleShare}
-                            className="flex items-center justify-center w-10 h-10 bg-[#EEF4FF] rounded-full hover:bg-gray-200 transition"
-                            aria-label="Share"
-                        >
-                            <Share2 size={20} color="#00B512" />
-                        </button>
-                        <button
-                            onClick={handleCopy}
-                            className="flex items-center justify-center w-10 h-10 bg-[#EEF4FF] rounded-full hover:bg-gray-200 transition"
-                            aria-label="Copy"
-                        >
-                            <Copy size={20} color="#00B512" />
-                        </button>
+                                <Copy size={18} />
+                            </button>
+                            <button
+                                onClick={handleShare}
+                                className="flex items-center justify-center w-10 h-10 rounded-full bg-[#00313A] hover:bg-[#004D5C] transition text-white"
+                                aria-label="Share"
+                                title="Share"
+                            >
+                                <Share2 size={18} />
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                <div className="flex justify-center gap-8 sm:gap-12 mt-6 sm:mt-8">
+                {/* Action Buttons */}
+                <div className="w-full grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                     <button
                         onClick={() => router.push('/home/transfer')}
-                        className="flex flex-col items-center group"
+                        className="flex flex-col items-center gap-2 p-3 sm:p-4 rounded-2xl border-2 border-gray-200 hover:border-[#00B512] hover:bg-[#00B512]/5 transition-colors group"
                     >
-                        <span className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-2 group-hover:bg-green-200 transition-colors">
-                            <Send size={24} className="text-green-600" />
-                        </span>
-                        <span className="text-sm font-medium text-gray-700">Send</span>
+                        <Send size={24} className="text-green-500 group-hover:text-[#00B512]" />
+                        <span className="text-xs sm:text-sm font-medium text-gray-700">Send</span>
                     </button>
-                    <button className="flex flex-col items-center group">
-                        <span className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-2 group-hover:bg-green-200 transition-colors">
-                            <CreditCard size={24} className="text-green-600" />
-                        </span>
-                        <span className="text-sm font-medium text-gray-700">Top Up</span>
+
+                    <button className="flex flex-col items-center gap-2 p-3 sm:p-4 rounded-2xl border-2 border-gray-200 hover:border-[#00B512] hover:bg-[#00B512]/5 transition-colors group">
+                        <Download size={24} className="text-green-500 group-hover:text-[#00B512]" />
+                        <span className="text-xs sm:text-sm font-medium text-gray-700">Request</span>
+                    </button>
+
+                    <button className="flex flex-col items-center gap-2 p-3 sm:p-4 rounded-2xl border-2 border-gray-200 hover:border-[#00B512] hover:bg-[#00B512]/5 transition-colors group">
+                        <CreditCard size={24} className="text-green-500 group-hover:text-[#00B512]" />
+                        <span className="text-xs sm:text-sm font-medium text-gray-700">Pay</span>
+                    </button>
+
+                    <button className="flex flex-col items-center gap-2 p-3 sm:p-4 rounded-2xl border-2 border-gray-200 hover:border-[#00B512] hover:bg-[#00B512]/5 transition-colors group">
+                        <Plus size={24} className="text-green-500 group-hover:text-[#00B512]" />
+                        <span className="text-xs sm:text-sm font-medium text-gray-700">Top up</span>
                     </button>
                 </div>
             </div>

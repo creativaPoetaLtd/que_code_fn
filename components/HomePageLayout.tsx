@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import AccountInfo from "./AccountInfo";
 import { Header } from "./Header";
+import { WelcomeSection } from "./WelcomeSection";
 import { RecentMessages } from "./RecentMessages";
 import { RecentTransactions } from "./RecentTransactions";
 import { useParams, useRouter } from 'next/navigation';
@@ -203,6 +204,9 @@ export const HomePageLayout = () => {
                     {/* Header */}
                     <Header />
 
+                    {/* Welcome Section */}
+                    <WelcomeSection userId={userId} />
+
                     {/* Content */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
                         <div className="space-y-4">
@@ -210,8 +214,8 @@ export const HomePageLayout = () => {
                             <RecentActions />
                         </div>
                         <div className="space-y-8">
-                            <RecentTransactions />
                             <RecentMessages />
+                            <RecentTransactions />
                         </div>
                     </div>
                 </div>

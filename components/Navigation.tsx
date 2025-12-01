@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { useRouter, useParams } from "next/navigation"
+import { useRouter, useParams, usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
     Home,
@@ -19,7 +19,10 @@ import {
     PanelLeftClose,
     PanelLeft,
     TrendingUp,
-    Wallet
+    Wallet,
+    Users,
+    Clock,
+    Store
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuthToken } from "@/hooks/use-auth-token"
@@ -41,6 +44,7 @@ export default function Navigation() {
     const { getToken, removeToken } = useAuthToken()
     const router = useRouter()
     const params = useParams()
+    const pathname = usePathname()
 
     // Get userId from URL params or token
     useEffect(() => {
@@ -69,6 +73,27 @@ export default function Navigation() {
         getUserId();
     }, [params]);
 
+    // Update active item based on current pathname
+    useEffect(() => {
+        if (pathname.includes('/analytics')) {
+            setActiveItem('Finances');
+        } else if (pathname.includes('/chat')) {
+            setActiveItem('Messages');
+        } else if (pathname.includes('/contacts')) {
+            setActiveItem('Contacts');
+        } else if (pathname.includes('/merchants')) {
+            setActiveItem('Merchants');
+        } else if (pathname.includes('/transactions')) {
+            setActiveItem('History');
+        } else if (pathname.includes('/wallet')) {
+            setActiveItem('Wallet');
+        } else if (pathname.includes('/settings')) {
+            setActiveItem('Settings');
+        } else if (pathname.includes('/home')) {
+            setActiveItem('Home');
+        }
+    }, [pathname]);
+
     // Don't render navigation items until we have userId
     if (!isReady) {
         return null;
@@ -85,10 +110,12 @@ export default function Navigation() {
 
     const mainMenuItems: NavigationItem[] = [
         { id: "Home", icon: <Home size={24} />, label: "Home", path: userId ? `/home/${userId}` : '/home' },
-        { id: "Statistics", icon: <TrendingUp size={24} />, label: "Statistics", path: userId ? `/statistics/${userId}` : '/statistics' },
-        { id: "Transactions", icon: <Wallet size={24} />, label: "Transactions", path: "/transactions" },
-        { id: "Actions", icon: <FileText size={24} />, label: "Action", path: userId ? `/action/${userId}` : '/action' },
-        { id: "Chat", icon: <MessageCircle size={24} />, label: "Chat", path: userId ? `/chat` : '/chat' },
+        { id: "Finances", icon: <BarChart2 size={24} />, label: "Finances", path: "/analytics" },
+        { id: "Messages", icon: <MessageCircle size={24} />, label: "Messages", path: "/chat" },
+        { id: "Contacts", icon: <Users size={24} />, label: "Contacts", path: userId ? `/contacts/${userId}` : '/contacts' },
+        { id: "Merchants", icon: <Store size={24} />, label: "Merchants", path: userId ? `/merchants/${userId}` : '/merchants' },
+        { id: "History", icon: <Clock size={24} />, label: "History", path: "/transactions" },
+        { id: "Wallet", icon: <Wallet size={24} />, label: "Wallet", path: userId ? `/wallet/${userId}` : '/wallet' },
     ]
 
     const bottomMenuItems: NavigationItem[] = [
@@ -132,11 +159,11 @@ export default function Navigation() {
             >
                 <div className="flex flex-col h-full">
                     {/* Logo and Toggle Section */}
-                    <div className="flex items-center justify-between px-4 py-6 border-b border-[#003D52]">
+                    <div className="flex items-center justify-between px-3 py-4 border-b border-[#003D52]">
                         {isExpanded ? (
                             <>
                                 <div className="flex items-center gap-2">
-                                    <span className="text-white font-bold text-xl">QueCode</span>
+                                    <span className="text-white font-bold text-xl">QiewCode</span>
                                 </div>
                                 <Button
                                     variant="ghost"
@@ -157,14 +184,14 @@ export default function Navigation() {
                         )}
                     </div>
 
-                    <nav className="flex-grow">
-                        <div className="flex flex-col items-center pt-8">
+                    <nav className="flex-grow px-2">
+                        <div className="flex flex-col items-stretch pt-8 gap-2">
                             {mainMenuItems.map((item) => (
                                 <button
                                     key={item.id}
                                     onClick={() => handleClick(item.id, item.path)}
                                     className={cn(
-                                        "w-[80%] flex items-center px-3 py-2.5 transition-all mb-2 rounded-lg duration-200",
+                                        "flex items-center px-3 py-2.5 transition-all rounded-xl duration-200",
                                         isExpanded ? "justify-start" : "justify-center",
                                         activeItem === item.id 
                                             ? "bg-gradient-to-r from-[#00B512] to-[#1fd331] text-white shadow-lg" 
@@ -178,23 +205,25 @@ export default function Navigation() {
                         </div>
                     </nav>
 
-                    <div className="border-t border-[#003D52] pt-4 pb-8">
-                        {bottomMenuItems.map((item) => (
-                            <button
-                                key={item.id}
-                                onClick={() => handleClick(item.id, item.path)}
-                                className={cn(
-                                    "w-[80%] mx-auto flex items-center px-3 py-2.5 transition-all mb-2 rounded-lg duration-200",
-                                    isExpanded ? "justify-start" : "justify-center",
-                                    activeItem === item.id 
-                                        ? "bg-gradient-to-r from-[#00B512] to-[#1fd331] text-white shadow-lg" 
-                                        : "text-white hover:bg-[#004D5C] hover:shadow-md",
-                                )}
-                            >
-                                <span className="inline-flex items-center justify-center">{item.icon}</span>
-                                {isExpanded && <span className="ml-4 whitespace-nowrap">{item.label}</span>}
-                            </button>
-                        ))}
+                    <div className="border-t border-[#003D52] pt-4 pb-8 px-2">
+                        <div className="flex flex-col gap-2">
+                            {bottomMenuItems.map((item) => (
+                                <button
+                                    key={item.id}
+                                    onClick={() => handleClick(item.id, item.path)}
+                                    className={cn(
+                                        "flex items-center px-3 py-3.5 transition-all rounded-xl duration-200",
+                                        isExpanded ? "justify-start" : "justify-center",
+                                        activeItem === item.id 
+                                            ? "bg-gradient-to-r from-[#00B512] to-[#1fd331] text-white shadow-lg" 
+                                            : "text-white hover:bg-[#004D5C] hover:shadow-md",
+                                    )}
+                                >
+                                    <span className="inline-flex items-center justify-center">{item.icon}</span>
+                                    {isExpanded && <span className="ml-4 whitespace-nowrap">{item.label}</span>}
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 </div>
             </aside>

@@ -88,81 +88,42 @@ export const RecentTransactions: React.FC = () => {
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm">
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
       {/* Header */}
-      <div className="flex justify-between items-center p-4 sm:p-6">
-        <h3 className="text-xl sm:text-2xl text-[#00313A] font-semibold">Recent Transactions</h3>
+      <div className="flex justify-between items-center p-3 sm:p-4 border-b border-gray-100">
+        <h3 className="text-base sm:text-lg text-[#00313A] font-semibold">Recent transactions</h3>
         <button
           onClick={() => router.push('/transactions')}
-          className="text-sm text-gray-500 hover:text-gray-700 transition-colors duration-200 flex items-center gap-1"
+          className="text-sm text-[#00B512] hover:text-[#00B512]/80 transition-colors duration-200 font-medium"
         >
-          <span className="hidden sm:inline">All transactions</span>
-          <span className="inline sm:hidden">View all</span>
-          <span>→</span>
+          View all
         </button>
       </div>
-      {/* Desktop Table View */}
-      <div className="hidden sm:block overflow-x-auto">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="border-t border-gray-100">
-              <th className="px-6 py-3 text-sm font-medium text-gray-600">Transactions</th>
-              <th className="px-6 py-3 text-sm font-medium text-gray-600 text-right">Amount</th>
-              <th className="px-6 py-3 text-sm font-medium text-gray-600 text-right">Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {displayedTransactions.map((transaction) => {
-              const { amount, displayName, transactionType, isOutgoing } = getTransactionDisplayInfo(transaction);
-              return (
-                <tr key={transaction.id} className="border-t border-gray-100 hover:bg-gray-50 transition-colors duration-200">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
-                        <span className="text-gray-400">{isOutgoing ? '📤' : '📥'}</span>
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{displayName}</p>
-                        <p className="text-sm text-gray-500">{transactionType} • {transaction.status}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-right font-medium">
-                    <span className={amount < 0 ? 'text-red-600' : 'text-green-600'}>
-                      {amount < 0 ? '-' : '+'}RWF {isNaN(Math.abs(amount)) ? '0' : Math.abs(amount).toLocaleString()}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right text-sm text-gray-500">
-                    {new Date(transaction.createdAt).toLocaleDateString()}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-      {/* Mobile List View */}
-      <div className="sm:hidden divide-y divide-gray-100">
+      
+      {/* Mobile & Desktop List View */}
+      <div className="divide-y divide-gray-100">
         {displayedTransactions.map((transaction) => {
           const { amount, displayName, transactionType, isOutgoing } = getTransactionDisplayInfo(transaction);
           return (
-            <div key={transaction.id} className="p-4 hover:bg-gray-50 transition-colors duration-200">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
-                    <span className="text-gray-400">{isOutgoing ? '📤' : '📥'}</span>
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">{displayName}</p>
-                    <p className="text-sm text-gray-500">{transactionType} • {transaction.status}</p>
-                  </div>
+            <div key={transaction.id} className="p-2 sm:p-2.5 hover:bg-gray-50 transition-colors duration-200 cursor-pointer">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center overflow-hidden flex-shrink-0 text-white font-semibold text-xs">
+                  {displayName.charAt(0)}
                 </div>
-              </div>
-              <div className="flex justify-between items-center mt-2">
-                <span className="text-sm text-gray-500">{new Date(transaction.createdAt).toLocaleDateString()}</span>
-                <span className={`font-medium ${amount < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                  {amount < 0 ? '-' : '+'}RWF {isNaN(Math.abs(amount)) ? '0' : Math.abs(amount).toLocaleString()}
-                </span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-center gap-2">
+                    <p className="font-semibold text-gray-900 truncate text-xs">{displayName}</p>
+                    <span className="text-xs text-gray-500 flex-shrink-0">
+                      {new Date(transaction.createdAt).toLocaleDateString('en-US', { 
+                        month: 'numeric', 
+                        day: 'numeric'
+                      })}
+                    </span>
+                  </div>
+                  <p className={`text-xs font-medium ${amount < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    {amount < 0 ? '-' : '+ '}€{isNaN(Math.abs(amount)) ? '0' : (Math.abs(amount) / 100).toFixed(2)}
+                  </p>
+                </div>
               </div>
             </div>
           );

@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { Eye, EyeOff, User, Wifi, WifiOff } from "lucide-react";
+import { Eye, EyeOff, User, Wifi, WifiOff, MessageCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import Image from "next/image";
@@ -11,6 +11,7 @@ import { useNotifications } from "@/context/NotificationContext";
 import { useChat } from "@/context/ChatContext";
 import NotificationBell from "./notifications/NotificationBell";
 import { useAuthToken } from "@/hooks/use-auth-token";
+import { Button } from "./ui/button";
 
 
 export const Header = () => {
@@ -114,29 +115,16 @@ export const Header = () => {
     };
 
     return (
-        <div className="flex justify-between items-center px-4 py-2">
+        <div className="flex justify-between items-center px-4 py-0">
             {/* Left Section: Amount */}
             <div className="flex items-center space-x-2">
                 <h2 className="text-md lg:text-2xl font-bold text-[#00313A]">
-                    {balanceLoading
-                        ? 'Loading...'
-                        : balanceError
-                            ? balanceError
-                            : isBalanceVisible
-                                ? `RWF ${balance?.toLocaleString()}`
-                                : '••••••••••'}
+                    QiewCode
                 </h2>
-                <button
-                    onClick={toggleBalanceVisibility}
-                    className="text-gray-600 hover:text-gray-800 transition"
-                    aria-label={isBalanceVisible ? "Hide Balance" : "Show Balance"}
-                >
-                    {isBalanceVisible ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
             </div>
 
             {/* Right Section: Connection Status, Notification & User Profile */}
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
                 {/* Connection Status Indicator */}
                 <div className="flex items-center space-x-1">
                     {isConnected ? (
@@ -154,6 +142,16 @@ export const Header = () => {
 
                 {/* Notification Dropdown */}
                 <NotificationBell />
+
+                {/* Message Icon */}
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => router.push('/chat')}
+                    aria-label="Go to Chat"
+                >
+                    <MessageCircle className="h-5 w-5" />
+                </Button>
 
                 {/* User Profile with Dropdown */}
                 <div className="relative">
