@@ -119,6 +119,10 @@ export const useAuthToken = (enableAutoRedirect: boolean = true) => {
         }
 
         setCookie(TOKEN_KEY, token, expiryDays);
+        
+        // Dispatch custom event to notify listeners of token change
+        window.dispatchEvent(new CustomEvent('authTokenChanged', { detail: { token } }));
+        
         return true;
     }, []);
 

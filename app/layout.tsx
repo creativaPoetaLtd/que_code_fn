@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+// @ts-ignore: allow importing global css without type declarations
 import "antd/dist/reset.css";
+// @ts-ignore: allow importing global css without type declarations
 import "./globals.css";
 import { Poppins } from "next/font/google";
 import ClientProvider from "@/components/ClientProvider";
