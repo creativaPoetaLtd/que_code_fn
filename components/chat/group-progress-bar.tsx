@@ -21,7 +21,7 @@ export default function GroupProgressBar({
         <div className={`bg-gray-50 p-4 rounded-lg ${className}`}>
             <div className="flex justify-between items-center mb-2">
                 <span className="font-semibold flex items-center">
-                    <DollarSign size={16} className="mr-1 text-green-600" />
+                    <DollarSign size={16} className="mr-1 text-gray-600" />
                     Fundraising Progress
                 </span>
                 <span className="text-sm font-medium">

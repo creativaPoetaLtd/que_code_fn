@@ -16,7 +16,7 @@ import AddContactModal from '@/components/chat/add-contact-modal';
 import UserProfileModal from '@/components/chat/user-profile-modal';
 import GroupProfileModal from '@/components/chat/group-profile-modal';
 import ContactRequestModal from '@/components/chat/contact-request';
-import InviteToGroupModal from '@/components/chat/invite-to-group-modal';
+import AddMemberModal from '@/components/chat/add-member-modal';
 
 const { Content } = Layout;
 
@@ -193,10 +193,11 @@ export default function ChatPageClean() {
         onClose={() => setIsContactRequestModalOpen(false)}
       />
 
-      <InviteToGroupModal
+      <AddMemberModal
         isOpen={isInviteToGroupModalOpen}
         onClose={() => setIsInviteToGroupModalOpen(false)}
-        group={selectedChat as any}
+        groupId={selectedChat?.groupId || null}
+        groupName={selectedChat?.name || ''}
         token={token || ''}
       />
     </Layout>

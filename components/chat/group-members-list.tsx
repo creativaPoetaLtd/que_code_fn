@@ -26,13 +26,13 @@ export default function GroupMembersList({
             case 'owner':
                 return {
                     icon: Crown,
-                    className: "bg-yellow-50 text-yellow-700 border-yellow-300",
+                    className: "bg-amber-50 text-amber-700 border-amber-300",
                     label: "Owner"
                 }
             case 'admin':
                 return {
                     icon: Shield,
-                    className: "bg-blue-50 text-blue-700 border-blue-300",
+                    className: "bg-slate-100 text-slate-700 border-slate-300",
                     label: "Admin"
                 }
             default:

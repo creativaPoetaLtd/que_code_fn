@@ -157,7 +157,7 @@ export default function MessageInput({ onSendMessage = () => { } }: MessageInput
 
                     <div className="relative flex-1">
                         <Input
-                            placeholder="Type a message... (encrypted)"
+                            placeholder="Type a message..."
                             value={messageText}
                             onChange={(e) => {
                                 const value = e.target.value

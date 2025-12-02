@@ -34,15 +34,15 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     useEffect(() => {
         const token = getToken()
         setAuthToken(token)
-        
+
         // Listen for token changes via custom event
         const handleAuthTokenChange = (event: CustomEvent) => {
             const newToken = getToken()
             setAuthToken(newToken)
         }
-        
+
         window.addEventListener('authTokenChanged', handleAuthTokenChange as EventListener)
-        
+
         return () => {
             window.removeEventListener('authTokenChanged', handleAuthTokenChange as EventListener)
         }

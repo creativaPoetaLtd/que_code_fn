@@ -52,7 +52,7 @@ export interface JoinGroupRequest {
 
 export interface InviteToGroupRequest {
     groupId: string
-    memberPublicIds: string[]
+    memberIds: string[]
     invitationMessage?: string
 }
 
