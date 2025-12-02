@@ -119,7 +119,6 @@ export default function AddMemberModal({
         }
 
         try {
-            console.log('Inviting contacts:', selectedContacts, 'to group:', groupId)
             const result = await inviteToGroup({
                 inviteData: {
                     groupId: groupId.toString(),
