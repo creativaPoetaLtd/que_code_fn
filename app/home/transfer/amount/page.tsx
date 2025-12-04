@@ -274,11 +274,6 @@ const AmountPage = () => {
       return;
     }
 
-    if (!selectedCategory) {
-      setError("Please select a transaction category");
-      return;
-    }
-
     // Validate constraints requirements for individual user transfers
     if (recipient.type !== 'organization' && applyConstraints && !selectedCategory) {
       setError("Please select a category when applying spending constraints");
@@ -477,59 +472,7 @@ const AmountPage = () => {
               </div>
             </div>
 
-            {/* Category Selection - Only show for individual users, not organizations */}
-            {recipient.type !== 'organization' && (
-              <div className="bg-white rounded-3xl p-6 mb-6 shadow-sm border border-gray-100">
-                <label className="block text-sm font-medium text-gray-700 mb-4">
-                  Select Category
-                </label>
-
-                {categoriesLoading ? (
-                  <div className="text-center py-4 text-gray-500">
-                    <div className="animate-pulse">Loading categories...</div>
-                  </div>
-                ) : categories.length === 0 ? (
-                  <div className="text-center py-4 text-gray-500">
-                    <p>No categories available</p>
-                    <button
-                      onClick={() => {
-                        setCategoriesLoading(true);
-                        getTransactionCategories()
-                          .then((response: any) => {
-                            if (response.data?.success && response.data?.data) {
-                              setCategories(response.data.data);
-                            }
-                          })
-                          .catch((err) => console.error('Retry failed:', err))
-                          .finally(() => setCategoriesLoading(false));
-                      }}
-                      className="mt-2 text-green-600 hover:text-green-700 text-sm font-medium"
-                    >
-                      Try Again
-                    </button>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-3">
-                    {categories.map((category) => (
-                      <button
-                        key={category.id}
-                        onClick={() => {
-                          setSelectedCategory(category);
-                        }}
-                        className={`py-3 px-4 rounded-xl font-medium transition text-left ${selectedCategory?.id === category.id
-                          ? 'bg-green-600 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}
-                      >
-                        {category.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Apply Constraints Toggle - Only show for individual users, not organizations */}
+            {/* Apply Constraints Toggle & Category - Only show for individual users, not organizations */}
             {recipient.type !== 'organization' && (
               <div className="bg-white rounded-3xl p-6 mb-6 shadow-sm border border-gray-100">
                 <div className="flex items-center justify-between">
@@ -552,6 +495,59 @@ const AmountPage = () => {
                     />
                   </button>
                 </div>
+
+                {/* Category Selection - only when constraints are enabled */}
+                {applyConstraints && (
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                      Select Category
+                    </label>
+
+                    {categoriesLoading ? (
+                      <div className="text-center py-4 text-gray-500">
+                        <div className="animate-pulse">Loading categories...</div>
+                      </div>
+                    ) : categories.length === 0 ? (
+                      <div className="text-center py-4 text-gray-500">
+                        <p>No categories available</p>
+                        <button
+                          onClick={() => {
+                            setCategoriesLoading(true);
+                            getTransactionCategories()
+                              .then((response: any) => {
+                                if (response.data?.success && response.data?.data) {
+                                  setCategories(response.data.data);
+                                }
+                              })
+                              .catch((err) => console.error('Retry failed:', err))
+                              .finally(() => setCategoriesLoading(false));
+                          }}
+                          className="mt-2 text-green-600 hover:text-green-700 text-sm font-medium"
+                        >
+                          Try Again
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-3">
+                        {categories.map((category) => (
+                          <button
+                            key={category.id}
+                            onClick={() => {
+                              setSelectedCategory(category);
+                            }}
+                            className={`py-3 px-4 rounded-xl font-medium transition text-left ${
+                              selectedCategory?.id === category.id
+                                ? 'bg-green-600 text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                          >
+                            {category.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Constraints Warning */}
                 {applyConstraints && (
