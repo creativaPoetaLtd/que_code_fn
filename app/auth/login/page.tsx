@@ -10,7 +10,7 @@ import { mainUrl } from '@/helpers/baseUrl';
 import Button from '../../../components/ui/Button-ant';
 import InputPassword from '@/components/ui/InputPassword';
 import Input from 'antd/es/input';
-import { useLoginMutation, useLoginOrganizationMutation } from '@/states/authentication';
+import { useLoginMutation } from '@/states/authentication';
 import { ClipLoader } from 'react-spinners';
 import { useAuthToken } from '@/hooks/use-auth-token';
 
@@ -75,7 +75,6 @@ const LoginForm: React.FC = () => {
   const returnUrl = searchParams.get('returnUrl') || '/home';
 
   const [login, { isLoading }] = useLoginMutation();
-  const [loginOrganization, { isLoading: isOrgLoading }] = useLoginOrganizationMutation();
   const { setToken, getToken } = useAuthToken();
   const { getTokenInfo, decodeToken } = useTokenInfo();
 
@@ -131,19 +130,7 @@ const LoginForm: React.FC = () => {
 
   const onSubmit = async (data: LoginFormInputs) => {
     try {
-
-      // Try organization login first, then fall back to regular login
-      let response;
-      let isOrganization = false;
-
-      try {
-        response = await loginOrganization(data).unwrap();
-        isOrganization = true;
-      } catch (orgError) {
-        response = await login(data).unwrap();
-        isOrganization = false;
-      }
-
+      const response = await login(data).unwrap();
       const { token, account } = response;
 
       setToken(token);
@@ -155,8 +142,7 @@ const LoginForm: React.FC = () => {
       }
 
       // Determine account type for appropriate messaging
-      const accountType = isOrganization ? 'organization' : (tokenInfo.accountType || 'user');
-      const entityType = accountType === 'organization' ? 'Organization' : 'User';
+      const accountType = tokenInfo.accountType || 'user';
 
       notification.success({
         message: 'Login Successful',
@@ -343,9 +329,9 @@ const LoginForm: React.FC = () => {
           htmlType="submit"
           type="primary"
           className="w-full !mt-4"
-          disabled={isLoading || isOrgLoading}
+          disabled={isLoading}
         >
-          {(isLoading || isOrgLoading) ? (
+          {isLoading ? (
             <div className="flex items-center justify-center">
               <ClipLoader color='#ffffff' size={20} />
               <span className="ml-2">Signing in...</span>
@@ -366,7 +352,7 @@ const LoginForm: React.FC = () => {
         icon={<GoogleOutlined />}
         className="w-full flex justify-center items-center bg-gray-100 border-gray-300 text-gray-700 hover:text-white"
         onClick={handleGoogleLogin}
-        disabled={isLoading || isOrgLoading}
+        disabled={isLoading}
       >
         Sign in with Google
       </Button>
