@@ -50,6 +50,30 @@ const config: Config = {
 					DEFAULT: '#00313A',
 					dark: '#003D52',
 				},
+				// QiewCode colors
+				qc: {
+					green: {
+						DEFAULT: '#0b3b2e',
+						2: '#104b3a',
+					},
+					gold: {
+						DEFAULT: '#d4a517',
+						2: '#e6b93c',
+					},
+				},
+				admin: {
+					bg: {
+						DEFAULT: '#040f0c',
+						soft: '#071912',
+						card: 'rgba(12, 36, 27, 0.98)',
+					},
+					nav: 'rgba(4, 15, 12, 0.98)',
+					border: 'rgba(255, 255, 255, 0.08)',
+					text: {
+						DEFAULT: '#f9fafb',
+						soft: '#cbd5e1',
+					}
+				}
 			},
 			borderRadius: {
 				lg: "var(--radius)",

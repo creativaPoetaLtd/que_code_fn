@@ -1,6 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -73,8 +72,6 @@ body {
   animation: slideInFromLeft 0.3s ease-out forwards;
 }
 
-
-
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -131,8 +128,6 @@ body {
     --chart-5: 340 75% 55%;
   }
 }
-
-
 
 @layer base {
   * {
@@ -201,4 +196,53 @@ body {
   html {
     font-size: 16px;
   }
+}
+
+/* Admin Dashboard Styles */
+[data-theme='dark'] {
+  --admin-bg: #040f0c;
+  --admin-bg-soft: #071912;
+  --admin-bg-card: rgba(12, 36, 27, 0.98);
+  --admin-nav: rgba(4, 15, 12, 0.98);
+  --admin-border: rgba(255, 255, 255, 0.08);
+  --admin-text: #f9fafb;
+  --admin-text-soft: #cbd5e1;
+  --qc-green: #0b3b2e;
+  --qc-green-2: #104b3a;
+  --qc-gold: #d4a517;
+  --qc-gold-2: #e6b93c;
+}
+
+[data-theme='light'] {
+  --admin-bg: #f4f6fb;
+  --admin-bg-soft: #e6edf2;
+  --admin-bg-card: #ffffff;
+  --admin-nav: #ffffff;
+  --admin-border: #d0d7e2;
+  --admin-text: #111827;
+  --admin-text-soft: #6b7280;
+  --qc-green: #0b3b2e;
+  --qc-green-2: #104b3a;
+  --qc-gold: #d4a517;
+  --qc-gold-2: #e6b93c;
+}
+
+/* Scrollbar customization for admin */
+.admin-dashboard ::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.admin-dashboard ::-webkit-scrollbar-track {
+  background: rgba(148, 163, 184, 0.1);
+  border-radius: 4px;
+}
+
+.admin-dashboard ::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 4px;
+}
+
+.admin-dashboard ::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.5);
 }
