@@ -11,7 +11,25 @@ export function parseMessageContent(content: string, messageType: string): strin
             const currency = data.currency || 'RWF';
             const note = data.note ? ` - ${data.note}` : '';
 
-            return `Sent ${currency} ${amount.toLocaleString()}${note}`;
+            return `Sent ${new Intl.NumberFormat('en-RW', { 
+                style: 'currency', 
+                currency: currency,
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            }).format(amount)}${note}`;
+        }
+
+        if (data.type === 'group_donation') {
+            const amount = data.amount || 0;
+            const currency = data.currency || 'RWF';
+            const groupName = data.groupName || 'group';
+
+            return `💙 Donated ${new Intl.NumberFormat('en-RW', { 
+                style: 'currency', 
+                currency: currency,
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            }).format(amount)} to ${groupName}`;
         }
 
         return content;
@@ -39,11 +57,14 @@ export function extractMoneyTransferData(content: string): {
     senderName?: string;
     transactionId?: string;
     receiptUrl?: string;
+    type?: 'money_transfer' | 'group_donation';
+    groupId?: string;
+    groupName?: string;
 } | null {
     try {
         const data = JSON.parse(content);
 
-        if (data.type === 'money_transfer') {
+        if (data.type === 'money_transfer' || data.type === 'group_donation') {
             return {
                 amount: data.amount || 0,
                 currency: data.currency || 'RWF',
@@ -52,6 +73,9 @@ export function extractMoneyTransferData(content: string): {
                 senderName: data.senderName,
                 transactionId: data.transactionId,
                 receiptUrl: data.receiptUrl,
+                type: data.type,
+                groupId: data.groupId,
+                groupName: data.groupName,
             };
         }
 

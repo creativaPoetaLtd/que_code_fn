@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -12,6 +13,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Conversation } from '@/types/chat.types';
 import { useChat } from '@/context/ChatContext';
+import { useGetGroupByIdQuery } from '@/states/groupSlice';
+import { useAuthToken } from '@/hooks/use-auth-token';
+import FundraisingProgressBadge from './fundraising-progress-badge';
+import { socketService } from '@/services/socketService';
 import {
   ArrowLeft,
   Info,
@@ -39,6 +44,35 @@ export default function ChatHeader({
   onInviteToGroup,
 }: ChatHeaderProps) {
   const chat = useChat();
+  const { getToken } = useAuthToken();
+  const token = getToken();
+
+  // Fetch group details if it's a group chat
+  const { data: groupData, refetch: refetchGroupData } = useGetGroupByIdQuery(
+    { groupId: conversation.groupId!, token: token! },
+    { skip: !conversation.isGroup || !conversation.groupId || !token }
+  );
+
+  const group = groupData?.data;
+
+  // Listen for real-time fundraising progress updates
+  useEffect(() => {
+    if (!conversation.isGroup || !conversation.groupId) return;
+
+    const handleProgressUpdate = (data: any) => {
+      // Check if the update is for this group
+      if (data.groupId === conversation.groupId) {
+        // Refetch group data to get latest progress
+        refetchGroupData();
+      }
+    };
+
+    socketService.onFundraisingProgress(handleProgressUpdate);
+
+    return () => {
+      socketService.offFundraisingProgress(handleProgressUpdate);
+    };
+  }, [conversation.isGroup, conversation.groupId, refetchGroupData]);
 
   const getOnlineStatus = () => {
     if (conversation.isGroup) {
@@ -94,11 +128,24 @@ export default function ChatHeader({
             <h1 className='text-base sm:text-lg font-semibold text-gray-900 truncate'>
               {conversation.name || 'Unknown Contact'}
             </h1>
-
           </div>
-          <p className='text-xs sm:text-sm text-gray-500 truncate'>
-            {getOnlineStatus()}
-          </p>
+
+          {/* Fundraising Progress for Groups */}
+          {conversation.isGroup && group?.hasFundraising && group.fundraisingTarget && (
+            <div className="mt-1">
+              <FundraisingProgressBadge
+                currentAmount={group.walletBalance ?? group.fundraisingCurrentAmount ?? 0}
+                targetAmount={group.fundraisingTarget}
+              />
+            </div>
+          )}
+
+          {/* Online Status (only show if not fundraising) */}
+          {!(conversation.isGroup && group?.hasFundraising) && (
+            <p className='text-xs sm:text-sm text-gray-500 truncate'>
+              {getOnlineStatus()}
+            </p>
+          )}
         </div>
       </div>
 

@@ -56,8 +56,8 @@ export default function MessageItem({ message }: MessageItemProps) {
     if (isMoneyMessage && messageContent) {
         try {
             const parsed = JSON.parse(messageContent);
-            // Verify it's the new format with required fields
-            if (parsed.type === 'money_transfer' && parsed.transactionId && parsed.amount) {
+            // Verify it's the new format with required fields (money_transfer or group_donation)
+            if ((parsed.type === 'money_transfer' || parsed.type === 'group_donation') && parsed.transactionId && parsed.amount) {
                 moneyTransferData = parsed;
             } else {
                 // Old format - just has note text

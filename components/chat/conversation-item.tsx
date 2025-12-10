@@ -27,8 +27,8 @@ export default function ConversationItem({
         isActive
           ? 'bg-green-50 border-l-4 border-l-[#00B512] shadow-sm'
           : hasUnread
-          ? 'bg-blue-50 border-l-2 border-l-blue-400'
-          : ''
+            ? 'bg-blue-50 border-l-2 border-l-blue-400'
+            : ''
       )}
       onClick={onClick}
     >
