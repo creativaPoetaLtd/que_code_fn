@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -12,6 +12,7 @@ import DeadlineCounter from "./deadline-counter"
 import GroupMembersList from "./group-members-list"
 import { useToast } from "@/hooks/use-toast"
 import { Badge } from "../ui/badge"
+import { socketService } from "@/services/socketService"
 
 interface GroupProfileModalProps {
     isOpen: boolean
@@ -24,7 +25,7 @@ export default function GroupProfileModal({ isOpen, onClose, groupId, token }: G
     const { toast } = useToast()
     const [copiedLink, setCopiedLink] = useState(false)
 
-    const { data: groupData, isLoading: isLoadingGroup } = useGetGroupByIdQuery(
+    const { data: groupData, isLoading: isLoadingGroup, refetch: refetchGroup } = useGetGroupByIdQuery(
         { groupId: groupId!, token },
         { skip: !groupId || !token }
     )
@@ -38,6 +39,33 @@ export default function GroupProfileModal({ isOpen, onClose, groupId, token }: G
     const members = membersData?.data?.members || []
 
     const isLoading = isLoadingGroup || isLoadingMembers
+
+    // Listen for real-time fundraising progress updates
+    useEffect(() => {
+        if (!groupId || !isOpen) return;
+
+        const handleProgressUpdate = (data: any) => {
+            if (data.groupId === groupId) {
+                toast({
+                    title: "New Donation Received!",
+                    description: `${data.donorName} donated ${new Intl.NumberFormat('en-RW', {
+                        style: 'currency',
+                        currency: 'RWF',
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0
+                    }).format(data.donationAmount)}. Progress: ${data.progress.toFixed(1)}%`,
+                });
+                // Refetch group data to update UI
+                refetchGroup();
+            }
+        };
+
+        socketService.onFundraisingProgress(handleProgressUpdate);
+
+        return () => {
+            socketService.offFundraisingProgress(handleProgressUpdate);
+        };
+    }, [groupId, isOpen, refetchGroup, toast]);
 
     const handleCopyLink = async () => {
         if (group?.accessLink) {
@@ -150,8 +178,21 @@ export default function GroupProfileModal({ isOpen, onClose, groupId, token }: G
                             {/* Fundraising Section */}
                             {group.hasFundraising && group.fundraisingTarget && (
                                 <div className="space-y-2 bg-gray-50 rounded-lg p-3 border border-gray-200">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <h4 className="font-semibold text-xs text-gray-700">Fundraising Progress</h4>
+                                        {group.walletBalance !== undefined && (
+                                            <span className="text-xs font-medium text-[#00313A]">
+                                                {new Intl.NumberFormat('en-RW', {
+                                                    style: 'currency',
+                                                    currency: 'RWF',
+                                                    minimumFractionDigits: 0,
+                                                    maximumFractionDigits: 0
+                                                }).format(group.walletBalance)}
+                                            </span>
+                                        )}
+                                    </div>
                                     <GroupProgressBar
-                                        currentAmount={group.fundraisingCurrentAmount}
+                                        currentAmount={group.walletBalance ?? group.fundraisingCurrentAmount}
                                         targetAmount={group.fundraisingTarget}
                                     />
                                     {group.expirationDate && (

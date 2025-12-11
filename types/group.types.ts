@@ -33,6 +33,9 @@ export interface Group {
     hasFundraising: boolean
     fundraisingTarget?: number
     fundraisingCurrentAmount: number
+    fundraisingProgress?: number
+    walletId?: string
+    walletBalance?: number
     expirationDate?: string
     expirationType: 'custom_date' | 'target_reached' | 'deadline_reached' | 'never'
     hasAdditionalInfo: boolean

@@ -109,9 +109,10 @@ export default function SendMoneyModal({ isOpen, onClose, recipient = "", curren
             }).unwrap()
 
             if (result.success) {
+                const actionText = currentConversation?.isGroup ? 'donated' : 'sent';
                 toast({
-                    title: "Money Sent Successfully!",
-                    description: result.message || `$${amount.toFixed(2)} sent to ${currentConversation?.name}`,
+                    title: currentConversation?.isGroup ? "Donation Sent Successfully!" : "Money Sent Successfully!",
+                    description: result.message || `$${amount.toFixed(2)} ${actionText} to ${currentConversation?.name}`,
                 })
 
                 if (result.data?.message && addMessage) {
@@ -171,8 +172,14 @@ export default function SendMoneyModal({ isOpen, onClose, recipient = "", curren
     const renderStep1 = () => (
         <div className="flex flex-col items-center py-6">
             <div className="text-center mb-6">
-                <h3 className="text-xl font-semibold mb-1">How much do you want to send?</h3>
-                <p className="text-gray-500">Enter the amount you want to transfer</p>
+                <h3 className="text-xl font-semibold mb-1">
+                    {currentConversation?.isGroup ? 'How much do you want to donate?' : 'How much do you want to send?'}
+                </h3>
+                <p className="text-gray-500">
+                    {currentConversation?.isGroup 
+                        ? 'Enter the amount you want to contribute' 
+                        : 'Enter the amount you want to transfer'}
+                </p>
             </div>
 
             {/* Wallet Balance Display */}
@@ -304,10 +311,10 @@ export default function SendMoneyModal({ isOpen, onClose, recipient = "", curren
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <div className="flex items-center">
-                            <div className="bg-green-100 p-2 rounded-full mr-3">
-                                <DollarSign size={20} className="text-green-600" />
+                            <div className={`p-2 rounded-full mr-3 ${currentConversation?.isGroup ? 'bg-blue-100' : 'bg-green-100'}`}>
+                                <DollarSign size={20} className={currentConversation?.isGroup ? 'text-blue-600' : 'text-green-600'} />
                             </div>
-                            <DialogTitle>Send Money</DialogTitle>
+                            <DialogTitle>{currentConversation?.isGroup ? 'Donate to Group' : 'Send Money'}</DialogTitle>
                         </div>
                     </DialogHeader>
 
@@ -328,7 +335,7 @@ export default function SendMoneyModal({ isOpen, onClose, recipient = "", curren
                             <Button
                                 onClick={handleNext}
                                 disabled={amount <= 0 || (walletBalance !== null && amount > walletBalance)}
-                                className="bg-green-600 hover:bg-green-700"
+                                className={currentConversation?.isGroup ? "bg-blue-600 hover:bg-blue-700" : "bg-green-600 hover:bg-green-700"}
                             >
                                 Next
                             </Button>
@@ -336,7 +343,7 @@ export default function SendMoneyModal({ isOpen, onClose, recipient = "", curren
                             <Button
                                 onClick={handleSubmit}
                                 disabled={pin.length !== 4 || loading}
-                                className="bg-green-600 hover:bg-green-700 flex items-center"
+                                className={`flex items-center ${currentConversation?.isGroup ? "bg-blue-600 hover:bg-blue-700" : "bg-green-600 hover:bg-green-700"}`}
                             >
                                 {loading ? (
                                     <>
@@ -346,7 +353,7 @@ export default function SendMoneyModal({ isOpen, onClose, recipient = "", curren
                                 ) : (
                                     <>
                                         <Send size={16} className="mr-1" />
-                                        Send Money
+                                        {currentConversation?.isGroup ? 'Donate' : 'Send Money'}
                                     </>
                                 )}
                             </Button>

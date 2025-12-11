@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Download, CheckCircle, ArrowRight } from "lucide-react";
+import { Download, CheckCircle, ArrowRight, Heart, TrendingUp } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { useDownloadTransactionReceiptMutation } from "@/states/chatSlice";
 
 interface MoneyTransferData {
-    type: 'money_transfer';
+    type: 'money_transfer' | 'group_donation';
     amount: number;
     currency: string;
     senderName: string;
@@ -20,6 +20,8 @@ interface MoneyTransferData {
     timestamp: string;
     receiptUrl?: string;
     receiptFileName?: string;
+    groupId?: string;
+    groupName?: string;
 }
 
 interface MoneyMessageCardProps {
@@ -29,11 +31,14 @@ interface MoneyMessageCardProps {
 
 export const MoneyMessageCard: React.FC<MoneyMessageCardProps> = ({ data, isMe }) => {
     const [downloadReceipt, { isLoading }] = useDownloadTransactionReceiptMutation();
+    const isGroupDonation = data.type === 'group_donation';
 
     const formatAmount = (amount: number, currency: string) => {
-        return new Intl.NumberFormat('en-US', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
+        return new Intl.NumberFormat('en-RW', {
+            style: 'currency',
+            currency: currency,
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
         }).format(amount);
     };
 
@@ -79,19 +84,31 @@ export const MoneyMessageCard: React.FC<MoneyMessageCardProps> = ({ data, isMe }
     };
 
     return (
-        <Card className={`max-w-md ${isMe ? 'ml-auto bg-blue-50 border-blue-200' : 'mr-auto bg-white'}`}>
+        <Card className={`max-w-md ${isMe ? 'ml-auto' : 'mr-auto'} ${isGroupDonation ? 'bg-blue-50 border-blue-200' : (isMe ? 'bg-green-50 border-green-200' : 'bg-white')}`}>
             <CardContent className="p-4 space-y-3">
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center">
-                            <span className="text-white font-bold text-lg">
-                                {data.currency === 'RWF' ? 'RWF' : data.currency}
-                            </span>
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isGroupDonation
+                                ? 'bg-gradient-to-br from-blue-400 to-blue-600'
+                                : 'bg-gradient-to-br from-green-400 to-green-600'
+                            }`}>
+                            {isGroupDonation ? (
+                                <Heart className="w-5 h-5 text-white fill-current" />
+                            ) : (
+                                <span className="text-white font-bold text-sm">
+                                    {data.currency === 'RWF' ? 'Fr' : data.currency}
+                                </span>
+                            )}
                         </div>
                         <div>
-                            <p className="text-xs text-gray-500 font-medium">Money Transfer</p>
-                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
+                            <p className="text-xs text-gray-500 font-medium">
+                                {isGroupDonation ? 'Group Donation' : 'Money Transfer'}
+                            </p>
+                            <Badge variant="outline" className={`text-xs ${isGroupDonation
+                                    ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                    : 'bg-green-50 text-green-700 border-green-200'
+                                }`}>
                                 <CheckCircle className="w-3 h-3 mr-1" />
                                 Completed
                             </Badge>
@@ -99,13 +116,30 @@ export const MoneyMessageCard: React.FC<MoneyMessageCardProps> = ({ data, isMe }
                     </div>
                 </div>
 
+                {/* Group Name Badge for donations */}
+                {isGroupDonation && data.groupName && (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-blue-100 rounded-lg border border-blue-200">
+                        <TrendingUp className="w-4 h-4 text-blue-700" />
+                        <div className="flex-1">
+                            <p className="text-xs text-blue-600 font-medium">Fundraising Group</p>
+                            <p className="font-semibold text-blue-900">{data.groupName}</p>
+                        </div>
+                    </div>
+                )}
+
                 <Separator />
 
                 {/* Amount Section */}
-                <div className="text-center py-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg">
-                    <p className="text-sm text-gray-600 mb-1">Amount Transferred</p>
-                    <p className="text-3xl font-bold text-green-600">
-                        {data.currency} {formatAmount(data.amount, data.currency)}
+                <div className={`text-center py-3 rounded-lg ${isGroupDonation
+                        ? 'bg-gradient-to-r from-blue-50 to-blue-100'
+                        : 'bg-gradient-to-r from-green-50 to-emerald-50'
+                    }`}>
+                    <p className="text-sm text-gray-600 mb-1">
+                        {isGroupDonation ? 'Donation Amount' : 'Amount Transferred'}
+                    </p>
+                    <p className={`text-3xl font-bold ${isGroupDonation ? 'text-blue-600' : 'text-green-600'
+                        }`}>
+                        {formatAmount(data.amount, data.currency)}
                     </p>
                 </div>
 
@@ -165,7 +199,10 @@ export const MoneyMessageCard: React.FC<MoneyMessageCardProps> = ({ data, isMe }
                     onClick={handleDownloadReceipt}
                     disabled={isLoading}
                     variant="outline"
-                    className="w-full bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 border-blue-200 text-blue-700 font-semibold disabled:opacity-50"
+                    className={`w-full font-semibold disabled:opacity-50 ${isGroupDonation
+                            ? 'bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 border-blue-200 text-blue-700'
+                            : 'bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 border-green-200 text-green-700'
+                        }`}
                 >
                     <Download className="w-4 h-4 mr-2" />
                     {isLoading ? 'Downloading...' : 'Download Receipt (PDF)'}
@@ -173,7 +210,9 @@ export const MoneyMessageCard: React.FC<MoneyMessageCardProps> = ({ data, isMe }
 
                 {/* Footer */}
                 <p className="text-xs text-center text-gray-400 pt-1">
-                    This is an official payment confirmation
+                    {isGroupDonation
+                        ? 'This is an official donation confirmation'
+                        : 'This is an official payment confirmation'}
                 </p>
             </CardContent>
         </Card>

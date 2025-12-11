@@ -465,6 +465,48 @@ class SocketService {
         }
     }
 
+    // Listen for group donation events
+    onGroupDonation(callback: (data: any) => void) {
+        if (this.socket) {
+            this.socket.on("group_donation_received", callback)
+        }
+    }
+
+    offGroupDonation(callback?: (data: any) => void) {
+        if (this.socket) {
+            if (callback) {
+                this.socket.off("group_donation_received", callback)
+            } else {
+                this.socket.off("group_donation_received")
+            }
+        }
+    }
+
+    // Listen for fundraising progress updates
+    onFundraisingProgress(callback: (data: {
+        groupId: string;
+        groupName: string;
+        currentAmount: number;
+        targetAmount: number;
+        progress: number;
+        donorName: string;
+        donationAmount: number;
+    }) => void) {
+        if (this.socket) {
+            this.socket.on("fundraising_progress_update", callback)
+        }
+    }
+
+    offFundraisingProgress(callback?: (data: any) => void) {
+        if (this.socket) {
+            if (callback) {
+                this.socket.off("fundraising_progress_update", callback)
+            } else {
+                this.socket.off("fundraising_progress_update")
+            }
+        }
+    }
+
     getSocket() {
         return this.socket
     }

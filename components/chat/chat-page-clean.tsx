@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Layout } from 'antd';
 import ChatArea from '@/components/chat/chat-area';
 import ConversationListLayout from '@/components/chat/conversation-list-layout';
@@ -59,6 +59,32 @@ export default function ChatPageClean() {
   const [showMobileConversationList, setShowMobileConversationList] =
     useState(true);
   const [selectedChat, setSelectedChat] = useState<Conversation | null>(null);
+
+  // Auto-select conversation when activeChat changes (e.g., from joining a group)
+  useEffect(() => {
+    if (activeChat && conversations.length > 0) {
+      const conversation = conversations.find(c => c.id === activeChat);
+      if (conversation && (!selectedChat || conversation.id !== selectedChat.id)) {
+        const conversationData = conversation as any;
+        setSelectedChat({
+          id: conversationData.id,
+          name:
+            conversationData.name ||
+            (conversationData.otherUser
+              ? `${conversationData.otherUser.firstName} ${conversationData.otherUser.lastName}`
+              : 'Unknown Contact'),
+          isGroup: conversationData.isGroup,
+          groupId: conversationData.groupId,
+          avatar: conversationData.avatar,
+          participants: conversationData.participants || [],
+          unreadCount: conversationData.unreadCount || 0,
+          isOnline: conversationData.isOnline || false,
+          memberCount: conversationData.memberCount,
+        });
+        setShowMobileConversationList(false);
+      }
+    }
+  }, [activeChat, conversations]);
 
   const handleConversationSelect = (conversation: any) => {
     setSelectedChat({

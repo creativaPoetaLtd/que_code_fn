@@ -9,13 +9,12 @@ import SearchBar from './search-bar';
 import ConversationFilters, { type FilterType } from './conversation-filters';
 import EmptyState from './empty-state';
 import StartChatModal from './start-chart-modal';
-import GroupsModal from './groups-modal';
 import JoinGroupByLinkModal from './join-group-by-link-modal';
 import CreateGroupModalUpdated from './create-group-modal';
 import type { Conversation } from '@/types/chat.types';
 import { Send, Link } from 'lucide-react'
 import { useAuthToken } from '@/hooks/use-auth-token'
-import { useGetGroupsQuery } from '@/states/groupSlice'
+import { useGetGroupsQuery } from '@/states/groupSlice';
 
 interface ConversationListLayoutProps {
   conversations: Conversation[];
@@ -48,7 +47,6 @@ export default function ConversationListLayout({
     useState<QuickActionType>('conversations');
   const [isStartChatModalOpen, setIsStartChatModalOpen] =
     useState<boolean>(false);
-  const [isGroupsModalOpen, setIsGroupsModalOpen] = useState<boolean>(false);
   const [isJoinGroupByLinkModalOpen, setIsJoinGroupByLinkModalOpen] =
     useState<boolean>(false);
   const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] =
@@ -113,12 +111,16 @@ export default function ConversationListLayout({
           onTabChange={setActiveQuickTab}
           onAddContact={onAddContact}
           onStartNewChat={() => setIsStartChatModalOpen(true)}
-          onViewMyGroups={() => setIsGroupsModalOpen(true)}
+          onViewMyGroups={() => setActiveQuickTab('groups')}
           onCreateGroup={() => setIsCreateGroupModalOpen(true)}
           onJoinGroupByLink={() => setIsJoinGroupByLinkModalOpen(true)}
           onViewContactRequests={onViewContactRequests}
           onStartChatWithContact={contact => {
             onStartNewChat?.(contact);
+            setActiveQuickTab('conversations');
+          }}
+          onJoinGroup={group => {
+            onJoinGroup?.(group);
             setActiveQuickTab('conversations');
           }}
           contactsCount={userCount}
@@ -286,7 +288,7 @@ export default function ConversationListLayout({
                 filterType={activeFilter}
                 hasSearchTerm={!!searchTerm}
                 onStartNewChat={() => setIsStartChatModalOpen(true)}
-                onViewMyGroups={() => setIsGroupsModalOpen(true)}
+                onViewMyGroups={() => setActiveQuickTab('groups')}
                 onJoinGroupByLink={() => setIsJoinGroupByLinkModalOpen(true)}
                 onAddContact={onAddContact}
               />
@@ -300,15 +302,6 @@ export default function ConversationListLayout({
         onStartChat={contact => {
           onStartNewChat?.(contact);
           setIsStartChatModalOpen(false);
-        }}
-        existingConversations={conversations}
-      />
-      <GroupsModal
-        isOpen={isGroupsModalOpen}
-        onClose={() => setIsGroupsModalOpen(false)}
-        onJoinGroup={group => {
-          onJoinGroup?.(group);
-          setIsGroupsModalOpen(false);
         }}
         existingConversations={conversations}
       />

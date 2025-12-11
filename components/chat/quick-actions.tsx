@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
 import {
   MessageCircle,
   UserPlus,
@@ -11,13 +12,24 @@ import {
   User,
   PlusCircle,
   Link,
+  Search,
 } from 'lucide-react';
 import {
   useGetPendingInvitationsUnifiedQuery,
   useGetContactsEnhancedQuery,
 } from '@/states/contactSlice';
-import { useGetGroupsQuery } from '@/states/groupSlice';
+import {
+  useGetGroupsQuery,
+  useLeaveGroupMutation,
+  useRequestToJoinGroupMutation,
+  useDeleteGroupMutation,
+} from '@/states/groupSlice';
 import { useAuthToken } from '@/hooks/use-auth-token';
+import { toast } from '@/hooks/use-toast';
+import GroupCard from './GroupCard';
+import GroupDialogs from './GroupDialogs';
+import GroupJoinRequestsModal from './group-join-requests-modal';
+import InviteToGroupModal from './invite-to-group-modal';
 
 export type QuickActionType = 'conversations' | 'contacts' | 'groups';
 
@@ -31,6 +43,7 @@ interface QuickActionsProps {
   onJoinGroupByLink: () => void;
   onViewContactRequests: () => void;
   onStartChatWithContact: (contact: any) => void;
+  onJoinGroup: (group: any) => void;
   contactsCount?: number;
   groupsCount?: number;
 }
@@ -45,9 +58,24 @@ export default function QuickActions({
   onJoinGroupByLink,
   onViewContactRequests,
   onStartChatWithContact,
+  onJoinGroup,
   contactsCount = 0,
   groupsCount = 0,
 }: QuickActionsProps) {
+  const [groupSearchTerm, setGroupSearchTerm] = useState('');
+  const [dialogState, setDialogState] = useState<{
+    leave: { isOpen: boolean; groupId: string | null };
+    delete: { isOpen: boolean; groupId: string | null };
+  }>({
+    leave: { isOpen: false, groupId: null },
+    delete: { isOpen: false, groupId: null },
+  });
+  const [joinRequestsModal, setJoinRequestsModal] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [inviteModal, setInviteModal] = useState<any>(null);
+
   const { getToken } = useAuthToken();
   const token = getToken();
 
@@ -68,17 +96,192 @@ export default function QuickActions({
   );
 
   // Get groups list when groups tab is active
-  const { data: groupsData, isLoading: groupsLoading } = useGetGroupsQuery(
-    token as string,
-    { skip: !token || activeTab !== 'groups' }
-  );
+  const {
+    data: groupsData,
+    isLoading: groupsLoading,
+    error: groupsError,
+    refetch: refetchGroups,
+  } = useGetGroupsQuery(token as string, {
+    skip: !token || activeTab !== 'groups',
+  });
+
+  const [leaveGroup, { isLoading: isLeaving }] = useLeaveGroupMutation();
+  const [deleteGroup, { isLoading: isDeleting }] = useDeleteGroupMutation();
+  const [requestToJoinGroup, { isLoading: isRequestingJoin }] =
+    useRequestToJoinGroupMutation();
 
   const contactRequestsCount = pendingContactRequests?.invitations?.length || 0;
   const contacts = contactsData?.contacts || [];
-  const groups = groupsData?.data?.groups || [];
+  const groups = Array.isArray(groupsData?.data?.groups)
+    ? groupsData.data.groups
+    : [];
+
+  // Filter groups based on search term
+  const filteredGroups = groups.filter((group: any) => {
+    const search = groupSearchTerm.toLowerCase();
+    return (
+      group?.name?.toLowerCase().includes(search) ||
+      group?.description?.toLowerCase().includes(search)
+    );
+  });
 
   const getInitials = (firstName: string, lastName: string) => {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+  };
+
+  const handleLeaveGroup = async (groupId: string, groupName: string) => {
+    if (!token) {
+      toast({
+        title: 'Authentication Error',
+        description: 'Please log in to leave the group',
+        variant: 'destructive',
+      });
+      return;
+    }
+    try {
+      await leaveGroup({ groupId, token }).unwrap();
+      toast({
+        title: 'Left Group Successfully',
+        description: `You have left "${groupName}". You can rejoin if invited again.`,
+      });
+      refetchGroups();
+      setDialogState(prev => ({
+        ...prev,
+        leave: { isOpen: false, groupId: null },
+      }));
+    } catch (error: any) {
+      toast({
+        title: 'Failed to Leave Group',
+        description:
+          error?.data?.message ||
+          error?.message ||
+          'Something went wrong. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDeleteGroup = async (groupId: string, groupName: string) => {
+    if (!token) {
+      toast({
+        title: 'Authentication Error',
+        description: 'Please log in to delete the group',
+        variant: 'destructive',
+      });
+      return;
+    }
+    try {
+      await deleteGroup({ groupId, token }).unwrap();
+      toast({
+        title: 'Group Deleted Successfully',
+        description: `"${groupName}" has been permanently deleted.`,
+      });
+      refetchGroups();
+      setDialogState(prev => ({
+        ...prev,
+        delete: { isOpen: false, groupId: null },
+      }));
+    } catch (error: any) {
+      toast({
+        title: 'Failed to Delete Group',
+        description:
+          error?.data?.message ||
+          error?.message ||
+          'Something went wrong. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleRequestToJoin = async (groupId: string, groupName: string) => {
+    if (!token) {
+      toast({
+        title: 'Authentication Error',
+        description: 'Please log in to request to join a group',
+        variant: 'destructive',
+      });
+      return;
+    }
+    try {
+      await requestToJoinGroup({ groupId, token }).unwrap();
+      toast({
+        title: 'Request Sent Successfully',
+        description: `Your request to join "${groupName}" has been sent to the group admin.`,
+      });
+      refetchGroups();
+    } catch (error: any) {
+      toast({
+        title: 'Failed to Send Request',
+        description:
+          error?.data?.message ||
+          error?.message ||
+          'Something went wrong. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleManageAction = (action: string, group: any) => {
+    switch (action) {
+      case 'leave':
+        setDialogState(prev => ({
+          ...prev,
+          leave: { isOpen: true, groupId: group.id },
+        }));
+        break;
+      case 'delete':
+        setDialogState(prev => ({
+          ...prev,
+          delete: { isOpen: true, groupId: group.id },
+        }));
+        break;
+      case 'info':
+        toast({
+          title: `${group.name} Details`,
+          description: `${group.memberCount || 0} members • Created ${new Date(
+            group.createdAt
+          ).toLocaleDateString()}`,
+        });
+        break;
+      case 'mute':
+        toast({
+          title: 'Notifications Muted',
+          description: `You won't receive notifications from "${group.name}" anymore.`,
+        });
+        break;
+      case 'unmute':
+        toast({
+          title: 'Notifications Enabled',
+          description: `You'll now receive notifications from "${group.name}".`,
+        });
+        break;
+      case 'invite':
+        setInviteModal(group);
+        break;
+      case 'settings':
+        toast({
+          title: 'Group Settings',
+          description: 'Group settings will be available soon.',
+        });
+        break;
+      case 'view':
+        toast({
+          title: 'View Group',
+          description: `Viewing details for "${group.name}".`,
+        });
+        break;
+      default:
+        break;
+    }
+  };
+
+  const handleJoinGroup = (group: any) => {
+    onJoinGroup(group);
+    onTabChange('conversations'); // Switch to conversations tab
+    toast({
+      title: 'Opening Group Chat',
+      description: `Welcome to ${group.name}! Opening your chat...`,
+    });
   };
 
   return (
@@ -227,6 +430,20 @@ export default function QuickActions({
 
         {activeTab === 'groups' && (
           <div className='space-y-2'>
+            {/* Search Bar */}
+            <div className='relative mb-3'>
+              <Search
+                className='absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400'
+                size={14}
+              />
+              <Input
+                placeholder='Search groups...'
+                value={groupSearchTerm}
+                onChange={e => setGroupSearchTerm(e.target.value)}
+                className='pl-9 h-8 text-xs'
+              />
+            </div>
+
             {/* Action Buttons */}
             <div className='grid grid-cols-2 gap-2 mb-3'>
               <Button
@@ -257,55 +474,111 @@ export default function QuickActions({
                   Loading groups...
                 </span>
               </div>
-            ) : groups.length > 0 ? (
-              <div className='space-y-1'>
-                <p className='text-xs text-gray-500 mb-2'>
-                  Your Groups ({groups.length})
+            ) : groupsError ? (
+              <div className='text-center py-4'>
+                <p className='text-xs text-red-500 mb-2'>
+                  Failed to load groups
                 </p>
-                {groups.slice(0, 8).map((group: any) => (
-                  <div
+                <Button
+                  variant='outline'
+                  size='sm'
+                  onClick={() => refetchGroups()}
+                  className='h-7 text-xs'
+                >
+                  Try Again
+                </Button>
+              </div>
+            ) : filteredGroups.length > 0 ? (
+              <div className='space-y-2 max-h-[calc(100vh-400px)] overflow-y-auto pr-1'>
+                <p className='text-xs text-gray-500 mb-2'>
+                  {groupSearchTerm
+                    ? `Found ${filteredGroups.length} group${
+                        filteredGroups.length !== 1 ? 's' : ''
+                      }`
+                    : `Your Groups (${filteredGroups.length})`}
+                </p>
+                {filteredGroups.map((group: any) => (
+                  <GroupCard
                     key={group.id}
-                    className='flex items-center justify-between p-2 bg-gray-50 rounded-md hover:bg-gray-100 transition-colors'
-                  >
-                    <div className='flex items-center space-x-2 flex-1 min-w-0'>
-                      <div className='w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-xs text-white font-medium'>
-                        <Users size={12} />
-                      </div>
-                      <div className='flex-1 min-w-0'>
-                        <p className='text-xs font-medium truncate'>
-                          {group.name}
-                        </p>
-                        <p className='text-xs text-gray-400 truncate'>
-                          {group.memberCount || 0} members
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      variant='ghost'
-                      size='sm'
-                      onClick={() => onViewMyGroups?.()}
-                      className='h-6 w-6 p-0 hover:bg-green-100'
-                    >
-                      <MessageCircle size={12} className='text-green-600' />
-                    </Button>
-                  </div>
+                    group={group}
+                    onJoinGroup={handleJoinGroup}
+                    onRequestToJoin={handleRequestToJoin}
+                    onManageAction={handleManageAction}
+                    onViewRequests={setJoinRequestsModal}
+                    isRequestingJoin={isRequestingJoin}
+                  />
                 ))}
-                {groups.length > 8 && (
-                  <p className='text-xs text-gray-400 text-center mt-2'>
-                    +{groups.length - 8} more groups
-                  </p>
-                )}
               </div>
             ) : (
               <div className='text-center py-4'>
-                <p className='text-xs text-gray-500 mb-2'>
-                  You don't belong to any groups yet
-                </p>
+                {groupSearchTerm ? (
+                  <>
+                    <p className='text-xs text-gray-500 mb-2'>
+                      No groups found for "{groupSearchTerm}"
+                    </p>
+                    <Button
+                      variant='outline'
+                      size='sm'
+                      onClick={() => setGroupSearchTerm('')}
+                      className='h-7 text-xs'
+                    >
+                      Clear Search
+                    </Button>
+                  </>
+                ) : (
+                  <p className='text-xs text-gray-500 mb-2'>
+                    You don't belong to any groups yet
+                  </p>
+                )}
               </div>
             )}
           </div>
         )}
       </div>
+
+      {/* Group Dialogs */}
+      <GroupDialogs
+        leaveDialog={dialogState.leave}
+        deleteDialog={dialogState.delete}
+        groups={groups}
+        isLeaving={isLeaving}
+        isDeleting={isDeleting}
+        onLeaveGroup={handleLeaveGroup}
+        onDeleteGroup={handleDeleteGroup}
+        onCloseLeaveDialog={() =>
+          setDialogState(prev => ({
+            ...prev,
+            leave: { isOpen: false, groupId: null },
+          }))
+        }
+        onCloseDeleteDialog={() =>
+          setDialogState(prev => ({
+            ...prev,
+            delete: { isOpen: false, groupId: null },
+          }))
+        }
+      />
+
+      {/* Join Requests Modal */}
+      {joinRequestsModal && (
+        <GroupJoinRequestsModal
+          isOpen={true}
+          onClose={() => setJoinRequestsModal(null)}
+          groupId={joinRequestsModal.id}
+          groupName={joinRequestsModal.name}
+          token={token as string}
+        />
+      )}
+
+      {/* Invite Modal */}
+      {inviteModal && (
+        <InviteToGroupModal
+          isOpen={true}
+          onClose={() => setInviteModal(null)}
+          group={inviteModal}
+          token={token}
+        />
+      )}
     </div>
   );
 }
