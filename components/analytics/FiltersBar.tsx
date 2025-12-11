@@ -70,30 +70,30 @@ const FiltersBar: React.FC<FiltersBarProps> = ({
     }
 
     return (
-        <Card className="p-5 bg-white border border-gray-200">
+        <Card className="p-5 bg-white dark:bg-darkBg-card border border-gray-200 dark:border-darkBorder-light transition-colors duration-300">
             <div className="space-y-4">
                 {/* Title */}
                 <div>
-                    <h3 className="text-sm font-semibold text-gray-900">Filters</h3>
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Filters</h3>
                 </div>
 
                 {/* Filter Inputs Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     {/* Period Type */}
                     <div className="space-y-1">
-                        <label className="text-xs font-medium text-gray-700 block">Period Type</label>
+                        <label className="text-xs font-medium text-gray-700 dark:text-gray-300 block">Period Type</label>
                         <Select
                             value={selectedPeriod}
                             onChange={handlePeriodChange}
                             options={periodOptions}
-                            className="w-full"
+                            className="w-full [&_.ant-select-selector]:dark:bg-darkBg-main [&_.ant-select-selector]:dark:border-darkBorder-light [&_.ant-select-selector]:dark:text-white"
                             size="large"
                         />
                     </div>
 
                     {/* Date Range */}
                     <div className="space-y-1">
-                        <label className="text-xs font-medium text-gray-700 block">Date Range</label>
+                        <label className="text-xs font-medium text-gray-700 dark:text-gray-300 block">Date Range</label>
                         <RangePicker
                             value={dateRange.startDate && dateRange.endDate ? [
                                 dayjs(dateRange.startDate as Date),
@@ -101,7 +101,7 @@ const FiltersBar: React.FC<FiltersBarProps> = ({
                             ] as [Dayjs, Dayjs] : undefined}
                             onChange={handleDateRangeChange}
                             format="MMM DD, YYYY"
-                            className="w-full"
+                            className="w-full [&_.ant-picker]:dark:bg-darkBg-main [&_.ant-picker]:dark:border-darkBorder-light [&_.ant-picker-input]:dark:text-white"
                             size="large"
                             placeholder={['Start Date', 'End Date']}
                             allowClear={false}

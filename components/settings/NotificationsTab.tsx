@@ -52,19 +52,19 @@ export const NotificationsTab: React.FC = () => {
   };
 
   return (
-    <Card>
+    <Card className="dark:bg-darkBg-card dark:border-darkBorder-light">
       <CardHeader>
-        <CardTitle>Notification Preferences</CardTitle>
-        <CardDescription>Choose how you want to be notified</CardDescription>
+        <CardTitle className="dark:text-white">Notification Preferences</CardTitle>
+        <CardDescription className="dark:text-gray-400">Choose how you want to be notified</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div>
-          <h3 className="text-lg font-medium mb-3">Transaction Notifications</h3>
+          <h3 className="text-lg font-medium mb-3 dark:text-white">Transaction Notifications</h3>
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label htmlFor="notify-sent">Money Sent</Label>
-                <p className="text-sm text-gray-500">Get notified when you send money</p>
+                <Label htmlFor="notify-sent" className="dark:text-gray-300">Money Sent</Label>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Get notified when you send money</p>
               </div>
               <Switch 
                 id="notify-sent" 
@@ -72,11 +72,11 @@ export const NotificationsTab: React.FC = () => {
                 onCheckedChange={(checked) => updateSetting('notifySent', checked)}
               />
             </div>
-            <Separator />
+            <Separator className="dark:bg-darkBorder-light" />
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label htmlFor="notify-received">Money Received</Label>
-                <p className="text-sm text-gray-500">Get notified when you receive money</p>
+                <Label htmlFor="notify-received" className="dark:text-gray-300">Money Received</Label>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Get notified when you receive money</p>
               </div>
               <Switch 
                 id="notify-received" 
@@ -84,11 +84,11 @@ export const NotificationsTab: React.FC = () => {
                 onCheckedChange={(checked) => updateSetting('notifyReceived', checked)}
               />
             </div>
-            <Separator />
+            <Separator className="dark:bg-darkBorder-light" />
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label htmlFor="notify-requested">Money Requested</Label>
-                <p className="text-sm text-gray-500">Get notified when someone requests money from you</p>
+                <Label htmlFor="notify-requested" className="dark:text-gray-300">Money Requested</Label>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Get notified when someone requests money from you</p>
               </div>
               <Switch 
                 id="notify-requested" 
@@ -171,7 +171,7 @@ export const NotificationsTab: React.FC = () => {
       </CardContent>
       <CardFooter>
         <Button 
-          className="bg-[#00B512] hover:bg-[#009E10]"
+          className="bg-[#00B512] hover:bg-[#009E10] dark:bg-brand-gold dark:hover:bg-brand-goldHover text-white dark:text-[#00313A]"
           onClick={handleSavePreferences}
           disabled={saving}
         >

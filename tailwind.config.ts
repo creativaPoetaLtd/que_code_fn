@@ -48,7 +48,24 @@ const config: Config = {
 				},
 				sidebar: {
 					DEFAULT: '#00313A',
-					dark: '#003D52',
+					dark: '#0a1d15',
+				},
+				// Brand Colors
+				brand: {
+					green: '#00B512',
+					gold: '#D4AF37',
+					goldHover: '#C9A530',
+				},
+				// Dark Mode Theme
+				darkBg: {
+					main: '#0c221a',
+					card: '#143d2e',
+					interactive: '#143d2e',
+				},
+				darkBorder: {
+					light: '#1c4d3b',
+					medium: '#25614b',
+					hover: '#2e755c',
 				},
 			},
 			borderRadius: {

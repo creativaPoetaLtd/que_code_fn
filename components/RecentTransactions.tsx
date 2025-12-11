@@ -5,6 +5,7 @@ import { Transaction } from '@/types/dashboard';
 import { useRouter } from 'next/navigation';
 import { useAuthToken } from '@/hooks/use-auth-token';
 import { getUserIdFromToken, isTokenExpired } from '@/utils/jwtUtils';
+import { CheckCircle, Clock, AlertCircle } from 'lucide-react';
 
 export const RecentTransactions: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -58,111 +59,199 @@ export const RecentTransactions: React.FC = () => {
     fetchTransactions();
   }, []);
 
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map((part) => part.charAt(0).toUpperCase())
+      .join('')
+      .slice(0, 2);
+  };
+
   const getTransactionDisplayInfo = (transaction: Transaction) => {
-    const isOutgoing = transaction.type === 'sent';
+    // Determine if it's outgoing based on senderWallet.userId matching currentUserId
+    const isOutgoing = transaction.senderWallet?.userId === currentUserId;
     const transactionAmount = Number(transaction.amount) || 0;
     const transactionFee = Number(transaction.fee) || 0;
     const amount = isOutgoing ? -(transactionAmount + transactionFee) : transactionAmount;
-    const displayName = transaction.description || (isOutgoing ? 'Money Sent' : 'Money Received');
+    
+    // Get recipient/sender name with better fallback logic
+    let counterpartyName = 'Transaction';
+    let isToOrganization = false;
+    
+    if (isOutgoing) {
+      // Sending money - check receiver first
+      if (transaction.receiverWallet?.organization?.name) {
+        counterpartyName = transaction.receiverWallet.organization.name;
+        isToOrganization = true;
+      } else if (transaction.receiverWallet?.user?.firstName || transaction.receiverWallet?.user?.lastName) {
+        counterpartyName = `${transaction.receiverWallet.user.firstName || ''} ${transaction.receiverWallet.user.lastName || ''}`.trim();
+      } else if (transaction.description) {
+        counterpartyName = transaction.description;
+      } else {
+        counterpartyName = 'Money Sent';
+      }
+    } else {
+      // Receiving money - check sender first
+      if (transaction.senderWallet?.organization?.name) {
+        counterpartyName = transaction.senderWallet.organization.name;
+      } else if (transaction.senderWallet?.user?.firstName || transaction.senderWallet?.user?.lastName) {
+        counterpartyName = `${transaction.senderWallet.user.firstName || ''} ${transaction.senderWallet.user.lastName || ''}`.trim();
+      } else if (transaction.description) {
+        counterpartyName = transaction.description;
+      } else {
+        counterpartyName = 'Money Received';
+      }
+    }
+
+    // Determine transaction status (assuming completed for now, can be enhanced based on API response)
+    const status = transaction.status || 'completed'; // 'completed', 'pending', 'failed'
     const transactionType = isOutgoing ? 'Sent' : 'Received';
 
-    return { amount, displayName, transactionType, isOutgoing };
+    return { amount, counterpartyName, transactionType, isOutgoing, isToOrganization, status };
   };
 
   if (loading) {
-    return <div className="bg-white rounded-xl shadow-sm p-6">Loading transactions...</div>;
+    return (
+      <div className="bg-white dark:bg-darkBg-card rounded-2xl shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-100 dark:border-darkBorder-light overflow-hidden">
+        <div className="flex justify-between items-center p-3 sm:p-4 border-b border-gray-100 dark:border-darkBorder-light">
+          <h3 className="text-base sm:text-lg text-[#00313A] dark:text-white font-semibold">Recent transactions</h3>
+        </div>
+        <div className="p-6 text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-green dark:border-brand-gold mx-auto"></div>
+          <p className="text-gray-600 dark:text-gray-400 mt-3">Loading transactions...</p>
+        </div>
+      </div>
+    );
   }
+
   if (error) {
-    return <div className="bg-white rounded-xl shadow-sm p-6 text-red-500">{error}</div>;
+    return (
+      <div className="bg-white dark:bg-darkBg-card rounded-2xl shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-100 dark:border-darkBorder-light overflow-hidden">
+        <div className="flex justify-between items-center p-3 sm:p-4 border-b border-gray-100 dark:border-darkBorder-light">
+          <h3 className="text-base sm:text-lg text-[#00313A] dark:text-white font-semibold">Recent transactions</h3>
+        </div>
+        <div className="p-6 text-center">
+          <p className="text-red-500 dark:text-red-400 font-medium">{error}</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-2">Unable to load transactions</p>
+        </div>
+      </div>
+    );
   }
+
   const displayedTransactions = transactions.slice(0, 5);
   if (displayedTransactions.length === 0) {
     return (
-      <div className="bg-white rounded-xl shadow-sm p-6">
-        <h3 className="text-xl sm:text-2xl text-[#00313A] font-semibold mb-4">Recent Transactions</h3>
-        <div className="text-center py-8 text-gray-500">
-          No transactions found. Start by sending or receiving money!
+      <div className="bg-white dark:bg-darkBg-card rounded-2xl shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-100 dark:border-darkBorder-light overflow-hidden">
+        <div className="flex justify-between items-center p-3 sm:p-4 border-b border-gray-100 dark:border-darkBorder-light">
+          <h3 className="text-base sm:text-lg text-[#00313A] dark:text-white font-semibold">Recent transactions</h3>
+        </div>
+        <div className="p-6 text-center">
+          <p className="text-gray-500 dark:text-gray-400">No transactions found.</p>
+          <p className="text-gray-400 dark:text-gray-500 text-sm mt-1">Start by sending or receiving money!</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm">
+    <div className="bg-white dark:bg-darkBg-card rounded-2xl shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-100 dark:border-darkBorder-light overflow-hidden">
       {/* Header */}
-      <div className="flex justify-between items-center p-4 sm:p-6">
-        <h3 className="text-xl sm:text-2xl text-[#00313A] font-semibold">Recent Transactions</h3>
+      <div className="flex justify-between items-center p-3 sm:p-4 border-b border-gray-100 dark:border-darkBorder-light">
+        <h3 className="text-base sm:text-lg text-[#00313A] dark:text-white font-semibold">Recent transactions</h3>
         <button
           onClick={() => router.push('/transactions')}
-          className="text-sm text-gray-500 hover:text-gray-700 transition-colors duration-200 flex items-center gap-1"
+          className="relative text-sm text-brand-green dark:text-brand-gold hover:text-brand-green/80 dark:hover:text-brand-goldHover transition-colors duration-200 font-medium group"
         >
-          <span className="hidden sm:inline">All transactions</span>
-          <span className="inline sm:hidden">View all</span>
-          <span>→</span>
+          View all
+          <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-brand-green dark:bg-brand-gold group-hover:w-full transition-all duration-300 ease-out"></span>
         </button>
       </div>
-      {/* Desktop Table View */}
-      <div className="hidden sm:block overflow-x-auto">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="border-t border-gray-100">
-              <th className="px-6 py-3 text-sm font-medium text-gray-600">Transactions</th>
-              <th className="px-6 py-3 text-sm font-medium text-gray-600 text-right">Amount</th>
-              <th className="px-6 py-3 text-sm font-medium text-gray-600 text-right">Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {displayedTransactions.map((transaction) => {
-              const { amount, displayName, transactionType, isOutgoing } = getTransactionDisplayInfo(transaction);
-              return (
-                <tr key={transaction.id} className="border-t border-gray-100 hover:bg-gray-50 transition-colors duration-200">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
-                        <span className="text-gray-400">{isOutgoing ? '📤' : '📥'}</span>
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{displayName}</p>
-                        <p className="text-sm text-gray-500">{transactionType} • {transaction.status}</p>
+      
+      {/* Mobile & Desktop List View */}
+      <div className="divide-y divide-gray-100 dark:divide-darkBorder-light">
+        {displayedTransactions.map((transaction) => {
+          const { amount, counterpartyName, transactionType, isOutgoing, isToOrganization, status } = getTransactionDisplayInfo(transaction);
+          
+          // Determine circle color based on transaction type
+          const getCircleColor = () => {
+            if (isOutgoing) {
+              return isToOrganization ? 'bg-blue-600 dark:bg-blue-600 text-white dark:text-white' : 'bg-green-600 dark:bg-green-600 text-white dark:text-white';
+            }
+            return 'bg-green-600 dark:bg-green-600 text-white dark:text-white';
+          };
+
+          const getStatusIcon = () => {
+            switch (status) {
+              case 'pending':
+                return <Clock size={14} className="text-yellow-500" />;
+              case 'failed':
+                return <AlertCircle size={14} className="text-red-500" />;
+              default:
+                return <CheckCircle size={14} className="text-green-500" />;
+            }
+          };
+
+          const getStatusText = () => {
+            switch (status) {
+              case 'pending':
+                return 'Pending';
+              case 'failed':
+                return 'Failed';
+              default:
+                return 'Completed';
+            }
+          };
+
+          const initials = getInitials(counterpartyName);
+
+          return (
+            <div key={transaction.id} className="p-3 sm:p-4 hover:bg-gray-50 dark:hover:bg-darkBg-interactive transition-colors duration-200 cursor-pointer">
+              <div className="flex items-center gap-3">
+                {/* Circle with initials */}
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 font-semibold text-sm ${getCircleColor()}`}>
+                  {initials}
+                </div>
+
+                {/* Transaction details */}
+                <div className="flex-1 min-w-0">
+                  {/* First line: Name and Amount */}
+                  <div className="flex justify-between items-center gap-2 mb-1">
+                    <p className="font-semibold text-gray-900 dark:text-white truncate text-sm">{counterpartyName}</p>
+                    <span className={`text-sm font-bold flex-shrink-0 ${isOutgoing ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                      {isOutgoing ? '-' : '+'} RWF {isNaN(Math.abs(amount)) ? '0' : Math.abs(amount).toLocaleString()}
+                    </span>
+                  </div>
+
+                  {/* Second line: Type badge, Status, and Date */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      {/* Transaction type badge */}
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                        isOutgoing 
+                          ? isToOrganization 
+                            ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300' 
+                            : 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-300'
+                          : 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-300'
+                      }`}>
+                        {transactionType}
+                      </span>
+
+                      {/* Status indicator */}
+                      <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+                        {getStatusIcon()}
+                        <span>{getStatusText()}</span>
                       </div>
                     </div>
-                  </td>
-                  <td className="px-6 py-4 text-right font-medium">
-                    <span className={amount < 0 ? 'text-red-600' : 'text-green-600'}>
-                      {amount < 0 ? '-' : '+'}RWF {isNaN(Math.abs(amount)) ? '0' : Math.abs(amount).toLocaleString()}
+
+                    {/* Date */}
+                    <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+                      {new Date(transaction.createdAt).toLocaleDateString('en-US', { 
+                        month: 'numeric', 
+                        day: 'numeric'
+                      })}
                     </span>
-                  </td>
-                  <td className="px-6 py-4 text-right text-sm text-gray-500">
-                    {new Date(transaction.createdAt).toLocaleDateString()}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-      {/* Mobile List View */}
-      <div className="sm:hidden divide-y divide-gray-100">
-        {displayedTransactions.map((transaction) => {
-          const { amount, displayName, transactionType, isOutgoing } = getTransactionDisplayInfo(transaction);
-          return (
-            <div key={transaction.id} className="p-4 hover:bg-gray-50 transition-colors duration-200">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
-                    <span className="text-gray-400">{isOutgoing ? '📤' : '📥'}</span>
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">{displayName}</p>
-                    <p className="text-sm text-gray-500">{transactionType} • {transaction.status}</p>
                   </div>
                 </div>
-              </div>
-              <div className="flex justify-between items-center mt-2">
-                <span className="text-sm text-gray-500">{new Date(transaction.createdAt).toLocaleDateString()}</span>
-                <span className={`font-medium ${amount < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                  {amount < 0 ? '-' : '+'}RWF {isNaN(Math.abs(amount)) ? '0' : Math.abs(amount).toLocaleString()}
-                </span>
               </div>
             </div>
           );

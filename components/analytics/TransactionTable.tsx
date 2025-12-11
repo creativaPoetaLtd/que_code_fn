@@ -180,13 +180,13 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ dateRange, activeVi
 
     if (loading) {
         return (
-            <Card className="p-6">
+            <Card className="p-6 dark:bg-darkBg-card">
                 <div className="space-y-4">
-                    <div className="h-8 bg-gray-200 rounded animate-pulse w-32"></div>
+                    <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-32"></div>
                     <div className="overflow-x-auto">
                         <div className="space-y-2">
                             {[...Array(5)].map((_, i) => (
-                                <div key={i} className="h-12 bg-gray-100 rounded animate-pulse"></div>
+                                <div key={i} className="h-12 bg-gray-100 dark:bg-gray-800 rounded animate-pulse"></div>
                             ))}
                         </div>
                     </div>
@@ -197,7 +197,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ dateRange, activeVi
 
     if (error) {
         return (
-            <Card className="p-6 text-center text-red-600">
+            <Card className="p-6 text-center text-red-600 dark:text-red-400 dark:bg-darkBg-card">
                 <p>Error loading transaction data</p>
             </Card>
         )
@@ -205,7 +205,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ dateRange, activeVi
 
     if (tableData.length === 0) {
         return (
-            <Card className="p-6 text-center text-gray-500">
+            <Card className="p-6 text-center text-gray-500 dark:text-gray-400 dark:bg-darkBg-card">
                 <p>No transaction data available for the selected period</p>
             </Card>
         )
@@ -216,19 +216,19 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ dateRange, activeVi
         // Handle loading state
         if (txnLoading) {
             return (
-                <Card className="p-6">
+                <Card className="p-6 dark:bg-darkBg-card">
                     <div className="flex items-center justify-between mb-6">
                         <button
                             onClick={() => setSelectedPeriod(null)}
-                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                         >
-                            <ChevronLeft className="w-5 h-5 text-gray-600" />
+                            <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                         </button>
-                        <h3 className="text-lg font-bold text-gray-900">Loading transactions...</h3>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">Loading transactions...</h3>
                     </div>
                     <div className="space-y-3">
                         {[...Array(4)].map((_, i) => (
-                            <div key={i} className="h-24 bg-gray-100 rounded animate-pulse"></div>
+                            <div key={i} className="h-24 bg-gray-100 dark:bg-gray-800 rounded animate-pulse"></div>
                         ))}
                     </div>
                 </Card>
@@ -238,17 +238,17 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ dateRange, activeVi
         // Handle error state
         if (txnError) {
             return (
-                <Card className="p-6">
+                <Card className="p-6 dark:bg-darkBg-card">
                     <div className="flex items-center gap-3 mb-6">
                         <button
                             onClick={() => setSelectedPeriod(null)}
-                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                         >
-                            <ChevronLeft className="w-5 h-5 text-gray-600" />
+                            <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                         </button>
                         <div>
-                            <h3 className="text-lg font-bold text-red-600">Error loading transactions</h3>
-                            <p className="text-sm text-gray-500">{txnError}</p>
+                            <h3 className="text-lg font-bold text-red-600 dark:text-red-400">Error loading transactions</h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">{txnError}</p>
                         </div>
                     </div>
                 </Card>
@@ -256,22 +256,22 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ dateRange, activeVi
         }
 
         return (
-            <Card className="p-4 lg:p-6">
+            <Card className="p-4 lg:p-6 dark:bg-darkBg-card">
                 {/* Header with Back Button */}
                 <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => setSelectedPeriod(null)}
-                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                         >
-                            <ChevronLeft className="w-5 h-5 text-gray-600" />
+                            <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                         </button>
                         <div>
-                            <h3 className="text-base lg:text-lg font-bold text-gray-900">
+                            <h3 className="text-base lg:text-lg font-bold text-gray-900 dark:text-white">
                                 Transaction Details - {selectedPeriod.period}
                             </h3>
-                            <p className="text-xs text-gray-500 mt-0.5">
-                                Final Balance: <span className="font-semibold text-gray-900">{formatCurrency(selectedPeriod.endingBalance)}</span>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                Final Balance: <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(selectedPeriod.endingBalance)}</span>
                             </p>
                         </div>
                     </div>
@@ -279,7 +279,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ dateRange, activeVi
 
                 {/* Transactions List */}
                 {transactions.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
+                    <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                         <p>No transactions found for this period</p>
                     </div>
                 ) : (
@@ -289,8 +289,8 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ dateRange, activeVi
                                 key={transaction.id}
                                 className={`border-l-4 rounded-lg p-4 ${
                                     transaction.type === 'income'
-                                        ? 'border-l-green-500 bg-green-50'
-                                        : 'border-l-red-500 bg-red-50'
+                                        ? 'border-l-green-500 bg-green-50 dark:bg-green-900/30'
+                                        : 'border-l-red-500 bg-red-50 dark:bg-red-900/30'
                                 }`}
                             >
                                 <div className="flex items-start justify-between gap-3 mb-2">
@@ -298,34 +298,34 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ dateRange, activeVi
                                         <div className="flex items-center gap-2 mb-1">
                                             <span className={`text-sm font-bold ${
                                                 transaction.type === 'income'
-                                                    ? 'text-green-700'
-                                                    : 'text-red-700'
+                                                    ? 'text-green-700 dark:text-green-400'
+                                                    : 'text-red-700 dark:text-red-400'
                                             }`}>
                                                 {transaction.time}
                                             </span>
                                             {transaction.category && (
-                                                <span className="text-xs px-2 py-0.5 bg-gray-200 text-gray-700 rounded">
+                                                <span className="text-xs px-2 py-0.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded">
                                                     {transaction.category}
                                                 </span>
                                             )}
                                         </div>
-                                        <p className="text-sm font-medium text-gray-900">{transaction.description}</p>
+                                        <p className="text-sm font-medium text-gray-900 dark:text-white">{transaction.description}</p>
                                     </div>
                                     <div className={`text-right font-bold ${
                                         transaction.type === 'income'
-                                            ? 'text-green-700'
-                                            : 'text-red-700'
+                                            ? 'text-green-700 dark:text-green-400'
+                                            : 'text-red-700 dark:text-red-400'
                                     }`}>
                                         {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
                                     </div>
                                 </div>
 
-                                <div className="text-xs text-gray-600 mt-2 pt-2 border-t border-gray-200">
+                                <div className="text-xs text-gray-600 dark:text-gray-400 mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
                                     Balance: {formatCurrency(transaction.balanceBefore)} → {formatCurrency(transaction.balanceAfter)}
                                 </div>
 
                                 {transaction.id && (
-                                    <div className="text-xs text-gray-500 mt-2">
+                                    <div className="text-xs text-gray-500 dark:text-gray-500 mt-2">
                                         ID: {transaction.id}
                                     </div>
                                 )}
@@ -335,17 +335,17 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ dateRange, activeVi
                 )}
 
                 {/* Summary Footer */}
-                <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-darkBorder-light">
                     <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
-                            <p className="text-gray-600 mb-1">Total Income</p>
-                            <p className="text-lg font-bold text-green-600">
+                            <p className="text-gray-600 dark:text-gray-400 mb-1">Total Income</p>
+                            <p className="text-lg font-bold text-green-600 dark:text-green-400">
                                 +{formatCurrency(selectedPeriod.income)}
                             </p>
                         </div>
                         <div>
-                            <p className="text-gray-600 mb-1">Total Expenses</p>
-                            <p className="text-lg font-bold text-red-600">
+                            <p className="text-gray-600 dark:text-gray-400 mb-1">Total Expenses</p>
+                            <p className="text-lg font-bold text-red-600 dark:text-red-400">
                                 -{formatCurrency(selectedPeriod.expenses)}
                             </p>
                         </div>
@@ -369,8 +369,8 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ dateRange, activeVi
                         }}
                         className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                             selectedTab === tab
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                ? 'bg-blue-600 dark:bg-blue-700 text-white'
+                                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                         }`}
                     >
                         {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -378,36 +378,36 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ dateRange, activeVi
                 ))}
             </div>
 
-            <Card className="p-0 overflow-hidden border border-gray-200">
+            <Card className="p-0 overflow-hidden border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-card">
                 {/* Header Section */}
-                <div className="px-6 py-4 border-b border-gray-200 bg-white">
-                    <h3 className="text-base lg:text-lg font-bold text-gray-900">
+                <div className="px-6 py-4 border-b border-gray-200 dark:border-darkBorder-light bg-white dark:bg-darkBg-card">
+                    <h3 className="text-base lg:text-lg font-bold text-gray-900 dark:text-white">
                         {selectedTab.charAt(0).toUpperCase() + selectedTab.slice(1)} View
                     </h3>
-                <p className="text-xs text-gray-500 mt-1">Balance flow for each period</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Balance flow for each period</p>
             </div>
 
             {/* Desktop Table */}
             <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-sm">
                     <thead>
-                        <tr className="border-b border-gray-200 bg-gray-50">
-                            <th className="text-left py-4 px-6 font-semibold text-gray-700">
+                        <tr className="border-b border-gray-200 dark:border-darkBorder-light bg-gray-50 dark:bg-gray-900/40">
+                            <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-300">
                                 Period
                             </th>
-                            <th className="text-right py-4 px-6 font-semibold text-gray-700">
+                            <th className="text-right py-4 px-6 font-semibold text-gray-700 dark:text-gray-300">
                                 Starting Balance
                             </th>
-                            <th className="text-right py-4 px-6 font-semibold text-gray-700">
+                            <th className="text-right py-4 px-6 font-semibold text-gray-700 dark:text-gray-300">
                                 Income
                             </th>
-                            <th className="text-right py-4 px-6 font-semibold text-gray-700">
+                            <th className="text-right py-4 px-6 font-semibold text-gray-700 dark:text-gray-300">
                                 Expenses
                             </th>
-                            <th className="text-right py-4 px-6 font-semibold text-gray-700">
+                            <th className="text-right py-4 px-6 font-semibold text-gray-700 dark:text-gray-300">
                                 Ending Balance
                             </th>
-                            <th className="text-center py-4 px-6 font-semibold text-gray-700">
+                            <th className="text-center py-4 px-6 font-semibold text-gray-700 dark:text-gray-300">
                                 Actions
                             </th>
                         </tr>
@@ -416,25 +416,25 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ dateRange, activeVi
                         {paginatedData.map((row: TableRow, index: number) => (
                             <tr
                                 key={index}
-                                className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                                className="border-b border-gray-100 dark:border-darkBorder-light hover:bg-gray-50 dark:hover:bg-gray-900/40 transition-colors"
                             >
-                                <td className="py-4 px-6 text-gray-900 font-medium">{row.period}</td>
-                                <td className="py-4 px-6 text-right text-gray-700">
+                                <td className="py-4 px-6 text-gray-900 dark:text-white font-medium">{row.period}</td>
+                                <td className="py-4 px-6 text-right text-gray-700 dark:text-gray-300">
                                     {formatCurrency(row.startingBalance)}
                                 </td>
-                                <td className="py-4 px-6 text-right text-green-600 font-semibold">
+                                <td className="py-4 px-6 text-right text-green-600 dark:text-green-400 font-semibold">
                                     +{formatCurrency(row.income)}
                                 </td>
-                                <td className="py-4 px-6 text-right text-red-600 font-semibold">
+                                <td className="py-4 px-6 text-right text-red-600 dark:text-red-400 font-semibold">
                                     -{formatCurrency(row.expenses)}
                                 </td>
-                                <td className="py-4 px-6 text-right font-bold text-gray-900">
+                                <td className="py-4 px-6 text-right font-bold text-gray-900 dark:text-white">
                                     {formatCurrency(row.endingBalance)}
                                 </td>
                                 <td className="py-4 px-6 text-center">
                                     <button
                                         onClick={() => setSelectedPeriod(row)}
-                                        className="px-4 py-2 text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 transition-colors"
+                                        className="px-4 py-2 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
                                     >
                                         View Details
                                     </button>
@@ -445,28 +445,28 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ dateRange, activeVi
                 </table>
 
                 {/* Total Row - Below Table */}
-                <div className="border-t-2 border-gray-300 bg-gray-50 px-6 py-4">
+                <div className="border-t-2 border-gray-300 dark:border-darkBorder-medium bg-gray-50 dark:bg-gray-900/40 px-6 py-4">
                     <div className="grid grid-cols-6 gap-4 text-sm">
                         <div>
-                            <p className="font-semibold text-gray-900">Total</p>
+                            <p className="font-semibold text-gray-900 dark:text-white">Total</p>
                         </div>
                         <div className="text-right">-</div>
                         <div className="text-right">
-                            <p className="text-green-600 font-bold">+{formatCurrency(totals.income)}</p>
+                            <p className="text-green-600 dark:text-green-400 font-bold">+{formatCurrency(totals.income)}</p>
                         </div>
                         <div className="text-right">
-                            <p className="text-red-600 font-bold">-{formatCurrency(totals.expenses)}</p>
+                            <p className="text-red-600 dark:text-red-400 font-bold">-{formatCurrency(totals.expenses)}</p>
                         </div>
                         <div className="text-right">
-                            <p className="text-gray-900 font-bold">{formatCurrency(totals.endingBalance)}</p>
+                            <p className="text-gray-900 dark:text-white font-bold">{formatCurrency(totals.endingBalance)}</p>
                         </div>
                         <div></div>
                     </div>
                 </div>
 
                 {/* Pagination */}
-                <div className="px-6 py-4 border-t border-gray-200 bg-white flex items-center justify-between">
-                    <div className="text-sm text-gray-600">
+                <div className="px-6 py-4 border-t border-gray-200 dark:border-darkBorder-light bg-white dark:bg-darkBg-card flex items-center justify-between">
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
                         Showing <span className="font-semibold">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> to{' '}
                         <span className="font-semibold">
                             {Math.min(currentPage * ITEMS_PER_PAGE, tableData.length)}
@@ -477,7 +477,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ dateRange, activeVi
                         <button
                             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                             disabled={currentPage === 1}
-                            className="p-2 rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="p-2 rounded-md border border-gray-300 dark:border-darkBorder-light text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900/40 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                             <ChevronLeft className="w-4 h-4" />
                         </button>
@@ -488,8 +488,8 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ dateRange, activeVi
                                     onClick={() => setCurrentPage(page)}
                                     className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                                         currentPage === page
-                                            ? 'bg-blue-600 text-white'
-                                            : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                                            ? 'bg-blue-600 dark:bg-blue-700 text-white'
+                                            : 'border border-gray-300 dark:border-darkBorder-light text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900/40'
                                     }`}
                                 >
                                     {page}
@@ -499,7 +499,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ dateRange, activeVi
                         <button
                             onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                             disabled={currentPage === totalPages}
-                            className="p-2 rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="p-2 rounded-md border border-gray-300 dark:border-darkBorder-light text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900/40 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                             <ChevronRight className="w-4 h-4" />
                         </button>
@@ -509,39 +509,39 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ dateRange, activeVi
 
             {/* Mobile View */}
             <div className="md:hidden">
-                <div className="divide-y divide-gray-200">
+                <div className="divide-y divide-gray-200 dark:divide-darkBorder-light">
                     {paginatedData.map((row: TableRow, index: number) => (
-                        <div key={index} className="p-4 space-y-3 hover:bg-gray-50 transition-colors">
-                            <div className="font-semibold text-gray-900 text-sm">{row.period}</div>
+                        <div key={index} className="p-4 space-y-3 hover:bg-gray-50 dark:hover:bg-gray-900/40 transition-colors">
+                            <div className="font-semibold text-gray-900 dark:text-white text-sm">{row.period}</div>
                             <div className="grid grid-cols-2 gap-3 text-xs">
                                 <div>
-                                    <div className="text-gray-600 mb-1">Starting Balance</div>
-                                    <div className="font-medium text-gray-900">
+                                    <div className="text-gray-600 dark:text-gray-400 mb-1">Starting Balance</div>
+                                    <div className="font-medium text-gray-900 dark:text-white">
                                         {formatCurrency(row.startingBalance)}
                                     </div>
                                 </div>
                                 <div>
-                                    <div className="text-gray-600 mb-1">Ending Balance</div>
-                                    <div className="font-medium text-gray-900">
+                                    <div className="text-gray-600 dark:text-gray-400 mb-1">Ending Balance</div>
+                                    <div className="font-medium text-gray-900 dark:text-white">
                                         {formatCurrency(row.endingBalance)}
                                     </div>
                                 </div>
                                 <div>
-                                    <div className="text-gray-600 mb-1">Income</div>
-                                    <div className="font-medium text-green-600">
+                                    <div className="text-gray-600 dark:text-gray-400 mb-1">Income</div>
+                                    <div className="font-medium text-green-600 dark:text-green-400">
                                         +{formatCurrency(row.income)}
                                     </div>
                                 </div>
                                 <div>
-                                    <div className="text-gray-600 mb-1">Expenses</div>
-                                    <div className="font-medium text-red-600">
+                                    <div className="text-gray-600 dark:text-gray-400 mb-1">Expenses</div>
+                                    <div className="font-medium text-red-600 dark:text-red-400">
                                         -{formatCurrency(row.expenses)}
                                     </div>
                                 </div>
                             </div>
                             <button
                                 onClick={() => setSelectedPeriod(row)}
-                                className="w-full px-3 py-2 text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 transition-colors"
+                                className="w-full px-3 py-2 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
                             >
                                 View Details
                             </button>
@@ -550,18 +550,18 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ dateRange, activeVi
                 </div>
 
                 {/* Mobile Totals */}
-                <div className="border-t-2 border-gray-300 bg-gray-50 p-4 space-y-3">
-                    <div className="font-bold text-gray-900 text-sm">Total</div>
+                <div className="border-t-2 border-gray-300 dark:border-darkBorder-medium bg-gray-50 dark:bg-gray-900/40 p-4 space-y-3">
+                    <div className="font-bold text-gray-900 dark:text-white text-sm">Total</div>
                     <div className="grid grid-cols-2 gap-3 text-xs">
                         <div>
-                            <div className="text-gray-600 mb-1">Total Income</div>
-                            <div className="font-bold text-green-600">
+                            <div className="text-gray-600 dark:text-gray-400 mb-1">Total Income</div>
+                            <div className="font-bold text-green-600 dark:text-green-400">
                                 +{formatCurrency(totals.income)}
                             </div>
                         </div>
                         <div>
-                            <div className="text-gray-600 mb-1">Total Expenses</div>
-                            <div className="font-bold text-red-600">
+                            <div className="text-gray-600 dark:text-gray-400 mb-1">Total Expenses</div>
+                            <div className="font-bold text-red-600 dark:text-red-400">
                                 -{formatCurrency(totals.expenses)}
                             </div>
                         </div>
@@ -569,21 +569,21 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ dateRange, activeVi
                 </div>
 
                 {/* Mobile Pagination */}
-                <div className="border-t border-gray-200 bg-white p-4 flex items-center justify-between">
+                <div className="border-t border-gray-200 dark:border-darkBorder-light bg-white dark:bg-darkBg-card p-4 flex items-center justify-between">
                     <button
                         onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                         disabled={currentPage === 1}
-                        className="p-2 rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="p-2 rounded-md border border-gray-300 dark:border-darkBorder-light text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900/40 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                         <ChevronLeft className="w-4 h-4" />
                     </button>
-                    <div className="text-xs text-gray-600 font-medium">
+                    <div className="text-xs text-gray-600 dark:text-gray-400 font-medium">
                         Page {currentPage} of {totalPages}
                     </div>
                     <button
                         onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                         disabled={currentPage === totalPages}
-                        className="p-2 rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="p-2 rounded-md border border-gray-300 dark:border-darkBorder-light text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900/40 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                         <ChevronRight className="w-4 h-4" />
                     </button>

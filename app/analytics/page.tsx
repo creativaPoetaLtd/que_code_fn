@@ -9,10 +9,13 @@ import TransactionTable from '../../components/analytics/TransactionTable'
 import CategoryBreakdown from '../../components/analytics/CategoryBreakdown'
 import KeyInsights from '../../components/analytics/KeyInsights'
 import { DateRange } from '@/types/analytics.types'
+import { useSidebar } from '@/context/SidebarContext'
+import { cn } from '@/lib/utils'
 
 type ViewType = 'daily' | 'weekly' | 'monthly' | 'yearly'
 
 const AnalyticsPage = () => {
+    const { isExpanded } = useSidebar();
     // State for filters
     const [dateRange, setDateRange] = useState<DateRange>({
         startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Last 30 days
@@ -47,12 +50,15 @@ const AnalyticsPage = () => {
         }
     };
     return (
-        <div className="flex flex-col min-h-screen bg-gray-50">
+        <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-darkBg-main transition-colors duration-300">
             {/* Desktop Sidebar */}
             <Navigation />
 
             {/* Main Content */}
-            <main className="flex-1 flex flex-col p-8 lg:ml-20 transition-all duration-300">
+            <main className={cn(
+                "flex-1 flex flex-col p-8 transition-all duration-300",
+                isExpanded ? "lg:ml-64" : "lg:ml-20"
+            )}>
                 <div className="flex-1 overflow-y-auto pb-24 lg:pb-8">
                     {/* Header */}
                     <Header />
@@ -61,8 +67,8 @@ const AnalyticsPage = () => {
                     <div className="space-y-6">
                         {/* Page Title & Filters */}
                         <div className="mb-8">
-                            <h1 className="text-3xl font-bold text-gray-900 mb-1">Analytics</h1>
-                            <p className="text-gray-600 mb-6">Track your spending patterns and financial insights.</p>
+                            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-1">Finances</h1>
+                            <p className="text-gray-600 dark:text-gray-300 mb-6">Track your spending patterns and financial insights.</p>
                             <FiltersBar 
                                 dateRange={dateRange}
                                 onDateRangeChange={handleDateRangeChange}

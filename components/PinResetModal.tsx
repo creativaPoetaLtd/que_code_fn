@@ -14,18 +14,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, Loader2, Mail, MessageSquare } from "lucide-react";
 import { useAuthToken } from "@/hooks/use-auth-token";
-import { requestPinReset, confirmPinReset } from "@/helpers/api";
+import { requestPinReset, confirmPinReset, validateResetToken } from "@/helpers/api";
 
 interface PinResetModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  lockoutError?: string;
 }
 
 export const PinResetModal: React.FC<PinResetModalProps> = ({
   open,
   onOpenChange,
   onSuccess,
+  lockoutError,
 }) => {
   const { getToken } = useAuthToken();
   const [step, setStep] = useState<'method' | 'verify' | 'new-pin'>('method');
@@ -49,6 +51,37 @@ export const PinResetModal: React.FC<PinResetModalProps> = ({
         err.response?.data?.message ||
         "Failed to send reset code. Please try again."
       );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyResetToken = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    if (!resetToken) {
+      setError("Please enter your reset code");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Call the dedicated validation endpoint
+      const response = await validateResetToken(resetToken);
+      
+      // Response is wrapped in response.data
+      if (response?.data?.success) {
+        // Token is valid, proceed to new PIN step
+        setStep('new-pin');
+      } else {
+        // Token is invalid
+        const errorMsg = response?.data?.message || "Invalid or expired reset code";
+        setError(errorMsg);
+      }
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || "Failed to verify reset code. Please try again.";
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -117,6 +150,17 @@ export const PinResetModal: React.FC<PinResetModalProps> = ({
           </DialogDescription>
         </DialogHeader>
 
+        {lockoutError && step === 'method' && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+            <div className="flex items-start space-x-3">
+              <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-red-800">{lockoutError}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {step === 'method' && (
           <div className="space-y-4">
             <div className="space-y-3">
@@ -163,7 +207,7 @@ export const PinResetModal: React.FC<PinResetModalProps> = ({
         )}
 
         {step === 'verify' && (
-          <form onSubmit={(e) => { e.preventDefault(); setStep('new-pin'); }} className="space-y-4">
+          <form onSubmit={handleVerifyResetToken} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="resetToken">Reset Code</Label>
               <Input
@@ -194,7 +238,8 @@ export const PinResetModal: React.FC<PinResetModalProps> = ({
                 Back
               </Button>
               <Button type="submit" disabled={!resetToken || loading}>
-                Continue
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Verify Code
               </Button>
             </DialogFooter>
           </form>

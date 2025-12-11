@@ -81,11 +81,11 @@ const ComparisonChart: React.FC<ComparisonChartProps> = ({ dateRange, interval }
     // Loading state
     if (loading) {
         return (
-            <Card className="p-4 lg:p-6">
+            <Card className="p-4 lg:p-6 dark:bg-darkBg-card">
                 <div className="flex items-center justify-center h-64">
                     <div className="flex flex-col items-center gap-3">
-                        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-                        <p className="text-sm text-gray-600">Loading comparison data...</p>
+                        <Loader2 className="w-8 h-8 animate-spin text-blue-600 dark:text-blue-400" />
+                        <p className="text-sm text-gray-600 dark:text-gray-400">Loading comparison data...</p>
                     </div>
                 </div>
             </Card>
@@ -95,12 +95,12 @@ const ComparisonChart: React.FC<ComparisonChartProps> = ({ dateRange, interval }
     // Error state
     if (error) {
         return (
-            <Card className="p-4 lg:p-6">
+            <Card className="p-4 lg:p-6 dark:bg-darkBg-card">
                 <div className="flex items-center justify-center h-64">
                     <div className="text-center">
-                        <div className="text-red-500 mb-2 text-lg">⚠️</div>
-                        <p className="text-sm font-medium text-red-600 mb-1">Unable to load comparison data</p>
-                        <p className="text-xs text-gray-500">{error}</p>
+                        <div className="text-red-500 dark:text-red-400 mb-2 text-lg">⚠️</div>
+                        <p className="text-sm font-medium text-red-600 dark:text-red-400 mb-1">Unable to load comparison data</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{error}</p>
                     </div>
                 </div>
             </Card>
@@ -108,42 +108,42 @@ const ComparisonChart: React.FC<ComparisonChartProps> = ({ dateRange, interval }
     }
 
     return (
-        <Card className="p-4 lg:p-6 transition-all duration-300 ease-in-out">
+        <Card className="p-4 lg:p-6 transition-all duration-300 ease-in-out dark:bg-darkBg-card">
             {/* Header with Main Stat */}
             <div className="mb-6">
                 <div className="flex items-end justify-between gap-4 mb-4">
                     <div>
-                        <h3 className="text-base lg:text-lg font-bold text-gray-900">{getComparisonLabel()}</h3>
-                        <p className="text-xs text-gray-500 mt-1">Period-over-period spending trend</p>
+                        <h3 className="text-base lg:text-lg font-bold text-gray-900 dark:text-white">{getComparisonLabel()}</h3>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Period-over-period spending trend</p>
                     </div>
                     {/* Large Delta Indicator */}
                     <div className="text-right">
-                        <div className={`text-2xl lg:text-3xl font-bold ${isPositive ? 'text-red-600' : 'text-green-600'}`}>
+                        <div className={`text-2xl lg:text-3xl font-bold ${isPositive ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                             {isPositive ? '+' : '-'}{Math.abs(Number(stats.changePercent)).toFixed(2)}%
                         </div>
-                        <p className="text-xs text-gray-600 mt-1">{formatCurrency(Math.abs(stats.change))}</p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{formatCurrency(Math.abs(stats.change))}</p>
                     </div>
                 </div>
 
                 {/* Quick Stats Row */}
                 <div className="grid grid-cols-3 gap-3 text-xs">
                     <div>
-                        <p className="text-gray-500 mb-1">Previous</p>
-                        <p className="font-bold text-gray-900">{formatCurrency(stats.previousTotal)}</p>
+                        <p className="text-gray-500 dark:text-gray-400 mb-1">Previous</p>
+                        <p className="font-bold text-gray-900 dark:text-white">{formatCurrency(stats.previousTotal)}</p>
                     </div>
                     <div>
-                        <p className="text-gray-500 mb-1">Current</p>
-                        <p className="font-bold text-gray-900">{formatCurrency(stats.currentTotal)}</p>
+                        <p className="text-gray-500 dark:text-gray-400 mb-1">Current</p>
+                        <p className="font-bold text-gray-900 dark:text-white">{formatCurrency(stats.currentTotal)}</p>
                     </div>
                     <div className="text-right">
-                        <p className="text-gray-500 mb-1">Trend</p>
+                        <p className="text-gray-500 dark:text-gray-400 mb-1">Trend</p>
                         <div className="flex items-center justify-end gap-1">
                             {isPositive ? (
-                                <TrendingUp className="w-4 h-4 text-red-600" />
+                                <TrendingUp className="w-4 h-4 text-red-600 dark:text-red-400" />
                             ) : (
-                                <TrendingDown className="w-4 h-4 text-green-600" />
+                                <TrendingDown className="w-4 h-4 text-green-600 dark:text-green-400" />
                             )}
-                            <p className={`font-bold ${isPositive ? 'text-red-600' : 'text-green-600'}`}>
+                            <p className={`font-bold ${isPositive ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                                 {isPositive ? 'Up' : 'Down'}
                             </p>
                         </div>
@@ -165,15 +165,15 @@ const ComparisonChart: React.FC<ComparisonChartProps> = ({ dateRange, interval }
                                 <stop offset="95%" stopColor="#9ca3af" stopOpacity={0} />
                             </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                        <CartesianGrid strokeDasharray="3 3" stroke={typeof document !== 'undefined' && document.documentElement.classList.contains('dark') ? '#374151' : '#f0f0f0'} vertical={false} />
                         <XAxis
                             dataKey="label"
-                            tick={{ fontSize: 12, fill: '#999' }}
+                            tick={{ fontSize: 12, fill: typeof document !== 'undefined' && document.documentElement.classList.contains('dark') ? '#9ca3af' : '#999' }}
                             axisLine={false}
                             tickLine={false}
                         />
                         <YAxis
-                            tick={{ fontSize: 12, fill: '#999' }}
+                            tick={{ fontSize: 12, fill: typeof document !== 'undefined' && document.documentElement.classList.contains('dark') ? '#9ca3af' : '#999' }}
                             axisLine={false}
                             tickLine={false}
                             width={40}
@@ -186,14 +186,14 @@ const ComparisonChart: React.FC<ComparisonChartProps> = ({ dateRange, interval }
                         />
                         <Tooltip
                             contentStyle={{
-                                backgroundColor: '#ffffff',
-                                border: '1px solid #e5e7eb',
+                                backgroundColor: typeof document !== 'undefined' && document.documentElement.classList.contains('dark') ? '#1f2937' : '#ffffff',
+                                border: typeof document !== 'undefined' && document.documentElement.classList.contains('dark') ? '1px solid #374151' : '1px solid #e5e7eb',
                                 borderRadius: '8px',
                                 boxShadow: '0 4px 12px rgba(0, 0, 0, 0.12)',
                                 fontSize: '12px'
                             }}
                             formatter={(value) => formatCurrency(value as number)}
-                            labelStyle={{ color: '#1f2937', fontWeight: 600 }}
+                            labelStyle={{ color: typeof document !== 'undefined' && document.documentElement.classList.contains('dark') ? '#e5e7eb' : '#1f2937', fontWeight: 600 }}
                         />
                         <Line
                             type="monotone"

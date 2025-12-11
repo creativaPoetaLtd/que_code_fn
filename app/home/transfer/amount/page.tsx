@@ -6,13 +6,15 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { ArrowLeft, Check, Shield, AlertCircle, Eye, EyeOff } from "lucide-react";
 import Navigation from "@/components/Navigation";
-import { getUserBalance, transferMoney, getTransactionCategories, getUserWallet, getWalletRestrictions, getEntityBalance, checkUserPinStatus } from "@/helpers/api";
+import { transferMoney, getTransactionCategories, getUserWallet, getWalletRestrictions, getEntityBalance, checkUserPinStatus } from "@/helpers/api";
 import baseUrl from "@/helpers/baseUrl";
 import { useAuthToken } from "@/hooks/use-auth-token";
 import { getUserIdFromToken, isTokenExpired } from "@/utils/jwtUtils";
 import { PinSetupModal } from "@/components/PinSetupModal";
 import { PinResetModal } from "@/components/PinResetModal";
 import { getCurrentUserInfo } from "@/utils/tokenUtils";
+import { useSidebar } from "@/context/SidebarContext";
+import { cn } from "@/lib/utils";
 
 interface Recipient {
   id: string;
@@ -25,6 +27,7 @@ interface Recipient {
 
 const AmountPage = () => {
   const router = useRouter();
+  const { isExpanded } = useSidebar();
   const [amount, setAmount] = useState("");
   const [pin, setPin] = useState("");
   const [showPin, setShowPin] = useState(false);
@@ -47,6 +50,7 @@ const AmountPage = () => {
   const { getToken } = useAuthToken();
   const [showPinSetupModal, setShowPinSetupModal] = useState(false);
   const [showPinResetModal, setShowPinResetModal] = useState(false);
+  const [pinResetModalError, setPinResetModalError] = useState<string>("");
   const [checkingPinStatus, setCheckingPinStatus] = useState(true);
 
   const handlePinSetupSuccess = async () => {
@@ -57,6 +61,7 @@ const AmountPage = () => {
   const handlePinResetSuccess = () => {
     // After PIN reset, close modal and allow user to try again
     setShowPinResetModal(false);
+    setPinResetModalError("");
     setError("");
   };
 
@@ -341,8 +346,12 @@ const AmountPage = () => {
         return;
       }
 
-      // Check if PIN is locked
-      if (err?.response?.data?.message?.includes('locked') || err?.response?.data?.lockedUntil) {
+      const attemptsRemaining = err?.response?.data?.attemptsRemaining;
+      const isAccountLocked = attemptsRemaining === 0 || err?.response?.data?.message?.includes('Account locked') || err?.response?.data?.lockedUntil;
+      
+      if (isAccountLocked) {
+        const errorMessage = err?.response?.data?.message || 'Your account has been locked due to too many failed PIN attempts. Please reset your PIN to continue.';
+        setPinResetModalError(errorMessage);
         setShowPinResetModal(true);
         setTransferInProgress(false);
         setLoading(false);
@@ -351,11 +360,7 @@ const AmountPage = () => {
 
       // Handle PIN attempt errors with more specific feedback
       const errorMessage = err?.response?.data?.message || err?.message || 'Transfer failed';
-      if (errorMessage.includes('PIN') && errorMessage.includes('attempt')) {
-        setError(`${errorMessage} You can reset your PIN if you've forgotten it.`);
-      } else {
-        setError(errorMessage);
-      }
+      setError(errorMessage);
 
       setTransferInProgress(false);
       setLoading(false);
@@ -376,7 +381,10 @@ const AmountPage = () => {
       <Navigation />
 
       {/* Header */}
-      <div className="bg-white shadow-sm px-4 py-4 flex items-center lg:ml-20">
+      <div className={cn(
+        "bg-white shadow-sm px-4 py-4 flex items-center transition-all duration-300",
+        isExpanded ? "lg:ml-64" : "lg:ml-20"
+      )}>
         <button
           onClick={() => step === 1 ? router.back() : setStep(1)}
           className="mr-3 p-2 hover:bg-gray-100 rounded-full transition"
@@ -389,8 +397,11 @@ const AmountPage = () => {
       </div>
 
       {/* Main Content */}
-      <div className="lg:ml-20 p-6 max-w-2xl mx-auto">
-        {checkingPinStatus || !recipient ? (
+      <div className={cn(
+        "p-6 max-w-2xl mx-auto transition-all duration-300",
+        isExpanded ? "lg:ml-64" : "lg:ml-20"
+      )}>
+        {checkingPinStatus ? (
           /* Loading State */
           <div className="text-center py-12">
             <div className="w-12 h-12 border-4 border-green-200 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
@@ -472,7 +483,7 @@ const AmountPage = () => {
               </div>
             </div>
 
-            {/* Apply Constraints Toggle & Category - Only show for individual users, not organizations */}
+            {/* Apply Constraints Toggle - Only show for individual users, not organizations */}
             {recipient.type !== 'organization' && (
               <div className="bg-white rounded-3xl p-6 mb-6 shadow-sm border border-gray-100">
                 <div className="flex items-center justify-between">
@@ -758,6 +769,7 @@ const AmountPage = () => {
         open={showPinResetModal}
         onOpenChange={setShowPinResetModal}
         onSuccess={handlePinResetSuccess}
+        lockoutError={pinResetModalError}
       />
     </div>
   );

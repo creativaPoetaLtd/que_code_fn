@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { Eye, EyeOff, User, Wifi, WifiOff } from "lucide-react";
+import { Eye, EyeOff, User, Wifi, WifiOff, MessageCircle, Moon, Sun } from "lucide-react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import Image from "next/image";
@@ -11,6 +11,8 @@ import { useNotifications } from "@/context/NotificationContext";
 import { useChat } from "@/context/ChatContext";
 import NotificationBell from "./notifications/NotificationBell";
 import { useAuthToken } from "@/hooks/use-auth-token";
+import { Button } from "./ui/button";
+import { useTheme } from "@/context/ThemeContext";
 
 
 export const Header = () => {
@@ -25,6 +27,7 @@ export const Header = () => {
     const router = useRouter();
     const notifications = useNotifications();
     const { getToken } = useAuthToken();
+    const { theme, toggleTheme } = useTheme();
     
     // Try to get chat context, but don't fail if it's not available
     let chat;
@@ -114,67 +117,78 @@ export const Header = () => {
     };
 
     return (
-        <div className="flex justify-between items-center px-4 py-2">
-            {/* Left Section: Amount */}
-            <div className="flex items-center space-x-2">
-                <h2 className="text-md lg:text-2xl font-bold text-[#00313A]">
-                    {balanceLoading
-                        ? 'Loading...'
-                        : balanceError
-                            ? balanceError
-                            : isBalanceVisible
-                                ? `RWF ${balance?.toLocaleString()}`
-                                : '••••••••••'}
+        <div className="flex justify-between items-center px-3 sm:px-4 py-3 sm:py-4 min-h-16 sm:min-h-18">
+            {/* Left Section: Title */}
+            <div className="flex items-center justify-start">
+                <h2 className="text-sm sm:text-md lg:text-2xl font-bold text-[#00313A] dark:text-white leading-tight whitespace-nowrap">
+                    QiewCode
                 </h2>
-                <button
-                    onClick={toggleBalanceVisibility}
-                    className="text-gray-600 hover:text-gray-800 transition"
-                    aria-label={isBalanceVisible ? "Hide Balance" : "Show Balance"}
-                >
-                    {isBalanceVisible ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
             </div>
 
             {/* Right Section: Connection Status, Notification & User Profile */}
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center justify-end gap-1 sm:gap-2">
                 {/* Connection Status Indicator */}
-                <div className="flex items-center space-x-1">
+                <div className="hidden sm:flex items-center justify-center gap-1">
                     {isConnected ? (
-                        <div className="flex items-center space-x-1 text-green-600">
+                        <div className="flex items-center justify-center gap-1 text-green-600">
                             <Wifi size={16} />
                             <span className="text-xs hidden sm:inline">Connected</span>
                         </div>
                     ) : (
-                        <div className="flex items-center space-x-1 text-red-600">
+                        <div className="flex items-center justify-center gap-1 text-red-600">
                             <WifiOff size={16} />
                             <span className="text-xs hidden sm:inline">Offline</span>
                         </div>
                     )}
                 </div>
 
+                {/* Theme Toggle */}
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={toggleTheme}
+                    aria-label="Toggle theme"
+                    className="text-[#00313A] dark:text-white hover:bg-gray-100 dark:hover:bg-darkBg-interactive h-8 w-8 sm:h-10 sm:w-10 p-1 sm:p-2"
+                >
+                    {theme === 'dark' ? <Sun size={18} className="sm:size-5" /> : <Moon size={18} className="sm:size-5" />}
+                </Button>
+
                 {/* Notification Dropdown */}
-                <NotificationBell />
+                <div className="h-8 w-8 sm:h-10 sm:w-10 flex items-center justify-center">
+                    <NotificationBell />
+                </div>
+
+                {/* Message Icon */}
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => router.push('/chat')}
+                    aria-label="Go to Chat"
+                    className="text-[#00313A] dark:text-white hover:bg-gray-100 dark:hover:bg-darkBg-interactive h-8 w-8 sm:h-10 sm:w-10 p-1 sm:p-2"
+                >
+                    <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5" />
+                </Button>
 
                 {/* User Profile with Dropdown */}
-                <div className="relative">
+                <div className="relative flex items-center">
                     {/* Profile Picture */}
                     <button
-                        className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden border-2 border-gray-300 hover:border-gray-400 flex items-center justify-center"
+                        className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-200 overflow-hidden border-2 border-gray-300 hover:border-gray-400 flex items-center justify-center flex-shrink-0"
                         onClick={toggleDropdown}
                         aria-label="User Profile"
                     >
                         {profileImage ? (
-                            <Avatar className="w-10 h-10">
+                            <Avatar className="w-8 h-8 sm:w-10 sm:h-10">
                                 <AvatarImage src={profileImage} alt="User profile" />
                                 <AvatarFallback>
-                                    <User size={24} className="text-gray-600" />
+                                    <User size={20} className="text-gray-600" />
                                 </AvatarFallback>
                             </Avatar>
                         ) : (
                             <Image
                                 src="/Images/Profile.png"
                                 alt="Profile"
-                                className="h-full"
+                                className="h-full w-full object-cover"
                                 width={40}
                                 height={40}
                             />
@@ -183,12 +197,12 @@ export const Header = () => {
 
                     {/* Dropdown Menu */}
                     {isDropdownOpen && (
-                        <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
-                            <ul className="text-sm text-gray-700">
+                        <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-darkBg-card border border-gray-200 dark:border-darkBorder-light rounded-md shadow-lg z-10">
+                            <ul className="text-sm text-gray-700 dark:text-gray-300">
                                 <li>
                                     <button
                                         onClick={() => handleNavigation('/profile')}
-                                        className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                                        className="block w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-darkBg-interactive"
                                     >
                                         Profile
                                     </button>
@@ -196,7 +210,7 @@ export const Header = () => {
                                 <li>
                                     <button
                                         onClick={() => handleNavigation('/settings')}
-                                        className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                                        className="block w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-darkBg-interactive"
                                     >
                                         Settings
                                     </button>
@@ -204,7 +218,7 @@ export const Header = () => {
                                 <li>
                                     <button
                                         onClick={() => handleNavigation('/notifications')}
-                                        className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                                        className="block w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-darkBg-interactive"
                                     >
                                         Notifications
                                     </button>
@@ -212,7 +226,7 @@ export const Header = () => {
                                 <li>
                                     <button
                                         onClick={() => handleNavigation('/logout')}
-                                        className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-500"
+                                        className="block w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-darkBg-interactive text-red-500"
                                     >
                                         Logout
                                     </button>

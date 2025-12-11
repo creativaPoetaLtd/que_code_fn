@@ -31,7 +31,7 @@ const NotificationBell: React.FC = () => {
             <Button
                 variant="ghost"
                 size="icon"
-                className="relative"
+                className="relative text-[#00313A] dark:text-white hover:bg-gray-100 dark:hover:bg-darkBg-interactive"
                 onClick={() => setIsNotificationCenterOpen(true)}
             >
                 <Bell className="h-5 w-5" />

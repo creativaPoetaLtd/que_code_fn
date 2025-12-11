@@ -9,6 +9,8 @@ import { transferMoney, getUserBalance } from "@/helpers/api";
 import { useAuthToken } from "@/hooks/use-auth-token";
 import { getUserIdFromToken, isTokenExpired } from "@/utils/jwtUtils";
 import { getCurrentUserInfo } from "@/utils/tokenUtils";
+import { useSidebar } from "@/context/SidebarContext";
+import { cn } from "@/lib/utils";
 
 interface Recipient {
   id: string;
@@ -21,6 +23,7 @@ interface Recipient {
 
 const ConfirmationPage = () => {
   const router = useRouter();
+  const { isExpanded } = useSidebar();
   const [amount, setAmount] = useState("5000");
   const [recipient, setRecipient] = useState<Recipient | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -139,7 +142,10 @@ const ConfirmationPage = () => {
       <Navigation />
 
       {/* Header */}
-      <div className="bg-white shadow-sm px-4 py-4 flex items-center lg:ml-20">
+      <div className={cn(
+        "bg-white shadow-sm px-4 py-4 flex items-center transition-all duration-300",
+        isExpanded ? "lg:ml-64" : "lg:ml-20"
+      )}>
         <button onClick={() => router.back()} className="mr-3 p-2 hover:bg-gray-100 rounded-full transition">
           <ArrowLeft className="w-5 h-5 text-gray-700" />
         </button>
@@ -147,7 +153,10 @@ const ConfirmationPage = () => {
       </div>
 
       {/* Main Content */}
-      <div className="lg:ml-20 p-6 max-w-2xl mx-auto">
+      <div className={cn(
+        "p-6 max-w-2xl mx-auto transition-all duration-300",
+        isExpanded ? "lg:ml-64" : "lg:ml-20"
+      )}>
         {/* Success Indicator */}
         <div className="text-center mb-8">
           <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
