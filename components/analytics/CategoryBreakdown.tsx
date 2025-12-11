@@ -40,9 +40,9 @@ const CategoryBreakdown: React.FC<CategoryBreakdownProps> = ({ dateRange }) => {
         if (active && payload && payload.length) {
             const data = payload[0]
             return (
-                <div className="bg-white p-3 border rounded-lg shadow-lg">
-                    <p className="font-medium">{data.payload.name}</p>
-                    <p className="text-sm text-gray-600">
+                <div className="bg-white dark:bg-gray-900 p-3 border border-gray-200 dark:border-darkBorder-light rounded-lg shadow-lg">
+                    <p className="font-medium text-gray-900 dark:text-white">{data.payload.name}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
                         RWF {data.payload.amount.toLocaleString()} ({data.value}%)
                     </p>
                 </div>
@@ -53,19 +53,19 @@ const CategoryBreakdown: React.FC<CategoryBreakdownProps> = ({ dateRange }) => {
 
     if (loading) {
         return (
-            <Card className="p-6 animate-pulse">
+            <Card className="p-6 animate-pulse dark:bg-darkBg-card">
                 <div className="mb-4">
-                    <div className="h-6 bg-gray-200 rounded w-40 mb-2"></div>
-                    <div className="h-4 bg-gray-200 rounded w-60"></div>
+                    <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-40 mb-2"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-60"></div>
                 </div>
-                <div className="h-64 bg-gray-200 rounded"></div>
+                <div className="h-64 bg-gray-200 dark:bg-gray-700 rounded"></div>
             </Card>
         )
     }
 
     if (error) {
         return (
-            <Card className="p-6 text-center text-red-600">
+            <Card className="p-6 text-center text-red-600 dark:text-red-400 dark:bg-darkBg-card">
                 <p>Error loading category breakdown</p>
             </Card>
         )
@@ -73,27 +73,27 @@ const CategoryBreakdown: React.FC<CategoryBreakdownProps> = ({ dateRange }) => {
 
     if (categoryData.length === 0) {
         return (
-            <Card className="p-6 text-center text-gray-500">
+            <Card className="p-6 text-center text-gray-500 dark:text-gray-400 dark:bg-darkBg-card">
                 <p>No category data available for the selected period</p>
             </Card>
         )
     }
 
     return (
-        <Card className="p-6">
+        <Card className="p-6 dark:bg-darkBg-card">
             <div className="mb-4">
                 <div className="flex justify-between items-start mb-4">
                     <div>
-                        <h3 className="text-lg font-semibold text-gray-900">Category Breakdown</h3>
-                        <p className="text-sm text-gray-600">Spending distribution by categories</p>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Category Breakdown</h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">Spending distribution by categories</p>
                     </div>
                     <div className="flex gap-2">
                         <button
                             onClick={() => setFilterType('expenses')}
                             className={`px-4 py-2 rounded font-medium transition-colors ${
                                 filterType === 'expenses'
-                                    ? 'bg-red-600 text-white'
-                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                    ? 'bg-red-600 dark:bg-red-700 text-white'
+                                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
                             }`}
                         >
                             Expenses
@@ -102,8 +102,8 @@ const CategoryBreakdown: React.FC<CategoryBreakdownProps> = ({ dateRange }) => {
                             onClick={() => setFilterType('income')}
                             className={`px-4 py-2 rounded font-medium transition-colors ${
                                 filterType === 'income'
-                                    ? 'bg-green-600 text-white'
-                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                    ? 'bg-green-600 dark:bg-green-700 text-white'
+                                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
                             }`}
                         >
                             Income
@@ -151,7 +151,7 @@ const CategoryBreakdown: React.FC<CategoryBreakdownProps> = ({ dateRange }) => {
 
                 {/* Category List */}
                 <div className="lg:w-48">
-                    <h4 className="font-medium text-gray-900 mb-3">Top Categories</h4>
+                    <h4 className="font-medium text-gray-900 dark:text-white mb-3">Top Categories</h4>
                     <div className="space-y-3" role="list" aria-label="Category list with spending amounts">
                         {categoryData.map((category, index) => (
                             <CategoryTransactionPopover
@@ -162,7 +162,7 @@ const CategoryBreakdown: React.FC<CategoryBreakdownProps> = ({ dateRange }) => {
                                 transactionCount={category.transactionCount}
                             >
                                 <div
-                                    className="flex items-center justify-between cursor-pointer hover:bg-gray-50 focus:bg-gray-50 rounded-lg p-2 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                    className="flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/40 focus:bg-gray-50 dark:focus:bg-gray-900/40 rounded-lg p-2 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-darkBg-card"
                                     onClick={() => {
                                         setSelectedCategory(selectedCategory === category.categoryId ? null : category.categoryId)
                                     }}
@@ -182,13 +182,13 @@ const CategoryBreakdown: React.FC<CategoryBreakdownProps> = ({ dateRange }) => {
                                             style={{ backgroundColor: category.color }}
                                             aria-hidden="true"
                                         />
-                                        <span className="text-sm text-gray-700">{category.name}</span>
+                                        <span className="text-sm text-gray-700 dark:text-gray-300">{category.name}</span>
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-sm font-medium text-gray-900">
+                                        <p className="text-sm font-medium text-gray-900 dark:text-white">
                                             RWF {category.amount.toLocaleString()}
                                         </p>
-                                        <p className="text-xs text-gray-500">{category.value}%</p>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">{category.value}%</p>
                                     </div>
                                 </div>
                             </CategoryTransactionPopover>

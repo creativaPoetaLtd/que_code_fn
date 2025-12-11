@@ -36,24 +36,24 @@ const SummaryCard = ({
         return (
             <Card className="p-6 animate-pulse transition-all duration-300">
                 <div className="flex items-center justify-between mb-3">
-                    <div className="w-10 h-10 bg-gray-200 rounded-lg"></div>
+                    <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
                 </div>
                 <div className="space-y-2">
-                    <div className="h-4 bg-gray-200 rounded w-24"></div>
-                    <div className="h-8 bg-gray-200 rounded w-32"></div>
-                    <div className="h-4 bg-gray-200 rounded w-20"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24"></div>
+                    <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-32"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-20"></div>
                 </div>
             </Card>
         )
     }
     
     return (
-        <Card className="p-6 hover:shadow-md transition-shadow">
+        <Card className="p-6 hover:shadow-md dark:hover:shadow-lg transition-shadow dark:bg-darkBg-card">
             <div className="flex items-start justify-between mb-3">
                 <div className={`p-2.5 rounded-lg ${
-                    type === 'income' ? 'bg-green-100 text-green-600' :
-                    type === 'expense' ? 'bg-red-100 text-red-600' :
-                    'bg-blue-100 text-blue-600'
+                    type === 'income' ? 'bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400' :
+                    type === 'expense' ? 'bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400' :
+                    'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400'
                 }`}>
                     {icon}
                 </div>
@@ -61,10 +61,10 @@ const SummaryCard = ({
                 {percentage !== undefined && (
                     <div className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold ${
                         isBalance ? 
-                            (isPositive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700') :
+                            (isPositive ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-400') :
                             type === 'income' ? 
-                                (isPositive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700') :
-                                (isPositive ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700')
+                                (isPositive ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-400') :
+                                (isPositive ? 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-400' : 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-400')
                     }`}>
                         {isPositive ? '↑' : '↓'}
                         {Math.abs(percentage)}%
@@ -73,10 +73,10 @@ const SummaryCard = ({
             </div>
             
             <div>
-                <p className="text-sm font-medium text-gray-600 mb-1">{title}</p>
-                <h3 className="text-3xl font-bold text-gray-900 mb-2">RWF {amount}</h3>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">{title}</p>
+                <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">RWF {amount}</h3>
                 {comparisonText && (
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
                         {comparisonText}
                     </p>
                 )}
@@ -136,7 +136,7 @@ const SummaryCards: React.FC<SummaryCardsProps> = ({ dateRange }) => {
     if (error) {
         return (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card className="p-6 text-center text-red-600">
+                <Card className="p-6 text-center text-red-600 dark:text-red-400 dark:bg-darkBg-card">
                     Error loading data
                 </Card>
             </div>

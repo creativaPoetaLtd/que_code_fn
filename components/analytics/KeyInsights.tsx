@@ -21,30 +21,30 @@ const InsightCard = ({ title, description, value, type, icon }: InsightCardProps
     const getTypeStyles = () => {
         switch (type) {
             case 'positive':
-                return 'border-green-200 bg-green-50'
+                return 'border-l-green-500 dark:border-l-green-400 bg-green-50 dark:bg-darkBg-card'
             case 'negative':
-                return 'border-red-200 bg-red-50'
+                return 'border-l-red-500 dark:border-l-red-400 bg-red-50 dark:bg-darkBg-card'
             case 'warning':
-                return 'border-yellow-200 bg-yellow-50'
+                return 'border-l-yellow-500 dark:border-l-yellow-400 bg-yellow-50 dark:bg-darkBg-card'
             case 'info':
-                return 'border-blue-200 bg-blue-50'
+                return 'border-l-blue-500 dark:border-l-blue-400 bg-blue-50 dark:bg-darkBg-card'
             default:
-                return 'border-gray-200 bg-gray-50'
+                return 'border-l-gray-500 dark:border-l-gray-400 bg-gray-50 dark:bg-darkBg-card'
         }
     }
 
     const getIconStyles = () => {
         switch (type) {
             case 'positive':
-                return 'text-green-600'
+                return 'text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30'
             case 'negative':
-                return 'text-red-600'
+                return 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/30'
             case 'warning':
-                return 'text-yellow-600'
+                return 'text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/30'
             case 'info':
-                return 'text-blue-600'
+                return 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30'
             default:
-                return 'text-gray-600'
+                return 'text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800'
         }
     }
 
@@ -55,9 +55,9 @@ const InsightCard = ({ title, description, value, type, icon }: InsightCardProps
                     {icon}
                 </div>
                 <div className="flex-1">
-                    <h4 className="font-medium text-gray-900 mb-1">{title}</h4>
-                    <p className="text-sm text-gray-600 mb-2">{description}</p>
-                    <p className="text-lg font-semibold text-gray-900">{value}</p>
+                    <h4 className="font-medium text-gray-900 dark:text-white mb-1">{title}</h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{description}</p>
+                    <p className="text-lg font-semibold text-gray-900 dark:text-white">{value}</p>
                 </div>
             </div>
         </Card>
@@ -145,18 +145,18 @@ const KeyInsights: React.FC<KeyInsightsProps> = ({ dateRange }) => {
         return (
             <div className="space-y-4">
                 <div className="mb-4">
-                    <div className="h-6 bg-gray-200 rounded w-32 mb-2 animate-pulse"></div>
-                    <div className="h-4 bg-gray-200 rounded w-64 animate-pulse"></div>
+                    <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-32 mb-2 animate-pulse"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-64 animate-pulse"></div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {Array.from({ length: 4 }).map((_, index) => (
-                        <Card key={index} className="p-4 animate-pulse">
+                        <Card key={index} className="p-4 animate-pulse dark:bg-darkBg-card">
                             <div className="flex items-start gap-3">
-                                <div className="w-10 h-10 bg-gray-200 rounded-lg"></div>
+                                <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
                                 <div className="flex-1">
-                                    <div className="h-5 bg-gray-200 rounded mb-2"></div>
-                                    <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                                    <div className="h-6 bg-gray-200 rounded w-20"></div>
+                                    <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded mb-2"></div>
+                                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded mb-2"></div>
+                                    <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-20"></div>
                                 </div>
                             </div>
                         </Card>
@@ -169,8 +169,8 @@ const KeyInsights: React.FC<KeyInsightsProps> = ({ dateRange }) => {
     return (
         <div className="space-y-4">
             <div className="mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Key Insights</h3>
-                <p className="text-sm text-gray-600">Important highlights from your spending data</p>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Key Insights</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Important highlights from your spending data</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -50,7 +50,7 @@ const AnalyticsPage = () => {
         }
     };
     return (
-        <div className="flex flex-col min-h-screen bg-gray-50">
+        <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-darkBg-main transition-colors duration-300">
             {/* Desktop Sidebar */}
             <Navigation />
 
@@ -67,8 +67,8 @@ const AnalyticsPage = () => {
                     <div className="space-y-6">
                         {/* Page Title & Filters */}
                         <div className="mb-8">
-                            <h1 className="text-3xl font-bold text-gray-900 mb-1">Analytics</h1>
-                            <p className="text-gray-600 mb-6">Track your spending patterns and financial insights.</p>
+                            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-1">Finances</h1>
+                            <p className="text-gray-600 dark:text-gray-300 mb-6">Track your spending patterns and financial insights.</p>
                             <FiltersBar 
                                 dateRange={dateRange}
                                 onDateRangeChange={handleDateRangeChange}
