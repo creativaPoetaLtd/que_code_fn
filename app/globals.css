@@ -202,3 +202,219 @@ body {
     font-size: 16px;
   }
 }
+
+/* Ant Design Dark Mode Styling */
+.dark {
+  /* Select Component */
+  .ant-select-selector {
+    @apply dark:bg-darkBg-main dark:border-darkBorder-light dark:text-white !important;
+  }
+
+  .ant-select-selector:hover {
+    @apply dark:border-darkBorder-medium !important;
+  }
+
+  .ant-select-focused .ant-select-selector {
+    @apply dark:border-green-600 dark:shadow-none !important;
+  }
+
+  .ant-select-arrow {
+    @apply dark:text-gray-400 !important;
+  }
+
+  .ant-select-clear {
+    @apply dark:text-gray-400 dark:hover:text-gray-300 !important;
+  }
+
+  /* Select Dropdown Menu */
+  .ant-select-dropdown {
+    @apply dark:bg-darkBg-card dark:border-darkBorder-light !important;
+  }
+
+  .ant-select-item {
+    @apply dark:text-white dark:hover:bg-darkBg-main !important;
+  }
+
+  .ant-select-item-option-selected {
+    @apply dark:bg-darkBg-main dark:text-white !important;
+  }
+
+  /* DatePicker Component */
+  .ant-picker {
+    @apply dark:bg-darkBg-main dark:border-darkBorder-light !important;
+  }
+
+  .ant-picker:hover {
+    @apply dark:border-darkBorder-medium !important;
+  }
+
+  .ant-picker-focused {
+    @apply dark:border-green-600 dark:shadow-none !important;
+  }
+
+  .ant-picker-input {
+    @apply dark:text-white !important;
+  }
+
+  .ant-picker-input::placeholder {
+    @apply dark:text-gray-500 !important;
+  }
+
+  .ant-picker-suffix {
+    @apply dark:text-gray-400 !important;
+  }
+
+  /* DatePicker Dropdown */
+  .ant-picker-dropdown {
+    @apply dark:bg-darkBg-card dark:border-darkBorder-light !important;
+  }
+
+  .ant-picker-header {
+    @apply dark:text-white !important;
+  }
+
+  .ant-picker-header-button {
+    @apply dark:text-gray-300 dark:hover:text-white !important;
+  }
+
+  .ant-picker-header-view {
+    @apply dark:text-white !important;
+  }
+
+  .ant-picker-cell {
+    @apply dark:text-gray-200 !important;
+  }
+
+  .ant-picker-cell-in-view {
+    @apply dark:text-white !important;
+  }
+
+  .ant-picker-cell:hover:not(.ant-picker-cell-disabled) {
+    @apply dark:bg-darkBg-main !important;
+  }
+
+  .ant-picker-cell-selected {
+    @apply dark:bg-green-700 dark:text-white !important;
+  }
+
+  .ant-picker-cell-in-view.ant-picker-cell-selected {
+    @apply dark:bg-green-700 dark:text-white !important;
+  }
+
+  .ant-picker-cell-in-view.ant-picker-cell-in-range {
+    @apply dark:bg-green-600 dark:text-white !important;
+  }
+
+  .ant-picker-cell-range-start,
+  .ant-picker-cell-range-end {
+    @apply dark:bg-green-700 dark:text-white !important;
+  }
+
+  .ant-picker-cell-range-start.ant-picker-cell-in-range,
+  .ant-picker-cell-range-end.ant-picker-cell-in-range {
+    @apply dark:bg-green-700 dark:text-white !important;
+  }
+
+  /* Range hover effect */
+  .ant-picker-cell-in-range:hover {
+    @apply dark:bg-green-500 dark:text-white !important;
+  }
+
+  /* Range background - in between cells */
+  .ant-picker-body .ant-picker-cell.ant-picker-cell-in-range::before {
+    @apply dark:bg-green-600/60 !important;
+  }
+
+  .ant-picker-content {
+    @apply dark:bg-darkBg-card !important;
+  }
+
+  /* DatePicker Range Separator */
+  .ant-picker-range-separator {
+    @apply dark:text-gray-400 !important;
+  }
+
+  /* DatePicker Panel */
+  .ant-picker-panel {
+    @apply dark:bg-darkBg-card !important;
+  }
+
+  /* DatePicker Month/Year */
+  .ant-picker-month-panel,
+  .ant-picker-year-panel,
+  .ant-picker-decade-panel {
+    @apply dark:bg-darkBg-card !important;
+  }
+
+  /* DatePicker Preset */
+  .ant-picker-presets {
+    @apply dark:border-darkBorder-light !important;
+  }
+
+  .ant-picker-presets-list {
+    @apply dark:bg-darkBg-card !important;
+  }
+
+  .ant-picker-presets-item {
+    @apply dark:text-gray-300 dark:hover:text-white dark:hover:bg-darkBg-main !important;
+  }
+
+  .ant-picker-presets-item-active {
+    @apply dark:text-green-400 dark:bg-darkBg-main !important;
+  }
+
+  /* DatePicker Footer */
+  .ant-picker-footer {
+    @apply dark:border-t dark:border-darkBorder-light !important;
+  }
+
+  .ant-picker-footer-extra {
+    @apply dark:text-gray-300 !important;
+  }
+
+  /* Ant Input */
+  .ant-input {
+    @apply dark:bg-darkBg-main dark:border-darkBorder-light dark:text-white !important;
+  }
+
+  .ant-input:hover {
+    @apply dark:border-darkBorder-medium !important;
+  }
+
+  .ant-input-focused,
+  .ant-input:focus {
+    @apply dark:border-green-600 dark:shadow-none !important;
+  }
+
+  .ant-input::placeholder {
+    @apply dark:text-gray-500 !important;
+  }
+
+  /* Additional DatePicker Range styling */
+  .ant-picker-range {
+    @apply dark:bg-darkBg-main !important;
+  }
+
+  .ant-picker-range .ant-picker-input {
+    @apply dark:text-white !important;
+  }
+
+  .ant-picker-range-separator {
+    @apply dark:text-gray-400 !important;
+  }
+
+  /* DatePicker Disabled state */
+  .ant-picker-cell-disabled,
+  .ant-picker-cell-disabled:hover {
+    @apply dark:text-gray-600 dark:cursor-not-allowed dark:bg-transparent !important;
+  }
+
+  /* DatePicker Now button and OK button */
+  .ant-btn-default {
+    @apply dark:border-darkBorder-light dark:text-gray-300 dark:hover:border-darkBorder-medium dark:hover:text-gray-200 !important;
+  }
+
+  .ant-btn-primary {
+    @apply dark:bg-green-700 dark:border-green-700 dark:hover:bg-green-600 dark:hover:border-green-600 !important;
+  }
+}

@@ -7,18 +7,21 @@ import { Provider } from "react-redux"
 import { NotificationProvider } from "@/context/NotificationContext"
 import { ChatProvider } from "@/context/ChatContext"
 import { SidebarProvider } from "@/context/SidebarContext"
+import { ThemeProvider } from "@/context/ThemeContext"
 
 
 const ClientProvider = ({ children }: { children: React.ReactNode }) => {
     return (
         <Provider store={store}>
-            <NotificationProvider>
-                <ChatProvider>
-                    <SidebarProvider>
-                        {children}
-                    </SidebarProvider>
-                </ChatProvider>
-            </NotificationProvider>
+            <ThemeProvider>
+                <NotificationProvider>
+                    <ChatProvider>
+                        <SidebarProvider>
+                            {children}
+                        </SidebarProvider>
+                    </ChatProvider>
+                </NotificationProvider>
+            </ThemeProvider>
         </Provider>
     )
 }
