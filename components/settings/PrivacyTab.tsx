@@ -58,23 +58,23 @@ export const PrivacyTab: React.FC = () => {
   };
 
   return (
-    <Card>
+    <Card className="dark:bg-darkBg-card dark:border-darkBorder-light">
       <CardHeader>
-        <CardTitle>Privacy Settings</CardTitle>
-        <CardDescription>Control who can see your information and activity</CardDescription>
+        <CardTitle className="dark:text-white">Privacy Settings</CardTitle>
+        <CardDescription className="dark:text-gray-400">Control who can see your information and activity</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div>
-          <h3 className="text-lg font-medium mb-3">Profile Visibility</h3>
+          <h3 className="text-lg font-medium mb-3 dark:text-white">Profile Visibility</h3>
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label htmlFor="privacy-profile">Profile Information</Label>
-                <p className="text-sm text-gray-500">Who can see your profile information</p>
+                <Label htmlFor="privacy-profile" className="dark:text-gray-300">Profile Information</Label>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Who can see your profile information</p>
               </div>
               <select
                 id="privacy-profile"
-                className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B512]"
+                className="rounded-md border border-gray-300 dark:border-darkBorder-light dark:bg-darkBg-card dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B512]"
                 value={privacySettings.profileVisibility}
                 onChange={(e) => updateSetting('profileVisibility', e.target.value as PrivacySettings['profileVisibility'])}
               >
@@ -83,11 +83,11 @@ export const PrivacyTab: React.FC = () => {
                 <option value="nobody">Nobody</option>
               </select>
             </div>
-            <Separator />
+            <Separator className="dark:bg-darkBorder-light" />
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label htmlFor="privacy-activity">Activity Status</Label>
-                <p className="text-sm text-gray-500">Show when you're active on the platform</p>
+                <Label htmlFor="privacy-activity" className="dark:text-gray-300">Activity Status</Label>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Show when you're active on the platform</p>
               </div>
               <Switch 
                 id="privacy-activity" 
@@ -95,11 +95,11 @@ export const PrivacyTab: React.FC = () => {
                 onCheckedChange={(checked) => updateSetting('activityStatus', checked)}
               />
             </div>
-            <Separator />
+            <Separator className="dark:bg-darkBorder-light" />
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label htmlFor="privacy-search">Search Visibility</Label>
-                <p className="text-sm text-gray-500">Allow others to find you by name or email</p>
+                <Label htmlFor="privacy-search" className="dark:text-gray-300">Search Visibility</Label>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Allow others to find you by name or email</p>
               </div>
               <Switch 
                 id="privacy-search" 
@@ -111,16 +111,16 @@ export const PrivacyTab: React.FC = () => {
         </div>
 
         <div>
-          <h3 className="text-lg font-medium mb-3">Transaction Privacy</h3>
+          <h3 className="text-lg font-medium mb-3 dark:text-white">Transaction Privacy</h3>
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label htmlFor="privacy-transactions">Transaction History</Label>
-                <p className="text-sm text-gray-500">Who can see your transaction history</p>
+                <Label htmlFor="privacy-transactions" className="dark:text-gray-300">Transaction History</Label>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Who can see your transaction history</p>
               </div>
               <select
                 id="privacy-transactions"
-                className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B512]"
+                className="rounded-md border border-gray-300 dark:border-darkBorder-light dark:bg-darkBg-card dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B512]"
                 value={privacySettings.transactionHistoryVisibility}
                 onChange={(e) => updateSetting('transactionHistoryVisibility', e.target.value as PrivacySettings['transactionHistoryVisibility'])}
               >
@@ -129,11 +129,11 @@ export const PrivacyTab: React.FC = () => {
                 <option value="contacts">Contacts</option>
               </select>
             </div>
-            <Separator />
+            <Separator className="dark:bg-darkBorder-light" />
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label htmlFor="privacy-amounts">Hide Amounts</Label>
-                <p className="text-sm text-gray-500">Hide transaction amounts from others</p>
+                <Label htmlFor="privacy-amounts" className="dark:text-gray-300">Hide Amounts</Label>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Hide transaction amounts from others</p>
               </div>
               <Switch 
                 id="privacy-amounts" 
@@ -145,12 +145,12 @@ export const PrivacyTab: React.FC = () => {
         </div>
 
         <div>
-          <h3 className="text-lg font-medium mb-3">Data Usage</h3>
+          <h3 className="text-lg font-medium mb-3 dark:text-white">Data Usage</h3>
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label htmlFor="privacy-analytics">Analytics</Label>
-                <p className="text-sm text-gray-500">Allow us to collect anonymous usage data</p>
+                <Label htmlFor="privacy-analytics" className="dark:text-gray-300">Analytics</Label>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Allow us to collect anonymous usage data</p>
               </div>
               <Switch 
                 id="privacy-analytics" 
@@ -158,11 +158,11 @@ export const PrivacyTab: React.FC = () => {
                 onCheckedChange={(checked) => updateSetting('analytics', checked)}
               />
             </div>
-            <Separator />
+            <Separator className="dark:bg-darkBorder-light" />
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label htmlFor="privacy-marketing">Marketing Communications</Label>
-                <p className="text-sm text-gray-500">Receive marketing emails and offers</p>
+                <Label htmlFor="privacy-marketing" className="dark:text-gray-300">Marketing Communications</Label>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Receive marketing emails and offers</p>
               </div>
               <Switch 
                 id="privacy-marketing" 
@@ -173,16 +173,16 @@ export const PrivacyTab: React.FC = () => {
           </div>
         </div>
       </CardContent>
-      <CardFooter className="flex justify-between">
+      <CardFooter className="flex justify-between dark:bg-darkBg-card dark:border-t dark:border-darkBorder-light">
         <Button 
           variant="outline" 
-          className="text-red-500 hover:text-red-600 hover:bg-red-50"
+          className="text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 dark:border-darkBorder-light"
           onClick={handleDeleteAccount}
         >
           Delete account
         </Button>
         <Button 
-          className="bg-[#00B512] hover:bg-[#009E10]"
+          className="bg-[#00B512] hover:bg-[#009E10] dark:bg-brand-gold dark:hover:bg-brand-goldHover text-white dark:text-[#00313A]"
           onClick={handleSavePrivacySettings}
           disabled={saving}
         >

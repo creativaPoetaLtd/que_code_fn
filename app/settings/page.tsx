@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils"
 export default function SettingsPage() {
     const { isExpanded } = useSidebar();
     return (
-        <Layout className="min-h-screen bg-gray-50 mobile-bottom-padding">
+        <Layout className="min-h-screen bg-gray-50 dark:bg-darkBg-main transition-colors duration-300 mobile-bottom-padding">
             <div className="flex min-h-screen">
                 <Navigation />
                 <div className={cn(
@@ -24,29 +24,29 @@ export default function SettingsPage() {
                     isExpanded ? "lg:ml-64" : "lg:ml-20"
                 )}>
                     <div className="flex flex-col gap-2 mb-8">
-                        <h1 className="text-2xl sm:text-3xl font-bold">Settings</h1>
-                        <p className="text-gray-500">Manage your profile settings and preferences</p>
+                        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Settings</h1>
+                        <p className="text-gray-500 dark:text-gray-400">Manage your profile settings and preferences</p>
                     </div>
 
                     <Tabs defaultValue="profile" className="w-full">
-                        <TabsList className="grid grid-cols-2 sm:grid-cols-5 mb-8">
-                            <TabsTrigger value="profile" className="flex items-center gap-2">
+                        <TabsList className="grid grid-cols-2 sm:grid-cols-5 mb-8 dark:bg-darkBg-card dark:border dark:border-darkBorder-light">
+                            <TabsTrigger value="profile" className="flex items-center gap-2 dark:data-[state=active]:bg-blue-700 dark:data-[state=active]:text-white dark:text-gray-300">
                                 <User size={16} />
                                 <span className="hidden sm:inline">Profile</span>
                             </TabsTrigger>
-                            <TabsTrigger value="security" className="flex items-center gap-2">
+                            <TabsTrigger value="security" className="flex items-center gap-2 dark:data-[state=active]:bg-blue-700 dark:data-[state=active]:text-white dark:text-gray-300">
                                 <Shield size={16} />
                                 <span className="hidden sm:inline">Security</span>
                             </TabsTrigger>
-                            <TabsTrigger value="notifications" className="flex items-center gap-2">
+                            <TabsTrigger value="notifications" className="flex items-center gap-2 dark:data-[state=active]:bg-blue-700 dark:data-[state=active]:text-white dark:text-gray-300">
                                 <Bell size={16} />
                                 <span className="hidden sm:inline">Notifications</span>
                             </TabsTrigger>
-                            <TabsTrigger value="payment" className="flex items-center gap-2">
+                            <TabsTrigger value="payment" className="flex items-center gap-2 dark:data-[state=active]:bg-blue-700 dark:data-[state=active]:text-white dark:text-gray-300">
                                 <CreditCard size={16} />
                                 <span className="hidden sm:inline">Payment</span>
                             </TabsTrigger>
-                            <TabsTrigger value="privacy" className="flex items-center gap-2">
+                            <TabsTrigger value="privacy" className="flex items-center gap-2 dark:data-[state=active]:bg-blue-700 dark:data-[state=active]:text-white dark:text-gray-300">
                                 <Lock size={16} />
                                 <span className="hidden sm:inline">Privacy</span>
                             </TabsTrigger>

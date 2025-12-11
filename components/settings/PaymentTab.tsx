@@ -61,40 +61,40 @@ export const PaymentTab: React.FC = () => {
   const getCardIcon = (type: string) => {
     const baseClasses = "p-2 rounded-md";
     if (type === "visa") {
-      return <div className={`${baseClasses} bg-blue-100`}><CreditCard size={20} className="text-blue-600" /></div>;
+      return <div className={`${baseClasses} bg-blue-100 dark:bg-blue-900/30`}><CreditCard size={20} className="text-blue-600 dark:text-blue-400" /></div>;
     } else if (type === "mastercard") {
-      return <div className={`${baseClasses} bg-purple-100`}><CreditCard size={20} className="text-purple-600" /></div>;
+      return <div className={`${baseClasses} bg-purple-100 dark:bg-purple-900/30`}><CreditCard size={20} className="text-purple-600 dark:text-purple-400" /></div>;
     }
-    return <div className={`${baseClasses} bg-gray-100`}><CreditCard size={20} className="text-gray-600" /></div>;
+    return <div className={`${baseClasses} bg-gray-100 dark:bg-gray-700/30`}><CreditCard size={20} className="text-gray-600 dark:text-gray-400" /></div>;
   };
 
   const getBankIcon = () => {
-    return <div className="bg-green-100 p-2 rounded-md"><CreditCard size={20} className="text-green-600" /></div>;
+    return <div className="bg-green-100 dark:bg-green-900/30 p-2 rounded-md"><CreditCard size={20} className="text-green-600 dark:text-green-400" /></div>;
   };
 
   return (
     <div className="space-y-6">
       <div className="grid gap-6 md:grid-cols-2">
-        <Card>
+        <Card className="dark:bg-darkBg-card dark:border-darkBorder-light">
           <CardHeader>
-            <CardTitle>Payment Methods</CardTitle>
-            <CardDescription>Manage your payment methods</CardDescription>
+            <CardTitle className="dark:text-white">Payment Methods</CardTitle>
+            <CardDescription className="dark:text-gray-400">Manage your payment methods</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {paymentMethods.map((method) => (
               <div 
                 key={method.id}
                 className={`flex items-center justify-between p-3 rounded-lg ${
-                  method.isDefault ? 'bg-gray-50' : 'border'
+                  method.isDefault ? 'bg-gray-50 dark:bg-darkBg-main' : 'border dark:border-darkBorder-light'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   {getCardIcon(method.type)}
                   <div>
-                    <p className="font-medium">
+                    <p className="font-medium dark:text-gray-200">
                       {method.type === 'visa' ? 'Visa' : 'Mastercard'} ending in {method.lastFour}
                     </p>
-                    <p className="text-xs text-gray-500">Expires {method.expiryDate}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Expires {method.expiryDate}</p>
                   </div>
                 </div>
                 {method.isDefault ? (
@@ -111,31 +111,31 @@ export const PaymentTab: React.FC = () => {
               </div>
             ))}
 
-            <Button variant="outline" className="w-full">
+            <Button variant="outline" className="w-full dark:border-darkBorder-light dark:text-gray-300 dark:hover:bg-gray-800">
               <CreditCard size={16} className="mr-2" />
               Add new payment method
             </Button>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="dark:bg-darkBg-card dark:border-darkBorder-light">
           <CardHeader>
-            <CardTitle>Bank Accounts</CardTitle>
-            <CardDescription>Manage your linked bank accounts</CardDescription>
+            <CardTitle className="dark:text-white">Bank Accounts</CardTitle>
+            <CardDescription className="dark:text-gray-400">Manage your linked bank accounts</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {bankAccounts.map((account) => (
               <div 
                 key={account.id}
                 className={`flex items-center justify-between p-3 rounded-lg ${
-                  account.isDefault ? 'bg-gray-50' : 'border'
+                  account.isDefault ? 'bg-gray-50 dark:bg-darkBg-main' : 'border dark:border-darkBorder-light'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   {getBankIcon()}
                   <div>
-                    <p className="font-medium">{account.bankName}</p>
-                    <p className="text-xs text-gray-500">
+                    <p className="font-medium dark:text-gray-200">{account.bankName}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
                       {account.accountType === 'checking' ? 'Checking' : 'Savings'} account ending in {account.lastFour}
                     </p>
                   </div>
@@ -154,7 +154,7 @@ export const PaymentTab: React.FC = () => {
               </div>
             ))}
 
-            <Button variant="outline" className="w-full">
+            <Button variant="outline" className="w-full dark:border-darkBorder-light dark:text-gray-300 dark:hover:bg-gray-800">
               <CreditCard size={16} className="mr-2" />
               Link new bank account
             </Button>
@@ -162,23 +162,23 @@ export const PaymentTab: React.FC = () => {
         </Card>
       </div>
 
-      <Card>
+      <Card className="dark:bg-darkBg-card dark:border-darkBorder-light">
         <CardHeader>
-          <CardTitle>Transaction Limits</CardTitle>
-          <CardDescription>View and manage your transaction limits</CardDescription>
+          <CardTitle className="dark:text-white">Transaction Limits</CardTitle>
+          <CardDescription className="dark:text-gray-400">View and manage your transaction limits</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 rounded-lg border">
+            <div className="flex items-center justify-between p-3 rounded-lg border dark:border-darkBorder-light dark:bg-darkBg-main/50">
               <div>
-                <p className="font-medium">Daily sending limit</p>
-                <p className="text-sm text-gray-500">Maximum amount you can send in a day</p>
+                <p className="font-medium dark:text-gray-200">Daily sending limit</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Maximum amount you can send in a day</p>
               </div>
               <div className="text-right">
-                <p className="font-medium">${transactionLimits.dailySending.toLocaleString()}</p>
+                <p className="font-medium dark:text-gray-200">${transactionLimits.dailySending.toLocaleString()}</p>
                 <Button 
                   variant="link" 
-                  className="text-sm p-0 h-auto text-[#00B512]"
+                  className="text-sm p-0 h-auto text-[#00B512] dark:text-green-400 dark:hover:text-green-300"
                   onClick={() => handleIncreaseLimit('dailySending')}
                 >
                   Increase limit
@@ -186,16 +186,16 @@ export const PaymentTab: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center justify-between p-3 rounded-lg border">
+            <div className="flex items-center justify-between p-3 rounded-lg border dark:border-darkBorder-light dark:bg-darkBg-main/50">
               <div>
-                <p className="font-medium">Monthly transaction limit</p>
-                <p className="text-sm text-gray-500">Maximum amount you can transact in a month</p>
+                <p className="font-medium dark:text-gray-200">Monthly transaction limit</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Maximum amount you can transact in a month</p>
               </div>
               <div className="text-right">
-                <p className="font-medium">${transactionLimits.monthlyTransaction.toLocaleString()}</p>
+                <p className="font-medium dark:text-gray-200">${transactionLimits.monthlyTransaction.toLocaleString()}</p>
                 <Button 
                   variant="link" 
-                  className="text-sm p-0 h-auto text-[#00B512]"
+                  className="text-sm p-0 h-auto text-[#00B512] dark:text-green-400 dark:hover:text-green-300"
                   onClick={() => handleIncreaseLimit('monthlyTransaction')}
                 >
                   Increase limit
@@ -203,16 +203,16 @@ export const PaymentTab: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center justify-between p-3 rounded-lg border">
+            <div className="flex items-center justify-between p-3 rounded-lg border dark:border-darkBorder-light dark:bg-darkBg-main/50">
               <div>
-                <p className="font-medium">Single transaction limit</p>
-                <p className="text-sm text-gray-500">Maximum amount for a single transaction</p>
+                <p className="font-medium dark:text-gray-200">Single transaction limit</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Maximum amount for a single transaction</p>
               </div>
               <div className="text-right">
-                <p className="font-medium">${transactionLimits.singleTransaction.toLocaleString()}</p>
+                <p className="font-medium dark:text-gray-200">${transactionLimits.singleTransaction.toLocaleString()}</p>
                 <Button 
                   variant="link" 
-                  className="text-sm p-0 h-auto text-[#00B512]"
+                  className="text-sm p-0 h-auto text-[#00B512] dark:text-green-400 dark:hover:text-green-300"
                   onClick={() => handleIncreaseLimit('singleTransaction')}
                 >
                   Increase limit
@@ -222,7 +222,7 @@ export const PaymentTab: React.FC = () => {
           </div>
         </CardContent>
         <CardFooter>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
             Note: Increasing limits may require additional verification of your identity.
           </p>
         </CardFooter>
