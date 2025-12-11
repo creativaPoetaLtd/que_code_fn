@@ -1,6 +1,6 @@
-export type MessageType = 'text' | 'image' | 'file' | 'money';
-export type MessageStatus = 'sent' | 'delivered' | 'read';
-export type ChatType = 'dm' | 'group';
+export type MessageType = "text" | "image" | "file" | "money" | "audio" | "video" | "document";
+export type MessageStatus = "sent" | "delivered" | "read";
+export type ChatType = "dm" | "group";
 
 export interface User {
   id: string;
@@ -37,6 +37,7 @@ export interface Conversation {
   id: string;
   name?: string; // Make optional to match Chat interface
   isGroup: boolean;
+  groupId?: string; // The actual group ID for group chats
   lastMessage?: LastMessage | null;
   timestamp?: string;
   unreadCount: number;
@@ -52,6 +53,7 @@ export interface Chat {
   id: string;
   name?: string; // Optional since DM chats might not have names
   isGroup: boolean;
+  groupId?: string; // The actual group ID for group chats
   avatar?: string;
   participants: Participant[];
   unreadCount: number;
@@ -72,18 +74,30 @@ export interface MessageSender {
   email?: string;
 }
 
-export interface Message {
-  id: string;
-  chatId: string;
-  content: string;
-  messageType: MessageType;
-  status: MessageStatus;
-  deliveredAt?: Date;
-  readAt?: Date;
-  createdAt: string;
-  sender: MessageSender;
-  readBy?: ReadReceipt[];
-  isMe?: boolean;
+export interface MediaData {
+    mediaUrl?: string;
+    mediaType?: string;
+    fileSize?: number;
+    thumbnailUrl?: string;
+    fileName?: string;
+    mimeType?: string;
+    duration?: number;
+    width?: number;
+    height?: number;
+}
+
+export interface Message extends MediaData {
+    id: string;
+    chatId: string;
+    content: string;
+    messageType: MessageType;
+    status: MessageStatus;
+    deliveredAt?: Date;
+    readAt?: Date;
+    createdAt: string;
+    sender: MessageSender;
+    readBy?: ReadReceipt[];
+    isMe?: boolean;
 }
 
 export interface LegacyMessage {

@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { ArrowLeft, Check, Shield, AlertCircle, Eye, EyeOff } from "lucide-react";
 import Navigation from "@/components/Navigation";
-import { getUserBalance, transferMoney, getTransactionCategories, getUserWallet, getWalletRestrictions, getEntityBalance, checkUserPinStatus } from "@/helpers/api";
+import { transferMoney, getTransactionCategories, getUserWallet, getWalletRestrictions, getEntityBalance, checkUserPinStatus } from "@/helpers/api";
 import baseUrl from "@/helpers/baseUrl";
 import { useAuthToken } from "@/hooks/use-auth-token";
 import { getUserIdFromToken, isTokenExpired } from "@/utils/jwtUtils";
@@ -175,41 +175,37 @@ const AmountPage = () => {
 
   // Load transaction categories
   useEffect(() => {
+    if (!recipient) return; // Wait for recipient to be loaded
+
     const fetchCategories = async () => {
       setCategoriesLoading(true);
       try {
         const response: any = await getTransactionCategories();
-        
-        const categoryData = response.data?.data;
-        
-        if (categoryData && Array.isArray(categoryData) && categoryData.length > 0) {
-          setCategories(categoryData);
-
-          // For organizations, automatically select organization category and disable constraints
-          if (recipient?.type === 'organization' && organizationCategory) {
-            const orgCategory = categoryData.find((cat: any) => cat.id === organizationCategory.id);
+        if (response.data?.success && response.data?.data) {
+          const categoriesData = response.data.data;
+          setCategories(categoriesData);
+          if (recipient.type === 'organization' && organizationCategory) {
+            const orgCategory = categoriesData.find((cat: any) => cat.id === organizationCategory.id);
             if (orgCategory) {
               setSelectedCategory(orgCategory);
             }
-            setApplyConstraints(false); // Organizations don't use constraints
-          } else if (recipient?.type !== 'organization') {
-            // For individual users, use 'Other' as default
-            const defaultCategory = categoryData.find((cat: any) => cat.name === 'Other');
+            setApplyConstraints(false);
+          } else if (recipient.type !== 'organization') {
+            const defaultCategory = categoriesData.find((cat: any) => cat.name === 'Other');
             if (defaultCategory) {
               setSelectedCategory(defaultCategory);
             }
           }
         }
       } catch (err) {
-        console.error('Error fetching categories:', err);
+        console.error('Failed to load categories:', err);
       } finally {
         setCategoriesLoading(false);
       }
     };
     fetchCategories();
-  }, [recipient?.type]);
+  }, [recipient, organizationCategory]);
 
-  // Fetch organization category and user restrictions when recipient changes
   useEffect(() => {
     if (recipient?.type === 'organization') {
       fetchOrganizationCategory();
@@ -217,7 +213,6 @@ const AmountPage = () => {
     }
   }, [recipient]);
 
-  // Set organization category when it's loaded
   useEffect(() => {
     if (recipient?.type === 'organization' && organizationCategory && categories.length > 0) {
       const orgCategory = categories.find((cat: any) => cat.id === organizationCategory.id);
@@ -281,11 +276,6 @@ const AmountPage = () => {
 
     if (!recipient) {
       setError("Recipient not found");
-      return;
-    }
-
-    if (!selectedCategory) {
-      setError("Please select a transaction category");
       return;
     }
 
@@ -493,44 +483,6 @@ const AmountPage = () => {
               </div>
             </div>
 
-            {/* Category Selection - Only show for individual users, not organizations */}
-            {recipient.type !== 'organization' && (
-              <div className="bg-white rounded-3xl p-6 mb-6 shadow-sm border border-gray-100">
-                <label className="block text-sm font-medium text-gray-700 mb-4">
-                  Select Category
-                </label>
-
-                {categoriesLoading ? (
-                  <div className="text-center py-4">Loading categories...</div>
-                ) : categories.length === 0 ? (
-                  <div className="text-center py-4 text-red-600">
-                    <p>No categories available</p>
-                    <p className="text-sm text-gray-500">Please try refreshing the page</p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="grid grid-cols-2 gap-3">
-                      {categories.map((category) => (
-                        <button
-                          key={category.id}
-                          onClick={() => setSelectedCategory(category)}
-                          className={`py-3 px-4 rounded-xl font-medium transition text-left ${selectedCategory?.id === category.id
-                            ? 'bg-green-600 text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
-                        >
-                          {category.name}
-                        </button>
-                      ))}
-                    </div>
-                    <p className="text-xs text-gray-500 mt-2">
-                      Total categories: {categories.length} | Selected: {selectedCategory?.name || 'None'}
-                    </p>
-                  </>
-                )}
-              </div>
-            )}
-
             {/* Apply Constraints Toggle - Only show for individual users, not organizations */}
             {recipient.type !== 'organization' && (
               <div className="bg-white rounded-3xl p-6 mb-6 shadow-sm border border-gray-100">
@@ -554,6 +506,59 @@ const AmountPage = () => {
                     />
                   </button>
                 </div>
+
+                {/* Category Selection - only when constraints are enabled */}
+                {applyConstraints && (
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                      Select Category
+                    </label>
+
+                    {categoriesLoading ? (
+                      <div className="text-center py-4 text-gray-500">
+                        <div className="animate-pulse">Loading categories...</div>
+                      </div>
+                    ) : categories.length === 0 ? (
+                      <div className="text-center py-4 text-gray-500">
+                        <p>No categories available</p>
+                        <button
+                          onClick={() => {
+                            setCategoriesLoading(true);
+                            getTransactionCategories()
+                              .then((response: any) => {
+                                if (response.data?.success && response.data?.data) {
+                                  setCategories(response.data.data);
+                                }
+                              })
+                              .catch((err) => console.error('Retry failed:', err))
+                              .finally(() => setCategoriesLoading(false));
+                          }}
+                          className="mt-2 text-green-600 hover:text-green-700 text-sm font-medium"
+                        >
+                          Try Again
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-3">
+                        {categories.map((category) => (
+                          <button
+                            key={category.id}
+                            onClick={() => {
+                              setSelectedCategory(category);
+                            }}
+                            className={`py-3 px-4 rounded-xl font-medium transition text-left ${
+                              selectedCategory?.id === category.id
+                                ? 'bg-green-600 text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                          >
+                            {category.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Constraints Warning */}
                 {applyConstraints && (

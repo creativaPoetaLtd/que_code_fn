@@ -446,7 +446,7 @@ export const usePercentageChange = (current: number, previous: number): number =
  * Helper hook to format currency consistently
  */
 export const useFormatCurrency = () => {
-  return useCallback((amount: number, currency: string = 'USD'): string => {
+  return useCallback((amount: number, currency: string = 'RWF'): string => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency,

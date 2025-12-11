@@ -1,24 +1,19 @@
 import { apiSlice } from "@/states/apiSlice";
 
-// Chat API endpoints
 export const chatSlice = apiSlice.injectEndpoints({
     endpoints: (builder) => ({
-        // Get user's chats
         getUserChats: builder.query({
             query: () => "/chats",
             providesTags: ["Chat"]
         }),
 
-        // Get chat messages
         getChatMessages: builder.query({
-            query: ({ chatId, page = 1, limit = 50 }) => 
+            query: ({ chatId, page = 1, limit = 50 }) =>
                 `/chats/${chatId}/messages?page=${page}&limit=${limit}`,
             providesTags: (result, error, { chatId }) => [
                 { type: "ChatMessage", id: chatId }
             ]
         }),
-
-        // Create or get DM chat
         createOrGetDMChat: builder.mutation({
             query: ({ participantId }) => ({
                 url: "/chats/dm",
@@ -28,7 +23,6 @@ export const chatSlice = apiSlice.injectEndpoints({
             invalidatesTags: ["Chat"]
         }),
 
-        // Send message (HTTP fallback)
         sendMessage: builder.mutation({
             query: ({ chatId, content, messageType = "text", transactionId }) => ({
                 url: `/chats/${chatId}/messages`,
@@ -51,7 +45,6 @@ export const chatSlice = apiSlice.injectEndpoints({
             ]
         }),
 
-        // Get chat participants status
         getChatParticipantsStatus: builder.query({
             query: ({ chatId }) => `/chats/${chatId}/participants/status`,
             providesTags: (result, error, { chatId }) => [
@@ -59,7 +52,6 @@ export const chatSlice = apiSlice.injectEndpoints({
             ]
         }),
 
-        // Create group chat
         createGroupChat: builder.mutation({
             query: ({ participantIds, groupName }) => ({
                 url: "/chats/group",
@@ -69,7 +61,6 @@ export const chatSlice = apiSlice.injectEndpoints({
             invalidatesTags: ["Chat"]
         }),
 
-        // Join group chat
         joinGroupChat: builder.mutation({
             query: ({ groupId }) => ({
                 url: `/chats/group/${groupId}/join`,
@@ -78,7 +69,6 @@ export const chatSlice = apiSlice.injectEndpoints({
             invalidatesTags: ["Chat"]
         }),
 
-        // Delete chat
         deleteChat: builder.mutation({
             query: ({ chatId }) => ({
                 url: `/chats/${chatId}`,
@@ -87,12 +77,37 @@ export const chatSlice = apiSlice.injectEndpoints({
             invalidatesTags: ["Chat"]
         }),
 
-        // Initialize user encryption
         initializeUserEncryption: builder.mutation({
             query: ({ password }) => ({
                 url: "/chats/encryption/init",
                 method: "POST",
                 body: { password }
+            })
+        }),
+
+        sendMoneyInChat: builder.mutation({
+            query: ({ chatId, data }) => ({
+                url: `/chats/${chatId}/send-money`,
+                method: "POST",
+                body: data
+            }),
+            invalidatesTags: (result, error, { chatId }) => [
+                { type: "ChatMessage", id: chatId }
+            ]
+        }),
+
+        getUserWalletBalance: builder.query({
+            query: ({ userId }) => `/transactions/user/${userId}/wallet`,
+            providesTags: ["Wallet"]
+        }),
+
+        downloadTransactionReceipt: builder.mutation({
+            query: ({ transactionId }) => ({
+                url: `/transactions/receipt/${transactionId}`,
+                method: "GET",
+                responseHandler: async (response: Response) => {
+                    return await response.blob();
+                }
             })
         })
     }),
@@ -108,5 +123,8 @@ export const {
     useCreateGroupChatMutation,
     useJoinGroupChatMutation,
     useDeleteChatMutation,
-    useInitializeUserEncryptionMutation
+    useInitializeUserEncryptionMutation,
+    useSendMoneyInChatMutation,
+    useGetUserWalletBalanceQuery,
+    useDownloadTransactionReceiptMutation
 } = chatSlice;

@@ -7,7 +7,7 @@ class SocketService {
 
     connect(userId: string, token?: string) {
         this.connectionCount++
-        
+
         if (this.socket?.connected) {
             console.log(`Socket already connected. Connection count: ${this.connectionCount}`)
             return this.socket
@@ -15,10 +15,10 @@ class SocketService {
 
         this.userId = userId
         console.log(`Creating new socket connection. Connection count: ${this.connectionCount}`)
-        
+
         const finalToken = token || localStorage.getItem('token');
-        
-        this.socket = io(process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:5500", {
+
+        this.socket = io(process.env.NEXT_PUBLIC_SOCKET_URL, {
             transports: ["websocket", "polling"],
             autoConnect: true,
             auth: {
@@ -47,10 +47,10 @@ class SocketService {
         return this.socket
     }
 
-        disconnect() {
+    disconnect() {
         this.connectionCount = Math.max(0, this.connectionCount - 1)
         console.log(`Disconnect requested. Connection count: ${this.connectionCount}`)
-        
+
         // Only actually disconnect when no contexts are using the socket
         if (this.connectionCount === 0 && this.socket) {
             console.log("Actually disconnecting socket")
@@ -444,6 +444,65 @@ class SocketService {
                 this.socket.off("error", callback)
             } else {
                 this.socket.off("error")
+            }
+        }
+    }
+
+    // Listen for money received events
+    onMoneyReceived(callback: (data: { amount: number; from: string; transactionId: string; chatId: string }) => void) {
+        if (this.socket) {
+            this.socket.on("money_received", callback)
+        }
+    }
+
+    offMoneyReceived(callback?: (data: any) => void) {
+        if (this.socket) {
+            if (callback) {
+                this.socket.off("money_received", callback)
+            } else {
+                this.socket.off("money_received")
+            }
+        }
+    }
+
+    // Listen for group donation events
+    onGroupDonation(callback: (data: any) => void) {
+        if (this.socket) {
+            this.socket.on("group_donation_received", callback)
+        }
+    }
+
+    offGroupDonation(callback?: (data: any) => void) {
+        if (this.socket) {
+            if (callback) {
+                this.socket.off("group_donation_received", callback)
+            } else {
+                this.socket.off("group_donation_received")
+            }
+        }
+    }
+
+    // Listen for fundraising progress updates
+    onFundraisingProgress(callback: (data: {
+        groupId: string;
+        groupName: string;
+        currentAmount: number;
+        targetAmount: number;
+        progress: number;
+        donorName: string;
+        donationAmount: number;
+    }) => void) {
+        if (this.socket) {
+            this.socket.on("fundraising_progress_update", callback)
+        }
+    }
+
+    offFundraisingProgress(callback?: (data: any) => void) {
+        if (this.socket) {
+            if (callback) {
+                this.socket.off("fundraising_progress_update", callback)
+            } else {
+                this.socket.off("fundraising_progress_update")
             }
         }
     }

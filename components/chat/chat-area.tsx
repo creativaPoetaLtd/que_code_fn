@@ -38,7 +38,7 @@ export default function ChatArea({
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
     }, [messages])
-
+    
     return (
         <div className={`${showOnMobile ? "flex" : "hidden"} md:flex flex-col flex-1 bg-gradient-to-b from-gray-50 to-gray-100 h-full`}>
             <ChatHeader

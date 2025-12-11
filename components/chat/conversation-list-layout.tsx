@@ -9,13 +9,12 @@ import SearchBar from './search-bar';
 import ConversationFilters, { type FilterType } from './conversation-filters';
 import EmptyState from './empty-state';
 import StartChatModal from './start-chart-modal';
-import GroupsModal from './groups-modal';
 import JoinGroupByLinkModal from './join-group-by-link-modal';
 import CreateGroupModalUpdated from './create-group-modal';
 import type { Conversation } from '@/types/chat.types';
 import { Send, Link } from 'lucide-react'
 import { useAuthToken } from '@/hooks/use-auth-token'
-import { useGetGroupsQuery } from '@/states/groupSlice'
+import { useGetGroupsQuery } from '@/states/groupSlice';
 
 interface ConversationListLayoutProps {
   conversations: Conversation[];
@@ -27,7 +26,6 @@ interface ConversationListLayoutProps {
   onQuickSendMoney: (conversation: Conversation) => void;
   onStartNewChat?: (contact: any) => void;
   onJoinGroup?: (group: any) => void;
-  pendingRequestsCount?: number;
   isLoading?: boolean;
 }
 
@@ -41,7 +39,6 @@ export default function ConversationListLayout({
   onQuickSendMoney,
   onStartNewChat,
   onJoinGroup,
-  pendingRequestsCount = 3,
   isLoading = false,
 }: ConversationListLayoutProps) {
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -50,7 +47,6 @@ export default function ConversationListLayout({
     useState<QuickActionType>('conversations');
   const [isStartChatModalOpen, setIsStartChatModalOpen] =
     useState<boolean>(false);
-  const [isGroupsModalOpen, setIsGroupsModalOpen] = useState<boolean>(false);
   const [isJoinGroupByLinkModalOpen, setIsJoinGroupByLinkModalOpen] =
     useState<boolean>(false);
   const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] =
@@ -58,7 +54,11 @@ export default function ConversationListLayout({
 
   const { getToken } = useAuthToken();
   const token = getToken();
-
+  // Calculate total unread messages count
+  const totalUnreadCount = conversations.reduce(
+    (total, conv) => total + (conv.unreadCount || 0),
+    0
+  );
   // Get groups data when groups filter is active
   const { data: groupsData, isLoading: groupsLoading } = useGetGroupsQuery(
     token as string,
@@ -82,7 +82,7 @@ export default function ConversationListLayout({
 
   // Get groups for groups filter
   const groups = groupsData?.data?.groups || [];
-  const filteredGroups = groups.filter((group: any) => 
+  const filteredGroups = groups.filter((group: any) =>
     group.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -92,17 +92,16 @@ export default function ConversationListLayout({
 
   return (
     <div
-      className={`${
-        showOnMobile ? 'flex' : 'hidden'
-      } md:flex flex-col w-full md:w-80 lg:w-96 border-r border-gray-200 bg-white h-full overflow-hidden`}
+      className={`${showOnMobile ? 'flex' : 'hidden'
+        } md:flex flex-col w-full md:w-80 lg:w-96 border-r border-gray-200 bg-white h-full overflow-hidden`}
     >
       {/* Header */}
       <div className='p-4 border-b border-gray-100 bg-white'>
         <div className='flex justify-between items-center mb-4'>
           <h2 className='text-xl font-bold text-gray-900'>Messages</h2>
-          {pendingRequestsCount > 0 && (
+          {totalUnreadCount > 0 && (
             <Badge className='bg-[#00B512] text-white hover:bg-green-700'>
-              {pendingRequestsCount} new
+              {totalUnreadCount} unread
             </Badge>
           )}
         </div>
@@ -112,12 +111,16 @@ export default function ConversationListLayout({
           onTabChange={setActiveQuickTab}
           onAddContact={onAddContact}
           onStartNewChat={() => setIsStartChatModalOpen(true)}
-          onViewMyGroups={() => setIsGroupsModalOpen(true)}
+          onViewMyGroups={() => setActiveQuickTab('groups')}
           onCreateGroup={() => setIsCreateGroupModalOpen(true)}
           onJoinGroupByLink={() => setIsJoinGroupByLinkModalOpen(true)}
           onViewContactRequests={onViewContactRequests}
           onStartChatWithContact={contact => {
             onStartNewChat?.(contact);
+            setActiveQuickTab('conversations');
+          }}
+          onJoinGroup={group => {
+            onJoinGroup?.(group);
             setActiveQuickTab('conversations');
           }}
           contactsCount={userCount}
@@ -153,7 +156,7 @@ export default function ConversationListLayout({
               <div>
                 {/* Groups List */}
                 {filteredGroups.length > 0 ||
-                filteredConversations.length > 0 ? (
+                  filteredConversations.length > 0 ? (
                   <div>
                     {/* Show conversation groups first */}
                     {filteredConversations.length > 0 && (
@@ -235,61 +238,61 @@ export default function ConversationListLayout({
               </div>
             )
           ) : // Regular conversations rendering
-          isLoading ? (
-            <div className='flex items-center justify-center h-32'>
-              <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-[#00B512]'></div>
-              <span className='ml-2 text-gray-500'>
-                Loading conversations...
-              </span>
-            </div>
-          ) : filteredConversations.length > 0 ? (
-            <div>
-              {/* Section Header */}
-              {searchTerm === '' && (
-                <div className='px-4 py-2 bg-gray-50 border-b border-gray-100'>
-                  <p className='text-xs font-medium text-gray-600 uppercase tracking-wide'>
-                    {activeFilter === 'all' && 'All Conversations'}
-                    {activeFilter === 'users' && 'Direct Messages'}
-                  </p>
-                </div>
-              )}
+            isLoading ? (
+              <div className='flex items-center justify-center h-32'>
+                <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-[#00B512]'></div>
+                <span className='ml-2 text-gray-500'>
+                  Loading conversations...
+                </span>
+              </div>
+            ) : filteredConversations.length > 0 ? (
+              <div>
+                {/* Section Header */}
+                {searchTerm === '' && (
+                  <div className='px-4 py-2 bg-gray-50 border-b border-gray-100'>
+                    <p className='text-xs font-medium text-gray-600 uppercase tracking-wide'>
+                      {activeFilter === 'all' && 'All Conversations'}
+                      {activeFilter === 'users' && 'Direct Messages'}
+                    </p>
+                  </div>
+                )}
 
-              {filteredConversations.map(conversation => (
-                <div key={conversation.id} className='relative group'>
-                  <ConversationItem
-                    conversation={conversation}
-                    isActive={activeConversation.id === conversation.id}
-                    onClick={() => onConversationSelect(conversation)}
-                  />
+                {filteredConversations.map(conversation => (
+                  <div key={conversation.id} className='relative group'>
+                    <ConversationItem
+                      conversation={conversation}
+                      isActive={activeConversation.id === conversation.id}
+                      onClick={() => onConversationSelect(conversation)}
+                    />
 
-                  {/* Quick Send Money Button - Only for users */}
-                  {!conversation.isGroup && (
-                    <Button
-                      variant='ghost'
-                      size='icon'
-                      onClick={e => {
-                        e.stopPropagation();
-                        onQuickSendMoney(conversation);
-                      }}
-                      className='absolute right-4 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-blue-100 h-8 w-8'
-                      aria-label='Quick send money'
-                    >
-                      <Send size={14} className='text-[#00B512]' />
-                    </Button>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <EmptyState
-              filterType={activeFilter}
-              hasSearchTerm={!!searchTerm}
-              onStartNewChat={() => setIsStartChatModalOpen(true)}
-              onViewMyGroups={() => setIsGroupsModalOpen(true)}
-              onJoinGroupByLink={() => setIsJoinGroupByLinkModalOpen(true)}
-              onAddContact={onAddContact}
-            />
-          ))}
+                    {/* Quick Send Money Button - Only for users */}
+                    {!conversation.isGroup && (
+                      <Button
+                        variant='ghost'
+                        size='icon'
+                        onClick={e => {
+                          e.stopPropagation();
+                          onQuickSendMoney(conversation);
+                        }}
+                        className='absolute right-4 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-blue-100 h-8 w-8'
+                        aria-label='Quick send money'
+                      >
+                        <Send size={14} className='text-[#00B512]' />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                filterType={activeFilter}
+                hasSearchTerm={!!searchTerm}
+                onStartNewChat={() => setIsStartChatModalOpen(true)}
+                onViewMyGroups={() => setActiveQuickTab('groups')}
+                onJoinGroupByLink={() => setIsJoinGroupByLinkModalOpen(true)}
+                onAddContact={onAddContact}
+              />
+            ))}
       </div>
 
       {/* Modals */}
@@ -299,15 +302,6 @@ export default function ConversationListLayout({
         onStartChat={contact => {
           onStartNewChat?.(contact);
           setIsStartChatModalOpen(false);
-        }}
-        existingConversations={conversations}
-      />
-      <GroupsModal
-        isOpen={isGroupsModalOpen}
-        onClose={() => setIsGroupsModalOpen(false)}
-        onJoinGroup={group => {
-          onJoinGroup?.(group);
-          setIsGroupsModalOpen(false);
         }}
         existingConversations={conversations}
       />

@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Search, Users, UserPlus, Loader2, AlertCircle, Send } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useInviteToGroupMutation } from "@/states/groupSlice"
-import { useGetAcceptedContactsQuery } from "@/states/contactSlice"
+import { useGetAcceptedContactsQuery, Contact } from "@/states/contactSlice"
 import type { Conversation } from "@/types"
 
 interface InviteToGroupModalProps {
@@ -18,19 +18,6 @@ interface InviteToGroupModalProps {
     onClose: () => void
     group: Conversation | null
     token: string | null
-}
-
-interface Contact {
-    id: string
-    contactUser: {
-        id: string
-        firstName: string
-        lastName: string
-        email: string
-        phone?: string
-        avatar?: string
-        publicId?: string
-    }
 }
 
 export default function InviteToGroupModal({ isOpen, onClose, group, token }: InviteToGroupModalProps) {
@@ -47,12 +34,14 @@ export default function InviteToGroupModal({ isOpen, onClose, group, token }: In
         skip: !token || !isOpen,
     })
 
-    const contacts: Contact[] = contactsData?.data || []
+    const contacts: Contact[] = contactsData?.contacts || []
 
     // Filter contacts based on search term
     const filteredContacts = contacts.filter((contact) => {
-        const fullName = `${contact.contactUser.firstName} ${contact.contactUser.lastName}`.toLowerCase()
-        const email = contact.contactUser.email.toLowerCase()
+        const otherUser = contact.otherUser
+        if (!otherUser) return false
+        const fullName = `${otherUser.firstName} ${otherUser.lastName}`.toLowerCase()
+        const email = otherUser.email.toLowerCase()
         const search = searchTerm.toLowerCase()
         return fullName.includes(search) || email.includes(search)
     })
@@ -65,9 +54,9 @@ export default function InviteToGroupModal({ isOpen, onClose, group, token }: In
         }
     }, [isOpen])
 
-    const toggleContact = (publicId: string) => {
+    const toggleContact = (userId: string) => {
         setSelectedContacts((prev) =>
-            prev.includes(publicId) ? prev.filter((id) => id !== publicId) : [...prev, publicId],
+            prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId],
         )
     }
 
@@ -76,10 +65,10 @@ export default function InviteToGroupModal({ isOpen, onClose, group, token }: In
         if (selectedContacts.length === filteredContacts.length) {
             setSelectedContacts([])
         } else {
-            // Use publicId instead of contactUser.id
-
-            const allPublicIds = filteredContacts.map((contact) => contact.contactUser.publicId!)
-            setSelectedContacts(allPublicIds)
+            const allUserIds = filteredContacts
+                .map((contact) => contact.otherUser?.id)
+                .filter((id): id is string => Boolean(id))
+            setSelectedContacts(allUserIds)
         }
     }
     const handleInvite = async () => {
@@ -105,7 +94,7 @@ export default function InviteToGroupModal({ isOpen, onClose, group, token }: In
             const result = await inviteToGroup({
                 inviteData: {
                     groupId: group.id.toString(),
-                    memberPublicIds: selectedContacts,
+                    memberIds: selectedContacts,
                 },
                 token,
             }).unwrap()
@@ -115,12 +104,23 @@ export default function InviteToGroupModal({ isOpen, onClose, group, token }: In
                 const { successful, failed, totalInvited } = result.data
 
                 if (failed && failed.length > 0) {
-                    // Some invitations failed
-                    toast({
-                        title: "Partially Successful",
-                        description: `${totalInvited} invitation${totalInvited > 1 ? "s" : ""} sent successfully. ${failed.length} failed.`,
-                        variant: "default",
-                    })
+                    // Show specific failure reasons
+                    const failureReasons = failed.map((f: any) => f.reason).join(', ')
+                    
+                    if (totalInvited === 0) {
+                        // All failed
+                        toast({
+                            title: "Invitation Failed",
+                            description: `Could not invite selected contacts. Reasons: ${failureReasons}`,
+                            variant: "destructive",
+                        })
+                    } else {
+                        // Partial success
+                        toast({
+                            title: "Partially Successful",
+                            description: `${totalInvited} invitation${totalInvited > 1 ? "s" : ""} sent successfully. ${failed.length} failed (${failureReasons}).`,
+                        })
+                    }
                 } else {
                     // All successful
                     toast({
@@ -240,41 +240,46 @@ export default function InviteToGroupModal({ isOpen, onClose, group, token }: In
                                 )}
 
                                 {/* Contact List */}
-                                {filteredContacts.map((contact) => (
-                                    <div
-                                        key={contact.contactUser.publicId!}
-                                        className="flex items-center p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors"
-                                        onClick={() => toggleContact(contact.contactUser.publicId!)} // Use publicId for selection
-                                    >
-                                        <Checkbox
-                                            id={`contact-${contact.contactUser.publicId!}`}
-                                            checked={selectedContacts.includes(contact.contactUser.publicId!)}
-                                            onCheckedChange={() => toggleContact(contact.contactUser.publicId!)}
-                                            className="mr-3"
-                                        />
-                                        <Avatar className="h-10 w-10 mr-3">
-                                            <AvatarImage
-                                                src={contact.contactUser.avatar || "/placeholder.svg?height=40&width=40"}
-                                                alt={`${contact.contactUser.firstName} ${contact.contactUser.lastName}`}
+                                {filteredContacts.map((contact) => {
+                                    const otherUser = contact.otherUser
+                                    if (!otherUser) return null
+                                    
+                                    return (
+                                        <div
+                                            key={contact.id}
+                                            className="flex items-center p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors"
+                                            onClick={() => toggleContact(otherUser.id)}
+                                        >
+                                            <Checkbox
+                                                id={`contact-${otherUser.id}`}
+                                                checked={selectedContacts.includes(otherUser.id)}
+                                                onCheckedChange={() => toggleContact(otherUser.id)}
+                                                className="mr-3"
                                             />
-                                            <AvatarFallback className="bg-blue-100 text-blue-600">
-                                                {(contact.contactUser.firstName || '').charAt(0).toUpperCase()}
-                                                {(contact.contactUser.lastName || '').charAt(0).toUpperCase()}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                        <div className="flex-1">
-                                            <p className="font-medium text-gray-900">
-                                                {contact.contactUser.firstName} {contact.contactUser.lastName}
-                                            </p>
-                                            <p className="text-sm text-gray-500">{contact.contactUser.email}</p>
+                                            <Avatar className="h-10 w-10 mr-3">
+                                                <AvatarImage
+                                                    src={(otherUser as any).avatar || "/placeholder.svg?height=40&width=40"}
+                                                    alt={`${otherUser.firstName} ${otherUser.lastName}`}
+                                                />
+                                                <AvatarFallback className="bg-blue-100 text-blue-600">
+                                                    {(otherUser.firstName || '').charAt(0).toUpperCase()}
+                                                    {(otherUser.lastName || '').charAt(0).toUpperCase()}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            <div className="flex-1">
+                                                <p className="font-medium text-gray-900">
+                                                    {otherUser.firstName} {otherUser.lastName}
+                                                </p>
+                                                <p className="text-sm text-gray-500">{otherUser.email}</p>
+                                            </div>
+                                            {selectedContacts.includes(otherUser.id) && (
+                                                <Badge variant="default" className="bg-blue-600">
+                                                    Selected
+                                                </Badge>
+                                            )}
                                         </div>
-                                        {selectedContacts.includes(contact.contactUser.publicId!) && (
-                                            <Badge variant="default" className="bg-blue-600">
-                                                Selected
-                                            </Badge>
-                                        )}
-                                    </div>
-                                ))}
+                                    )
+                                })}
                             </div>
                         ) : searchTerm ? (
                             <div className="text-center py-8">

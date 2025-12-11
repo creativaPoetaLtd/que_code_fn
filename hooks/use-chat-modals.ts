@@ -12,7 +12,6 @@ export function useChatModals() {
     const [isInviteToGroupModalOpen, setIsInviteToGroupModalOpen] = useState<boolean>(false)
     const [isJoinGroupByLinkModalOpen, setIsJoinGroupByLinkModalOpen] = useState<boolean>(false)
     const [isStartChatModalOpen, setIsStartChatModalOpen] = useState<boolean>(false)
-    const [isGroupsModalOpen, setIsGroupsModalOpen] = useState<boolean>(false)
 
     const [selectedRecipient, setSelectedRecipient] = useState<string>("")
 
@@ -36,7 +35,6 @@ export function useChatModals() {
         setIsInviteToGroupModalOpen(false)
         setIsJoinGroupByLinkModalOpen(false)
         setIsStartChatModalOpen(false)
-        setIsGroupsModalOpen(false)
         setSelectedRecipient("")
     }
 
@@ -51,7 +49,6 @@ export function useChatModals() {
         isInviteToGroupModalOpen,
         isJoinGroupByLinkModalOpen,
         isStartChatModalOpen,
-        isGroupsModalOpen,
         selectedRecipient,
 
         // Modal actions
@@ -65,7 +62,6 @@ export function useChatModals() {
         setIsInviteToGroupModalOpen,
         setIsJoinGroupByLinkModalOpen,
         setIsStartChatModalOpen,
-        setIsGroupsModalOpen,
         closeAllModals,
     }
 }

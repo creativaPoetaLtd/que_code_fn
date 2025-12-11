@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Layout } from 'antd';
 import ChatArea from '@/components/chat/chat-area';
 import ConversationListLayout from '@/components/chat/conversation-list-layout';
 import Navigation from '@/components/Navigation';
 import { useChatOperations } from '@/hooks/use-chat-operations';
 import { useChatModals } from '@/hooks/use-chat-modals';
+import { useAuthToken } from '@/hooks/use-auth-token';
 import type { Chat, Conversation } from '@/types/chat.types';
 
 import SendMoneyModal from '@/components/chat/send-money-modal';
@@ -15,11 +16,14 @@ import AddContactModal from '@/components/chat/add-contact-modal';
 import UserProfileModal from '@/components/chat/user-profile-modal';
 import GroupProfileModal from '@/components/chat/group-profile-modal';
 import ContactRequestModal from '@/components/chat/contact-request';
-import InviteToGroupModal from '@/components/chat/invite-to-group-modal';
+import AddMemberModal from '@/components/chat/add-member-modal';
 
 const { Content } = Layout;
 
 export default function ChatPageClean() {
+  const { getToken } = useAuthToken();
+  const token = getToken();
+
   const {
     conversations,
     activeChat,
@@ -56,6 +60,32 @@ export default function ChatPageClean() {
     useState(true);
   const [selectedChat, setSelectedChat] = useState<Conversation | null>(null);
 
+  // Auto-select conversation when activeChat changes (e.g., from joining a group)
+  useEffect(() => {
+    if (activeChat && conversations.length > 0) {
+      const conversation = conversations.find(c => c.id === activeChat);
+      if (conversation && (!selectedChat || conversation.id !== selectedChat.id)) {
+        const conversationData = conversation as any;
+        setSelectedChat({
+          id: conversationData.id,
+          name:
+            conversationData.name ||
+            (conversationData.otherUser
+              ? `${conversationData.otherUser.firstName} ${conversationData.otherUser.lastName}`
+              : 'Unknown Contact'),
+          isGroup: conversationData.isGroup,
+          groupId: conversationData.groupId,
+          avatar: conversationData.avatar,
+          participants: conversationData.participants || [],
+          unreadCount: conversationData.unreadCount || 0,
+          isOnline: conversationData.isOnline || false,
+          memberCount: conversationData.memberCount,
+        });
+        setShowMobileConversationList(false);
+      }
+    }
+  }, [activeChat, conversations]);
+
   const handleConversationSelect = (conversation: any) => {
     setSelectedChat({
       id: conversation.id,
@@ -65,6 +95,7 @@ export default function ChatPageClean() {
           ? `${conversation.otherUser.firstName} ${conversation.otherUser.lastName}`
           : 'Unknown Contact'),
       isGroup: conversation.isGroup,
+      groupId: conversation.groupId, // Include groupId
       avatar: conversation.avatar,
       participants: conversation.participants || [],
       unreadCount: conversation.unreadCount || 0,
@@ -179,7 +210,8 @@ export default function ChatPageClean() {
       <GroupProfileModal
         isOpen={isGroupProfileModalOpen}
         onClose={() => setIsGroupProfileModalOpen(false)}
-        group={selectedChat?.isGroup ? (selectedChat as any) : undefined}
+        groupId={selectedChat?.isGroup ? selectedChat.groupId || null : null}
+        token={token || ''}
       />
 
       <ContactRequestModal
@@ -187,11 +219,12 @@ export default function ChatPageClean() {
         onClose={() => setIsContactRequestModalOpen(false)}
       />
 
-      <InviteToGroupModal
+      <AddMemberModal
         isOpen={isInviteToGroupModalOpen}
         onClose={() => setIsInviteToGroupModalOpen(false)}
-        group={selectedChat as any}
-        token={null}
+        groupId={selectedChat?.groupId || null}
+        groupName={selectedChat?.name || ''}
+        token={token || ''}
       />
     </Layout>
   );
