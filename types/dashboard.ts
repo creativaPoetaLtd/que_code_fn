@@ -24,12 +24,34 @@ export interface Transaction {
     userId: string | null;
     organizationId: string | null;
     currency: string;
+    user?: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+    } | null;
+    organization?: {
+      id: string;
+      name: string;
+      email: string;
+    } | null;
   };
   receiverWallet: {
     id: string;
     userId: string | null;
     organizationId: string | null;
     currency: string;
+    user?: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+    } | null;
+    organization?: {
+      id: string;
+      name: string;
+      email: string;
+    } | null;
   };
   // Legacy fields for backward compatibility
   senderId?: string;

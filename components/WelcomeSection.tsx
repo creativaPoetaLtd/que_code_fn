@@ -81,20 +81,20 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({ userId }) => {
     };
 
     return (
-        <div className="bg-white rounded-2xl px-6 py-2 shadow-sm border border-gray-100 mb-6 mt-2">
+        <div className="bg-white dark:bg-darkBg-card rounded-2xl px-6 py-2 shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-100 dark:border-darkBorder-light mb-6 mt-2">
             <div className="flex justify-between items-start">
                 <div className="flex-1">
-                    <h1 className="text-xl font-bold text-[#00313A] mb-1">
-                        {getGreeting()}, <span className="text-[#00B512]">{userName}</span>
+                    <h1 className="text-xl font-bold text-[#00313A] dark:text-white mb-1">
+                        {getGreeting()}, <span className="text-brand-green dark:text-brand-gold">{userName}</span>
                     </h1>
-                    <p className="text-sm text-gray-600 mb-4">
+                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
                         Welcome back! Here's a quick overview of your QiewCode wallet.
                     </p>
 
                     <div className="space-y-1">
-                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Total Balance</p>
+                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total Balance</p>
                         <div className="flex items-baseline gap-2">
-                            <h2 className="text-2xl font-bold text-[#00313A]">
+                            <h2 className="text-2xl font-bold text-[#00313A] dark:text-white">
                                 {balanceLoading
                                     ? 'Loading...'
                                     : balanceError
@@ -106,7 +106,7 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({ userId }) => {
                             <span className="h-6 w-6 flex items-center justify-center">
                                 <button
                                     onClick={toggleBalanceVisibility}
-                                    className="text-gray-400 hover:text-gray-600 transition rounded-full hover:bg-gray-100 flex items-center justify-center"
+                                    className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition rounded-full hover:bg-gray-100 dark:hover:bg-[#00313A] flex items-center justify-center"
                                     aria-label={isBalanceVisible ? "Hide Balance" : "Show Balance"}
                                 >
                                     {isBalanceVisible ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -117,7 +117,7 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({ userId }) => {
                 </div>
 
                 <div className="text-right">
-                    <p className="text-xs text-gray-500">{getFormattedDate()}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{getFormattedDate()}</p>
                 </div>
             </div>
         </div>

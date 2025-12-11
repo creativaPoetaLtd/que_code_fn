@@ -50,6 +50,7 @@ const AmountPage = () => {
   const { getToken } = useAuthToken();
   const [showPinSetupModal, setShowPinSetupModal] = useState(false);
   const [showPinResetModal, setShowPinResetModal] = useState(false);
+  const [pinResetModalError, setPinResetModalError] = useState<string>("");
   const [checkingPinStatus, setCheckingPinStatus] = useState(true);
 
   const handlePinSetupSuccess = async () => {
@@ -60,6 +61,7 @@ const AmountPage = () => {
   const handlePinResetSuccess = () => {
     // After PIN reset, close modal and allow user to try again
     setShowPinResetModal(false);
+    setPinResetModalError("");
     setError("");
   };
 
@@ -177,26 +179,29 @@ const AmountPage = () => {
       setCategoriesLoading(true);
       try {
         const response: any = await getTransactionCategories();
-        if (response.success) {
-          setCategories(response.data);
+        
+        const categoryData = response.data?.data;
+        
+        if (categoryData && Array.isArray(categoryData) && categoryData.length > 0) {
+          setCategories(categoryData);
 
           // For organizations, automatically select organization category and disable constraints
           if (recipient?.type === 'organization' && organizationCategory) {
-            const orgCategory = response.data.find((cat: any) => cat.id === organizationCategory.id);
+            const orgCategory = categoryData.find((cat: any) => cat.id === organizationCategory.id);
             if (orgCategory) {
               setSelectedCategory(orgCategory);
             }
             setApplyConstraints(false); // Organizations don't use constraints
           } else if (recipient?.type !== 'organization') {
             // For individual users, use 'Other' as default
-            const defaultCategory = response.data.find((cat: any) => cat.name === 'Other');
+            const defaultCategory = categoryData.find((cat: any) => cat.name === 'Other');
             if (defaultCategory) {
               setSelectedCategory(defaultCategory);
             }
           }
         }
       } catch (err) {
-        console.error('Failed to load categories:', err);
+        console.error('Error fetching categories:', err);
       } finally {
         setCategoriesLoading(false);
       }
@@ -351,8 +356,12 @@ const AmountPage = () => {
         return;
       }
 
-      // Check if PIN is locked
-      if (err?.response?.data?.message?.includes('locked') || err?.response?.data?.lockedUntil) {
+      const attemptsRemaining = err?.response?.data?.attemptsRemaining;
+      const isAccountLocked = attemptsRemaining === 0 || err?.response?.data?.message?.includes('Account locked') || err?.response?.data?.lockedUntil;
+      
+      if (isAccountLocked) {
+        const errorMessage = err?.response?.data?.message || 'Your account has been locked due to too many failed PIN attempts. Please reset your PIN to continue.';
+        setPinResetModalError(errorMessage);
         setShowPinResetModal(true);
         setTransferInProgress(false);
         setLoading(false);
@@ -361,11 +370,7 @@ const AmountPage = () => {
 
       // Handle PIN attempt errors with more specific feedback
       const errorMessage = err?.response?.data?.message || err?.message || 'Transfer failed';
-      if (errorMessage.includes('PIN') && errorMessage.includes('attempt')) {
-        setError(`${errorMessage} You can reset your PIN if you've forgotten it.`);
-      } else {
-        setError(errorMessage);
-      }
+      setError(errorMessage);
 
       setTransferInProgress(false);
       setLoading(false);
@@ -497,21 +502,31 @@ const AmountPage = () => {
 
                 {categoriesLoading ? (
                   <div className="text-center py-4">Loading categories...</div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-3">
-                    {categories.map((category) => (
-                      <button
-                        key={category.id}
-                        onClick={() => setSelectedCategory(category)}
-                        className={`py-3 px-4 rounded-xl font-medium transition text-left ${selectedCategory?.id === category.id
-                          ? 'bg-green-600 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}
-                      >
-                        {category.name}
-                      </button>
-                    ))}
+                ) : categories.length === 0 ? (
+                  <div className="text-center py-4 text-red-600">
+                    <p>No categories available</p>
+                    <p className="text-sm text-gray-500">Please try refreshing the page</p>
                   </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      {categories.map((category) => (
+                        <button
+                          key={category.id}
+                          onClick={() => setSelectedCategory(category)}
+                          className={`py-3 px-4 rounded-xl font-medium transition text-left ${selectedCategory?.id === category.id
+                            ? 'bg-green-600 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                        >
+                          {category.name}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Total categories: {categories.length} | Selected: {selectedCategory?.name || 'None'}
+                    </p>
+                  </>
                 )}
               </div>
             )}
@@ -749,6 +764,7 @@ const AmountPage = () => {
         open={showPinResetModal}
         onOpenChange={setShowPinResetModal}
         onSuccess={handlePinResetSuccess}
+        lockoutError={pinResetModalError}
       />
     </div>
   );

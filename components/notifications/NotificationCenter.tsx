@@ -210,9 +210,9 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-2xl max-h-[80vh] flex flex-col">
+            <DialogContent className="sm:max-w-2xl max-h-[80vh] flex flex-col bg-white dark:bg-darkBg-card border-gray-200 dark:border-darkBorder-light">
                 <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
+                    <DialogTitle className="flex items-center gap-2 text-gray-900 dark:text-white">
                         <Bell className="h-5 w-5" />
                         Notifications
                         {unreadCount > 0 && (
@@ -224,12 +224,12 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
                 </DialogHeader>
 
                 {/* Tabs */}
-                <div className="flex space-x-1 border-b">
+                <div className="flex space-x-1 border-b border-gray-200 dark:border-darkBorder-light">
                     <Button
                         variant={selectedTab === 'all' ? 'default' : 'ghost'}
                         size="sm"
                         onClick={() => setSelectedTab('all')}
-                        className="flex-1"
+                        className={`flex-1 ${selectedTab !== 'all' ? 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-darkBg-interactive' : ''}`}
                     >
                         All
                     </Button>
@@ -237,7 +237,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
                         variant={selectedTab === 'invitations' ? 'default' : 'ghost'}
                         size="sm"
                         onClick={() => setSelectedTab('invitations')}
-                        className="flex-1"
+                        className={`flex-1 ${selectedTab !== 'invitations' ? 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-darkBg-interactive' : ''}`}
                     >
                         Invitations
                     </Button>
@@ -245,7 +245,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
                         variant={selectedTab === 'requests' ? 'default' : 'ghost'}
                         size="sm"
                         onClick={() => setSelectedTab('requests')}
-                        className="flex-1"
+                        className={`flex-1 ${selectedTab !== 'requests' ? 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-darkBg-interactive' : ''}`}
                     >
                         Join Requests
                         {pendingRequestsList.length > 0 && (
@@ -258,7 +258,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
                         variant={selectedTab === 'contacts' ? 'default' : 'ghost'}
                         size="sm"
                         onClick={() => setSelectedTab('contacts')}
-                        className="flex-1"
+                        className={`flex-1 ${selectedTab !== 'contacts' ? 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-darkBg-interactive' : ''}`}
                     >
                         Contacts
                         {pendingContactRequestsList.length > 0 && (
@@ -275,14 +275,14 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
                         {/* Show pending contact requests in contacts tab */}
                         {selectedTab === 'contacts' && pendingContactRequestsList.length > 0 && (
                             <div className="space-y-3">
-                                <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                                <div className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                                     <AlertCircle className="h-4 w-4" />
                                     Pending Contact Requests
                                 </div>
                                 {pendingContactRequestsList.map((request: any) => (
                                     <div
                                         key={request.id}
-                                        className="flex items-start space-x-3 p-3 bg-blue-50 border border-blue-200 rounded-lg"
+                                        className="flex items-start space-x-3 p-3 bg-blue-50 dark:bg-darkBg-interactive border border-blue-200 dark:border-darkBorder-light rounded-lg"
                                     >
                                         <Avatar className="h-10 w-10">
                                             <AvatarImage
@@ -296,17 +296,17 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
                                         </Avatar>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center justify-between">
-                                                <p className="text-sm font-medium text-gray-900">
+                                                <p className="text-sm font-medium text-gray-900 dark:text-white">
                                                     {request.inviter?.firstName} {request.inviter?.lastName}
                                                 </p>
-                                                <p className="text-xs text-gray-500">
+                                                <p className="text-xs text-gray-500 dark:text-gray-400">
                                                     {formatDistanceToNow(new Date(request.invitedAt), { addSuffix: true })}
                                                 </p>
                                             </div>
-                                            <p className="text-sm text-gray-600">
+                                            <p className="text-sm text-gray-600 dark:text-gray-300">
                                                 wants to add you as a contact
                                             </p>
-                                            <p className="text-xs text-gray-500">
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">
                                                 {request.inviter?.email}
                                             </p>
                                             
@@ -329,7 +329,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
                                                     variant="outline"
                                                     onClick={() => handleContactRequestResponse(request.id, 'decline')}
                                                     disabled={isRespondingToContact || processingRequestId === request.id}
-                                                    className="h-8"
+                                                    className="h-8 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-darkBg-card"
                                                 >
                                                     {processingRequestId === request.id ? (
                                                         <Loader2 className="h-3 w-3 animate-spin" />
@@ -348,14 +348,14 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
                         {/* Show pending join requests in requests tab */}
                         {selectedTab === 'requests' && pendingRequestsList.length > 0 && (
                             <div className="space-y-3">
-                                <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                                <div className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                                     <AlertCircle className="h-4 w-4" />
                                     Pending Join Requests
                                 </div>
                                 {pendingRequestsList.map((request: any) => (
                                     <div
                                         key={request.id}
-                                        className="flex items-start space-x-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg"
+                                        className="flex items-start space-x-3 p-3 bg-yellow-50 dark:bg-darkBg-interactive border border-yellow-200 dark:border-darkBorder-light rounded-lg"
                                     >
                                         <Avatar className="h-10 w-10">
                                             <AvatarImage
@@ -369,18 +369,18 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
                                         </Avatar>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center justify-between">
-                                                <p className="text-sm font-medium text-gray-900">
+                                                <p className="text-sm font-medium text-gray-900 dark:text-white">
                                                     {request.user?.firstName} {request.user?.lastName}
                                                 </p>
-                                                <p className="text-xs text-gray-500">
+                                                <p className="text-xs text-gray-500 dark:text-gray-400">
                                                     {formatDistanceToNow(new Date(request.createdAt), { addSuffix: true })}
                                                 </p>
                                             </div>
-                                            <p className="text-sm text-gray-600">
+                                            <p className="text-sm text-gray-600 dark:text-gray-300">
                                                 wants to join "{request.group?.name}"
                                             </p>
                                             {request.additionalInfo && (
-                                                <p className="text-xs text-gray-500 mt-1 italic">
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 italic">
                                                     "{request.additionalInfo}"
                                                 </p>
                                             )}
@@ -392,7 +392,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
                                                         value={rejectionReason}
                                                         onChange={(e) => setRejectionReason(e.target.value)}
                                                         rows={2}
-                                                        className="text-xs"
+                                                        className="text-xs dark:bg-darkBg-card dark:border-darkBorder-light dark:text-white"
                                                     />
                                                     <div className="flex gap-2">
                                                         <Button
@@ -415,6 +415,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
                                                                 setShowRejectionInput(null)
                                                                 setRejectionReason("")
                                                             }}
+                                                            className="dark:text-gray-300 dark:border-gray-600 dark:hover:bg-darkBg-card\"
                                                         >
                                                             Cancel
                                                         </Button>
@@ -449,7 +450,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
                                     </div>
                                 ))}
                                 {pendingRequestsList.length > 0 && filteredNotifications.length > 0 && (
-                                    <Separator />
+                                    <Separator className="dark:bg-darkBorder-light" />
                                 )}
                             </div>
                         )}
@@ -457,15 +458,17 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
                         {/* Regular notifications */}
                         {filteredNotifications.length === 0 && pendingRequestsList.length === 0 ? (
                             <div className="text-center py-8">
-                                <Bell className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                                <p className="text-gray-500">No notifications yet</p>
+                                <Bell className="h-12 w-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                                <p className="text-gray-500 dark:text-gray-400">No notifications yet</p>
                             </div>
                         ) : (
                             filteredNotifications.map((notification) => (
                                 <div
                                     key={notification.id}
                                     className={`flex items-start space-x-3 p-3 rounded-lg cursor-pointer transition-colors ${
-                                        notification.isRead ? 'bg-gray-50' : 'bg-blue-50 border border-blue-200'
+                                        notification.isRead 
+                                            ? 'bg-gray-50 dark:bg-darkBg-card' 
+                                            : 'bg-blue-50 dark:bg-darkBg-interactive border border-blue-200 dark:border-darkBorder-light'
                                     }`}
                                     onClick={() => handleNotificationClick(notification)}
                                 >
@@ -474,7 +477,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center justify-between">
-                                            <p className="text-sm font-medium text-gray-900">
+                                            <p className="text-sm font-medium text-gray-900 dark:text-white">
                                                 {notification.title}
                                             </p>
                                             <div className="flex items-center gap-2">
@@ -486,10 +489,10 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
                                                 )}
                                             </div>
                                         </div>
-                                        <p className="text-sm text-gray-600 mt-1">
+                                        <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
                                             {notification.message || notification.data?.message}
                                         </p>
-                                        <p className="text-xs text-gray-500 mt-1">
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                             {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
                                         </p>
                                         
@@ -502,7 +505,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
                                                         key={index}
                                                         size="sm"
                                                         variant={action.type === 'accept' ? 'default' : 'outline'}
-                                                        className="text-xs"
+                                                        className={`text-xs ${action.type !== 'accept' ? 'dark:text-gray-300 dark:border-gray-600 dark:hover:bg-darkBg-card' : ''}`}
                                                         onClick={(e) => {
                                                             e.stopPropagation()
                                                             if (notification.data?.userId) {

@@ -22,7 +22,9 @@ import {
     Wallet,
     Users,
     Clock,
-    Store
+    Store,
+    MoreHorizontal,
+    X
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuthToken } from "@/hooks/use-auth-token"
@@ -41,6 +43,7 @@ export default function Navigation() {
     const [activeItem, setActiveItem] = useState<string>("Home")
     const [userId, setUserId] = useState<string>("")
     const [isReady, setIsReady] = useState<boolean>(false)
+    const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false)
     const { getToken, removeToken } = useAuthToken()
     const router = useRouter()
     const params = useParams()
@@ -99,13 +102,21 @@ export default function Navigation() {
         return null;
     }
 
-    const navigationItems: NavigationItem[] = [
+    const mobilePrimaryItems: NavigationItem[] = [
         { id: "Home", icon: <Home size={24} />, label: "Home", path: userId ? `/home/${userId}` : '/home' },
         { id: "Statistics", icon: <TrendingUp size={24} />, label: "Statistics", path: userId ? `/statistics/${userId}` : '/statistics' },
         { id: "Scan", icon: <ScanLine size={24} />, label: "Scan", path: "", isCenterButton: true },
-        { id: "Actions", icon: <FileText size={24} />, label: "Actions", path: userId ? `/action/${userId}` : '/action' },
         { id: "Chat", icon: <MessageCircle size={24} />, label: "Chat", path: userId ? `/chat` : '/chat' },
+        { id: "More", icon: <MoreHorizontal size={24} />, label: "More", path: "" },
+    ]
+
+    const mobileSecondaryItems: NavigationItem[] = [
+        { id: "Actions", icon: <FileText size={24} />, label: "Actions", path: userId ? `/action/${userId}` : '/action' },
         { id: "Transactions", icon: <Wallet size={24} />, label: "Transactions", path: "/transactions" },
+        { id: "Contacts", icon: <Users size={24} />, label: "Contacts", path: userId ? `/contacts/${userId}` : '/contacts' },
+        { id: "Merchants", icon: <Store size={24} />, label: "Merchants", path: userId ? `/merchants/${userId}` : '/merchants' },
+        { id: "Wallet", icon: <Wallet size={24} />, label: "Wallet", path: userId ? `/wallet/${userId}` : '/wallet' },
+        { id: "Settings", icon: <Settings size={24} />, label: "Settings", path: `/settings` },
     ]
 
     const mainMenuItems: NavigationItem[] = [
@@ -119,7 +130,7 @@ export default function Navigation() {
     ]
 
     const bottomMenuItems: NavigationItem[] = [
-        { id: "Settings", icon: <Settings size={24} />, label: "Settings", path: userId ? `/settings/${userId}` : '/settings' },
+        { id: "Settings", icon: <Settings size={24} />, label: "Settings", path: `/settings` },
         { id: "Logout", icon: <LogOut size={24} />, label: "Logout", path: "/logout" },
     ]
 
@@ -138,8 +149,15 @@ export default function Navigation() {
             return;
         }
 
+        // Handle More button
+        if (id === "More") {
+            setIsMoreMenuOpen(!isMoreMenuOpen);
+            return;
+        }
+
         // Always update the active item
         setActiveItem(id);
+        setIsMoreMenuOpen(false);
 
         // Navigate if there's a valid path
         if (path) {
@@ -153,13 +171,13 @@ export default function Navigation() {
             {/* Desktop Sidebar */}
             <aside
                 className={cn(
-                    "bg-[#00313A] fixed top-0 left-0 h-screen flex-col justify-between transition-all duration-300 hidden lg:flex z-20",
+                    "bg-darkBg-interactive fixed top-0 left-0 h-screen flex-col justify-between transition-all duration-300 hidden lg:flex z-20",
                     isExpanded ? "w-64" : "w-20",
                 )}
             >
                 <div className="flex flex-col h-full">
                     {/* Logo and Toggle Section */}
-                    <div className="flex items-center justify-between px-3 py-4 border-b border-[#003D52]">
+                    <div className="flex items-center justify-between px-3 py-4 border-b border-darkBorder-light">
                         {isExpanded ? (
                             <>
                                 <div className="flex items-center gap-2">
@@ -169,7 +187,7 @@ export default function Navigation() {
                                     variant="ghost"
                                     size="icon"
                                     onClick={toggleSidebar}
-                                    className="h-10 w-10 text-white hover:bg-[#00B512] hover:text-[#00313A] rounded-lg transition-all hover:scale-110"
+                                    className="h-10 w-10 text-white hover:bg-brand-green dark:hover:bg-brand-gold hover:text-[#00313A] rounded-lg transition-all hover:scale-110"
                                 >
                                     <PanelLeftClose size={22} />
                                 </Button>
@@ -177,7 +195,7 @@ export default function Navigation() {
                         ) : (
                             <button
                                 onClick={toggleSidebar}
-                                className="h-10 w-10 mx-auto bg-[#004D5C] rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-lg hover:bg-[#00B512] hover:text-[#00313A] transition-all hover:scale-105"
+                                className="h-10 w-10 mx-auto bg-darkBorder-medium rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-lg hover:bg-brand-green dark:hover:bg-brand-gold hover:text-darkBg-main transition-all hover:scale-105"
                             >
                                 QC
                             </button>
@@ -194,7 +212,7 @@ export default function Navigation() {
                                         "flex items-center px-3 py-2.5 transition-all rounded-xl duration-200",
                                         isExpanded ? "justify-start" : "justify-center",
                                         activeItem === item.id 
-                                            ? "bg-gradient-to-r from-[#00B512] to-[#1fd331] text-white shadow-lg" 
+                                            ? "bg-brand-green dark:bg-brand-gold text-white dark:text-[#00313A] shadow-lg" 
                                             : "text-white hover:bg-[#004D5C] hover:shadow-md",
                                     )}
                                 >
@@ -205,7 +223,7 @@ export default function Navigation() {
                         </div>
                     </nav>
 
-                    <div className="border-t border-[#003D52] pt-4 pb-8 px-2">
+                    <div className="border-t border-darkBorder-light pt-4 pb-8 px-2">
                         <div className="flex flex-col gap-2">
                             {bottomMenuItems.map((item) => (
                                 <button
@@ -215,7 +233,7 @@ export default function Navigation() {
                                         "flex items-center px-3 py-3.5 transition-all rounded-xl duration-200",
                                         isExpanded ? "justify-start" : "justify-center",
                                         activeItem === item.id 
-                                            ? "bg-gradient-to-r from-[#00B512] to-[#1fd331] text-white shadow-lg" 
+                                            ? "bg-brand-green dark:bg-brand-gold text-white dark:text-[#00313A] shadow-lg" 
                                             : "text-white hover:bg-[#004D5C] hover:shadow-md",
                                     )}
                                 >
@@ -229,48 +247,89 @@ export default function Navigation() {
             </aside>
 
             {/* Mobile Bottom Navigation */}
-            <nav className="fixed bottom-0 left-0 right-0 px-4 lg:hidden z-50">
-                <div className="absolute inset-0 -z-10">
-                    <svg
-                        className="w-full h-[140px]"
-                        viewBox="0 0 375 102"
-                        fill="none"
-                        xmlns="http://www.w3.org/2000/svg"
-                        preserveAspectRatio="none"
-                    >
-                        <path
-                            d="M155.02 52.2956C147.614 41.4396 137.433 30 124.292 30H1V102H376V30H252.708C239.567 30 229.386 41.4396 221.98 52.2956C214.689 62.9834 202.414 70 188.5 70C174.586 70 162.311 62.9834 155.02 52.2956Z"
-                            fill="#00313A"
-                        />
-                    </svg>
-                </div>
-
-                <div className="flex justify-between items-center max-w-md md:max-w-2xl mx-auto relative py-8">
-                    {navigationItems.map((item) => {
-                        const isCenterButton = item.isCenterButton
-                        const isActive = activeItem === item.id
-
-                        return (
-                            <button
-                                key={item.id}
-                                onClick={() => handleClick(item.id, item.path)}
-                                className={cn("flex flex-col items-center relative", isCenterButton ? "-mt-10" : "")}
-                            >
-                                {isCenterButton && (
-                                    <span className="absolute -top-4 w-16 h-16 bg-[#00B512] rounded-full flex items-center justify-center shadow-lg" />
-                                )}
-                                <span
+            <nav className="fixed bottom-0 left-0 right-0 lg:hidden z-50 bg-white dark:bg-darkBg-interactive border-t border-gray-200 dark:border-darkBorder-light pointer-events-auto">
+                {/* More Menu Popup */}
+                {isMoreMenuOpen && (
+                    <div className="absolute bottom-full right-4 mb-2 bg-darkBg-interactive rounded-2xl shadow-xl border border-darkBorder-light p-4 w-64 animate-in slide-in-from-bottom-10 fade-in duration-200">
+                        <div className="grid grid-cols-3 gap-4">
+                            {mobileSecondaryItems.map((item) => (
+                                <button
+                                    key={item.id}
+                                    onClick={() => handleClick(item.id, item.path)}
                                     className={cn(
-                                        "relative z-10 mt-4 transition-colors",
-                                        isCenterButton ? "text-4xl -top-3" : "text-2xl",
-                                        isActive || isCenterButton ? "text-white" : "text-gray-400 hover:text-white",
+                                        "flex flex-col items-center gap-1 px-2 py-2 rounded-lg transition-colors",
+                                        activeItem === item.id ? "bg-brand-gold/20 text-brand-gold" : "text-gray-400 hover:text-white"
                                     )}
                                 >
-                                    {item.icon}
-                                </span>
-                            </button>
-                        )
-                    })}
+                                    <span className="text-lg">{item.icon}</span>
+                                    <span className="text-[10px] font-medium">{item.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                <div className="flex justify-between items-center px-4 py-3 max-w-md md:max-w-2xl mx-auto h-24">
+                    {/* Left items */}
+                    <div className="flex items-center gap-8 flex-1">
+                        <button
+                            onClick={() => handleClick('Home', mobilePrimaryItems[0].path)}
+                            className={cn(
+                                "flex flex-col items-center gap-1 transition-colors duration-200",
+                                activeItem === 'Home' ? "text-brand-green dark:text-brand-gold" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                            )}
+                        >
+                            <Home size={24} />
+                            <span className="text-xs font-medium">Home</span>
+                        </button>
+
+                        <button
+                            onClick={() => handleClick('Statistics', mobilePrimaryItems[1].path)}
+                            className={cn(
+                                "flex flex-col items-center gap-1 transition-colors duration-200",
+                                activeItem === 'Statistics' ? "text-brand-green dark:text-brand-gold" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                            )}
+                        >
+                            <TrendingUp size={24} />
+                            <span className="text-xs font-medium">Statistics</span>
+                        </button>
+                    </div>
+
+                    {/* Center Scan Button - Larger */}
+                    <button
+                        onClick={() => handleClick('Scan', '')}
+                        className="flex flex-col items-center gap-1 -mt-12 transition-transform active:scale-95 hover:scale-110 duration-200 mx-4"
+                    >
+                        <div className="w-16 h-16 bg-brand-green dark:bg-brand-gold rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-shadow">
+                            <ScanLine size={32} className="text-white dark:text-darkBg-main" strokeWidth={1.5} />
+                        </div>
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-1">Scan</span>
+                    </button>
+
+                    {/* Right items */}
+                    <div className="flex items-center gap-8 flex-1 justify-end">
+                        <button
+                            onClick={() => handleClick('Chat', mobilePrimaryItems[3].path)}
+                            className={cn(
+                                "flex flex-col items-center gap-1 transition-colors duration-200",
+                                activeItem === 'Chat' ? "text-brand-green dark:text-brand-gold" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                            )}
+                        >
+                            <MessageCircle size={24} />
+                            <span className="text-xs font-medium">Messages</span>
+                        </button>
+
+                        <button
+                            onClick={() => handleClick('More', '')}
+                            className={cn(
+                                "flex flex-col items-center gap-1 transition-colors duration-200",
+                                isMoreMenuOpen ? "text-brand-gold" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                            )}
+                        >
+                            <MoreHorizontal size={24} />
+                            <span className="text-xs font-medium">More</span>
+                        </button>
+                    </div>
                 </div>
             </nav>
         </>

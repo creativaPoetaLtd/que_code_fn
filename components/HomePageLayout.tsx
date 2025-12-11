@@ -118,11 +118,11 @@ export const HomePageLayout = () => {
     // If too many redirect attempts, show error and manual redirect button
     if (redirectAttempts >= 3) {
         return (
-            <div className="flex flex-col min-h-screen bg-gray-50">
+            <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-darkBg-main">
                 <div className="flex-1 flex items-center justify-center">
                     <div className="text-center">
-                        <div className="text-red-500 mb-4">Redirect failed</div>
-                        <p className="text-gray-600 mb-4">Unable to automatically redirect to your home page.</p>
+                        <div className="text-red-500 dark:text-red-400 mb-4 font-medium">Redirect failed</div>
+                        <p className="text-gray-600 dark:text-gray-400 mb-4">Unable to automatically redirect to your home page.</p>
                         <button
                             onClick={() => {
                                 const authToken = getToken();
@@ -144,7 +144,7 @@ export const HomePageLayout = () => {
                                     router.push('/auth/login');
                                 }
                             }}
-                            className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+                            className="px-4 py-2 bg-brand-green dark:bg-brand-gold text-white dark:text-darkBg-main rounded hover:opacity-90 transition font-medium"
                         >
                             Try Again
                         </button>
@@ -157,18 +157,18 @@ export const HomePageLayout = () => {
     // Show loading state while determining userId or redirecting
     if (loading || isRedirecting) {
         return (
-            <div className="flex flex-col min-h-screen bg-gray-50">
+            <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-darkBg-main">
                 <div className="flex-1 flex items-center justify-center">
                     <div className="text-center">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500 mx-auto"></div>
-                        <p className="mt-4 text-gray-600">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-green dark:border-brand-gold mx-auto"></div>
+                        <p className="mt-4 text-gray-600 dark:text-gray-400">
                             {isRedirecting ? 'Redirecting to your home page...' : 'Loading...'}
                         </p>
                         {isRedirecting && (
-                            <p className="mt-2 text-sm text-gray-400">Please wait...</p>
+                            <p className="mt-2 text-sm text-gray-500 dark:text-gray-500">Please wait...</p>
                         )}
                         {redirectAttempts > 0 && (
-                            <p className="mt-2 text-xs text-gray-500">Attempt {redirectAttempts + 1}/3</p>
+                            <p className="mt-2 text-xs text-gray-500 dark:text-gray-600">Attempt {redirectAttempts + 1}/3</p>
                         )}
                     </div>
                 </div>
@@ -179,11 +179,11 @@ export const HomePageLayout = () => {
     // Show error state
     if (error) {
         return (
-            <div className="flex flex-col min-h-screen bg-gray-50">
+            <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-darkBg-main">
                 <div className="flex-1 flex items-center justify-center">
                     <div className="text-center">
-                        <div className="text-red-500 mb-4">{error}</div>
-                        <p className="text-gray-600">Redirecting to login...</p>
+                        <div className="text-red-500 dark:text-red-400 mb-4 font-medium">{error}</div>
+                        <p className="text-gray-600 dark:text-gray-400">Redirecting to login...</p>
                     </div>
                 </div>
             </div>
@@ -191,16 +191,16 @@ export const HomePageLayout = () => {
     }
 
     return (
-        <div className="flex flex-col min-h-screen bg-gray-50">
+        <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-darkBg-main">
             {/* Desktop Sidebar */}
             <Navigation />
 
             {/* Main Content */}
             <main className={cn(
-                "flex-1 flex flex-col p-8 transition-all duration-300",
+                "flex-1 flex flex-col p-4 sm:p-6 lg:p-8 transition-all duration-300",
                 isExpanded ? "lg:ml-64" : "lg:ml-20"
             )}>
-                <div className="flex-1 overflow-y-auto pb-24 lg:pb-8">
+                <div className="flex-1 overflow-y-auto pb-28 sm:pb-24 lg:pb-8">
                     {/* Header */}
                     <Header />
 
@@ -208,12 +208,12 @@ export const HomePageLayout = () => {
                     <WelcomeSection userId={userId} />
 
                     {/* Content */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
-                        <div className="space-y-4">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 mt-6 sm:mt-8">
+                        <div className="space-y-3 sm:space-y-4 lg:space-y-6">
                             <AccountInfo userId={userId} />
                             <RecentActions />
                         </div>
-                        <div className="space-y-8">
+                        <div className="space-y-4 sm:space-y-6 lg:space-y-8">
                             <RecentMessages />
                             <RecentTransactions />
                         </div>

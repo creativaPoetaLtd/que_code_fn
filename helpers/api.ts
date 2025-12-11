@@ -247,6 +247,8 @@ export const changePin = (currentPin: string, newPin: string) =>
 export const resetPinAttempts = () => pinRequest('reset-attempts', {});
 export const requestPinReset = (verificationMethod: 'email' | 'sms') =>
   pinRequest('request-reset', { verificationMethod });
+export const validateResetToken = (resetToken: string) =>
+  pinRequest('validate-reset-token', { resetToken });
 export const confirmPinReset = (resetToken: string, newPin: string) =>
   pinRequest('confirm-reset', { resetToken, newPin });
 export const checkUserPinStatus = () => pinGet('status');
