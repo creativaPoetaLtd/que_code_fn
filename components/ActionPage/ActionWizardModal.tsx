@@ -17,10 +17,12 @@ import {
     Space,
     Typography,
 } from 'antd';
-import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
+import { DeleteOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { Upload } from 'antd';
 import {
     createActionStepA,
+    createActionStepAWithFormData,
     updateActionStepB,
     createSubAction,
     updateActionStepD,
@@ -33,6 +35,7 @@ import {
     deleteSubAction,
     getActionById,
     updateAction,
+    updateActionWithFormData,
 } from '@/helpers/api';
 import type { SubActionSummary } from '@/types/action.types';
 
@@ -96,6 +99,8 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
     const [subActionsLoading, setSubActionsLoading] = useState(false);
     const [existingAction, setExistingAction] = useState<any | null>(null);
     const [isEditingExisting, setIsEditingExisting] = useState(false);
+    const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
+    const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
 
     const stepKey = useMemo(() => stepItems[currentStep].key, [currentStep]);
     const isLastStep = currentStep === stepItems.length - 1;
@@ -110,6 +115,8 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
         setSubActionsLoading(false);
         setExistingAction(null);
         setIsEditingExisting(false);
+        setCoverImageFile(null);
+        setCoverImagePreview(null);
     }, [form, subActionForm]);
 
     useEffect(() => {
@@ -136,6 +143,10 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                     description: existingAction.description || '',
                     dedicatedQrCode: existingAction.dedicatedQrCode || '',
                 });
+                // Set preview if cover image exists
+                if (existingAction.coverImage) {
+                    setCoverImagePreview(existingAction.coverImage);
+                }
             }
         } else if (stepKey === 'stepB') {
             form.setFieldsValue({
@@ -294,32 +305,66 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
         if (key === 'stepA') {
             const values = await form.validateFields();
             setLoading(true);
-            const payload = {
-                type: values.type,
-                name: values.name,
-                slug: values.slug,
-                displayLayout: values.displayLayout,
-                coverImage: values.coverImage,
-                shortDescription: values.shortDescription,
-                description: values.description,
-                dedicatedQrCode: values.dedicatedQrCode,
-            };
-            if (actionId) {
-                await updateAction(actionId, payload);
-                message.success('Action details updated');
+            
+            // If there's a file, use FormData; otherwise use JSON
+            if (coverImageFile) {
+                const formData = new FormData();
+                formData.append('type', values.type);
+                formData.append('name', values.name);
+                if (values.slug) formData.append('slug', values.slug);
+                formData.append('displayLayout', values.displayLayout);
+                formData.append('coverImage', coverImageFile);
+                if (values.shortDescription) formData.append('shortDescription', values.shortDescription);
+                if (values.description) formData.append('description', values.description);
+                if (values.dedicatedQrCode) formData.append('dedicatedQrCode', values.dedicatedQrCode);
+                
+                if (actionId) {
+                    await updateActionWithFormData(actionId, formData);
+                    message.success('Action details updated');
+                    setCurrentStep((prev) => prev + 1);
+                    return;
+                }
+                const response = await createActionStepAWithFormData(organizationId, formData);
+                const created = response.data?.data;
+                const newActionId = created?.id || created?.actionId || created?.action?.id;
+                if (!newActionId) {
+                    throw new Error('Failed to retrieve new action ID');
+                }
+                setActionId(newActionId);
+                // Clear file after successful upload
+                setCoverImageFile(null);
+                message.success('Step A completed');
+                setCurrentStep((prev) => prev + 1);
+                return;
+            } else {
+                // No file, use JSON payload
+                const payload = {
+                    type: values.type,
+                    name: values.name,
+                    slug: values.slug,
+                    displayLayout: values.displayLayout,
+                    coverImage: values.coverImage || null,
+                    shortDescription: values.shortDescription,
+                    description: values.description,
+                    dedicatedQrCode: values.dedicatedQrCode,
+                };
+                if (actionId) {
+                    await updateAction(actionId, payload);
+                    message.success('Action details updated');
+                    setCurrentStep((prev) => prev + 1);
+                    return;
+                }
+                const response = await createActionStepA(organizationId, payload);
+                const created = response.data?.data;
+                const newActionId = created?.id || created?.actionId || created?.action?.id;
+                if (!newActionId) {
+                    throw new Error('Failed to retrieve new action ID');
+                }
+                setActionId(newActionId);
+                message.success('Step A completed');
                 setCurrentStep((prev) => prev + 1);
                 return;
             }
-            const response = await createActionStepA(organizationId, payload);
-            const created = response.data?.data;
-            const newActionId = created?.id || created?.actionId || created?.action?.id;
-            if (!newActionId) {
-                throw new Error('Failed to retrieve new action ID');
-            }
-            setActionId(newActionId);
-            message.success('Step A completed');
-            setCurrentStep((prev) => prev + 1);
-            return;
         }
 
             if (key === 'stepB') {
@@ -484,8 +529,64 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                                 ]}
                             />
                         </Form.Item>
-                        <Form.Item name="coverImage" label="Cover Image URL" className="md:col-span-2">
-                            <Input placeholder="https://..." />
+                        <Form.Item name="coverImage" label="Cover Image" className="md:col-span-2">
+                            <div className="space-y-3">
+                                <Upload
+                                    accept="image/*"
+                                    beforeUpload={(file) => {
+                                        // Prevent auto upload
+                                        setCoverImageFile(file);
+                                        // Create preview
+                                        const reader = new FileReader();
+                                        reader.onloadend = () => {
+                                            setCoverImagePreview(reader.result as string);
+                                        };
+                                        reader.readAsDataURL(file);
+                                        // Update form field with file name (will be replaced with URL after upload)
+                                        form.setFieldValue('coverImage', file.name);
+                                        return false; // Prevent upload
+                                    }}
+                                    onRemove={() => {
+                                        setCoverImageFile(null);
+                                        setCoverImagePreview(null);
+                                        form.setFieldValue('coverImage', '');
+                                        return true;
+                                    }}
+                                    maxCount={1}
+                                    fileList={coverImageFile ? [{
+                                        uid: '-1',
+                                        name: coverImageFile.name,
+                                        status: 'done',
+                                    }] : []}
+                                >
+                                    <Button icon={<UploadOutlined />}>Click to Upload</Button>
+                                </Upload>
+                                {coverImagePreview && (
+                                    <div className="mt-2">
+                                        <img 
+                                            src={coverImagePreview} 
+                                            alt="Cover preview" 
+                                            className="max-w-full h-48 object-cover rounded-lg border border-gray-200"
+                                        />
+                                    </div>
+                                )}
+                                {!coverImageFile && (
+                                    <Input 
+                                        placeholder="Or enter image URL (https://...)" 
+                                        value={form.getFieldValue('coverImage') || ''}
+                                        onChange={(e) => {
+                                            const url = e.target.value;
+                                            form.setFieldValue('coverImage', url);
+                                            // If URL is provided, set it as preview
+                                            if (url && url.startsWith('http')) {
+                                                setCoverImagePreview(url);
+                                            } else if (!url) {
+                                                setCoverImagePreview(null);
+                                            }
+                                        }}
+                                    />
+                                )}
+                            </div>
                         </Form.Item>
                         <Form.Item name="shortDescription" label="Short Description" className="md:col-span-2">
                             <Input placeholder="Quick headline for this action" />
