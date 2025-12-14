@@ -23,6 +23,17 @@ const apiPost = (url: string, data: any) => axios.post(`${baseUrl}${url}`, data,
 const apiPut = (url: string, data: any) => axios.put(`${baseUrl}${url}`, data, { headers: getAuthHeaders() });
 const apiDelete = (url: string) => axios.delete(`${baseUrl}${url}`, { headers: getAuthHeaders() });
 
+// Helper for FormData requests (no Content-Type header, let browser set it with boundary)
+const apiPostFormData = (url: string, formData: FormData) => 
+  axios.post(`${baseUrl}${url}`, formData, { 
+    headers: getAuthHeaders()
+  });
+
+const apiPutFormData = (url: string, formData: FormData) => 
+  axios.put(`${baseUrl}${url}`, formData, { 
+    headers: getAuthHeaders()
+  });
+
 
 export const getUserWallet = async (userId: string) => {
   const res = await apiGet(`/transactions/user/${userId}/wallet`);
@@ -199,6 +210,9 @@ export const getPinStatus = () => pinGet('status');
 export const createActionStepA = (organizationId: string, payload: Record<string, any>) =>
   apiPost(`/organizations/${organizationId}/actions/wizard/step-a`, payload);
 
+export const createActionStepAWithFormData = (organizationId: string, formData: FormData) =>
+  apiPostFormData(`/organizations/${organizationId}/actions/wizard/step-a`, formData);
+
 export const updateActionStepB = (actionId: string, payload: Record<string, any>) =>
   apiPut(`/actions/${actionId}/wizard/step-b`, payload);
 
@@ -225,6 +239,9 @@ export const publishAction = (actionId: string, payload: Record<string, any>) =>
 
 export const updateAction = (actionId: string, payload: Record<string, any>) =>
   apiPut(`/actions/${actionId}`, payload);
+
+export const updateActionWithFormData = (actionId: string, formData: FormData) =>
+  apiPutFormData(`/actions/${actionId}`, formData);
 
 export const deleteAction = (actionId: string) =>
   apiDelete(`/actions/${actionId}`);

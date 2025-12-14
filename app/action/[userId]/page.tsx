@@ -12,6 +12,7 @@ import {
     Loader2,
     Sparkles,
     Ticket,
+    Scan,
 } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import Navigation from '@/components/Navigation';
@@ -22,6 +23,7 @@ import { useUserInfo } from '@/hooks/use-user-info';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import jsPDF from 'jspdf';
 import ActionWizardModal from '@/components/ActionPage/ActionWizardModal';
+import QRObjectValidator from '@/components/ActionPage/QRObjectValidator';
 import { createSubAction, updateSubAction } from '@/helpers/api';
 
 interface QrObject {
@@ -33,6 +35,8 @@ interface QrObject {
         actionName?: string;
         subActionName?: string;
         benefits?: string[];
+        coverImage?: string;
+        actionId?: string;
         [key: string]: any;
     };
     status: string;
@@ -40,6 +44,7 @@ interface QrObject {
     validUntil?: string;
     usedAt?: string | null;
     qrCodeData?: string;
+    coverImage?: string;
     createdAt?: string;
     updatedAt?: string;
 }
@@ -114,6 +119,7 @@ const ActionsByAccountPage = () => {
     const [wizardOpen, setWizardOpen] = useState(false);
     const [editingActionId, setEditingActionId] = useState<string | null>(null);
     const [creatingSubAction, setCreatingSubAction] = useState(false);
+    const [qrValidatorOpen, setQrValidatorOpen] = useState(false);
     const [subActionError, setSubActionError] = useState<string | null>(null);
     const [newSubAction, setNewSubAction] = useState({
         name: '',
@@ -221,7 +227,7 @@ const ActionsByAccountPage = () => {
         return 'Choose an account to get started.';
     }, [accountMode]);
 
-    const handleDownloadTicket = (qrObject: QrObject) => {
+    const handleDownloadTicket = async (qrObject: QrObject) => {
         try {
             const doc = new jsPDF({
                 orientation: 'portrait',
@@ -230,6 +236,7 @@ const ActionsByAccountPage = () => {
             });
 
             const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
             const margin = 48;
             const ticketHeight = 520;
             const ticketWidth = pageWidth - margin * 2;
@@ -240,18 +247,71 @@ const ActionsByAccountPage = () => {
             const status = qrObject.status || 'Unknown';
             const issued = formatDate(qrObject.issuedAt || qrObject.createdAt);
             const valid = formatDate(qrObject.validUntil);
+            let coverImage = qrObject.coverImage || qrObject.metadata?.coverImage;
 
-            // Background gradient effect
-            doc.setFillColor(0, 49, 58);
-            doc.rect(0, 0, pageWidth, doc.internal.pageSize.getHeight(), 'F');
-            doc.setFillColor(0, 181, 18);
-            doc.circle(pageWidth - 70, 70, 60, 'F');
-            doc.setFillColor(31, 211, 49);
-            doc.circle(80, doc.internal.pageSize.getHeight() - 80, 50, 'F');
+            // If cover image is not available but we have actionId, try to fetch it
+            if (!coverImage && qrObject.metadata?.actionId) {
+                try {
+                    const token = getToken();
+                    if (token) {
+                        const headers = { Authorization: `Bearer ${token}` };
+                        const actionResponse = await axios.get(
+                            `${baseUrl}/actions/${qrObject.metadata.actionId}`,
+                            { headers }
+                        );
+                        coverImage = actionResponse.data?.data?.coverImage || actionResponse.data?.coverImage;
+                    }
+                } catch (err) {
+                    console.warn('Could not fetch action cover image:', err);
+                }
+            }
 
-            // Ticket base
+            // Background: Cover image or gradient effect
+            if (coverImage) {
+                try {
+                    // Add cover image as full page background
+                    const imgWidth = pageWidth;
+                    const imgHeight = doc.internal.pageSize.getHeight();
+                    doc.addImage(coverImage, 'JPEG', 0, 0, imgWidth, imgHeight, undefined, 'FAST');
+                    
+                    // Add subtle overlay for better text readability on white ticket card
+                    doc.setFillColor(0, 49, 58);
+                    doc.setGState(doc.GState({ opacity: 0.15 }));
+                    doc.rect(0, 0, pageWidth, imgHeight, 'F');
+                    doc.setGState(doc.GState({ opacity: 1.0 }));
+                    
+                    // Decorative circles (subtle, behind ticket)
+                    doc.setFillColor(0, 181, 18);
+                    doc.setGState(doc.GState({ opacity: 0.3 }));
+                    doc.circle(pageWidth - 70, 70, 60, 'F');
+                    doc.setFillColor(31, 211, 49);
+                    doc.circle(80, doc.internal.pageSize.getHeight() - 80, 50, 'F');
+                    doc.setGState(doc.GState({ opacity: 1.0 }));
+                } catch (imgErr) {
+                    console.warn('Could not load cover image, proceeding with gradient background:', imgErr);
+                    // Fallback to gradient background
+                    doc.setFillColor(0, 49, 58);
+                    doc.rect(0, 0, pageWidth, doc.internal.pageSize.getHeight(), 'F');
+                    doc.setFillColor(0, 181, 18);
+                    doc.circle(pageWidth - 70, 70, 60, 'F');
+                    doc.setFillColor(31, 211, 49);
+                    doc.circle(80, doc.internal.pageSize.getHeight() - 80, 50, 'F');
+                }
+            } else {
+                // Background gradient effect (fallback when no cover image)
+                doc.setFillColor(0, 49, 58);
+                doc.rect(0, 0, pageWidth, doc.internal.pageSize.getHeight(), 'F');
+                doc.setFillColor(0, 181, 18);
+                doc.circle(pageWidth - 70, 70, 60, 'F');
+                doc.setFillColor(31, 211, 49);
+                doc.circle(80, doc.internal.pageSize.getHeight() - 80, 50, 'F');
+            }
+
+            // Ticket base (semi-transparent white to show cover image through)
             doc.setFillColor(255, 255, 255);
+            doc.setGState(doc.GState({ opacity: 0.85 }));
             doc.roundedRect(margin, margin, ticketWidth, ticketHeight, 24, 24, 'F');
+            doc.setGState(doc.GState({ opacity: 1.0 }));
 
             // Decorative strip
             doc.setFillColor(0, 181, 18);
@@ -274,11 +334,13 @@ const ActionsByAccountPage = () => {
                 cursorY += 32;
             }
 
-            // Details box
+            // Details box (semi-transparent to show cover image through)
             const detailBoxWidth = (ticketWidth - 80) / 2;
             doc.setFillColor(244, 255, 249);
+            doc.setGState(doc.GState({ opacity: 0.75 }));
             doc.roundedRect(margin + 32, cursorY, detailBoxWidth, 140, 16, 16, 'F');
             doc.roundedRect(margin + 48 + detailBoxWidth, cursorY, detailBoxWidth, 140, 16, 16, 'F');
+            doc.setGState(doc.GState({ opacity: 1.0 }));
 
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(12);
@@ -319,13 +381,15 @@ const ActionsByAccountPage = () => {
                 });
             }
 
-            // QR container
+            // QR container (semi-transparent to show cover image through)
             if (qrObject.qrCodeData) {
                 const imageType = qrObject.qrCodeData.includes('image/jpeg') ? 'JPEG' : 'PNG';
                 const qrWidth = 180;
                 const qrX = margin + ticketWidth - qrWidth - 48;
                 doc.setFillColor(255, 255, 255);
+                doc.setGState(doc.GState({ opacity: 0.85 }));
                 doc.roundedRect(qrX - 12, margin + 120 - 12, qrWidth + 24, qrWidth + 72, 16, 16, 'F');
+                doc.setGState(doc.GState({ opacity: 1.0 }));
                 doc.addImage(qrObject.qrCodeData, imageType, qrX, margin + 130, qrWidth, qrWidth);
                 doc.setFont('helvetica', 'bold');
                 doc.setFontSize(12);
@@ -612,7 +676,14 @@ const ActionsByAccountPage = () => {
                             Refresh
                         </button>
                     </div>
-                    <div className="flex justify-end">
+                    <div className="flex justify-end gap-3">
+                        <button
+                            onClick={() => setQrValidatorOpen(true)}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-[#00B512] to-[#1fd331] text-white text-sm font-semibold shadow hover:shadow-lg transition-all"
+                        >
+                            <Scan className="w-4 h-4" />
+                            Scan QR Code
+                        </button>
                         <button
                             onClick={() => {
                                 setEditingActionId(null);
@@ -969,13 +1040,20 @@ const ActionsByAccountPage = () => {
             </Dialog>
 
             {accountMode === 'organization' && effectiveUserId && (
-                <ActionWizardModal
-                    open={wizardOpen}
-                    onClose={handleWizardClose}
-                    organizationId={effectiveUserId}
-                    onCompleted={handleWizardCompleted}
-                    editingActionId={editingActionId}
-                />
+                <>
+                    <ActionWizardModal
+                        open={wizardOpen}
+                        onClose={handleWizardClose}
+                        organizationId={effectiveUserId}
+                        onCompleted={handleWizardCompleted}
+                        editingActionId={editingActionId}
+                    />
+                    <QRObjectValidator
+                        isOpen={qrValidatorOpen}
+                        onClose={() => setQrValidatorOpen(false)}
+                        organizationId={effectiveUserId}
+                    />
+                </>
             )}
         </div>
     );
