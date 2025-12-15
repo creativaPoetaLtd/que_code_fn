@@ -7,6 +7,7 @@ import "./globals.css";
 import { Poppins } from "next/font/google";
 import ClientProvider from "@/components/ClientProvider";
 import { Toaster } from "@/components/ui/toaster";
+import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -24,8 +25,35 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "que code",
-  description: "que code is a blog about software development",
+  title: "QueCode - Chat & Payment App",
+  description: "Chat with friends, send money, and manage groups - all in one place",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "QueCode",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  openGraph: {
+    type: "website",
+    siteName: "QueCode",
+    title: "QueCode - Chat & Payment App",
+    description: "Chat with friends, send money, and manage groups - all in one place",
+  },
+  twitter: {
+    card: "summary",
+    title: "QueCode - Chat & Payment App",
+    description: "Chat with friends, send money, and manage groups - all in one place",
+  },
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+  },
+  themeColor: "#00B512",
 };
 
 export default function RootLayout({
@@ -35,11 +63,20 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="apple-touch-icon" href="/icon-192x192.png" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="QueCode" />
+      </head>
       <body
         className={`${poppins.className} ${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ClientProvider>{children}</ClientProvider>
         <Toaster />
+        <PWAInstallPrompt />
       </body>
     </html>
   );
