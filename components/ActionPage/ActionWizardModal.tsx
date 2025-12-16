@@ -89,6 +89,270 @@ const buyerFieldOptions = [
     { label: 'National ID', value: 'nationalId' },
 ];
 
+interface KeyValuePair {
+    key: string;
+    value: string;
+    type: 'string' | 'number' | 'boolean' | 'array';
+}
+
+interface KeyValueInputProps {
+    value?: string; // JSON string
+    onChange?: (value: string) => void;
+    placeholder?: string;
+}
+
+const KeyValueInput: React.FC<KeyValueInputProps> = ({ value, onChange, placeholder }) => {
+    const [pairs, setPairs] = useState<KeyValuePair[]>([]);
+    const [showJsonEditor, setShowJsonEditor] = useState(false);
+    const [jsonError, setJsonError] = useState<string | null>(null);
+    const [jsonText, setJsonText] = useState<string>('');
+
+    // Parse value and update pairs
+    useEffect(() => {
+        if (value) {
+            try {
+                const parsed = JSON.parse(value);
+                const entries = Object.entries(parsed).map(([key, val]) => {
+                    let type: 'string' | 'number' | 'boolean' | 'array' = 'string';
+                    if (typeof val === 'boolean') type = 'boolean';
+                    else if (typeof val === 'number') type = 'number';
+                    else if (Array.isArray(val)) type = 'array';
+                    
+                    return {
+                        key,
+                        value: Array.isArray(val) ? val.join(', ') : String(val),
+                        type,
+                    };
+                });
+                setPairs(entries.length > 0 ? entries : [{ key: '', value: '', type: 'string' }]);
+                setJsonText(value);
+                setJsonError(null);
+            } catch (err) {
+                setPairs([{ key: '', value: '', type: 'string' }]);
+                setJsonError('Invalid JSON format');
+            }
+        } else {
+            setPairs([{ key: '', value: '', type: 'string' }]);
+            setJsonText('{}');
+        }
+    }, [value]);
+
+    const updatePairs = (newPairs: KeyValuePair[]) => {
+        // Filter out empty pairs, but always keep at least one empty pair if all are empty
+        const validPairs = newPairs.filter(p => p.key.trim() !== '');
+        const finalPairs = validPairs.length > 0 ? validPairs : [{ key: '', value: '', type: 'string' }];
+        
+        setPairs(finalPairs);
+        const obj: Record<string, any> = {};
+        validPairs.forEach(({ key, value: val, type }) => {
+            if (!key.trim()) return;
+            try {
+                if (type === 'boolean') {
+                    obj[key] = val === 'true' || val === true;
+                } else if (type === 'number') {
+                    const num = Number(val);
+                    if (isNaN(num)) return; // Skip invalid numbers
+                    obj[key] = num;
+                } else if (type === 'array') {
+                    obj[key] = val.split(',').map((v) => v.trim()).filter(Boolean);
+                } else {
+                    obj[key] = val;
+                }
+            } catch (err) {
+                // Skip invalid entries
+            }
+        });
+        const jsonString = JSON.stringify(obj);
+        onChange?.(jsonString);
+        setJsonText(jsonString);
+        setJsonError(null);
+    };
+
+    const addPair = () => {
+        updatePairs([...pairs, { key: '', value: '', type: 'string' }]);
+    };
+
+    const removePair = (index: number) => {
+        const newPairs = pairs.filter((_, i) => i !== index);
+        // If removing the last pair, add an empty one
+        if (newPairs.length === 0) {
+            updatePairs([{ key: '', value: '', type: 'string' }]);
+        } else {
+            updatePairs(newPairs);
+        }
+    };
+
+    const updatePair = (index: number, field: keyof KeyValuePair, newValue: any) => {
+        const newPairs = [...pairs];
+        newPairs[index] = { ...newPairs[index], [field]: newValue };
+        updatePairs(newPairs);
+    };
+
+    const handleJsonEditorChange = (text: string) => {
+        setJsonText(text);
+        try {
+            const parsed = JSON.parse(text);
+            onChange?.(text);
+            setJsonError(null);
+            // Update pairs from JSON
+            const entries = Object.entries(parsed).map(([key, val]) => {
+                let type: 'string' | 'number' | 'boolean' | 'array' = 'string';
+                if (typeof val === 'boolean') type = 'boolean';
+                else if (typeof val === 'number') type = 'number';
+                else if (Array.isArray(val)) type = 'array';
+                
+                return {
+                    key,
+                    value: Array.isArray(val) ? val.join(', ') : String(val),
+                    type,
+                };
+            });
+            setPairs(entries.length > 0 ? entries : [{ key: '', value: '', type: 'string' }]);
+        } catch (err) {
+            setJsonError('Invalid JSON: ' + (err instanceof Error ? err.message : 'Unknown error'));
+        }
+    };
+
+    const validPairs = pairs.filter(p => p.key.trim() !== '');
+
+    return (
+        <div className="space-y-3">
+            {/* Toggle between visual and JSON editor */}
+            <div className="flex justify-end">
+                <Button
+                    type="link"
+                    size="small"
+                    onClick={() => {
+                        setShowJsonEditor(!showJsonEditor);
+                        if (!showJsonEditor) {
+                            setJsonText(JSON.stringify(
+                                validPairs.reduce((acc, { key, value: val, type }) => {
+                                    if (!key.trim()) return acc;
+                                    if (type === 'boolean') acc[key] = val === 'true';
+                                    else if (type === 'number') acc[key] = Number(val);
+                                    else if (type === 'array') acc[key] = val.split(',').map(v => v.trim()).filter(Boolean);
+                                    else acc[key] = val;
+                                    return acc;
+                                }, {} as Record<string, any>),
+                                null,
+                                2
+                            ));
+                        }
+                    }}
+                    className="text-xs"
+                >
+                    {showJsonEditor ? 'Switch to Visual Editor' : 'Switch to JSON Editor'}
+                </Button>
+            </div>
+
+            {showJsonEditor ? (
+                <div className="space-y-2">
+                    <TextArea
+                        value={jsonText}
+                        onChange={(e) => handleJsonEditorChange(e.target.value)}
+                        rows={8}
+                        placeholder='{"key": "value", "number": 123, "boolean": true, "array": ["item1", "item2"]}'
+                        className={jsonError ? 'border-red-500' : ''}
+                    />
+                    {jsonError && (
+                        <p className="text-sm text-red-500">{jsonError}</p>
+                    )}
+                    {!jsonError && validPairs.length > 0 && (
+                        <p className="text-xs text-green-600">✓ Valid JSON</p>
+                    )}
+                </div>
+            ) : (
+                <div className="space-y-3">
+                    {pairs.map((pair, index) => (
+                        <div key={index} className="border border-gray-200 dark:border-darkBorder-light rounded-lg p-3 bg-gray-50 dark:bg-darkBg-interactive space-y-2">
+                            <div className="flex gap-2 items-center">
+                                <Input
+                                    placeholder="Field name (e.g., vipOnly, benefits)"
+                                    value={pair.key}
+                                    onChange={(e) => updatePair(index, 'key', e.target.value)}
+                                    className="flex-1"
+                                />
+                                <Select
+                                    value={pair.type}
+                                    onChange={(val) => updatePair(index, 'type', val)}
+                                    style={{ width: 120 }}
+                                    options={[
+                                        { label: '📝 Text', value: 'string' },
+                                        { label: '🔢 Number', value: 'number' },
+                                        { label: '✓/✗ Boolean', value: 'boolean' },
+                                        { label: '📋 Array', value: 'array' },
+                                    ]}
+                                />
+                                <Button
+                                    icon={<DeleteOutlined />}
+                                    danger
+                                    size="small"
+                                    onClick={() => removePair(index)}
+                                >
+                                    Remove
+                                </Button>
+                            </div>
+                            <div>
+                                {pair.type === 'boolean' ? (
+                                    <Select
+                                        value={pair.value || 'true'}
+                                        onChange={(val) => updatePair(index, 'value', val)}
+                                        className="w-full"
+                                        options={[
+                                            { label: 'True', value: 'true' },
+                                            { label: 'False', value: 'false' },
+                                        ]}
+                                    />
+                                ) : pair.type === 'array' ? (
+                                    <div className="space-y-1">
+                                        <Input
+                                            placeholder="Enter values separated by commas (e.g., VIP lounge, Early access, Reserved parking)"
+                                            value={pair.value}
+                                            onChange={(e) => updatePair(index, 'value', e.target.value)}
+                                            className="w-full"
+                                        />
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">Separate multiple values with commas</p>
+                                    </div>
+                                ) : (
+                                    <Input
+                                        placeholder={pair.type === 'number' ? 'Enter a number (e.g., 123)' : 'Enter value'}
+                                        value={pair.value}
+                                        onChange={(e) => updatePair(index, 'value', e.target.value)}
+                                        className="w-full"
+                                        type={pair.type === 'number' ? 'number' : 'text'}
+                                    />
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                    <Button icon={<PlusOutlined />} onClick={addPair} type="dashed" block>
+                        Add Field
+                    </Button>
+                    {validPairs.length > 0 && (
+                        <div className="text-xs text-gray-500 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded p-2">
+                            <strong>Preview:</strong> {JSON.stringify(
+                                validPairs.reduce((acc, { key, value: val, type }) => {
+                                    if (!key.trim()) return acc;
+                                    if (type === 'boolean') acc[key] = val === 'true';
+                                    else if (type === 'number') acc[key] = Number(val);
+                                    else if (type === 'array') acc[key] = val.split(',').map(v => v.trim()).filter(Boolean);
+                                    else acc[key] = val;
+                                    return acc;
+                                }, {} as Record<string, any>),
+                                null,
+                                2
+                            )}
+                        </div>
+                    )}
+                    {pairs.length === 0 && placeholder && (
+                        <p className="text-sm text-gray-400 dark:text-gray-500 italic">{placeholder}</p>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
 const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, organizationId, onCompleted, editingActionId }) => {
     const [currentStep, setCurrentStep] = useState(0);
     const [form] = Form.useForm();
@@ -185,8 +449,8 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
             });
         } else if (stepKey === 'advanced') {
             form.setFieldsValue({
-                customFields: existingAction?.customFields ? JSON.stringify(existingAction.customFields, null, 2) : '',
-                webhooks: existingAction?.webhooks ? JSON.stringify(existingAction.webhooks, null, 2) : '',
+                customFields: existingAction?.customFields ? JSON.stringify(existingAction.customFields, null, 2) : '{}',
+                webhooks: existingAction?.webhooks ? JSON.stringify(existingAction.webhooks, null, 2) : '{}',
             });
         }
     }, [currentStep, existingAction, form, stepKey, subActionForm]);
@@ -455,20 +719,37 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
             if (key === 'advanced') {
                 const values = await form.validateFields();
                 setLoading(true);
-                let customFields;
-                let webhooks;
-                try {
-                    customFields = values.customFields ? JSON.parse(values.customFields) : {};
-                } catch {
-                    message.error('Custom fields must be valid JSON');
-                    return;
+                
+                // Parse customFields if it's a JSON string
+                let customFields: Record<string, any> = {};
+                if (values.customFields) {
+                    if (typeof values.customFields === 'string') {
+                        try {
+                            customFields = JSON.parse(values.customFields);
+                        } catch {
+                            message.error('Custom fields must be valid JSON');
+                            return;
+                        }
+                    } else {
+                        customFields = values.customFields;
+                    }
                 }
-                try {
-                    webhooks = values.webhooks ? JSON.parse(values.webhooks) : {};
-                } catch {
-                    message.error('Webhooks must be valid JSON');
-                    return;
+
+                // Parse webhooks if it's a JSON string
+                let webhooks: Record<string, any> = {};
+                if (values.webhooks) {
+                    if (typeof values.webhooks === 'string') {
+                        try {
+                            webhooks = JSON.parse(values.webhooks);
+                        } catch {
+                            message.error('Webhooks must be valid JSON');
+                            return;
+                        }
+                    } else {
+                        webhooks = values.webhooks;
+                    }
                 }
+
                 await updateActionStepH(actionId as string, {
                     customFields,
                     webhooks,
@@ -653,8 +934,13 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                             <Form.Item name="sortOrder" label="Sort Order">
                                 <InputNumber min={0} className="w-full" />
                             </Form.Item>
-                            <Form.Item name="metadata" label="Extra Metadata (JSON)" className="md:col-span-2">
-                                <TextArea rows={3} placeholder='e.g. {"benefits":["VIP lounge"]}' />
+                            <Form.Item 
+                                name="metadata" 
+                                label="Extra Metadata" 
+                                className="md:col-span-2"
+                                tooltip="Add custom key-value pairs (e.g., benefits, features)"
+                            >
+                                <KeyValueInput placeholder='e.g., benefits: VIP lounge, early access' />
                             </Form.Item>
                             <Form.Item name="description" label="Description" className="md:col-span-2">
                                 <TextArea rows={3} placeholder="What makes this tier special?" />
@@ -766,11 +1052,24 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
             case 'advanced':
                 return (
                     <Form form={form} layout="vertical" className="space-y-4">
-                        <Form.Item name="customFields" label="Custom Fields (JSON)">
-                            <TextArea rows={3} placeholder='{"vipOnly": true}' />
+                        <Form.Item 
+                            name="customFields" 
+                            label="Custom Fields"
+                            tooltip="Add custom fields as key-value pairs"
+                        >
+                            <KeyValueInput placeholder='e.g., vipOnly: true, priorityLevel: 5' />
                         </Form.Item>
-                        <Form.Item name="webhooks" label="Webhooks (JSON)">
-                            <TextArea rows={3} placeholder='{"onCheckout":"https://..."}' />
+                        <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-4">
+                            <p className="text-sm text-blue-800">
+                                <strong>Webhooks:</strong> Enter URLs that will be called when events occur
+                            </p>
+                        </div>
+                        <Form.Item 
+                            name="webhooks" 
+                            label="Webhook URLs"
+                            tooltip="Add webhook URLs for different events (e.g., onCheckout, onScanValid)"
+                        >
+                            <KeyValueInput placeholder='e.g., onCheckout: https://your-api.com/webhook' />
                         </Form.Item>
                     </Form>
                 );

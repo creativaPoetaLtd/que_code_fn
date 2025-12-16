@@ -20,6 +20,8 @@ import { Header } from '@/components/Header';
 import baseUrl from '@/helpers/baseUrl';
 import { useAuthToken } from '@/hooks/use-auth-token';
 import { useUserInfo } from '@/hooks/use-user-info';
+import { useSidebar } from '@/context/SidebarContext';
+import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import jsPDF from 'jspdf';
 import ActionWizardModal from '@/components/ActionPage/ActionWizardModal';
@@ -95,9 +97,9 @@ const formatDate = (value?: string | null) => {
 };
 
 const statusClasses: Record<string, string> = {
-    valid: 'bg-green-100 text-green-700 border border-green-200',
-    used: 'bg-blue-100 text-blue-700 border border-blue-200',
-    expired: 'bg-red-100 text-red-700 border border-red-200',
+    valid: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800',
+    used: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800',
+    expired: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800',
 };
 
 const ActionsByAccountPage = () => {
@@ -105,6 +107,7 @@ const ActionsByAccountPage = () => {
     const paramUserId = params?.userId;
     const { userId: tokenUserId } = useUserInfo();
     const { getToken } = useAuthToken();
+    const { isExpanded } = useSidebar();
 
     const [effectiveUserId, setEffectiveUserId] = useState<string>('');
     const [accountMode, setAccountMode] = useState<AccountMode>(null);
@@ -523,12 +526,12 @@ const ActionsByAccountPage = () => {
     const renderPurchasedActions = () => {
         if (!purchasedActions.length) {
             return (
-                <div className="bg-white border border-emerald-100 rounded-3xl p-8 text-center shadow-sm">
-                    <div className="flex items-center justify-center gap-2 text-emerald-600 font-semibold mb-2">
+                <div className="bg-white dark:bg-darkBg-card border border-emerald-100 dark:border-darkBorder-light rounded-3xl p-8 text-center shadow-sm">
+                    <div className="flex items-center justify-center gap-2 text-emerald-600 dark:text-brand-green font-semibold mb-2">
                         <Ticket className="w-5 h-5" />
                         <span>No purchases yet</span>
                     </div>
-                    <p className="text-gray-600 max-w-md mx-auto">
+                    <p className="text-gray-600 dark:text-gray-300 max-w-md mx-auto">
                         When you buy tickets or actions, they will appear here with instant access to their QR codes.
                     </p>
                 </div>
@@ -540,18 +543,18 @@ const ActionsByAccountPage = () => {
                 {purchasedActions.map((item) => (
                     <div
                         key={item.id}
-                        className="bg-white/95 backdrop-blur rounded-3xl border border-emerald-50 shadow-lg shadow-emerald-100/40 p-6 relative overflow-hidden"
+                        className="bg-white/95 dark:bg-darkBg-card backdrop-blur rounded-3xl border border-emerald-50 dark:border-darkBorder-light shadow-lg shadow-emerald-100/40 dark:shadow-none p-6 relative overflow-hidden"
                     >
                         <div className="flex items-start justify-between gap-4">
                             <div>
-                                <p className="text-xs uppercase tracking-[0.2em] text-emerald-500 font-semibold mb-2">
+                                <p className="text-xs uppercase tracking-[0.2em] text-emerald-500 dark:text-brand-green font-semibold mb-2">
                                     {item.type || 'QR Object'}
                                 </p>
-                                <h3 className="text-2xl font-bold text-[#00313A] leading-tight">
+                                <h3 className="text-2xl font-bold text-[#00313A] dark:text-white leading-tight">
                                     {item.metadata?.actionName || 'Unnamed Action'}
                                 </h3>
                                 {item.metadata?.subActionName && (
-                                    <p className="text-sm text-[#00313A]/70 font-medium mt-1">
+                                    <p className="text-sm text-[#00313A]/70 dark:text-gray-300 font-medium mt-1">
                                         {item.metadata.subActionName}
                                     </p>
                                 )}
@@ -559,14 +562,14 @@ const ActionsByAccountPage = () => {
                             <span
                                 className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${
                                     statusClasses[item.status?.toLowerCase()] ||
-                                    'bg-gray-100 text-gray-600 border border-gray-200'
+                                    'bg-gray-100 dark:bg-darkBg-interactive text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-darkBorder-light'
                                 }`}
                             >
                                 {item.status || 'unknown'}
                             </span>
                         </div>
 
-                        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-[#00313A]">
+                        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-[#00313A] dark:text-gray-200">
                             <div className="flex flex-col gap-1">
                                 <span className="text-xs font-semibold text-[#00B512] uppercase tracking-widest">Issued</span>
                                 <span className="font-medium">{formatDate(item.issuedAt || item.createdAt)}</span>
@@ -591,11 +594,11 @@ const ActionsByAccountPage = () => {
 
                         {item.metadata?.benefits?.length ? (
                             <div className="mt-5">
-                                <p className="text-xs font-semibold text-[#00B512] uppercase tracking-widest mb-2">Benefits</p>
-                                <ul className="space-y-1 text-sm text-[#00313A]/80">
+                                <p className="text-xs font-semibold text-[#00B512] dark:text-brand-green uppercase tracking-widest mb-2">Benefits</p>
+                                <ul className="space-y-1 text-sm text-[#00313A]/80 dark:text-gray-300">
                                     {item.metadata.benefits.map((benefit) => (
                                         <li key={`${item.id}-${benefit}`} className="flex items-center gap-2">
-                                            <CheckCircle2 className="w-4 h-4 text-[#00B512]" />
+                                            <CheckCircle2 className="w-4 h-4 text-[#00B512] dark:text-brand-green" />
                                             <span>{benefit}</span>
                                         </li>
                                     ))}
@@ -604,16 +607,16 @@ const ActionsByAccountPage = () => {
                         ) : null}
 
                         {item.qrCodeData && (
-                            <div className="mt-6 bg-[#f4fff9] border border-[#00B512]/10 rounded-2xl p-4 flex flex-col sm:flex-row items-center gap-4">
-                                <div className="p-2 bg-white rounded-xl border border-[#00B512]/20 shadow-inner">
+                            <div className="mt-6 bg-[#f4fff9] dark:bg-darkBg-interactive border border-[#00B512]/10 dark:border-darkBorder-light rounded-2xl p-4 flex flex-col sm:flex-row items-center gap-4">
+                                <div className="p-2 bg-white dark:bg-darkBg-main rounded-xl border border-[#00B512]/20 dark:border-darkBorder-medium shadow-inner">
                                     <img
                                         src={item.qrCodeData}
                                         alt={`${item.metadata?.actionName || 'Action'} QR`}
                                         className="w-28 h-28 object-contain"
                                     />
                                 </div>
-                                <div className="flex-1 text-sm text-[#00313A]/80">
-                                    <p className="font-semibold text-[#00313A]">Show this QR code to redeem your action.</p>
+                                <div className="flex-1 text-sm text-[#00313A]/80 dark:text-gray-300">
+                                    <p className="font-semibold text-[#00313A] dark:text-white">Show this QR code to redeem your action.</p>
                                     <p className="mt-1">
                                         {item.usedAt
                                             ? `Used ${formatDate(item.usedAt)}`
@@ -638,12 +641,12 @@ const ActionsByAccountPage = () => {
     const renderOrganizationActions = () => {
         if (!organizationActions.length) {
             return (
-                <div className="bg-white border border-blue-100 rounded-3xl p-8 text-center shadow-sm">
-                    <div className="flex items-center justify-center gap-2 text-blue-600 font-semibold mb-2">
+                <div className="bg-white dark:bg-darkBg-card border border-blue-100 dark:border-darkBorder-light rounded-3xl p-8 text-center shadow-sm">
+                    <div className="flex items-center justify-center gap-2 text-blue-600 dark:text-blue-400 font-semibold mb-2">
                         <Ticket className="w-5 h-5" />
                         <span>No actions published yet</span>
                     </div>
-                    <p className="text-gray-600 max-w-md mx-auto">
+                    <p className="text-gray-600 dark:text-gray-300 max-w-md mx-auto">
                         Create your first action to start accepting payments or issuing tickets. They will appear here in the same
                         layout visitors see on your welcome page.
                     </p>
@@ -656,11 +659,11 @@ const ActionsByAccountPage = () => {
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div className="flex flex-wrap gap-4 items-center">
                         <div>
-                            <label className="block text-xs font-semibold text-[#00313A] uppercase mb-1">Status</label>
+                            <label className="block text-xs font-semibold text-[#00313A] dark:text-white uppercase mb-1">Status</label>
                             <select
                                 value={statusFilter}
                                 onChange={(e) => setStatusFilter(e.target.value as 'all' | 'draft' | 'published' | 'archived')}
-                                className="rounded-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B512]/40"
+                                className="rounded-full border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-interactive dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B512]/40"
                             >
                                 <option value="all">All</option>
                                 <option value="published">Published</option>
@@ -670,7 +673,7 @@ const ActionsByAccountPage = () => {
                         </div>
                         <button
                             onClick={() => fetchData(effectiveUserId)}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-gray-200 text-sm font-semibold text-[#00313A] hover:bg-gray-50"
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-interactive dark:text-white text-sm font-semibold text-[#00313A] hover:bg-gray-50 dark:hover:bg-darkBg-main"
                         >
                             <Loader2 className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                             Refresh
@@ -702,21 +705,21 @@ const ActionsByAccountPage = () => {
                             type="button"
                             key={action.id}
                             onClick={() => handleOrganizationActionClick(action)}
-                            className="text-left bg-white/95 rounded-3xl border border-[#00B512]/10 shadow-lg shadow-emerald-50/60 p-6 hover:shadow-emerald-200 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[#00B512]/40"
+                            className="text-left bg-white/95 dark:bg-darkBg-card rounded-3xl border border-[#00B512]/10 dark:border-darkBorder-light shadow-lg shadow-emerald-50/60 dark:shadow-none p-6 hover:shadow-emerald-200 dark:hover:bg-darkBg-interactive transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[#00B512]/40"
                         >
                             <div className="flex items-start justify-between gap-4">
                                 <div>
-                                    <h3 className="text-2xl font-bold text-[#00313A] leading-tight">{action.name}</h3>
+                                    <h3 className="text-2xl font-bold text-[#00313A] dark:text-white leading-tight">{action.name}</h3>
                                     {action.shortDescription && (
-                                        <p className="text-sm text-[#00313A]/70 mt-2 line-clamp-3">{action.shortDescription}</p>
+                                        <p className="text-sm text-[#00313A]/70 dark:text-gray-300 mt-2 line-clamp-3">{action.shortDescription}</p>
                                     )}
                                 </div>
                                 {action.status && (
                                     <span
                                         className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${
                                             action.status === 'published'
-                                                ? 'bg-[#00B512]/10 text-[#00B512]'
-                                                : 'bg-gray-100 text-gray-600'
+                                                ? 'bg-[#00B512]/10 dark:bg-[#00B512]/20 text-[#00B512] dark:text-brand-green'
+                                                : 'bg-gray-100 dark:bg-darkBg-interactive text-gray-600 dark:text-gray-300'
                                         }`}
                                     >
                                         {action.status}
@@ -724,7 +727,7 @@ const ActionsByAccountPage = () => {
                                 )}
                             </div>
 
-                            <div className="mt-5 space-y-3 text-sm text-[#00313A]/80">
+                            <div className="mt-5 space-y-3 text-sm text-[#00313A]/80 dark:text-gray-300">
                                 {action.availability?.startsAt && (
                                     <div className="flex items-center gap-2">
                                         <Calendar className="w-4 h-4 text-[#00B512]" />
@@ -764,7 +767,7 @@ const ActionsByAccountPage = () => {
                                                 setWizardOpen(true);
                                             }
                                         }}
-                                        className="inline-flex items-center gap-2 px-3 py-2 rounded-full border border-[#00B512] text-[#00B512] text-xs font-semibold hover:bg-[#00B512] hover:text-white transition-colors cursor-pointer"
+                                        className="inline-flex items-center gap-2 px-3 py-2 rounded-full border border-[#00B512] dark:border-brand-green text-[#00B512] dark:text-brand-green text-xs font-semibold hover:bg-[#00B512] dark:hover:bg-brand-green hover:text-white transition-colors cursor-pointer"
                                     >
                                         <Sparkles className="w-4 h-4" />
                                         Continue Setup
@@ -781,20 +784,20 @@ const ActionsByAccountPage = () => {
     const renderContent = () => {
         if (!effectiveUserId) {
             return (
-                <div className="bg-white border border-red-100 rounded-3xl p-8 text-center">
-                    <div className="flex items-center justify-center gap-2 text-red-600 font-semibold mb-2">
+                <div className="bg-white dark:bg-darkBg-card border border-red-100 dark:border-darkBorder-light rounded-3xl p-8 text-center">
+                    <div className="flex items-center justify-center gap-2 text-red-600 dark:text-red-400 font-semibold mb-2">
                         <AlertTriangle className="w-5 h-5" />
                         <span>User ID not found</span>
                     </div>
-                    <p className="text-gray-600">We could not determine which account to load. Please sign in again.</p>
+                    <p className="text-gray-600 dark:text-gray-300">We could not determine which account to load. Please sign in again.</p>
                 </div>
             );
         }
 
         if (loading) {
             return (
-                <div className="flex flex-col items-center justify-center py-20 text-[#00313A]">
-                    <Loader2 className="w-10 h-10 animate-spin text-[#00B512]" />
+                <div className="flex flex-col items-center justify-center py-20 text-[#00313A] dark:text-white">
+                    <Loader2 className="w-10 h-10 animate-spin text-[#00B512] dark:text-brand-green" />
                     <p className="mt-4 font-medium">Loading your actions...</p>
                 </div>
             );
@@ -802,12 +805,12 @@ const ActionsByAccountPage = () => {
 
         if (error) {
             return (
-                <div className="bg-white border border-red-100 rounded-3xl p-8 text-center">
-                    <div className="flex items-center justify-center gap-2 text-red-600 font-semibold mb-2">
+                <div className="bg-white dark:bg-darkBg-card border border-red-100 dark:border-darkBorder-light rounded-3xl p-8 text-center">
+                    <div className="flex items-center justify-center gap-2 text-red-600 dark:text-red-400 font-semibold mb-2">
                         <AlertTriangle className="w-5 h-5" />
                         <span>We hit a snag</span>
                     </div>
-                    <p className="text-gray-600 mb-4">{error}</p>
+                    <p className="text-gray-600 dark:text-gray-300 mb-4">{error}</p>
                     <button
                         onClick={() => fetchData(effectiveUserId)}
                         className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#00B512] text-white font-semibold shadow hover:bg-[#009a0f]"
@@ -826,25 +829,28 @@ const ActionsByAccountPage = () => {
     };
 
     return (
-        <div className="flex min-h-screen bg-gray-50">
+        <div className="flex min-h-screen bg-gray-50 dark:bg-darkBg-main">
             {/* Desktop Sidebar */}
             <Navigation />
 
             {/* Main Content */}
-            <main className="flex-1 flex flex-col p-4 md:p-8 lg:ml-64 transition-all duration-300">
+            <main className={cn(
+                "flex-1 flex flex-col p-4 md:p-8 transition-all duration-300",
+                isExpanded ? "lg:ml-64" : "lg:ml-20"
+            )}>
                 <div className="flex-1 overflow-y-auto pb-24 lg:pb-8">
                     <Header />
 
                     <section className="mt-6 space-y-6">
-                        <div className="bg-white rounded-3xl border border-white/40 shadow-md shadow-emerald-50 p-6 relative overflow-hidden">
-                            <div className="absolute -top-10 -right-10 w-32 h-32 bg-[#00B512]/10 rounded-full blur-3xl" />
+                        <div className="bg-white dark:bg-darkBg-card rounded-3xl border border-white/40 dark:border-darkBorder-light shadow-md shadow-emerald-50 dark:shadow-none p-6 relative overflow-hidden">
+                            <div className="absolute -top-10 -right-10 w-32 h-32 bg-[#00B512]/10 dark:bg-[#00B512]/20 rounded-full blur-3xl" />
                             <div className="relative z-10">
-                                <p className="inline-flex items-center gap-2 text-sm font-semibold text-[#00B512]">
+                                <p className="inline-flex items-center gap-2 text-sm font-semibold text-[#00B512] dark:text-brand-green">
                                     <Sparkles className="w-4 h-4" />
                                     Actions Center
                                 </p>
-                                <h1 className="text-2xl md:text-3xl font-bold text-[#00313A] mt-2">{pageTitle}</h1>
-                                <p className="text-[#00313A]/70 mt-2 max-w-2xl">{pageDescription}</p>
+                                <h1 className="text-2xl md:text-3xl font-bold text-[#00313A] dark:text-white mt-2">{pageTitle}</h1>
+                                <p className="text-[#00313A]/70 dark:text-gray-300 mt-2 max-w-2xl">{pageDescription}</p>
                             </div>
                         </div>
 
@@ -859,9 +865,9 @@ const ActionsByAccountPage = () => {
             </div>
 
             <Dialog open={isSubActionsModalOpen} onOpenChange={setIsSubActionsModalOpen}>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto dark:bg-darkBg-card dark:border-darkBorder-light">
                     <DialogHeader>
-                        <DialogTitle className="text-2xl font-bold text-[#00313A] flex items-center gap-3">
+                        <DialogTitle className="text-2xl font-bold text-[#00313A] dark:text-white flex items-center gap-3">
                             <div className="w-10 h-10 bg-gradient-to-br from-[#00B512] to-[#1fd331] rounded-lg flex items-center justify-center shadow-md">
                                 <Ticket className="w-5 h-5 text-white" />
                             </div>
@@ -872,12 +878,12 @@ const ActionsByAccountPage = () => {
                     {selectedAction && (
                         <div className="space-y-6">
                             {selectedAction.description && (
-                                <div className="bg-gradient-to-br from-[#f0fff4] via-[#e6f9f0] to-[#f6fff9] rounded-xl p-5 border-2 border-[#00B512]/10 text-sm text-[#00313A]/80 leading-relaxed">
+                                <div className="bg-gradient-to-br from-[#f0fff4] via-[#e6f9f0] to-[#f6fff9] dark:bg-darkBg-interactive rounded-xl p-5 border-2 border-[#00B512]/10 dark:border-darkBorder-light text-sm text-[#00313A]/80 dark:text-gray-300 leading-relaxed">
                                     {selectedAction.description}
                                 </div>
                             )}
 
-                            <div className="space-y-3 text-sm text-[#00313A]/80">
+                            <div className="space-y-3 text-sm text-[#00313A]/80 dark:text-gray-300">
                                 {selectedAction.availability?.startsAt && (
                                     <div className="flex items-center gap-2">
                                         <Calendar className="w-4 h-4 text-[#00B512]" />
@@ -901,52 +907,52 @@ const ActionsByAccountPage = () => {
                             </div>
 
                             {accountMode === 'organization' && (
-                                <div className="bg-gray-50 border border-[#00B512]/10 rounded-2xl p-4 space-y-3">
-                                    <h4 className="text-sm font-semibold text-[#00313A]">Add Sub-action</h4>
+                                <div className="bg-gray-50 dark:bg-darkBg-interactive border border-[#00B512]/10 dark:border-darkBorder-light rounded-2xl p-4 space-y-3">
+                                    <h4 className="text-sm font-semibold text-[#00313A] dark:text-white">Add Sub-action</h4>
                                     <div className="grid gap-3 md:grid-cols-2">
                                         <input
                                             type="text"
                                             placeholder="Name"
                                             value={newSubAction.name}
                                             onChange={(e) => handleSubActionFieldChange('name', e.target.value)}
-                                            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B512]/40"
+                                            className="w-full rounded-xl border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-main dark:text-white dark:placeholder-gray-500 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B512]/40"
                                         />
                                         <input
                                             type="number"
                                             placeholder="Price"
                                             value={newSubAction.price}
                                             onChange={(e) => handleSubActionFieldChange('price', e.target.value)}
-                                            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B512]/40"
+                                            className="w-full rounded-xl border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-main dark:text-white dark:placeholder-gray-500 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B512]/40"
                                         />
                                         <input
                                             type="text"
                                             placeholder="Seat / Zone"
                                             value={newSubAction.seatType}
                                             onChange={(e) => handleSubActionFieldChange('seatType', e.target.value)}
-                                            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B512]/40"
+                                            className="w-full rounded-xl border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-main dark:text-white dark:placeholder-gray-500 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B512]/40"
                                         />
                                         <input
                                             type="number"
                                             placeholder="Stock (optional)"
                                             value={newSubAction.stock}
                                             onChange={(e) => handleSubActionFieldChange('stock', e.target.value)}
-                                            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B512]/40"
+                                            className="w-full rounded-xl border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-main dark:text-white dark:placeholder-gray-500 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B512]/40"
                                         />
                                     </div>
                                     <textarea
                                         placeholder="Description (optional)"
                                         value={newSubAction.description}
                                         onChange={(e) => handleSubActionFieldChange('description', e.target.value)}
-                                        className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B512]/40"
+                                        className="w-full rounded-xl border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-main dark:text-white dark:placeholder-gray-500 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B512]/40"
                                         rows={3}
                                     />
-                                    {subActionError && <p className="text-sm text-red-500">{subActionError}</p>}
+                                    {subActionError && <p className="text-sm text-red-500 dark:text-red-400">{subActionError}</p>}
                                     <div className="flex items-center gap-3">
                                         {editingSubActionId && (
                                             <button
                                                 type="button"
                                                 onClick={resetSubActionForm}
-                                                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50"
+                                                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-main dark:text-white text-sm font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-darkBg-card"
                                             >
                                                 Cancel Edit
                                             </button>
@@ -963,19 +969,19 @@ const ActionsByAccountPage = () => {
                             )}
 
                             <div>
-                                <h3 className="text-lg font-bold text-[#00313A] mb-4 flex items-center gap-2">
-                                    <Sparkles className="w-5 h-5 text-[#00B512]" />
+                                <h3 className="text-lg font-bold text-[#00313A] dark:text-white mb-4 flex items-center gap-2">
+                                    <Sparkles className="w-5 h-5 text-[#00B512] dark:text-brand-green" />
                                     Available Options
                                 </h3>
 
                                 {subActionsLoading ? (
                                     <div className="flex items-center justify-center py-12">
-                                        <Loader2 className="w-8 h-8 text-[#00B512] animate-spin" />
+                                        <Loader2 className="w-8 h-8 text-[#00B512] dark:text-brand-green animate-spin" />
                                     </div>
                                 ) : subActions.length === 0 ? (
-                                    <div className="text-center py-8 bg-gradient-to-br from-[#f0fff4] via-[#e6f9f0] to-[#f6fff9] rounded-xl border-2 border-[#00B512]/10">
-                                        <Ticket className="w-12 h-12 text-[#00B512]/30 mx-auto mb-3" />
-                                        <p className="text-[#00313A]/60 font-medium">No sub actions available.</p>
+                                    <div className="text-center py-8 bg-gradient-to-br from-[#f0fff4] via-[#e6f9f0] to-[#f6fff9] dark:bg-darkBg-interactive rounded-xl border-2 border-[#00B512]/10 dark:border-darkBorder-light">
+                                        <Ticket className="w-12 h-12 text-[#00B512]/30 dark:text-brand-green/30 mx-auto mb-3" />
+                                        <p className="text-[#00313A]/60 dark:text-gray-300 font-medium">No sub actions available.</p>
                                     </div>
                                 ) : (
                                     <div className="space-y-4">
@@ -985,23 +991,23 @@ const ActionsByAccountPage = () => {
                                             .map((subAction) => (
                                                 <div
                                                     key={subAction.id}
-                                                    className="bg-white rounded-xl p-5 border-2 border-[#00B512]/10 shadow-md hover:shadow-lg transition-all duration-300"
+                                                    className="bg-white dark:bg-darkBg-main rounded-xl p-5 border-2 border-[#00B512]/10 dark:border-darkBorder-light shadow-md hover:shadow-lg dark:hover:bg-darkBg-interactive transition-all duration-300"
                                                 >
                                                     <div className="flex items-start justify-between gap-4">
                                                         <div className="flex-1">
-                                                            <h4 className="text-base font-bold text-[#00313A]">{subAction.name}</h4>
+                                                            <h4 className="text-base font-bold text-[#00313A] dark:text-white">{subAction.name}</h4>
                                                             {subAction.description && (
-                                                                <p className="text-sm text-[#00313A]/70 mt-1">{subAction.description}</p>
+                                                                <p className="text-sm text-[#00313A]/70 dark:text-gray-300 mt-1">{subAction.description}</p>
                                                             )}
                                                         </div>
                                                         <div className="text-right">
-                                                            <p className="text-lg font-bold text-[#00B512]">
+                                                            <p className="text-lg font-bold text-[#00B512] dark:text-brand-green">
                                                                 {subAction.price && selectedAction.currency
                                                                     ? `${selectedAction.currency} ${parseFloat(subAction.price).toLocaleString()}`
                                                                     : subAction.price}
                                                             </p>
                                                             {subAction.stock !== null && subAction.stock !== undefined && (
-                                                                <p className="text-xs text-[#00313A]/60">{subAction.stock} available</p>
+                                                                <p className="text-xs text-[#00313A]/60 dark:text-gray-400">{subAction.stock} available</p>
                                                             )}
                                                         </div>
                                                     <div className="flex items-center gap-2">
@@ -1012,7 +1018,7 @@ const ActionsByAccountPage = () => {
                                                                     e.stopPropagation();
                                                                     handleEditSubActionClick(subAction);
                                                                 }}
-                                                                className="text-xs font-semibold text-[#00B512] hover:underline"
+                                                                className="text-xs font-semibold text-[#00B512] dark:text-brand-green hover:underline"
                                                             >
                                                                 Edit
                                                             </button>
@@ -1031,7 +1037,7 @@ const ActionsByAccountPage = () => {
                         <button
                             type="button"
                             onClick={() => setIsSubActionsModalOpen(false)}
-                            className="px-4 py-2 rounded-full border-2 border-[#00B512] text-[#00B512] font-semibold hover:bg-[#00B512] hover:text-white transition-colors"
+                            className="px-4 py-2 rounded-full border-2 border-[#00B512] dark:border-brand-green text-[#00B512] dark:text-brand-green font-semibold hover:bg-[#00B512] dark:hover:bg-brand-green hover:text-white transition-colors"
                         >
                             Close
                         </button>

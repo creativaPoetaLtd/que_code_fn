@@ -82,6 +82,8 @@ export default function Navigation() {
             setActiveItem('Finances');
         } else if (pathname.includes('/chat')) {
             setActiveItem('Messages');
+        } else if (pathname.includes('/action')) {
+            setActiveItem('Actions');
         } else if (pathname.includes('/contacts')) {
             setActiveItem('Contacts');
         } else if (pathname.includes('/merchants')) {
@@ -123,6 +125,7 @@ export default function Navigation() {
         { id: "Home", icon: <Home size={24} />, label: "Home", path: userId ? `/home/${userId}` : '/home' },
         { id: "Finances", icon: <BarChart2 size={24} />, label: "Finances", path: "/analytics" },
         { id: "Messages", icon: <MessageCircle size={24} />, label: "Messages", path: "/chat" },
+        { id: "Actions", icon: <FileText size={24} />, label: "Actions", path: userId ? `/action/${userId}` : '/action' },
         { id: "Contacts", icon: <Users size={24} />, label: "Contacts", path: userId ? `/contacts/${userId}` : '/contacts' },
         { id: "Merchants", icon: <Store size={24} />, label: "Merchants", path: userId ? `/merchants/${userId}` : '/merchants' },
         { id: "History", icon: <Clock size={24} />, label: "History", path: "/transactions" },
