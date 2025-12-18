@@ -111,16 +111,16 @@ export default function MessageItem({ message }: MessageItemProps) {
 
             <div
                 className={cn(
-                    "relative max-w-[18rem] sm:max-w-md rounded-xl px-3 py-2",
-                    isMe ? "bg-[#00B512] text-white" : "bg-white",
-                    isOldMoneyMessage ? "border-2 border-yellow-400" : "shadow-md"
+                    "relative max-w-[18rem] sm:max-w-md rounded-xl px-3 py-2 shadow-sm",
+                    isMe ? "bg-brand-green dark:bg-brand-gold text-white dark:text-darkBg-main" : "bg-white dark:bg-darkBg-card border border-gray-100 dark:border-darkBorder-light text-gray-900 dark:text-white",
+                    isOldMoneyMessage ? "border-2 border-yellow-400 dark:border-yellow-600" : ""
                 )}
             >
-                {!isMe && <p className="text-xs font-semibold mb-1">{senderDisplayName}</p>}
+                {!isMe && <p className="text-xs font-semibold mb-1 text-gray-700 dark:text-gray-300">{senderDisplayName}</p>}
 
                 {/* Old money message indicator */}
                 {isOldMoneyMessage && (
-                    <div className="mb-2 flex items-center gap-1 text-xs text-yellow-600 bg-yellow-50 px-2 py-1 rounded">
+                    <div className="mb-2 flex items-center gap-1 text-xs text-yellow-700 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 px-2 py-1 rounded">
                         <span>💰</span>
                         <span className="font-semibold">Money Transfer</span>
                     </div>
@@ -139,10 +139,10 @@ export default function MessageItem({ message }: MessageItemProps) {
                         mimeType={message.mimeType}
                     />
                 ) : (
-                    <p className={isMe ? "text-white" : ""}>{messageContent}</p>
+                    <p className={isMe ? "text-white dark:text-darkBg-main" : "text-gray-900 dark:text-white"}>{messageContent}</p>
                 )}
 
-                <p className={cn("text-right text-xs mt-1", isMe ? "text-green-100" : "text-gray-400")}>
+                <p className={cn("text-right text-xs mt-1", isMe ? "text-white/80 dark:text-darkBg-main/80" : "text-gray-500 dark:text-gray-500")}>
                     {timestamp}
                 </p>
 

@@ -159,13 +159,13 @@ export default function InviteToGroupModal({ isOpen, onClose, group, token }: In
         <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
             <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
                 <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                        <div className="bg-blue-100 p-2 rounded-full">
-                            <UserPlus size={20} className="text-blue-600" />
+                    <DialogTitle className="flex items-center gap-2 text-gray-900 dark:text-white text-xl font-semibold">
+                        <div className="bg-brand-green/10 dark:bg-brand-gold/10 p-2 rounded-full">
+                            <UserPlus size={20} className="text-brand-green dark:text-brand-gold" />
                         </div>
                         <div>
                             <div>Invite to Group</div>
-                            <div className="text-sm font-normal text-gray-500 mt-1">Invite contacts to join "{group.name}"</div>
+                            <div className="text-sm font-normal text-gray-500 dark:text-gray-400 mt-1">Invite contacts to join "{group.name}"</div>
                         </div>
                     </DialogTitle>
                 </DialogHeader>
@@ -184,11 +184,11 @@ export default function InviteToGroupModal({ isOpen, onClose, group, token }: In
 
                     {/* Selection Summary */}
                     {selectedContacts.length > 0 && (
-                        <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                        <div className="mb-4 p-3 bg-brand-green/5 dark:bg-brand-gold/5 rounded-lg border border-brand-green/20 dark:border-brand-gold/20">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                    <Users size={16} className="text-blue-600" />
-                                    <span className="text-sm font-medium text-blue-800">
+                                    <Users size={16} className="text-brand-green dark:text-brand-gold" />
+                                    <span className="text-sm font-medium text-brand-green dark:text-brand-gold">
                                         {selectedContacts.length} contact{selectedContacts.length > 1 ? "s" : ""} selected
                                     </span>
                                 </div>
@@ -196,7 +196,7 @@ export default function InviteToGroupModal({ isOpen, onClose, group, token }: In
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => setSelectedContacts([])}
-                                    className="text-blue-600 hover:text-blue-800 h-auto p-1"
+                                    className="text-brand-green dark:text-brand-gold hover:text-brand-green/80 dark:hover:text-brand-gold/80 h-auto p-1"
                                 >
                                     Clear all
                                 </Button>
@@ -261,19 +261,19 @@ export default function InviteToGroupModal({ isOpen, onClose, group, token }: In
                                                     src={(otherUser as any).avatar || "/placeholder.svg?height=40&width=40"}
                                                     alt={`${otherUser.firstName} ${otherUser.lastName}`}
                                                 />
-                                                <AvatarFallback className="bg-blue-100 text-blue-600">
+                                                <AvatarFallback className="bg-brand-green/20 dark:bg-brand-gold/20 text-brand-green dark:text-brand-gold">
                                                     {(otherUser.firstName || '').charAt(0).toUpperCase()}
                                                     {(otherUser.lastName || '').charAt(0).toUpperCase()}
                                                 </AvatarFallback>
                                             </Avatar>
                                             <div className="flex-1">
-                                                <p className="font-medium text-gray-900">
+                                                <p className="font-medium text-gray-900 dark:text-white">
                                                     {otherUser.firstName} {otherUser.lastName}
                                                 </p>
-                                                <p className="text-sm text-gray-500">{otherUser.email}</p>
+                                                <p className="text-sm text-gray-500 dark:text-gray-400">{otherUser.email}</p>
                                             </div>
                                             {selectedContacts.includes(otherUser.id) && (
-                                                <Badge variant="default" className="bg-blue-600">
+                                                <Badge variant="default" className="bg-brand-green dark:bg-brand-gold text-white dark:text-darkBg-main">
                                                     Selected
                                                 </Badge>
                                             )}

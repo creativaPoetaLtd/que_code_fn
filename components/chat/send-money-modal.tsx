@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DollarSign, X, ArrowRight, Send, Wallet, AlertCircle, Loader2 } from "lucide-react"
@@ -176,8 +176,8 @@ export default function SendMoneyModal({ isOpen, onClose, recipient = "", curren
                     {currentConversation?.isGroup ? 'How much do you want to donate?' : 'How much do you want to send?'}
                 </h3>
                 <p className="text-gray-500">
-                    {currentConversation?.isGroup 
-                        ? 'Enter the amount you want to contribute' 
+                    {currentConversation?.isGroup
+                        ? 'Enter the amount you want to contribute'
                         : 'Enter the amount you want to transfer'}
                 </p>
             </div>
@@ -189,9 +189,9 @@ export default function SendMoneyModal({ isOpen, onClose, recipient = "", curren
                     <span>Loading balance...</span>
                 </div>
             ) : walletBalance !== null ? (
-                <div className="flex items-center gap-2 mb-4 px-4 py-2 bg-blue-50 rounded-lg">
-                    <Wallet className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm font-medium text-blue-900">
+                <div className="flex items-center gap-2 mb-4 px-4 py-2 bg-brand-green/10 dark:bg-brand-gold/10 rounded-lg">
+                    <Wallet className="h-4 w-4 text-brand-green dark:text-brand-gold" />
+                    <span className="text-sm font-medium text-brand-green dark:text-brand-gold">
                         Available: ${walletBalance.toFixed(2)}
                     </span>
                 </div>
@@ -240,7 +240,7 @@ export default function SendMoneyModal({ isOpen, onClose, recipient = "", curren
     const renderStep2 = () => (
         <div className="flex flex-col py-4">
             <div className="text-center mb-6">
-                <h3 className="text-xl font-semibold mb-1">Review and verify</h3>
+                <h3 className="text-xl font-semibold mb-1 text-gray-900 dark:text-white">Review and verify</h3>
                 <p className="text-gray-500">Confirm the details and enter your PIN</p>
             </div>
 
@@ -267,7 +267,7 @@ export default function SendMoneyModal({ isOpen, onClose, recipient = "", curren
                 <div className="border-t border-gray-200 pt-3 mt-3">
                     <div className="flex justify-between items-center">
                         <span className="text-gray-600">Amount</span>
-                        <span className="text-2xl font-bold text-gray-800">${amount.toFixed(2)}</span>
+                        <span className="text-2xl font-bold text-gray-900 dark:text-white">${amount.toFixed(2)}</span>
                     </div>
                 </div>
             </div>
@@ -311,11 +311,14 @@ export default function SendMoneyModal({ isOpen, onClose, recipient = "", curren
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <div className="flex items-center">
-                            <div className={`p-2 rounded-full mr-3 ${currentConversation?.isGroup ? 'bg-blue-100' : 'bg-green-100'}`}>
-                                <DollarSign size={20} className={currentConversation?.isGroup ? 'text-blue-600' : 'text-green-600'} />
+                            <div className="bg-brand-green/10 dark:bg-brand-gold/10 p-2 rounded-full mr-3">
+                                <DollarSign size={20} className="text-brand-green dark:text-brand-gold" />
                             </div>
-                            <DialogTitle>{currentConversation?.isGroup ? 'Donate to Group' : 'Send Money'}</DialogTitle>
+                            <DialogTitle className="text-gray-900 dark:text-white text-xl font-semibold">{currentConversation?.isGroup ? 'Donate to Group' : 'Send Money'}</DialogTitle>
                         </div>
+                        <DialogDescription className="text-gray-600 dark:text-gray-400 text-sm">
+                            {currentConversation?.isGroup ? 'Contribute to group fundraising' : 'Transfer money to recipient'}
+                        </DialogDescription>
                     </DialogHeader>
 
                     {step === 1 && renderStep1()}
@@ -335,7 +338,7 @@ export default function SendMoneyModal({ isOpen, onClose, recipient = "", curren
                             <Button
                                 onClick={handleNext}
                                 disabled={amount <= 0 || (walletBalance !== null && amount > walletBalance)}
-                                className={currentConversation?.isGroup ? "bg-blue-600 hover:bg-blue-700" : "bg-green-600 hover:bg-green-700"}
+                                className="bg-brand-green dark:bg-brand-gold hover:bg-brand-green/90 dark:hover:bg-brand-gold/90 text-white dark:text-darkBg-main"
                             >
                                 Next
                             </Button>
@@ -343,7 +346,7 @@ export default function SendMoneyModal({ isOpen, onClose, recipient = "", curren
                             <Button
                                 onClick={handleSubmit}
                                 disabled={pin.length !== 4 || loading}
-                                className={`flex items-center ${currentConversation?.isGroup ? "bg-blue-600 hover:bg-blue-700" : "bg-green-600 hover:bg-green-700"}`}
+                                className="flex items-center bg-brand-green dark:bg-brand-gold hover:bg-brand-green/90 dark:hover:bg-brand-gold/90 text-white dark:text-darkBg-main"
                             >
                                 {loading ? (
                                     <>

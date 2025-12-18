@@ -92,11 +92,11 @@ const JoinGroupByLinkModal: React.FC<JoinGroupByLinkModalProps> = ({ isOpen, onC
       <Dialog open={isOpen} onOpenChange={open => !open && handleClose()}>
         <DialogContent className='sm:max-w-md'>
           <DialogHeader>
-            <DialogTitle className='flex items-center gap-2'>
-              <Link size={20} className='text-[#00B512]' />
+            <DialogTitle className='flex items-center gap-2 text-gray-900 dark:text-white text-xl font-semibold'>
+              <Link size={20} className='text-brand-green dark:text-brand-gold' />
               Join Group by Link/QR
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-gray-600 dark:text-gray-400 text-sm">
               Enter the group's access link or QR code data to join.
             </DialogDescription>
           </DialogHeader>
@@ -134,7 +134,7 @@ const JoinGroupByLinkModal: React.FC<JoinGroupByLinkModalProps> = ({ isOpen, onC
             <Button
               onClick={handleJoin}
               disabled={isLoading || !linkOrQrData.trim()}
-              className='bg-[#00B512] text-white'
+              className='bg-brand-green dark:bg-brand-gold hover:bg-brand-green/90 dark:hover:bg-brand-gold/90 text-white dark:text-darkBg-main'
             >
               {isLoading ? (
                 <>

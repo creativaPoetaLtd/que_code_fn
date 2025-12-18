@@ -2,7 +2,7 @@
 
 import { useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Send, Coins } from "lucide-react"
+import { Send } from "lucide-react"
 import ChatHeader from "./chat-header"
 import MessageItem from "./message-item"
 import MessageInput from "./message-input"
@@ -16,9 +16,10 @@ interface ChatAreaProps {
     onSendMoney: () => void
     onRequestMoney: () => void
     onViewProfile: () => void
-    onInviteToGroup: () => void // Add the new prop
-    typingUsers?: any[] // Optional typing indicators
-    onlineUsers?: any[] // Optional online users
+    onInviteToGroup: () => void
+    onGroupSettings?: () => void
+    typingUsers?: any[]
+    onlineUsers?: any[]
 }
 
 export default function ChatArea({
@@ -29,7 +30,8 @@ export default function ChatArea({
     onSendMoney,
     onRequestMoney,
     onViewProfile,
-    onInviteToGroup, // Destructure the new prop
+    onInviteToGroup,
+    onGroupSettings,
     typingUsers = [],
     onlineUsers = [],
 }: ChatAreaProps) {
@@ -38,32 +40,40 @@ export default function ChatArea({
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
     }, [messages])
-    
+
     return (
-        <div className={`${showOnMobile ? "flex" : "hidden"} md:flex flex-col flex-1 bg-gradient-to-b from-gray-50 to-gray-100 h-full`}>
-            <ChatHeader
-                conversation={conversation}
-                onBackClick={onBackClick}
-                onViewProfile={onViewProfile}
-                onInviteToGroup={onInviteToGroup}
-            />
-            <div className="flex gap-2 p-3 sm:p-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white flex-shrink-0">
+        <div
+            className={`
+        ${showOnMobile ? "flex" : "hidden"}
+        md:flex flex-col flex-1
+        bg-gray-50 dark:bg-darkBg-main
+        h-full relative
+        pb-28 md:pb-0
+      `}
+        >
+            {/* Header */}
+            <div className="flex-shrink-0">
+                <ChatHeader
+                    conversation={conversation}
+                    onBackClick={onBackClick}
+                    onViewProfile={onViewProfile}
+                    onInviteToGroup={onInviteToGroup}
+                    onGroupSettings={onGroupSettings}
+                />
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-2 p-3 sm:p-4 border-b border-gray-100 dark:border-darkBorder-light bg-white dark:bg-darkBg-card flex-shrink-0">
                 <Button
                     onClick={onSendMoney}
-                    className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white text-xs sm:text-sm py-2 px-4 rounded-lg shadow-sm transition-all duration-200 flex-1 sm:flex-none"
+                    className="bg-brand-green hover:bg-brand-green/90 dark:bg-brand-gold dark:hover:bg-brand-gold/90 text-white dark:text-darkBg-main text-xs sm:text-sm py-2 px-4 rounded-lg shadow-sm transition-all duration-200 flex-1 sm:flex-none"
                 >
                     <Send size={14} className="mr-1.5 hidden sm:inline" />
                     Send Money
                 </Button>
-                <Button
-                    variant="outline"
-                    onClick={onRequestMoney}
-                    className="text-xs sm:text-sm py-2 px-4 rounded-lg border-gray-300 hover:bg-gray-50 transition-all duration-200 flex-1 sm:flex-none"
-                >
-                    <Coins size={14} className="mr-1.5 hidden sm:inline" />
-                    Request Money
-                </Button>
             </div>
+
+            {/* Messages */}
             <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-4">
                 {messages.length > 0 ? (
                     <>
@@ -71,38 +81,47 @@ export default function ChatArea({
                             <MessageItem key={message.id} message={message} />
                         ))}
 
-                        {typingUsers && typingUsers.length > 0 && (
-                            <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                        {typingUsers.length > 0 && (
+                            <div className="flex items-center gap-2 p-3 bg-white dark:bg-darkBg-card rounded-lg border border-gray-100 dark:border-darkBorder-light">
                                 <div className="flex space-x-1">
-                                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                                    <div className="w-2 h-2 bg-brand-green dark:bg-brand-gold rounded-full animate-bounce" />
+                                    <div
+                                        className="w-2 h-2 bg-brand-green dark:bg-brand-gold rounded-full animate-bounce"
+                                        style={{ animationDelay: "0.1s" }}
+                                    />
+                                    <div
+                                        className="w-2 h-2 bg-brand-green dark:bg-brand-gold rounded-full animate-bounce"
+                                        style={{ animationDelay: "0.2s" }}
+                                    />
                                 </div>
-                                <span className="text-sm text-gray-500">
+                                <span className="text-sm text-gray-600 dark:text-gray-400">
                                     {typingUsers.length === 1
-                                        ? `Someone is typing...`
-                                        : `${typingUsers.length} people are typing...`
-                                    }
+                                        ? "Someone is typing..."
+                                        : `${typingUsers.length} people are typing...`}
                                 </span>
                             </div>
                         )}
 
-                        <div ref={messagesEndRef} />
+                        <div ref={messagesEndRef} className="h-24 md:h-6" />
                     </>
                 ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-gray-500">
-                        <div className="bg-white rounded-lg p-8 shadow-sm border border-gray-200 text-center max-w-md">
-                            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <Send size={24} className="text-blue-600" />
+                    <div className="flex items-center justify-center h-full text-gray-600 dark:text-gray-400">
+                        <div className="bg-white dark:bg-darkBg-card rounded-lg p-8 shadow-md border border-gray-100 dark:border-darkBorder-light text-center max-w-md">
+                            <div className="w-16 h-16 bg-brand-green/10 dark:bg-brand-gold/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Send size={24} className="text-brand-green dark:text-brand-gold" />
                             </div>
-                            <p className="text-lg font-medium text-gray-900 mb-2">Start the conversation</p>
-                            <p className="text-sm text-gray-500">
-                                Send a message to begin chatting with {conversation.name}
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                                No messages yet
+                            </h3>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                                Send a message to start the conversation.
                             </p>
                         </div>
                     </div>
                 )}
             </div>
+
+            {/* Message Input (fixed above bottom nav on mobile) */}
             <MessageInput />
         </div>
     )

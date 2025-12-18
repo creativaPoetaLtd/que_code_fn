@@ -34,7 +34,7 @@ export default function GroupActions({
                     variant="default"
                     size="sm"
                     onClick={() => onJoinGroup(group)}
-                    className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-sm"
+                    className="bg-brand-green dark:bg-brand-gold hover:bg-brand-green/90 dark:hover:bg-brand-gold/90 text-white dark:text-darkBg-main shadow-sm"
                 >
                     <MessageCircle size={14} className="mr-2" />
                     Start Chat
@@ -45,7 +45,7 @@ export default function GroupActions({
                         variant="outline"
                         size="sm"
                         onClick={() => onViewRequests({ id: group.id, name: group.name })}
-                        className="relative border-green-200 text-green-600 hover:bg-green-50"
+                        className="relative border-gray-200 dark:border-darkBorder-light text-brand-green dark:text-brand-gold hover:bg-gray-50 dark:hover:bg-darkBg-interactive"
                     >
                         <Users size={14} className="mr-2" />
                         Requests
@@ -84,7 +84,7 @@ export default function GroupActions({
                 size="sm"
                 onClick={() => onRequestToJoin(group.id, group.name)}
                 disabled={isRequestingJoin}
-                className="border-purple-200 text-purple-600 hover:bg-purple-50 disabled:opacity-50"
+                className="border-gray-200 dark:border-darkBorder-light text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-darkBg-interactive disabled:opacity-50"
             >
                 {isRequestingJoin ? (
                     <>
@@ -106,7 +106,7 @@ export default function GroupActions({
             variant="outline" 
             size="sm" 
             onClick={() => onJoinGroup(group)}
-            className="border-green-200 text-green-600 hover:bg-green-50"
+            className="border-gray-200 dark:border-darkBorder-light text-brand-green dark:text-brand-gold hover:bg-gray-50 dark:hover:bg-darkBg-interactive"
         >
             <Send size={14} className="mr-2" />
             Join Group

@@ -132,9 +132,9 @@ export default function QRInviteModal({ isOpen, onClose }: QRInviteModalProps) {
                     <div className="py-4">
                         {/* Profile Link Input Section */}
                         <div className="mb-6">
-                            <label className="block text-sm font-medium text-gray-700 mb-3">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                                 <div className="flex items-center">
-                                    <Link size={16} className="mr-2 text-blue-600" />
+                                    <Link size={16} className="mr-2 text-brand-green dark:text-brand-gold" />
                                     <span>Profile Link or Public ID</span>
                                 </div>
                             </label>
@@ -149,7 +149,7 @@ export default function QRInviteModal({ isOpen, onClose }: QRInviteModalProps) {
                                 <Button
                                     onClick={handleProfileLinkSubmit}
                                     disabled={isInviting || !profileLink.trim()}
-                                    className="w-full bg-blue-600 hover:bg-blue-700"
+                                    className="w-full bg-brand-green dark:bg-brand-gold hover:bg-brand-green/90 dark:hover:bg-brand-gold/90 text-white dark:text-darkBg-main"
                                 >
                                     {isInviting ? (
                                         <>
@@ -177,11 +177,11 @@ export default function QRInviteModal({ isOpen, onClose }: QRInviteModalProps) {
                         {/* QR Code Scanner Section */}
                         <div className="text-center">
                             <div className="mb-4">
-                                <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-blue-200 rounded-full flex items-center justify-center mx-auto mb-3">
-                                    <QrCode size={24} className="text-blue-600" />
+                                <div className="w-16 h-16 bg-brand-green/10 dark:bg-brand-gold/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                                    <QrCode size={24} className="text-brand-green dark:text-brand-gold" />
                                 </div>
-                                <h3 className="text-lg font-semibold text-gray-800 mb-2">Scan QR Code</h3>
-                                <p className="text-sm text-gray-600 mb-4">
+                                <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">Scan QR Code</h3>
+                                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                                     Point your camera at someone's profile QR code to instantly send a contact invitation
                                 </p>
                             </div>
@@ -189,7 +189,7 @@ export default function QRInviteModal({ isOpen, onClose }: QRInviteModalProps) {
                                 onClick={() => setIsQRScannerOpen(true)} 
                                 variant="outline" 
                                 disabled={isInviting}
-                                className="w-full border-blue-200 text-blue-600 hover:bg-blue-50"
+                                className="w-full border-brand-green dark:border-brand-gold text-brand-green dark:text-brand-gold hover:bg-brand-green/10 dark:hover:bg-brand-gold/10"
                             >
                                 <Camera size={16} className="mr-2" />
                                 Open Camera Scanner
@@ -202,15 +202,15 @@ export default function QRInviteModal({ isOpen, onClose }: QRInviteModalProps) {
                 return (
                     <div className="py-8">
                         <div className="text-center">
-                            <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-blue-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <Loader2 size={24} className="text-blue-600 animate-spin" />
+                            <div className="w-16 h-16 bg-brand-green/10 dark:bg-brand-gold/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Loader2 size={24} className="text-brand-green dark:text-brand-gold animate-spin" />
                             </div>
-                            <h3 className="text-lg font-semibold text-gray-800 mb-2">Processing QR Code</h3>
-                            <p className="text-sm text-gray-600 mb-4">
+                            <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">Processing QR Code</h3>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                                 Sending contact invitation...
                             </p>
                             {extractedPublicId && (
-                                <p className="text-xs text-blue-600 bg-blue-50 px-3 py-2 rounded-full inline-block">
+                                <p className="text-xs text-brand-green dark:text-brand-gold bg-brand-green/10 dark:bg-brand-gold/10 px-3 py-2 rounded-full inline-block">
                                     Contact ID: {extractedPublicId.substring(0, 8)}...
                                 </p>
                             )}
@@ -222,23 +222,23 @@ export default function QRInviteModal({ isOpen, onClose }: QRInviteModalProps) {
                 return (
                     <div className="py-8">
                         <div className="text-center">
-                            <div className="w-16 h-16 bg-gradient-to-br from-green-100 to-green-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <CheckCircle size={24} className="text-green-600" />
+                            <div className="w-16 h-16 bg-brand-green/20 dark:bg-brand-gold/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <CheckCircle size={24} className="text-brand-green dark:text-brand-gold" />
                             </div>
-                            <h3 className="text-lg font-semibold text-gray-800 mb-2">Invitation Sent!</h3>
-                            <p className="text-sm text-gray-600 mb-4">
+                            <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">Invitation Sent!</h3>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                                 Contact invitation successfully sent to{" "}
-                                <span className="font-medium text-gray-800">{inviteeName}</span>
+                                <span className="font-medium text-gray-800 dark:text-white">{inviteeName}</span>
                             </p>
-                            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-                                <p className="text-sm text-green-800">
+                            <div className="bg-brand-green/5 dark:bg-brand-gold/5 border border-brand-green/20 dark:border-brand-gold/20 rounded-lg p-4 mb-4">
+                                <p className="text-sm text-gray-700 dark:text-gray-300">
                                     They will receive a notification and can accept or decline your invitation. 
                                     You'll be notified once they respond.
                                 </p>
                             </div>
                             <Button 
                                 onClick={handleClose}
-                                className="bg-green-600 hover:bg-green-700"
+                                className="bg-brand-green dark:bg-brand-gold hover:bg-brand-green/90 dark:hover:bg-brand-gold/90 text-white dark:text-darkBg-main"
                             >
                                 <CheckCircle size={16} className="mr-2" />
                                 Done
@@ -258,10 +258,10 @@ export default function QRInviteModal({ isOpen, onClose }: QRInviteModalProps) {
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <div className="flex items-center">
-                            <div className="bg-gradient-to-br from-blue-100 to-blue-200 p-2 rounded-full mr-3">
-                                <UserPlus size={20} className="text-blue-600" />
+                            <div className="bg-brand-green/10 dark:bg-brand-gold/10 p-2 rounded-full mr-3">
+                                <UserPlus size={20} className="text-brand-green dark:text-brand-gold" />
                             </div>
-                            <DialogTitle className="text-xl font-semibold text-gray-800">
+                            <DialogTitle className="text-xl font-semibold text-gray-800 dark:text-white">
                                 {step === "success" ? "Invitation Sent" : "Add Contact via QR Code"}
                             </DialogTitle>
                         </div>

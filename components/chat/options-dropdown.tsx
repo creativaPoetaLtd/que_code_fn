@@ -19,25 +19,25 @@ export default function OptionsDropdown({ isOpen, onOptionSelect }: OptionsDropd
         {
             icon: <FileText size={18} />,
             label: "Document",
-            color: "text-blue-500",
+            color: "text-gray-600 dark:text-gray-400",
             action: () => onOptionSelect("Document"),
         },
         {
             icon: <DollarSign size={18} />,
             label: "Send Money",
-            color: "text-green-500",
+            color: "text-brand-green dark:text-brand-gold",
             action: () => onOptionSelect("Send Money"),
         },
         {
             icon: <MapPin size={18} />,
             label: "Location",
-            color: "text-red-500",
+            color: "text-gray-600 dark:text-gray-400",
             action: () => onOptionSelect("Location"),
         },
         {
             icon: <Calendar size={18} />,
             label: "Schedule",
-            color: "text-purple-500",
+            color: "text-gray-600 dark:text-gray-400",
             action: () => onOptionSelect("Schedule"),
         },
     ]

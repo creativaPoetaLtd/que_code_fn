@@ -23,11 +23,11 @@ export default function ConversationItem({
   return (
     <div
       className={cn(
-        'p-3 sm:p-4 border-b border-gray-100 cursor-pointer hover:bg-gradient-to-r hover:from-green-50 hover:to-green-100 transition-all duration-200 transform hover:translate-x-1',
+        'p-3 sm:p-4 border-b border-gray-100 dark:border-darkBorder-light cursor-pointer hover:bg-gray-50 dark:hover:bg-darkBg-interactive transition-all duration-200',
         isActive
-          ? 'bg-green-50 border-l-4 border-l-[#00B512] shadow-sm'
+          ? 'bg-brand-green/10 dark:bg-brand-gold/10 border-l-4 border-l-brand-green dark:border-l-brand-gold shadow-sm'
           : hasUnread
-            ? 'bg-blue-50 border-l-2 border-l-blue-400'
+            ? 'bg-gray-50 dark:bg-darkBg-card border-l-2 border-l-brand-green dark:border-l-brand-gold'
             : ''
       )}
       onClick={onClick}
@@ -35,7 +35,7 @@ export default function ConversationItem({
       <div className='flex items-center gap-2 sm:gap-3'>
         <div className='relative flex-shrink-0'>
           {conversation.isGroup ? (
-            <div className='bg-[#00313A] h-10 w-10 rounded-full flex items-center justify-center text-white'>
+            <div className='bg-gray-900 dark:bg-gray-700 h-10 w-10 rounded-full flex items-center justify-center text-white'>
               <Users size={18} />
             </div>
           ) : (
@@ -60,13 +60,13 @@ export default function ConversationItem({
           <div className='flex justify-between items-center'>
             <p className={cn(
               'font-medium truncate text-sm sm:text-base',
-              hasUnread && !isActive && 'font-bold text-gray-900'
+              hasUnread && !isActive && 'font-bold text-gray-900 dark:text-white'
             )}>
               {conversation.name || 'Unknown Contact'}
             </p>
             <div className='flex items-center gap-2'>
               {hasUnread && (
-                <Badge className='bg-[#00B512] text-white text-xs px-2 py-0.5 min-w-[20px] h-5 flex items-center justify-center'>
+                <Badge className='bg-brand-green dark:bg-brand-gold text-white dark:text-darkBg-main text-xs px-2 py-0.5 min-w-[20px] h-5 flex items-center justify-center'>
                   {conversation.unreadCount}
                 </Badge>
               )}
@@ -79,10 +79,10 @@ export default function ConversationItem({
           <div className='flex justify-between items-center mt-1'>
             <p className={cn(
               'text-xs sm:text-sm truncate max-w-[70%]',
-              hasUnread && !isActive ? 'text-gray-900 font-semibold' : 'text-gray-500'
+              hasUnread && !isActive ? 'text-gray-900 dark:text-white font-semibold' : 'text-gray-500 dark:text-gray-400'
             )}>
               {conversation.isGroup && conversation.memberCount && (
-                <span className='text-xs bg-gray-100 text-gray-600 rounded-full px-1.5 py-0.5 mr-1.5 hidden sm:inline-block'>
+                <span className='text-xs bg-gray-100 dark:bg-darkBg-interactive text-gray-600 dark:text-gray-400 rounded-full px-1.5 py-0.5 mr-1.5 hidden sm:inline-block'>
                   {conversation.isOnline ? 1 : 0}/{conversation.memberCount}
                 </span>
               )}

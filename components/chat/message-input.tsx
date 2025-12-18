@@ -129,17 +129,17 @@ export default function MessageInput({ onSendMessage = () => { } }: MessageInput
 
     return (
         <>
-            <div className="bg-white p-3 sm:p-4 border-t border-gray-200 shadow-sm flex-shrink-0">
+            <div className="bg-white dark:bg-darkBg-card p-3 sm:p-4 border-t border-gray-100 dark:border-darkBorder-light shadow-sm fixed bottom-24 md:bottom-0 left-0 right-0 md:relative">
                 <div className="flex items-center gap-1 sm:gap-2">
                     <div className="relative" ref={dropdownRef}>
                         <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => setShowOptions(!showOptions)}
-                            className={`transition-all duration-300 h-8 w-8 sm:h-10 sm:w-10 ${showOptions ? "bg-gray-100" : ""}`}
+                            className={`transition-all duration-300 h-8 w-8 sm:h-10 sm:w-10 hover:bg-gray-100 dark:hover:bg-darkBg-interactive ${showOptions ? "bg-gray-100 dark:bg-darkBg-interactive" : ""}`}
                             aria-label="Attachments"
                         >
-                            <Paperclip size={16} className="sm:size-20 text-gray-500" />
+                            <Paperclip size={16} className="sm:size-20 text-gray-500 dark:text-gray-400" />
                         </Button>
 
                         <OptionsDropdown isOpen={showOptions} onOptionSelect={handleOptionSelect} />
@@ -149,10 +149,10 @@ export default function MessageInput({ onSendMessage = () => { } }: MessageInput
                         variant="ghost"
                         size="icon"
                         onClick={() => setShowMediaModal(true)}
-                        className="hover:bg-gray-100 transition-colors h-8 w-8 sm:h-10 sm:w-10"
+                        className="hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors h-8 w-8 sm:h-10 sm:w-10"
                         aria-label="Add media"
                     >
-                        <ImageIcon size={16} className="sm:size-20 text-gray-500" />
+                        <ImageIcon size={16} className="sm:size-20 text-gray-500 dark:text-gray-400" />
                     </Button>
 
                     <div className="relative flex-1">
@@ -178,7 +178,7 @@ export default function MessageInput({ onSendMessage = () => { } }: MessageInput
                                     stopTyping(activeChat)
                                 }
                             }}
-                            className="rounded-full bg-gray-100 border-0 py-1.5 sm:py-2 px-3 sm:px-4 focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-opacity-50 transition-all pr-8 sm:pr-10 text-sm"
+                            className="rounded-full bg-gray-50 dark:bg-darkBg-interactive border border-gray-200 dark:border-darkBorder-light py-1.5 sm:py-2 px-3 sm:px-4 focus-visible:ring-2 focus-visible:ring-brand-green dark:focus-visible:ring-brand-gold focus-visible:ring-opacity-50 transition-all pr-8 sm:pr-10 text-sm text-gray-900 dark:text-white"
                             disabled={!isConnected}
                         />
 
@@ -196,7 +196,7 @@ export default function MessageInput({ onSendMessage = () => { } }: MessageInput
                         onClick={handleSendMessage}
                         size="icon"
                         disabled={!messageText.trim() || !isConnected}
-                        className="bg-[#00B512] hover:bg-[#009E10] text-white shadow-md transition-all hover:shadow-lg rounded-full h-8 w-8 sm:h-10 sm:w-10 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="bg-brand-green dark:bg-brand-gold hover:bg-brand-green/90 dark:hover:bg-brand-gold/90 text-white dark:text-darkBg-main shadow-md transition-all hover:shadow-lg rounded-full h-8 w-8 sm:h-10 sm:w-10 disabled:opacity-50 disabled:cursor-not-allowed"
                         aria-label="Send message"
                     >
                         <Send size={16} className="sm:size-18" />

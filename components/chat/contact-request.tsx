@@ -137,7 +137,7 @@ export default function ContactRequestModal({ isOpen, onClose }: ContactRequestM
                 <DialogHeader>
                     <div className="flex items-center justify-between">
                         <div className="flex items-center">
-                            <UserPlus size={20} className="text-[#00B512] mr-2" />
+                            <UserPlus size={20} className="text-brand-green dark:text-brand-gold mr-2" />
                             <DialogTitle>Contact Requests</DialogTitle>
                         </div>
                         {receivedInvitations.length > 0 && <Badge variant="secondary">{receivedInvitations.length} pending</Badge>}
@@ -181,15 +181,15 @@ export default function ContactRequestModal({ isOpen, onClose }: ContactRequestM
                                         {/* Received Invitations (ones you need to respond to) */}
                                         {receivedInvitations.length > 0 && (
                                             <div>
-                                                <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
-                                                    <AlertCircle size={16} className="mr-2 text-orange-500" />
+                                                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center">
+                                                    <AlertCircle size={16} className="mr-2 text-yellow-600 dark:text-yellow-500" />
                                                     Requests to Respond ({receivedInvitations.length})
                                                 </h3>
                                                 <div className="space-y-3">
                                                     {receivedInvitations.map((invitation: any) => (
                                                         <div
                                                             key={invitation.id}
-                                                            className="flex items-center justify-between p-3 bg-orange-50 border border-orange-200 rounded-lg"
+                                                            className="flex items-center justify-between p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg"
                                                         >
                                                             <div className="flex items-center">
                                                                 <Avatar className="h-10 w-10 mr-3">
@@ -243,7 +243,7 @@ export default function ContactRequestModal({ isOpen, onClose }: ContactRequestM
                                                                         )
                                                                     }
                                                                     disabled={isResponding}
-                                                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                                    className="text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-darkBg-interactive"
                                                                 >
                                                                     {isResponding ? (
                                                                         <Loader2 size={16} className="animate-spin" />

@@ -1,6 +1,6 @@
 "use client"
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -22,9 +22,12 @@ export default function UserProfileModal({ isOpen, onClose, user }: UserProfileM
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                     <div className="flex items-center">
-                        <UserIcon size={20} className="text-blue-600 mr-2" />
-                        <DialogTitle>User Profile</DialogTitle>
+                        <UserIcon size={20} className="text-brand-green dark:text-brand-gold mr-2" />
+                        <DialogTitle className="text-gray-900 dark:text-white text-xl font-semibold">User Profile</DialogTitle>
                     </div>
+                    <DialogDescription className="text-gray-600 dark:text-gray-400 text-sm">
+                        View user details and contact information
+                    </DialogDescription>
                 </DialogHeader>
 
                 <div className="flex flex-col items-center py-6">
@@ -38,7 +41,7 @@ export default function UserProfileModal({ isOpen, onClose, user }: UserProfileM
                             {user.isOnline ? "Online" : "Offline"}
                         </Badge>
                         <span className="ml-2 text-sm text-gray-500">
-                            {user.lastSeen 
+                            {user.lastSeen
                                 ? `Last seen ${new Date(user.lastSeen).toLocaleDateString()}`
                                 : 'Member'
                             }
@@ -68,7 +71,7 @@ export default function UserProfileModal({ isOpen, onClose, user }: UserProfileM
                     </div>
 
                     <div className="flex justify-center gap-4 mt-6">
-                        <Button onClick={onClose} className="bg-[#00B512] hover:bg-[#009E10]">
+                        <Button onClick={onClose} className="bg-brand-green dark:bg-brand-gold hover:bg-brand-green/90 dark:hover:bg-brand-gold/90 text-white dark:text-darkBg-main">
                             <MessageCircle size={16} className="mr-2" />
                             Message
                         </Button>

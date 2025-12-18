@@ -84,14 +84,14 @@ export const MoneyMessageCard: React.FC<MoneyMessageCardProps> = ({ data, isMe }
     };
 
     return (
-        <Card className={`max-w-md ${isMe ? 'ml-auto' : 'mr-auto'} ${isGroupDonation ? 'bg-blue-50 border-blue-200' : (isMe ? 'bg-green-50 border-green-200' : 'bg-white')}`}>
+        <Card className={`max-w-md ${isMe ? 'ml-auto' : 'mr-auto'} ${isGroupDonation ? 'bg-gray-50 dark:bg-gray-900/20 border-gray-200 dark:border-gray-700' : (isMe ? 'bg-brand-green/10 dark:bg-brand-gold/10 border-brand-green/20 dark:border-brand-gold/20' : 'bg-white dark:bg-darkBg-card border-gray-100 dark:border-darkBorder-light')}`}>
             <CardContent className="p-4 space-y-3">
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isGroupDonation
                                 ? 'bg-gradient-to-br from-blue-400 to-blue-600'
-                                : 'bg-gradient-to-br from-green-400 to-green-600'
+                                : 'bg-brand-green dark:bg-brand-gold'
                             }`}>
                             {isGroupDonation ? (
                                 <Heart className="w-5 h-5 text-white fill-current" />
@@ -106,8 +106,8 @@ export const MoneyMessageCard: React.FC<MoneyMessageCardProps> = ({ data, isMe }
                                 {isGroupDonation ? 'Group Donation' : 'Money Transfer'}
                             </p>
                             <Badge variant="outline" className={`text-xs ${isGroupDonation
-                                    ? 'bg-blue-50 text-blue-700 border-blue-200'
-                                    : 'bg-green-50 text-green-700 border-green-200'
+                                    ? 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700'
+                                    : 'bg-brand-green/10 dark:bg-brand-gold/10 text-brand-green dark:text-brand-gold border-brand-green/20 dark:border-brand-gold/20'
                                 }`}>
                                 <CheckCircle className="w-3 h-3 mr-1" />
                                 Completed
@@ -118,11 +118,11 @@ export const MoneyMessageCard: React.FC<MoneyMessageCardProps> = ({ data, isMe }
 
                 {/* Group Name Badge for donations */}
                 {isGroupDonation && data.groupName && (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-blue-100 rounded-lg border border-blue-200">
-                        <TrendingUp className="w-4 h-4 text-blue-700" />
+                    <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                        <TrendingUp className="w-4 h-4 text-gray-700 dark:text-gray-300" />
                         <div className="flex-1">
-                            <p className="text-xs text-blue-600 font-medium">Fundraising Group</p>
-                            <p className="font-semibold text-blue-900">{data.groupName}</p>
+                            <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">Fundraising Group</p>
+                            <p className="font-semibold text-gray-900 dark:text-white">{data.groupName}</p>
                         </div>
                     </div>
                 )}
@@ -132,12 +132,12 @@ export const MoneyMessageCard: React.FC<MoneyMessageCardProps> = ({ data, isMe }
                 {/* Amount Section */}
                 <div className={`text-center py-3 rounded-lg ${isGroupDonation
                         ? 'bg-gradient-to-r from-blue-50 to-blue-100'
-                        : 'bg-gradient-to-r from-green-50 to-emerald-50'
+                        : 'bg-gray-50 dark:bg-darkBg-interactive'
                     }`}>
                     <p className="text-sm text-gray-600 mb-1">
                         {isGroupDonation ? 'Donation Amount' : 'Amount Transferred'}
                     </p>
-                    <p className={`text-3xl font-bold ${isGroupDonation ? 'text-blue-600' : 'text-green-600'
+                    <p className={`text-3xl font-bold ${isGroupDonation ? 'text-gray-900 dark:text-white' : 'text-brand-green dark:text-brand-gold'
                         }`}>
                         {formatAmount(data.amount, data.currency)}
                     </p>
@@ -200,8 +200,8 @@ export const MoneyMessageCard: React.FC<MoneyMessageCardProps> = ({ data, isMe }
                     disabled={isLoading}
                     variant="outline"
                     className={`w-full font-semibold disabled:opacity-50 ${isGroupDonation
-                            ? 'bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 border-blue-200 text-blue-700'
-                            : 'bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 border-green-200 text-green-700'
+                            ? 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300'
+                            : 'bg-brand-green/10 dark:bg-brand-gold/10 hover:bg-brand-green/20 dark:hover:bg-brand-gold/20 border-brand-green/20 dark:border-brand-gold/20 text-brand-green dark:text-brand-gold'
                         }`}
                 >
                     <Download className="w-4 h-4 mr-2" />

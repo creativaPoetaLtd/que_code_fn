@@ -35,7 +35,7 @@ export default function GroupsHeader({ groupsCount, searchTerm, onSearchChange }
                 {groupsCount > 0 && (
                     <Badge
                         variant="secondary"
-                        className="bg-green-50 text-green-700 border-green-200 px-3 py-1"
+                        className="bg-brand-green/10 dark:bg-brand-gold/10 text-brand-green dark:text-brand-gold border-brand-green/20 dark:border-brand-gold/20 px-3 py-1"
                     >
                         {groupsCount} Total
                     </Badge>
@@ -48,7 +48,7 @@ export default function GroupsHeader({ groupsCount, searchTerm, onSearchChange }
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
                     <Input
                         placeholder="Search groups by name or description..."
-                        className="pl-10 h-11 border-gray-200 focus:border-green-500 focus:ring-green-500/20"
+                        className="pl-10 h-11 border-gray-200 dark:border-darkBorder-light focus:border-brand-green dark:focus:border-brand-gold focus:ring-brand-green/20 dark:focus:ring-brand-gold/20"
                         value={searchTerm}
                         onChange={(e) => onSearchChange(e.target.value)}
                     />
@@ -65,10 +65,10 @@ export default function GroupsHeader({ groupsCount, searchTerm, onSearchChange }
 
             {/* Search Results Info */}
             {searchTerm && (
-                <div className="flex items-center gap-2 text-sm text-gray-600">
+                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                     <Search size={16} />
                     <span>
-                        Searching for "<span className="font-medium text-gray-900">{searchTerm}</span>"
+                        Searching for "<span className="font-medium text-gray-900 dark:text-white">{searchTerm}</span>"
                     </span>
                 </div>
             )}
