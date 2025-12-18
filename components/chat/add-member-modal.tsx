@@ -366,7 +366,7 @@ export default function AddMemberModal({
                                     <Button
                                         onClick={handleInvite}
                                         disabled={isInviting}
-                                        className="flex-1 bg-[#00B512] hover:bg-[#009E10]"
+                                        className="flex-1 bg-brand-green dark:bg-brand-gold hover:bg-brand-green/90 dark:hover:bg-brand-gold/90 text-white dark:text-darkBg-main"
                                     >
                                         {isInviting ? (
                                             <>
@@ -440,7 +440,7 @@ export default function AddMemberModal({
                                                     className="shrink-0"
                                                 >
                                                     {copiedLink ? (
-                                                        <Check size={14} className="text-[#00B512]" />
+                                                        <Check size={14} className="text-brand-green dark:text-brand-gold" />
                                                     ) : (
                                                         <Copy size={14} />
                                                     )}
@@ -449,7 +449,7 @@ export default function AddMemberModal({
                                             {'share' in navigator && (
                                                 <Button
                                                     onClick={handleShare}
-                                                    className="w-full bg-[#00B512] hover:bg-[#009E10]"
+                                                    className="w-full bg-brand-green dark:bg-brand-gold hover:bg-brand-green/90 dark:hover:bg-brand-gold/90 text-white dark:text-darkBg-main"
                                                 >
                                                     <Share2 size={14} className="mr-2" />
                                                     Share Link

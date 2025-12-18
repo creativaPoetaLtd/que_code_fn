@@ -76,7 +76,7 @@ export default function GroupDialogs({
                                 }
                             }}
                             disabled={isLeaving}
-                            className="bg-orange-600 hover:bg-orange-700 text-white"
+                            className="bg-yellow-600 dark:bg-yellow-700 hover:bg-yellow-700 dark:hover:bg-yellow-800 text-white"
                         >
                             {isLeaving ? (
                                 <>

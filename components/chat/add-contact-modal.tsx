@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Input from "../ui/Input-ant"
 import { Button } from "@/components/ui/button"
@@ -207,11 +207,14 @@ export default function AddContactModal({ isOpen, onClose }: AddContactModalProp
           <DialogContent className='sm:max-w-md'>
             <DialogHeader>
               <div className='flex items-center'>
-                <div className='bg-green-100 p-2 rounded-full mr-3'>
-                  <UserPlus size={20} className='text-[#00B512]' />
+                <div className='bg-brand-green/10 dark:bg-brand-gold/10 p-2 rounded-full mr-3'>
+                  <UserPlus size={20} className='text-brand-green dark:text-brand-gold' />
                 </div>
-                <DialogTitle>Add Contact</DialogTitle>
+                <DialogTitle className="text-gray-900 dark:text-white text-xl font-semibold">Add Contact</DialogTitle>
               </div>
+              <DialogDescription className="text-gray-600 dark:text-gray-400 text-sm">
+                Add a new contact using their profile link or public ID
+              </DialogDescription>
             </DialogHeader>
 
             <div className='py-4'>
@@ -235,7 +238,7 @@ export default function AddContactModal({ isOpen, onClose }: AddContactModalProp
                   <Button
                     onClick={handleProfileLinkSubmit}
                     disabled={isInviting || !profileLink.trim()}
-                    className='w-full bg-[#00B512] text-white'
+                    className='w-full bg-brand-green dark:bg-brand-gold hover:bg-brand-green/90 dark:hover:bg-brand-gold/90 text-white dark:text-darkBg-main'
                   >
                     {isInviting ? (
                       <>

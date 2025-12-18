@@ -35,6 +35,7 @@ interface ChatHeaderProps {
   onBackClick: () => void;
   onViewProfile: () => void;
   onInviteToGroup?: () => void;
+  onGroupSettings?: () => void;
 }
 
 export default function ChatHeader({
@@ -42,6 +43,7 @@ export default function ChatHeader({
   onBackClick,
   onViewProfile,
   onInviteToGroup,
+  onGroupSettings,
 }: ChatHeaderProps) {
   const chat = useChat();
   const { getToken } = useAuthToken();
@@ -91,13 +93,13 @@ export default function ChatHeader({
   };
 
   return (
-    <div className='flex items-center justify-between px-3 sm:px-4 py-3 bg-white border-b border-gray-200 shadow-sm'>
+    <div className='flex items-center justify-between px-3 sm:px-4 py-3 bg-white dark:bg-darkBg-card border-b border-gray-100 dark:border-darkBorder-light shadow-sm'>
       {/* Back Button - Mobile Only */}
       <Button
         variant='ghost'
         size='icon'
         onClick={onBackClick}
-        className='h-9 w-9 md:hidden hover:bg-gray-100 transition-colors'
+        className='h-9 w-9 md:hidden hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors'
         aria-label='Back to conversations'
       >
         <ArrowLeft size={18} />
@@ -111,7 +113,7 @@ export default function ChatHeader({
               src={conversation.avatar}
               alt={conversation.name || 'User'}
             />
-            <AvatarFallback className='bg-green-600 text-white font-medium'>
+            <AvatarFallback className='bg-brand-green dark:bg-brand-gold text-white dark:text-darkBg-main font-medium'>
               {getInitials(conversation.name)}
             </AvatarFallback>
           </Avatar>
@@ -125,7 +127,7 @@ export default function ChatHeader({
 
         <div className='flex-1 min-w-0'>
           <div className='flex items-center gap-2'>
-            <h1 className='text-base sm:text-lg font-semibold text-gray-900 truncate'>
+            <h1 className='text-base sm:text-lg font-semibold text-gray-900 dark:text-white truncate'>
               {conversation.name || 'Unknown Contact'}
             </h1>
           </div>
@@ -142,7 +144,7 @@ export default function ChatHeader({
 
           {/* Online Status (only show if not fundraising) */}
           {!(conversation.isGroup && group?.hasFundraising) && (
-            <p className='text-xs sm:text-sm text-gray-500 truncate'>
+            <p className='text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate'>
               {getOnlineStatus()}
             </p>
           )}
@@ -197,7 +199,6 @@ export default function ChatHeader({
               <Info size={14} className='mr-2' />
               View Profile
             </DropdownMenuItem>
-
             {conversation.isGroup && onInviteToGroup && (
               <>
                 <DropdownMenuItem
@@ -207,6 +208,16 @@ export default function ChatHeader({
                   <UserPlus size={14} className='mr-2' />
                   Add Members
                 </DropdownMenuItem>
+
+                {onGroupSettings && (
+                  <DropdownMenuItem
+                    onClick={onGroupSettings}
+                    className='cursor-pointer'
+                  >
+                    <Settings size={14} className='mr-2' />
+                    Group Settings
+                  </DropdownMenuItem>
+                )}
               </>
             )}
 

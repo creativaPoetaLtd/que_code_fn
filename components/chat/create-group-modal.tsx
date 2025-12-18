@@ -295,7 +295,7 @@ export default function CreateGroupModalUpdated({
                             {isContributionGroup ? (
                                 <Coins size={20} className="text-green-600" />
                             ) : (
-                                <Users size={20} className="text-[#00B512]" />
+                                <Users size={20} className="text-brand-green dark:text-brand-gold" />
                             )}
                         </div>
                         <DialogTitle>{isContributionGroup ? "Create Contribution Group" : "Create Group"}</DialogTitle>
@@ -623,7 +623,7 @@ export default function CreateGroupModalUpdated({
                             Cancel
                         </Button>
                         <Button onClick={handleSubmit} disabled={isCreating}
-                        className='bg-[#00B512] text-white'
+                        className='bg-brand-green dark:bg-brand-gold text-white dark:text-darkBg-main hover:bg-brand-green/90 dark:hover:bg-brand-gold/90'
                         >
                             {isCreating && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                             Create {hasFundraising ? "Fundraising Group" : "Group"}

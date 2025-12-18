@@ -93,14 +93,14 @@ export default function ConversationListLayout({
   return (
     <div
       className={`${showOnMobile ? 'flex' : 'hidden'
-        } md:flex flex-col w-full md:w-80 lg:w-96 border-r border-gray-200 bg-white h-full overflow-hidden`}
+        } md:flex flex-col w-full md:w-80 lg:w-96 border-r border-gray-100 dark:border-darkBorder-light bg-white dark:bg-darkBg-card h-full overflow-hidden`}
     >
-      {/* Header */}
-      <div className='p-4 border-b border-gray-100 bg-white'>
+      {/* Header - Fixed */}
+      <div className='flex-shrink-0 p-4 border-b border-gray-100 dark:border-darkBorder-light bg-white dark:bg-darkBg-card'>
         <div className='flex justify-between items-center mb-4'>
-          <h2 className='text-xl font-bold text-gray-900'>Messages</h2>
+          <h2 className='text-xl font-bold text-gray-900 dark:text-white'>Messages</h2>
           {totalUnreadCount > 0 && (
-            <Badge className='bg-[#00B512] text-white hover:bg-green-700'>
+            <Badge className='bg-brand-green dark:bg-brand-gold text-white dark:text-darkBg-main hover:bg-brand-green/90 dark:hover:bg-brand-gold/90'>
               {totalUnreadCount} unread
             </Badge>
           )}
@@ -191,12 +191,12 @@ export default function ConversationListLayout({
                         {filteredGroups.map((group: any) => (
                           <div
                             key={group.id}
-                            className='p-3 sm:p-4 border-b border-gray-100 cursor-pointer hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 transition-all duration-200 transform hover:translate-x-1'
+                            className='p-3 sm:p-4 border-b border-gray-100 dark:border-darkBorder-light cursor-pointer hover:bg-gray-50 dark:hover:bg-darkBg-interactive hover:border-l-2 hover:border-l-brand-green dark:hover:border-l-brand-gold transition-all duration-200'
                             onClick={() => onJoinGroup?.(group)}
                           >
                             <div className='flex items-center gap-2 sm:gap-3'>
                               <div className='relative flex-shrink-0'>
-                                <div className='bg-[#00B512] h-10 w-10 rounded-full flex items-center justify-center text-white'>
+                                <div className='bg-brand-green dark:bg-brand-gold h-10 w-10 rounded-full flex items-center justify-center text-white dark:text-darkBg-main'>
                                   <Send size={18} />
                                 </div>
                               </div>
@@ -228,7 +228,7 @@ export default function ConversationListLayout({
                       onClick={() => setIsJoinGroupByLinkModalOpen(true)}
                       variant='outline'
                       size='sm'
-                      className='border-[#00B512] text-[#00B512] hover:bg-[#00B512] hover:text-white'
+                      className='border-brand-green dark:border-brand-gold text-brand-green dark:text-brand-gold hover:bg-brand-green dark:hover:bg-brand-gold hover:text-white dark:hover:text-darkBg-main'
                     >
                       <Link size={14} className='mr-2' />
                       Join Your First Group
@@ -274,10 +274,10 @@ export default function ConversationListLayout({
                           e.stopPropagation();
                           onQuickSendMoney(conversation);
                         }}
-                        className='absolute right-4 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-blue-100 h-8 w-8'
+                        className='absolute right-4 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-gray-100 dark:hover:bg-darkBg-interactive h-8 w-8'
                         aria-label='Quick send money'
                       >
-                        <Send size={14} className='text-[#00B512]' />
+                        <Send size={14} className='text-brand-green dark:text-brand-gold' />
                       </Button>
                     )}
                   </div>

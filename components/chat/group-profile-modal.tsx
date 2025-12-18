@@ -108,7 +108,7 @@ export default function GroupProfileModal({ isOpen, onClose, groupId, token }: G
                 <DialogHeader className="px-6 pt-6 pb-4 border-b">
                     <div className="flex items-center">
                         <Users size={20} className="text-gray-700 mr-2" />
-                        <DialogTitle>Group Details</DialogTitle>
+                        <DialogTitle className="text-gray-900 dark:text-white text-xl font-semibold">Group Details</DialogTitle>
                     </div>
                 </DialogHeader>
 
@@ -117,7 +117,7 @@ export default function GroupProfileModal({ isOpen, onClose, groupId, token }: G
                     {!groupId ? (
                         <div className="text-center py-12 text-gray-500">
                             <Users size={48} className="mx-auto mb-4 text-gray-400" />
-                            <p className="text-lg font-medium mb-2">No group selected</p>
+                            <p className="text-lg font-medium mb-2 text-gray-900 dark:text-white">No group selected</p>
                             <p className="text-sm">Please select a group chat to view details</p>
                         </div>
                     ) : isLoading ? (
@@ -140,7 +140,7 @@ export default function GroupProfileModal({ isOpen, onClose, groupId, token }: G
                                 )}
 
                                 <div className="flex-1 min-w-0">
-                                    <h3 className="text-lg font-semibold mb-2 truncate">{group.name}</h3>
+                                    <h3 className="text-lg font-semibold mb-2 truncate text-gray-900 dark:text-white">{group.name}</h3>
                                     <div className="flex items-center gap-1.5 flex-wrap">
                                         <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-300 text-xs">
                                             {group.memberCount} {group.memberCount === 1 ? 'member' : 'members'}
@@ -148,7 +148,7 @@ export default function GroupProfileModal({ isOpen, onClose, groupId, token }: G
                                         <Badge variant="outline" className={`text-xs ${group.privacyType === 'private'
                                             ? 'bg-gray-100 text-gray-700 border-gray-300'
                                             : group.privacyType === 'require_approval'
-                                                ? 'bg-orange-50 text-orange-700 border-orange-200'
+                                                ? 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-500 border-yellow-200 dark:border-yellow-800'
                                                 : 'bg-gray-100 text-gray-700 border-gray-300'
                                             }`}>
                                             {group.privacyType === 'private' ? 'Private' : group.privacyType === 'require_approval' ? 'Approval Required' : 'Public'}
@@ -203,7 +203,7 @@ export default function GroupProfileModal({ isOpen, onClose, groupId, token }: G
 
                             {/* Additional Info Prompt */}
                             {group.hasAdditionalInfo && group.additionalInfoPrompt && (
-                                <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
                                     <div className="flex items-start gap-2">
                                         <Info size={14} className="text-orange-600 mt-0.5 shrink-0" />
                                         <div className="min-w-0">
@@ -263,7 +263,7 @@ export default function GroupProfileModal({ isOpen, onClose, groupId, token }: G
                                                         title="Copy link"
                                                     >
                                                         {copiedLink ? (
-                                                            <Check size={14} className="text-[#00B512]" />
+                                                            <Check size={14} className="text-brand-green dark:text-brand-gold" />
                                                         ) : (
                                                             <Copy size={14} />
                                                         )}
@@ -295,7 +295,7 @@ export default function GroupProfileModal({ isOpen, onClose, groupId, token }: G
 
                             {/* Action Buttons */}
                             <div className="flex gap-2 pt-2">
-                                <Button onClick={onClose} className="flex-1 bg-[#00B512] hover:bg-[#009E10] h-9 text-sm">
+                                <Button onClick={onClose} className="flex-1 bg-brand-green dark:bg-brand-gold hover:bg-brand-green/90 dark:hover:bg-brand-gold/90 text-white dark:text-darkBg-main h-9 text-sm">
                                     <MessageCircle size={14} className="mr-1.5" />
                                     Message
                                 </Button>

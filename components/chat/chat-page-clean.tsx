@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Layout } from 'antd';
 import ChatArea from '@/components/chat/chat-area';
 import ConversationListLayout from '@/components/chat/conversation-list-layout';
 import Navigation from '@/components/Navigation';
@@ -9,6 +8,8 @@ import { useChatOperations } from '@/hooks/use-chat-operations';
 import { useChatModals } from '@/hooks/use-chat-modals';
 import { useAuthToken } from '@/hooks/use-auth-token';
 import type { Chat, Conversation } from '@/types/chat.types';
+import { useSidebar } from '@/context/SidebarContext';
+import { cn } from '@/lib/utils';
 
 import SendMoneyModal from '@/components/chat/send-money-modal';
 import RequestMoneyModal from '@/components/chat/request-money-modal';
@@ -17,12 +18,13 @@ import UserProfileModal from '@/components/chat/user-profile-modal';
 import GroupProfileModal from '@/components/chat/group-profile-modal';
 import ContactRequestModal from '@/components/chat/contact-request';
 import AddMemberModal from '@/components/chat/add-member-modal';
-
-const { Content } = Layout;
+import GroupSettingsModal from '@/components/chat/group-settings-modal';
+import { Header } from '@/components/Header';
 
 export default function ChatPageClean() {
   const { getToken } = useAuthToken();
   const token = getToken();
+  const { isExpanded } = useSidebar();
 
   const {
     conversations,
@@ -59,6 +61,7 @@ export default function ChatPageClean() {
   const [showMobileConversationList, setShowMobileConversationList] =
     useState(true);
   const [selectedChat, setSelectedChat] = useState<Conversation | null>(null);
+  const [isGroupSettingsModalOpen, setIsGroupSettingsModalOpen] = useState(false);
 
   // Auto-select conversation when activeChat changes (e.g., from joining a group)
   useEffect(() => {
@@ -113,10 +116,15 @@ export default function ChatPageClean() {
       setIsUserProfileModalOpen(true);
     }
   };
-
   const handleInviteToGroup = () => {
     if (selectedChat?.isGroup) {
       setIsInviteToGroupModalOpen(true);
+    }
+  };
+
+  const handleGroupSettings = () => {
+    if (selectedChat?.isGroup) {
+      setIsGroupSettingsModalOpen(true);
     }
   };
 
@@ -125,63 +133,80 @@ export default function ChatPageClean() {
     return selectedChat.participants.find(p => p.userId !== activeChat)
       ?.user as any;
   };
-
   return (
-    <Layout className='min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100'>
-      <div className='flex min-h-screen'>
-        <Navigation />
+    <div className='flex flex-col min-h-screen bg-gray-50 dark:bg-darkBg-main'>
+      {/* Desktop Sidebar */}
+      <Navigation />
 
-        <main className='flex-1 lg:ml-20 w-full max-w-full overflow-x-hidden'>
-          <div className='flex-1 flex flex-col md:flex-row overflow-hidden h-[calc(100vh-100px)] md:h-screen shadow-lg'>
-            {!isConnected && (
-              <div className='bg-yellow-100 border-yellow-400 text-yellow-700 px-4 py-2 border-b'>
-                <p className='text-sm'>Connecting to chat server...</p>
-              </div>
-            )}
+      {/* Main Content */}
+      <main className={cn(
+        'flex flex-col transition-all duration-300',
+        'h-screen overflow-hidden',
+        isExpanded ? 'lg:ml-64' : 'lg:ml-20'
+      )}>
+        {/* Fixed Header */}
+        <div className='flex-shrink-0 z-20 bg-white dark:bg-darkBg-card border-b border-gray-100 dark:border-darkBorder-light'>
+          <Header />
+        </div>
 
-            <ConversationListLayout
-              conversations={conversations}
-              activeConversation={selectedChat || conversations[0]}
-              onConversationSelect={handleConversationSelect}
-              showOnMobile={showMobileConversationList}
-              onAddContact={() => setIsAddContactModalOpen(true)}
-              onViewContactRequests={() => setIsContactRequestModalOpen(true)}
-              onQuickSendMoney={conversation =>
-                openSendMoneyModal(conversation.name)
-              }
-              onStartNewChat={handleStartNewChat}
-              onJoinGroup={handleJoinGroup}
-              isLoading={isLoading}
-            />
-
-            {selectedChat ? (
-              <ChatArea
-                conversation={selectedChat as any}
-                messages={messages}
-                showOnMobile={!showMobileConversationList}
-                onBackClick={() => setShowMobileConversationList(true)}
-                onSendMoney={() => openSendMoneyModal(selectedChat.name)}
-                onRequestMoney={() => setIsRequestMoneyModalOpen(true)}
-                onViewProfile={handleViewProfile}
-                onInviteToGroup={handleInviteToGroup}
-                typingUsers={typingUsers}
-                onlineUsers={onlineUsers}
-              />
-            ) : (
-              <div className='flex-1 flex items-center justify-center bg-gray-50'>
-                <div className='text-center'>
-                  <h3 className='text-lg font-medium text-gray-900 mb-2'>
-                    Select a conversation
-                  </h3>
-                  <p className='text-gray-500'>
-                    Choose a conversation from the list to start chatting
-                  </p>
-                </div>
-              </div>
-            )}
+        {!isConnected && (
+          <div className='flex-shrink-0 bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-300 px-4 py-2'>
+            <p className='text-sm'>Connecting to chat server...</p>
           </div>
-        </main>
-      </div>
+        )}
+
+        {/* Chat Content - fills remaining height, scrollable */}
+        <div className='flex-1 flex flex-col md:flex-row min-h-0'>
+          <ConversationListLayout
+            conversations={conversations}
+            activeConversation={selectedChat || conversations[0]}
+            onConversationSelect={handleConversationSelect}
+            showOnMobile={showMobileConversationList}
+            onAddContact={() => setIsAddContactModalOpen(true)}
+            onViewContactRequests={() => setIsContactRequestModalOpen(true)}
+            onQuickSendMoney={conversation =>
+              openSendMoneyModal(conversation.name)
+            }
+            onStartNewChat={handleStartNewChat}
+            onJoinGroup={handleJoinGroup}
+            isLoading={isLoading}
+          />
+
+          {selectedChat ? (
+            <ChatArea
+              conversation={selectedChat as any}
+              messages={messages}
+              showOnMobile={!showMobileConversationList}
+              onBackClick={() => setShowMobileConversationList(true)}
+              onSendMoney={() => openSendMoneyModal(selectedChat.name)}
+              onRequestMoney={() => setIsRequestMoneyModalOpen(true)}
+              onViewProfile={handleViewProfile}
+              onInviteToGroup={handleInviteToGroup}
+              onGroupSettings={handleGroupSettings}
+              typingUsers={typingUsers}
+              onlineUsers={onlineUsers}
+            />
+          ) : (
+            <div className='flex-1 flex items-center justify-center bg-gray-50 dark:bg-darkBg-card'>
+              <div className='text-center'>
+                <h3 className='text-lg font-medium text-gray-900 dark:text-white mb-2'>
+                  Select a conversation
+                </h3>
+                <p className='text-gray-500 dark:text-gray-400'>
+                  Choose a conversation from the list to start chatting
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* Bottom Navigation for small devices - Hidden when chat is active */}
+      {showMobileConversationList && (
+        <div className='lg:hidden fixed bottom-0 left-0 right-0 z-20 bg-white dark:bg-darkBg-card border-t border-gray-100 dark:border-darkBorder-light'>
+          <Navigation />
+        </div>
+      )}
 
       <SendMoneyModal
         isOpen={isSendMoneyModalOpen}
@@ -226,6 +251,12 @@ export default function ChatPageClean() {
         groupName={selectedChat?.name || ''}
         token={token || ''}
       />
-    </Layout>
+
+      <GroupSettingsModal
+        isOpen={isGroupSettingsModalOpen}
+        onClose={() => setIsGroupSettingsModalOpen(false)}
+        groupId={selectedChat?.groupId || null}
+      />
+    </div>
   );
 }

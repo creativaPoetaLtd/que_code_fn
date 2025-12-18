@@ -288,35 +288,35 @@ export default function QuickActions({
     <div className='space-y-3'>
       {/* Tab Navigation */}
       <div>
-        <p className='text-xs font-medium text-gray-600 uppercase tracking-wide mb-2'>
+        <p className='text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2'>
           Quick Actions
         </p>
         <Tabs
           value={activeTab}
           onValueChange={value => onTabChange(value as QuickActionType)}
         >
-          <TabsList className='grid w-full grid-cols-3 h-8 bg-gray-100'>
+          <TabsList className='grid w-full grid-cols-3 h-8'>
             <TabsTrigger
               value='conversations'
-              className='text-xs data-[state=active]:bg-white data-[state=active]:text-[#00B512]'
+              className='text-xs'
             >
               Chats
             </TabsTrigger>
             <TabsTrigger
               value='contacts'
-              className='text-xs data-[state=active]:bg-white data-[state=active]:text-[#00B512] relative'
+              className='text-xs relative'
             >
               <User size={12} className='mr-1' />
               Contacts
               {contactRequestsCount > 0 && (
-                <Badge className='ml-1 bg-red-500 text-white text-xs scale-75 h-4 min-w-4 p-0'>
+                <Badge className='ml-1 bg-red-500 dark:bg-red-600 text-white text-xs scale-75 h-4 min-w-4 p-0'>
                   {contactRequestsCount}
                 </Badge>
               )}
             </TabsTrigger>
             <TabsTrigger
               value='groups'
-              className='text-xs data-[state=active]:bg-white data-[state=active]:text-[#00B512]'
+              className='text-xs'
             >
               <Users size={12} className='mr-1' />
               Groups
@@ -334,7 +334,7 @@ export default function QuickActions({
               variant='outline'
               size='sm'
               onClick={onStartNewChat}
-              className='w-full h-8 text-xs justify-start'
+              className='w-full h-8 text-xs justify-start border-gray-200 dark:border-darkBorder-light text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-darkBg-interactive hover:text-brand-green dark:hover:text-brand-gold hover:border-brand-green dark:hover:border-brand-gold transition-all'
             >
               <MessageCircle size={14} className='mr-2' />
               Start New Chat
@@ -350,7 +350,7 @@ export default function QuickActions({
                 variant='outline'
                 size='sm'
                 onClick={onAddContact}
-                className='h-8 text-xs'
+                className='h-8 text-xs border-gray-200 dark:border-darkBorder-light text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-darkBg-interactive hover:text-brand-green dark:hover:text-brand-gold hover:border-brand-green dark:hover:border-brand-gold transition-all'
               >
                 <UserPlus size={12} className='mr-1' />
                 Add Contact
@@ -359,11 +359,11 @@ export default function QuickActions({
                 variant='outline'
                 size='sm'
                 onClick={onViewContactRequests}
-                className='h-8 text-xs relative'
+                className='h-8 text-xs relative border-gray-200 dark:border-darkBorder-light text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-darkBg-interactive hover:text-brand-green dark:hover:text-brand-gold hover:border-brand-green dark:hover:border-brand-gold transition-all'
               >
                 Requests
                 {contactRequestsCount > 0 && (
-                  <Badge className='ml-1 bg-red-500 text-white text-xs scale-75 h-3 min-w-3 p-0'>
+                  <Badge className='ml-1 bg-brand-green dark:bg-brand-gold text-white dark:text-darkBg-main text-xs scale-75 h-3 min-w-3 p-0'>
                     {contactRequestsCount}
                   </Badge>
                 )}
@@ -373,23 +373,23 @@ export default function QuickActions({
             {/* Contacts List */}
             {contacts.length > 0 ? (
               <div className='space-y-1'>
-                <p className='text-xs text-gray-500 mb-2'>
+                <p className='text-xs text-gray-500 dark:text-gray-400 mb-2'>
                   Your Contacts ({contacts.length})
                 </p>
                 {contacts.slice(0, 8).map(contact => (
                   <div
                     key={contact.id}
-                    className='flex items-center justify-between p-2 bg-gray-50 rounded-md hover:bg-gray-100 transition-colors'
+                    className='flex items-center justify-between p-2 bg-gray-50 dark:bg-darkBg-card border border-gray-100 dark:border-darkBorder-light rounded-lg hover:bg-gray-100 dark:hover:bg-darkBg-interactive hover:border-brand-green dark:hover:border-brand-gold transition-all'
                   >
                     <div className='flex items-center space-x-2 flex-1 min-w-0'>
-                      <div className='w-6 h-6 bg-[#00B512] rounded-full flex items-center justify-center text-xs text-white font-medium'>
+                      <div className='w-6 h-6 bg-brand-green dark:bg-brand-gold rounded-full flex items-center justify-center text-xs text-white dark:text-darkBg-main font-medium'>
                         {getInitials(
                           contact.otherUser.firstName,
                           contact.otherUser.lastName
                         )}
                       </div>
                       <div className='flex-1 min-w-0'>
-                        <p className='text-xs font-medium truncate'>
+                        <p className='text-xs font-medium truncate text-gray-900 dark:text-white'>
                           {contact.otherUser.firstName}{' '}
                           {contact.otherUser.lastName}
                         </p>
@@ -399,9 +399,9 @@ export default function QuickActions({
                       variant='ghost'
                       size='sm'
                       onClick={() => onStartChatWithContact(contact)}
-                      className='h-6 w-6 p-0 hover:bg-green-100'
+                      className='h-6 w-6 p-0 hover:bg-brand-green/10 dark:hover:bg-brand-gold/10'
                     >
-                      <MessageCircle size={12} className='text-[#00B512]' />
+                      <MessageCircle size={12} className='text-brand-green dark:text-brand-gold' />
                     </Button>
                   </div>
                 ))}
@@ -450,16 +450,16 @@ export default function QuickActions({
                 variant='outline'
                 size='sm'
                 onClick={onCreateGroup}
-                className='h-8 text-xs'
+                className='h-8 text-xs border-gray-200 dark:border-darkBorder-light text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-darkBg-interactive hover:text-brand-green dark:hover:text-brand-gold hover:border-brand-green dark:hover:border-brand-gold transition-all'
               >
                 <PlusCircle size={12} className='mr-1' />
-                Create Group
+                Create
               </Button>
               <Button
                 variant='outline'
                 size='sm'
                 onClick={onJoinGroupByLink}
-                className='h-8 text-xs'
+                className='h-8 text-xs border-gray-200 dark:border-darkBorder-light text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-darkBg-interactive hover:text-brand-green dark:hover:text-brand-gold hover:border-brand-green dark:hover:border-brand-gold transition-all'
               >
                 <Link size={12} className='mr-1' />
                 Join Group
@@ -492,9 +492,8 @@ export default function QuickActions({
               <div className='space-y-2 max-h-[calc(100vh-400px)] overflow-y-auto pr-1'>
                 <p className='text-xs text-gray-500 mb-2'>
                   {groupSearchTerm
-                    ? `Found ${filteredGroups.length} group${
-                        filteredGroups.length !== 1 ? 's' : ''
-                      }`
+                    ? `Found ${filteredGroups.length} group${filteredGroups.length !== 1 ? 's' : ''
+                    }`
                     : `Your Groups (${filteredGroups.length})`}
                 </p>
                 {filteredGroups.map((group: any) => (
