@@ -764,10 +764,20 @@ const ActionsByAccountPage = () => {
                         <Ticket className="w-5 h-5" />
                         <span>No actions published yet</span>
                     </div>
-                    <p className="text-gray-600 dark:text-gray-300 max-w-md mx-auto">
+                    <p className="text-gray-600 dark:text-gray-300 max-w-md mx-auto mb-6">
                         Create your first action to start accepting payments or issuing tickets. They will appear here in the same
                         layout visitors see on your welcome page.
                     </p>
+                    <button
+                        onClick={() => {
+                            setEditingActionId(null);
+                            setWizardOpen(true);
+                        }}
+                        className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#00B512] text-white text-sm font-semibold shadow hover:bg-[#009a0f] transition-colors"
+                    >
+                        <Sparkles className="w-4 h-4" />
+                        Create Your First Action
+                    </button>
                 </div>
             );
         }
