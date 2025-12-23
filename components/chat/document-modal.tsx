@@ -197,10 +197,10 @@ export default function DocumentModal({ isOpen, onClose }: DocumentModalProps) {
                         </p>
                     </div>
 
-                    <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 max-w-sm">
+                    <div className="bg-brand-green/5 dark:bg-brand-gold/5 border border-brand-green/20 dark:border-brand-gold/20 rounded-lg p-4 max-w-sm">
                         <div className="flex items-start">
-                            <AlertCircle size={20} className="text-green-600 mr-2 mt-0.5" />
-                            <p className="text-sm text-green-700 mb-0">
+                            <AlertCircle size={20} className="text-brand-green dark:text-brand-gold mr-2 mt-0.5" />
+                            <p className="text-sm text-gray-700 dark:text-gray-300 mb-0">
                                 Please don't close this dialog until the upload is complete.
                             </p>
                         </div>
@@ -209,15 +209,15 @@ export default function DocumentModal({ isOpen, onClose }: DocumentModalProps) {
             ) : (
                 <>
                     <div className="flex flex-col items-center mb-6">
-                        <div className="bg-green-100 p-4 rounded-full mb-4">
-                            <CheckCircle size={48} className="text-green-600" />
+                        <div className="bg-brand-green/20 dark:bg-brand-gold/20 p-4 rounded-full mb-4">
+                            <CheckCircle size={48} className="text-brand-green dark:text-brand-gold" />
                         </div>
-                        <h3 className="text-xl font-semibold mb-1">Upload Complete!</h3>
-                        <p className="text-gray-500">Your documents have been successfully uploaded</p>
+                        <h3 className="text-xl font-semibold mb-1 text-gray-900 dark:text-white">Upload Complete!</h3>
+                        <p className="text-gray-500 dark:text-gray-400">Your documents have been successfully uploaded</p>
                     </div>
 
-                    <div className="bg-gray-50 rounded-lg border border-gray-200 p-4 w-full mb-6">
-                        <h4 className="text-lg font-medium mb-2">Document Summary</h4>
+                    <div className="bg-gray-50 dark:bg-darkBg-card rounded-lg border border-gray-200 dark:border-darkBorder-light p-4 w-full mb-6">
+                        <h4 className="text-lg font-medium mb-2 text-gray-900 dark:text-white">Document Summary</h4>
                         <div className="space-y-2">
                             <div className="flex justify-between">
                                 <span className="text-gray-500">Title:</span>

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import Input from "../ui/Input-ant"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -81,11 +81,14 @@ export default function RequestMoneyModal({ isOpen, onClose, conversation }: Req
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                     <div className="flex items-center">
-                        <div className="bg-blue-100 p-2 rounded-full mr-3">
-                            <DollarSign size={20} className="text-blue-600" />
+                        <div className="bg-brand-green/10 dark:bg-brand-gold/10 p-2 rounded-full mr-3">
+                            <DollarSign size={20} className="text-brand-green dark:text-brand-gold" />
                         </div>
-                        <DialogTitle>Request Money</DialogTitle>
+                        <DialogTitle className="text-gray-900 dark:text-white text-xl font-semibold">Request Money</DialogTitle>
                     </div>
+                    <DialogDescription className="text-gray-600 dark:text-gray-400 text-sm">
+                        Request money from group members or contacts
+                    </DialogDescription>
                 </DialogHeader>
 
                 <div className="py-4">

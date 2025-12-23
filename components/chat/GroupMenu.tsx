@@ -77,9 +77,9 @@ export default function GroupMenu({ group, isActiveMember, onManageAction }: Gro
                                 <DropdownMenuSeparator className="my-1" />
                                 <DropdownMenuItem 
                                     onClick={() => onManageAction("settings", group)}
-                                    className="flex items-center gap-3 py-2.5 cursor-pointer hover:bg-gray-50"
+                                    className="flex items-center gap-3 py-2.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-darkBg-interactive"
                                 >
-                                    <Settings size={16} className="text-purple-500" />
+                                    <Settings size={16} className="text-brand-green dark:text-brand-gold" />
                                     <span>Group Settings</span>
                                 </DropdownMenuItem>
                             </>
@@ -90,7 +90,7 @@ export default function GroupMenu({ group, isActiveMember, onManageAction }: Gro
                         {group.userRole === "owner" ? (
                             <DropdownMenuItem
                                 onClick={() => onManageAction("delete", group)}
-                                className="flex items-center gap-3 py-2.5 cursor-pointer hover:bg-red-50 text-red-600 focus:text-red-600"
+                                className="flex items-center gap-3 py-2.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-darkBg-interactive text-gray-700 dark:text-gray-300 focus:text-gray-700 dark:focus:text-gray-300"
                             >
                                 <Trash2 size={16} />
                                 <span>Delete Group</span>
@@ -98,7 +98,7 @@ export default function GroupMenu({ group, isActiveMember, onManageAction }: Gro
                         ) : (
                             <DropdownMenuItem
                                 onClick={() => onManageAction("leave", group)}
-                                className="flex items-center gap-3 py-2.5 cursor-pointer hover:bg-red-50 text-red-600 focus:text-red-600"
+                                className="flex items-center gap-3 py-2.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-darkBg-interactive text-gray-700 dark:text-gray-300 focus:text-gray-700 dark:focus:text-gray-300"
                             >
                                 <LogOut size={16} />
                                 <span>Leave Group</span>

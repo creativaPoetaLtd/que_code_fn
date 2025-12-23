@@ -79,13 +79,13 @@ export default function MediaUploadModal({
         const fileType = getFileType(selectedFile.type)
         switch (fileType) {
             case 'image':
-                return <ImageIcon className="h-16 w-16 text-blue-500" />
+                return <ImageIcon className="h-16 w-16 text-brand-green dark:text-brand-gold" />
             case 'video':
-                return <Video className="h-16 w-16 text-purple-500" />
+                return <Video className="h-16 w-16 text-brand-green dark:text-brand-gold" />
             case 'audio':
-                return <Music className="h-16 w-16 text-green-500" />
+                return <Music className="h-16 w-16 text-brand-green dark:text-brand-gold" />
             case 'document':
-                return <FileText className="h-16 w-16 text-orange-500" />
+                return <FileText className="h-16 w-16 text-gray-600 dark:text-gray-400" />
             default:
                 return <FileText className="h-16 w-16 text-gray-400" />
         }
@@ -112,7 +112,7 @@ export default function MediaUploadModal({
                 <div className="p-6 max-h-[70vh] overflow-y-auto">
                     {!selectedFile ? (
                         <div
-                            className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center cursor-pointer hover:border-[#00B512] transition-colors"
+                            className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-12 text-center cursor-pointer hover:border-brand-green dark:hover:border-brand-gold transition-colors"
                             onClick={() => fileInputRef.current?.click()}
                         >
                             <div className="flex flex-col items-center gap-4">
@@ -172,12 +172,12 @@ export default function MediaUploadModal({
                                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                                         <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4">
                                             <div className="flex items-center gap-3 mb-3">
-                                                <Loader2 className="h-5 w-5 animate-spin text-[#00B512]" />
+                                                <Loader2 className="h-5 w-5 animate-spin text-brand-green dark:text-brand-gold" />
                                                 <span className="font-medium">Uploading...</span>
                                             </div>
                                             <div className="w-full bg-gray-200 rounded-full h-2">
                                                 <div
-                                                    className="bg-[#00B512] h-2 rounded-full transition-all duration-300"
+                                                    className="bg-brand-green dark:bg-brand-gold h-2 rounded-full transition-all duration-300"
                                                     style={{ width: `${uploadProgress}%` }}
                                                 />
                                             </div>
@@ -242,7 +242,7 @@ export default function MediaUploadModal({
                         <Button
                             onClick={handleUpload}
                             disabled={uploading}
-                            className="bg-[#00B512] hover:bg-[#009010] text-white"
+                            className="bg-brand-green dark:bg-brand-gold hover:bg-brand-green/90 dark:hover:bg-brand-gold/90 text-white dark:text-darkBg-main"
                         >
                             {uploading ? (
                                 <>

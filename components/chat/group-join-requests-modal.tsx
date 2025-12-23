@@ -70,11 +70,11 @@ const GroupJoinRequestsModal: React.FC<GroupJoinRequestsModalProps> = ({
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
                 <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                        <Users size={20} className="text-blue-600" />
+                    <DialogTitle className="flex items-center gap-2 text-gray-900 dark:text-white text-xl font-semibold">
+                        <Users size={20} className="text-brand-green dark:text-brand-gold" />
                         Join Requests for "{groupName}"
                     </DialogTitle>
-                    <DialogDescription>Review and manage pending requests to join this group.</DialogDescription>
+                    <DialogDescription className="text-gray-600 dark:text-gray-400 text-sm">Review and manage pending requests to join this group.</DialogDescription>
                 </DialogHeader>
 
                 <div className="flex-1 overflow-y-auto py-4">
@@ -128,7 +128,7 @@ const GroupJoinRequestsModal: React.FC<GroupJoinRequestsModalProps> = ({
                                             size="sm"
                                             onClick={() => handleRespond(request.id, "approve")}
                                             disabled={isResponding && processingRequestId === request.id}
-                                            className="bg-green-50 text-green-700 hover:bg-green-100"
+                                            className="bg-brand-green/10 dark:bg-brand-gold/10 text-brand-green dark:text-brand-gold hover:bg-brand-green/20 dark:hover:bg-brand-gold/20"
                                         >
                                             {isResponding && processingRequestId === request.id ? (
                                                 <Loader2 size={16} className="mr-2 animate-spin" />
@@ -142,7 +142,7 @@ const GroupJoinRequestsModal: React.FC<GroupJoinRequestsModalProps> = ({
                                             size="sm"
                                             onClick={() => handleRespond(request.id, "reject")}
                                             disabled={isResponding && processingRequestId === request.id}
-                                            className="bg-red-50 text-red-700 hover:bg-red-100"
+                                            className="bg-gray-100 dark:bg-darkBg-interactive text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
                                         >
                                             {isResponding && processingRequestId === request.id ? (
                                                 <Loader2 size={16} className="mr-2 animate-spin" />

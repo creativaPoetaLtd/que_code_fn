@@ -32,7 +32,7 @@ export default function GroupProgressBar({
     }, [progressPercentage, isComplete])
 
     return (
-        <div className={`bg-gray-50 p-4 rounded-lg ${className}`}>
+        <div className={`bg-gray-50 dark:bg-darkBg-card border border-gray-100 dark:border-darkBorder-light p-4 rounded-lg ${className}`}>
             <div className="flex justify-between items-center mb-2">
                 <span className="font-semibold flex items-center">
                     <DollarSign size={16} className="mr-1 text-gray-600" />
@@ -45,7 +45,7 @@ export default function GroupProgressBar({
             </div>
             <Progress 
                 value={animatedProgress} 
-                className={`h-2 mb-2 transition-all duration-500 ease-out ${isComplete ? 'bg-green-100' : ''}`} 
+                className={`h-2 mb-2 transition-all duration-500 ease-out ${isComplete ? 'bg-brand-green/10 dark:bg-brand-gold/10' : 'bg-gray-100 dark:bg-darkBg-interactive'}`} 
             />
             <div className="flex justify-between items-center text-sm">
                 <span className={`font-medium transition-colors ${isComplete ? 'text-green-600' : 'text-gray-700'}`}>

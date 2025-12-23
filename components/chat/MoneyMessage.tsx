@@ -15,11 +15,11 @@ export const MoneyMessage: React.FC<MoneyMessageProps> = ({ content, isMe }) => 
     }
 
     const isGroupDonation = data.type === 'group_donation';
-    const iconColor = isGroupDonation ? 'text-blue-700' : (isMe ? 'text-green-700' : 'text-blue-700');
-    const bgColor = isGroupDonation ? 'bg-blue-50' : (isMe ? 'bg-green-100' : 'bg-blue-50');
-    const borderColor = isGroupDonation ? 'border-blue-200' : (isMe ? 'border-green-200' : 'border-blue-200');
-    const iconBg = isGroupDonation ? 'bg-blue-200' : (isMe ? 'bg-green-200' : 'bg-blue-200');
-    const linkColor = isGroupDonation ? 'text-blue-700 hover:text-blue-800' : (isMe ? 'text-green-700 hover:text-green-800' : 'text-blue-700 hover:text-blue-800');
+    const iconColor = isGroupDonation ? 'text-brand-green dark:text-brand-gold' : (isMe ? 'text-brand-green dark:text-brand-gold' : 'text-gray-600 dark:text-gray-400');
+    const bgColor = isGroupDonation ? 'bg-brand-green/5 dark:bg-brand-gold/5' : (isMe ? 'bg-brand-green/10 dark:bg-brand-gold/10' : 'bg-gray-50 dark:bg-darkBg-card');
+    const borderColor = isGroupDonation ? 'border-brand-green/20 dark:border-brand-gold/20' : (isMe ? 'border-brand-green/20 dark:border-brand-gold/20' : 'border-gray-200 dark:border-darkBorder-light');
+    const iconBg = isGroupDonation ? 'bg-brand-green/20 dark:bg-brand-gold/20' : (isMe ? 'bg-brand-green/20 dark:bg-brand-gold/20' : 'bg-gray-100 dark:bg-darkBg-interactive');
+    const linkColor = isGroupDonation ? 'text-brand-green hover:text-brand-green/80 dark:text-brand-gold dark:hover:text-brand-gold/80' : (isMe ? 'text-brand-green hover:text-brand-green/80 dark:text-brand-gold dark:hover:text-brand-gold/80' : 'text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white');
 
     return (
         <div className={`rounded-lg p-4 ${bgColor} border ${borderColor} max-w-md`}>
@@ -47,8 +47,8 @@ export const MoneyMessage: React.FC<MoneyMessageProps> = ({ content, isMe }) => 
                     </div>
 
                     {isGroupDonation && data.groupName && (
-                        <div className="mb-2 px-2 py-1 bg-blue-100 rounded-md inline-block">
-                            <div className="flex items-center gap-1 text-xs font-medium text-blue-900">
+                        <div className="mb-2 px-2 py-1 bg-brand-green/10 dark:bg-brand-gold/10 rounded-md inline-block">
+                            <div className="flex items-center gap-1 text-xs font-medium text-brand-green dark:text-brand-gold">
                                 <TrendingUp size={12} />
                                 <span>{data.groupName}</span>
                             </div>
