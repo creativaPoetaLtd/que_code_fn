@@ -140,7 +140,7 @@ const KeyValueInput: React.FC<KeyValueInputProps> = ({ value, onChange, placehol
     const updatePairs = (newPairs: KeyValuePair[]) => {
         // Filter out empty pairs, but always keep at least one empty pair if all are empty
         const validPairs = newPairs.filter(p => p.key.trim() !== '');
-        const finalPairs = validPairs.length > 0 ? validPairs : [{ key: '', value: '', type: 'string' }];
+        const finalPairs: KeyValuePair[] = validPairs.length > 0 ? validPairs : [{ key: '', value: '', type: 'string' as const }];
         
         setPairs(finalPairs);
         const obj: Record<string, any> = {};
@@ -148,7 +148,7 @@ const KeyValueInput: React.FC<KeyValueInputProps> = ({ value, onChange, placehol
             if (!key.trim()) return;
             try {
                 if (type === 'boolean') {
-                    obj[key] = val === 'true' || val === true;
+                    obj[key] = val === 'true';
                 } else if (type === 'number') {
                     const num = Number(val);
                     if (isNaN(num)) return; // Skip invalid numbers

@@ -699,7 +699,7 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
                                         <p className="text-sm text-[#00313A]/70 mb-4">Choose how you want to scan the QR code</p>
                                         <div className="flex flex-col sm:flex-row gap-3 w-full max-w-md px-4">
                                             <Button
-                                                onClick={startCamera}
+                                                onClick={() => startCamera()}
                                                 className="flex-1 bg-gradient-to-r from-[#00B512] to-[#1fd331] text-white hover:shadow-lg"
                                                 disabled={!QrScanner || !!error}
                                             >

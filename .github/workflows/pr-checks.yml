@@ -15,33 +15,23 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 10.20.0
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'  # match your local node version
-          cache: 'pnpm'
-
-      - name: Verify pnpm installation
-        run: |
-          which pnpm
-          pnpm --version
+          cache: 'npm'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: npm ci
 
       - name: Run ESLint
-        run: pnpm run lint
+        run: npm run lint
 
       - name: Run TypeScript type check
-        run: pnpm run type-check
+        run: npm run type-check
 
       - name: Build project
-        run: pnpm run build || echo "Build skipped due to network dependencies"
+        run: npm run build || echo "Build skipped due to network dependencies"
 
 
   tests:
@@ -53,31 +43,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 10.20.0
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'pnpm'
-
-      - name: Verify pnpm installation
-        run: |
-          which pnpm
-          pnpm --version
+          cache: 'npm'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: npm ci
 
       # Uncomment when tests are added
       # - name: Run tests
-      #   run: pnpm test
+      #   run: npm test
 
       - name: Check for unused dependencies
-        run: pnpm run check-deps || echo "check-deps script not found, skipping"
+        run: npm run check-deps || echo "check-deps script not found, skipping"
 
   pr-validation:
     name: PR Validation
