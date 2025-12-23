@@ -277,8 +277,6 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
         setScanResult(scannedData);
         setExternalUrl(null);
 
-        console.log("Processing scanned QR data:", scannedData);
-
         // Check if it's a URL first
         if (isValidUrl(scannedData)) {
             // Check if this URL is specifically for QR objects/tickets
@@ -286,14 +284,12 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
                 // This is a ticket/action URL - extract and validate
                 const extractedId = extractQRObjectId(scannedData);
                 if (extractedId) {
-                    console.log("QR Object URL detected, ID:", extractedId);
                     await validateQRObject(extractedId);
                     return true;
                 }
             }
             
             // Not a QR object URL (could be /welcome/ or any other URL) - treat as external
-            console.log("External/Navigation URL detected:", scannedData);
             setExternalUrl(scannedData);
             
             // Automatically open the external URL in a new tab
@@ -308,13 +304,11 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
         
         // Not a URL - check if it's a raw UUID (direct QR object ID)
         if (isValidUUID(scannedData.trim())) {
-            console.log("Raw QR Object ID detected:", scannedData.trim());
             await validateQRObject(scannedData.trim());
             return true;
         }
         
         // Not a URL and not a UUID - show error
-        console.log("Invalid QR code data:", scannedData);
         setError("Invalid QR code. Could not find a valid ticket ID.");
         toast({
             title: "Invalid QR Code",
@@ -343,8 +337,6 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
             const headers = {
                 Authorization: `Bearer ${token}`,
             };
-
-            console.log("Validating QR Object ID:", qrObjectId);
 
             // Backend handles both qrObjectId and actionPurchaseId
             const response = await axios.get(
@@ -549,47 +541,27 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
                     if (result) {
                         qrCodeFound = true;
                         
-                        console.log("=== QR CODE SCAN SUCCESS ===");
-                        console.log("Raw scanned data:", result);
-                        console.log("Data type:", typeof result);
-                        console.log("Data length:", result.length);
-                        console.log("===========================");
-                        
                         // Process the scanned result (handles both internal and external URLs)
                         await processScannedResult(result);
                         break;
                     }
                 } catch (err) {
-                    console.log("Image element scan failed, trying data URL...");
                     // Try scanning data URL directly
                     try {
                         const result = await scanner.scanImage(imageData);
                         if (result) {
                             qrCodeFound = true;
                             
-                            console.log("=== QR CODE SCAN SUCCESS (Data URL) ===");
-                            console.log("Raw scanned data:", result);
-                            console.log("Data type:", typeof result);
-                            console.log("Data length:", result.length);
-                            console.log("======================================");
-                            
                             // Process the scanned result (handles both internal and external URLs)
                             await processScannedResult(result);
                             break;
                         }
                     } catch (err2) {
-                        console.log("Data URL scan failed, trying canvas...");
                         // Try canvas directly
                         try {
                             const result = await scanner.scanImage(canvas);
                             if (result) {
                                 qrCodeFound = true;
-                                
-                                console.log("=== QR CODE SCAN SUCCESS (Canvas) ===");
-                                console.log("Raw scanned data:", result);
-                                console.log("Data type:", typeof result);
-                                console.log("Data length:", result.length);
-                                console.log("===================================");
                                 
                                 // Process the scanned result (handles both internal and external URLs)
                                 await processScannedResult(result);
@@ -597,7 +569,6 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
                             }
                         } catch (err3) {
                             // No QR code on this page
-                            console.log(`No QR code found on page ${pageNum} with any method`);
                             continue;
                         }
                     }
