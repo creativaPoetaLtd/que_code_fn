@@ -13,6 +13,7 @@ import {
     Sparkles,
     Ticket,
     Scan,
+    Check,
 } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import Navigation from '@/components/Navigation';
@@ -39,6 +40,7 @@ interface QrObject {
         benefits?: string[];
         coverImage?: string;
         actionId?: string;
+        organizationId?: string;
         [key: string]: any;
     };
     status: string;
@@ -49,6 +51,8 @@ interface QrObject {
     coverImage?: string;
     createdAt?: string;
     updatedAt?: string;
+    actionId?: string;
+    organizationId?: string;
 }
 
 interface OrganizationAction {
@@ -105,9 +109,13 @@ const statusClasses: Record<string, string> = {
 const ActionsByAccountPage = () => {
     const params = useParams<{ userId: string }>();
     const paramUserId = params?.userId;
-    const { userId: tokenUserId } = useUserInfo();
+    const { userId: tokenUserId, accountType: loggedInAccountType } = useUserInfo();
     const { getToken } = useAuthToken();
     const { isExpanded } = useSidebar();
+
+    // Check if the logged-in user is an organization viewing another user's QR objects
+    const isLoggedInAsOrganization = loggedInAccountType === 'organization';
+    const isViewingAnotherUser = paramUserId && paramUserId !== tokenUserId;
 
     const [effectiveUserId, setEffectiveUserId] = useState<string>('');
     const [accountMode, setAccountMode] = useState<AccountMode>(null);
@@ -133,6 +141,7 @@ const ActionsByAccountPage = () => {
     });
     const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'published' | 'archived'>('all');
     const [editingSubActionId, setEditingSubActionId] = useState<string | null>(null);
+    const [markingAsUsed, setMarkingAsUsed] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
         if (paramUserId && paramUserId !== 'undefined') {
@@ -167,7 +176,38 @@ const ActionsByAccountPage = () => {
                 if (userRes.status === 'fulfilled') {
                     setAccountMode('individual');
                     const qrResponse = await axios.get(`${baseUrl}/users/${targetUserId}/qr-objects`, { headers });
-                    const qrData = Array.isArray(qrResponse.data?.data) ? qrResponse.data.data : [];
+                    let qrData = Array.isArray(qrResponse.data?.data) ? qrResponse.data.data : [];
+                    
+                    // If an organization is viewing another user's QR objects,
+                    // filter to only show QR objects from their own actions
+                    if (isLoggedInAsOrganization && isViewingAnotherUser && tokenUserId) {
+                        try {
+                            // Fetch the organization's actions to get their action IDs
+                            const orgActionsResponse = await axios.get(
+                                `${baseUrl}/organizations/${tokenUserId}/actions`,
+                                { headers }
+                            );
+                            const orgActions = orgActionsResponse.data?.data ?? orgActionsResponse.data ?? [];
+                            const orgActionIds = new Set(
+                                Array.isArray(orgActions) ? orgActions.map((action: OrganizationAction) => action.id) : []
+                            );
+                            
+                            // Filter QR objects to only include those from the organization's actions
+                            qrData = qrData.filter((qrObj: QrObject) => {
+                                const actionId = qrObj.actionId || qrObj.metadata?.actionId;
+                                const organizationId = qrObj.organizationId || qrObj.metadata?.organizationId;
+                                
+                                // Match by actionId or organizationId
+                                return (actionId && orgActionIds.has(actionId)) || 
+                                       (organizationId && organizationId === tokenUserId);
+                            });
+                        } catch (filterErr) {
+                            console.error('Failed to filter QR objects by organization:', filterErr);
+                            // If filtering fails, show no QR objects for security
+                            qrData = [];
+                        }
+                    }
+                    
                     setPurchasedActions(qrData);
                     setOrganizationActions([]);
                     return;
@@ -205,7 +245,7 @@ const ActionsByAccountPage = () => {
                 setLoading(false);
             }
         },
-        [getToken, statusFilter],
+        [getToken, statusFilter, isLoggedInAsOrganization, isViewingAnotherUser, tokenUserId],
     );
 
     useEffect(() => {
@@ -215,12 +255,18 @@ const ActionsByAccountPage = () => {
     }, [effectiveUserId, fetchData]);
 
     const pageTitle = useMemo(() => {
+        if (isLoggedInAsOrganization && isViewingAnotherUser && accountMode === 'individual') {
+            return 'User QR Objects';
+        }
         if (accountMode === 'organization') return 'Organization Actions';
         if (accountMode === 'individual') return 'My Purchased Actions';
         return 'Actions';
-    }, [accountMode]);
+    }, [accountMode, isLoggedInAsOrganization, isViewingAnotherUser]);
 
     const pageDescription = useMemo(() => {
+        if (isLoggedInAsOrganization && isViewingAnotherUser && accountMode === 'individual') {
+            return 'View and validate QR objects purchased from your organization. You can mark tickets as used when they are redeemed.';
+        }
         if (accountMode === 'organization') {
             return 'Review the actions your organization has published. Each card mirrors the presentation on your public welcome page.';
         }
@@ -228,7 +274,7 @@ const ActionsByAccountPage = () => {
             return 'Every ticket, pass or QR object you have purchased lives here. Keep them handy and ready for your next experience.';
         }
         return 'Choose an account to get started.';
-    }, [accountMode]);
+    }, [accountMode, isLoggedInAsOrganization, isViewingAnotherUser]);
 
     const handleDownloadTicket = async (qrObject: QrObject) => {
         try {
@@ -462,6 +508,38 @@ const ActionsByAccountPage = () => {
         setEditingActionId(null);
     };
 
+    // Handler for organizations to mark a QR object as used
+    const handleMarkQRObjectAsUsed = async (qrObjectId: string) => {
+        const token = getToken();
+        if (!token) {
+            return;
+        }
+
+        try {
+            setMarkingAsUsed(prev => ({ ...prev, [qrObjectId]: true }));
+            const headers = { Authorization: `Bearer ${token}` };
+            
+            const response = await axios.post(`${baseUrl}/qr-objects/${qrObjectId}/use`, {}, { headers });
+            
+            if (response.data) {
+                // Update the local state to reflect the change
+                setPurchasedActions(prev => 
+                    prev.map(item => 
+                        item.id === qrObjectId 
+                            ? { ...item, status: 'used', usedAt: new Date().toISOString() }
+                            : item
+                    )
+                );
+            }
+        } catch (err: any) {
+            console.error('Failed to mark QR object as used:', err);
+            const errorMessage = err?.response?.data?.message || err?.message || 'Failed to mark as used';
+            setError(errorMessage);
+        } finally {
+            setMarkingAsUsed(prev => ({ ...prev, [qrObjectId]: false }));
+        }
+    };
+
     const handleSubActionFieldChange = (field: string, value: string) => {
         setNewSubAction((prev) => ({ ...prev, [field]: value }));
     };
@@ -529,22 +607,44 @@ const ActionsByAccountPage = () => {
                 <div className="bg-white dark:bg-darkBg-card border border-emerald-100 dark:border-darkBorder-light rounded-3xl p-8 text-center shadow-sm">
                     <div className="flex items-center justify-center gap-2 text-emerald-600 dark:text-brand-green font-semibold mb-2">
                         <Ticket className="w-5 h-5" />
-                        <span>No purchases yet</span>
+                        <span>{isLoggedInAsOrganization && isViewingAnotherUser ? 'No matching QR objects' : 'No purchases yet'}</span>
                     </div>
                     <p className="text-gray-600 dark:text-gray-300 max-w-md mx-auto">
-                        When you buy tickets or actions, they will appear here with instant access to their QR codes.
+                        {isLoggedInAsOrganization && isViewingAnotherUser 
+                            ? 'This user has not purchased any tickets or actions from your organization.'
+                            : 'When you buy tickets or actions, they will appear here with instant access to their QR codes.'
+                        }
                     </p>
                 </div>
             );
         }
 
         return (
-            <div className="grid gap-6 md:grid-cols-2">
-                {purchasedActions.map((item) => (
-                    <div
-                        key={item.id}
-                        className="bg-white/95 dark:bg-darkBg-card backdrop-blur rounded-3xl border border-emerald-50 dark:border-darkBorder-light shadow-lg shadow-emerald-100/40 dark:shadow-none p-6 relative overflow-hidden"
-                    >
+            <div className="space-y-6">
+                {/* Toolbar for organizations viewing user's QR objects */}
+                {isLoggedInAsOrganization && isViewingAnotherUser && (
+                    <div className="flex flex-wrap gap-3 items-center justify-between bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-2xl p-4">
+                        <div className="flex items-center gap-2 text-purple-700 dark:text-purple-300">
+                            <Scan className="w-5 h-5" />
+                            <span className="font-semibold">Organization Mode</span>
+                            <span className="text-sm text-purple-600 dark:text-purple-400">- Showing only tickets from your organization</span>
+                        </div>
+                        <button
+                            onClick={() => setQrValidatorOpen(true)}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-600 text-white text-sm font-semibold shadow hover:bg-purple-700 transition-colors"
+                        >
+                            <Scan className="w-4 h-4" />
+                            Scan QR Code
+                        </button>
+                    </div>
+                )}
+                
+                <div className="grid gap-6 md:grid-cols-2">
+                    {purchasedActions.map((item) => (
+                        <div
+                            key={item.id}
+                            className="bg-white/95 dark:bg-darkBg-card backdrop-blur rounded-3xl border border-emerald-50 dark:border-darkBorder-light shadow-lg shadow-emerald-100/40 dark:shadow-none p-6 relative overflow-hidden"
+                        >
                         <div className="flex items-start justify-between gap-4">
                             <div>
                                 <p className="text-xs uppercase tracking-[0.2em] text-emerald-500 dark:text-brand-green font-semibold mb-2">
@@ -622,18 +722,36 @@ const ActionsByAccountPage = () => {
                                             ? `Used ${formatDate(item.usedAt)}`
                                             : 'Not used yet. Keep it safe for event day.'}
                                     </p>
-                                    <button
-                                        onClick={() => handleDownloadTicket(item)}
-                                        className="mt-3 inline-flex items-center gap-2 px-3 py-2 rounded-full bg-[#00B512] text-white text-xs font-semibold shadow hover:bg-[#00a010]"
-                                    >
-                                        <Download size={16} />
-                                        Download Ticket (PDF)
-                                    </button>
+                                    <div className="flex flex-wrap gap-2 mt-3">
+                                        <button
+                                            onClick={() => handleDownloadTicket(item)}
+                                            className="inline-flex items-center gap-2 px-3 py-2 rounded-full bg-[#00B512] text-white text-xs font-semibold shadow hover:bg-[#00a010]"
+                                        >
+                                            <Download size={16} />
+                                            Download Ticket (PDF)
+                                        </button>
+                                        {/* Show Mark as Used button for organizations viewing another user's QR objects */}
+                                        {isLoggedInAsOrganization && isViewingAnotherUser && item.status?.toLowerCase() !== 'used' && (
+                                            <button
+                                                onClick={() => handleMarkQRObjectAsUsed(item.id)}
+                                                disabled={markingAsUsed[item.id]}
+                                                className="inline-flex items-center gap-2 px-3 py-2 rounded-full bg-purple-600 text-white text-xs font-semibold shadow hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                {markingAsUsed[item.id] ? (
+                                                    <Loader2 size={16} className="animate-spin" />
+                                                ) : (
+                                                    <Check size={16} />
+                                                )}
+                                                Mark as Used
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         )}
                     </div>
                 ))}
+                </div>
             </div>
         );
     };
@@ -782,6 +900,17 @@ const ActionsByAccountPage = () => {
     };
 
     const renderContent = () => {
+        // Show loading spinner first while we're determining the user ID
+        if (loading) {
+            return (
+                <div className="flex flex-col items-center justify-center py-20 text-[#00313A] dark:text-white">
+                    <Loader2 className="w-10 h-10 animate-spin text-[#00B512] dark:text-brand-green" />
+                    <p className="mt-4 font-medium">Loading your actions...</p>
+                </div>
+            );
+        }
+
+        // Show error if no user ID after loading is complete
         if (!effectiveUserId) {
             return (
                 <div className="bg-white dark:bg-darkBg-card border border-red-100 dark:border-darkBorder-light rounded-3xl p-8 text-center">
@@ -790,15 +919,6 @@ const ActionsByAccountPage = () => {
                         <span>User ID not found</span>
                     </div>
                     <p className="text-gray-600 dark:text-gray-300">We could not determine which account to load. Please sign in again.</p>
-                </div>
-            );
-        }
-
-        if (loading) {
-            return (
-                <div className="flex flex-col items-center justify-center py-20 text-[#00313A] dark:text-white">
-                    <Loader2 className="w-10 h-10 animate-spin text-[#00B512] dark:text-brand-green" />
-                    <p className="mt-4 font-medium">Loading your actions...</p>
                 </div>
             );
         }
@@ -952,7 +1072,7 @@ const ActionsByAccountPage = () => {
                                             <button
                                                 type="button"
                                                 onClick={resetSubActionForm}
-                                                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-main dark:text-white text-sm font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-darkBg-card"
+                                                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-main text-sm font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-darkBg-card"
                                             >
                                                 Cancel Edit
                                             </button>
@@ -1060,6 +1180,21 @@ const ActionsByAccountPage = () => {
                         organizationId={effectiveUserId}
                     />
                 </>
+            )}
+
+            {/* QR Object Validator for organizations viewing individual users' QR objects */}
+            {isLoggedInAsOrganization && isViewingAnotherUser && accountMode === 'individual' && tokenUserId && (
+                <QRObjectValidator
+                    isOpen={qrValidatorOpen}
+                    onClose={() => {
+                        setQrValidatorOpen(false);
+                        // Refresh the data after validation to update the list
+                        if (effectiveUserId) {
+                            fetchData(effectiveUserId);
+                        }
+                    }}
+                    organizationId={tokenUserId}
+                />
             )}
         </div>
     );

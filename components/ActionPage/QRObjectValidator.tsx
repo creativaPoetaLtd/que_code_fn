@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Scan, CheckCircle2, XCircle, Loader2, Camera, X, Upload, FileText } from "lucide-react";
+import { Scan, CheckCircle2, XCircle, Loader2, Camera, X, Upload, FileText, ExternalLink } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import axios from "axios";
 import baseUrl from "@/helpers/baseUrl";
@@ -197,12 +197,52 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
         scanIntervalRef.current = setInterval(scan, 500);
     };
 
+    // State for external URL detection
+    const [externalUrl, setExternalUrl] = useState<string | null>(null);
+
+    // UUID regex pattern for QR object IDs
+    const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    // Helper function to check if a string is a valid UUID
+    const isValidUUID = (str: string): boolean => {
+        return UUID_PATTERN.test(str.trim());
+    };
+
+    // Helper function to check if string is a valid URL
+    const isValidUrl = (str: string): boolean => {
+        try {
+            const url = new URL(str);
+            return url.protocol === 'http:' || url.protocol === 'https:';
+        } catch {
+            return false;
+        }
+    };
+
+    // Paths that contain QR object IDs (tickets)
+    const QR_OBJECT_PATHS = ['/action/', '/qr-objects/', '/ticket/', '/qr/'];
+    
+    // Helper function to check if URL is a QR object/ticket URL
+    const isQRObjectUrl = (url: string): boolean => {
+        try {
+            const parsedUrl = new URL(url);
+            const path = parsedUrl.pathname.toLowerCase();
+            return QR_OBJECT_PATHS.some(p => path.includes(p));
+        } catch {
+            return false;
+        }
+    };
+
     // Helper function to extract ID from scanned data (URL or direct ID)
-    const extractQRObjectId = (scannedData: string): string => {
+    const extractQRObjectId = (scannedData: string): string | null => {
         let id = scannedData.trim();
         
         // Remove any whitespace
         id = id.replace(/\s+/g, '');
+        
+        // If it's already a valid UUID (raw ID, not a URL), return it
+        if (isValidUUID(id)) {
+            return id;
+        }
         
         // Check if it's a URL
         try {
@@ -210,36 +250,83 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
             // Extract ID from URL path (last segment)
             const pathParts = url.pathname.split("/").filter(p => p && p.length > 0);
             if (pathParts.length > 0) {
-                id = pathParts[pathParts.length - 1];
+                const lastSegment = pathParts[pathParts.length - 1].split('?')[0].split('#')[0].trim();
+                if (isValidUUID(lastSegment)) {
+                    return lastSegment;
+                }
             }
         } catch {
             // Not a full URL, might be a relative path or just an ID
             if (id.includes('/')) {
                 const parts = id.split('/').filter(p => p && p.length > 0);
                 if (parts.length > 0) {
-                    id = parts[parts.length - 1];
+                    const lastPart = parts[parts.length - 1].split('?')[0].split('#')[0].trim();
+                    if (isValidUUID(lastPart)) {
+                        return lastPart;
+                    }
                 }
             }
         }
         
-        // Final cleanup - remove any remaining query params or fragments
-        id = id.split('?')[0].split('#')[0].trim();
+        // No valid UUID found
+        return null;
+    };
+
+    // Reusable function to process scanned QR data (for both camera and PDF scanning)
+    const processScannedResult = async (scannedData: string): Promise<boolean> => {
+        setScanResult(scannedData);
+        setExternalUrl(null);
+
+        console.log("Processing scanned QR data:", scannedData);
+
+        // Check if it's a URL first
+        if (isValidUrl(scannedData)) {
+            // Check if this URL is specifically for QR objects/tickets
+            if (isQRObjectUrl(scannedData)) {
+                // This is a ticket/action URL - extract and validate
+                const extractedId = extractQRObjectId(scannedData);
+                if (extractedId) {
+                    console.log("QR Object URL detected, ID:", extractedId);
+                    await validateQRObject(extractedId);
+                    return true;
+                }
+            }
+            
+            // Not a QR object URL (could be /welcome/ or any other URL) - treat as external
+            console.log("External/Navigation URL detected:", scannedData);
+            setExternalUrl(scannedData);
+            
+            // Automatically open the external URL in a new tab
+            window.open(scannedData, '_blank', 'noopener,noreferrer');
+            
+            toast({
+                title: "External QR Code Detected",
+                description: "Opening link in a new tab...",
+            });
+            return true;
+        }
         
-        return id;
+        // Not a URL - check if it's a raw UUID (direct QR object ID)
+        if (isValidUUID(scannedData.trim())) {
+            console.log("Raw QR Object ID detected:", scannedData.trim());
+            await validateQRObject(scannedData.trim());
+            return true;
+        }
+        
+        // Not a URL and not a UUID - show error
+        console.log("Invalid QR code data:", scannedData);
+        setError("Invalid QR code. Could not find a valid ticket ID.");
+        toast({
+            title: "Invalid QR Code",
+            description: "This QR code does not contain a valid ticket ID.",
+            variant: "destructive",
+        });
+        return false;
     };
 
     const handleScanSuccess = async (scannedData: string) => {
         stopCamera();
-        setScanResult(scannedData);
-
-        console.log("Scanned QR data:", scannedData);
-
-        // Extract ID from the scanned data (may be a URL or just an ID)
-        const extractedId = extractQRObjectId(scannedData);
-        console.log("Extracted ID:", extractedId);
-
-        // Validate the QR object (backend handles both qrObjectId and actionPurchaseId)
-        await validateQRObject(extractedId);
+        await processScannedResult(scannedData);
     };
 
     const validateQRObject = async (qrObjectId: string) => {
@@ -344,6 +431,7 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
         setScanResult("");
         setValidationResult(null);
         setError("");
+        setExternalUrl(null);
         setIsScanning(false);
         onClose();
     };
@@ -352,7 +440,14 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
         setScanResult("");
         setValidationResult(null);
         setError("");
+        setExternalUrl(null);
         stopCamera();
+    };
+
+    const handleOpenExternalUrl = () => {
+        if (externalUrl) {
+            window.open(externalUrl, '_blank', 'noopener,noreferrer');
+        }
     };
 
     const handlePDFUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -453,20 +548,15 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
                     const result = await scanner.scanImage(img);
                     if (result) {
                         qrCodeFound = true;
-                        setScanResult(result);
                         
                         console.log("=== QR CODE SCAN SUCCESS ===");
                         console.log("Raw scanned data:", result);
                         console.log("Data type:", typeof result);
                         console.log("Data length:", result.length);
-                        
-                        // Extract ID from the scanned data (may be a URL or just an ID)
-                        const extractedId = extractQRObjectId(result);
-                        console.log("Extracted ID:", extractedId);
                         console.log("===========================");
                         
-                        // Validate the QR object (backend handles both qrObjectId and actionPurchaseId)
-                        await validateQRObject(extractedId);
+                        // Process the scanned result (handles both internal and external URLs)
+                        await processScannedResult(result);
                         break;
                     }
                 } catch (err) {
@@ -476,19 +566,15 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
                         const result = await scanner.scanImage(imageData);
                         if (result) {
                             qrCodeFound = true;
-                            setScanResult(result);
                             
                             console.log("=== QR CODE SCAN SUCCESS (Data URL) ===");
                             console.log("Raw scanned data:", result);
                             console.log("Data type:", typeof result);
                             console.log("Data length:", result.length);
-                            
-                            const extractedId = extractQRObjectId(result);
-                            console.log("Extracted ID:", extractedId);
                             console.log("======================================");
                             
-                            // Validate the QR object (backend handles both qrObjectId and actionPurchaseId)
-                            await validateQRObject(extractedId);
+                            // Process the scanned result (handles both internal and external URLs)
+                            await processScannedResult(result);
                             break;
                         }
                     } catch (err2) {
@@ -498,19 +584,15 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
                             const result = await scanner.scanImage(canvas);
                             if (result) {
                                 qrCodeFound = true;
-                                setScanResult(result);
                                 
                                 console.log("=== QR CODE SCAN SUCCESS (Canvas) ===");
                                 console.log("Raw scanned data:", result);
                                 console.log("Data type:", typeof result);
                                 console.log("Data length:", result.length);
-                                
-                                const extractedId = extractQRObjectId(result);
-                                console.log("Extracted ID:", extractedId);
                                 console.log("===================================");
                                 
-                                // Validate the QR object (backend handles both qrObjectId and actionPurchaseId)
-                                await validateQRObject(extractedId);
+                                // Process the scanned result (handles both internal and external URLs)
+                                await processScannedResult(result);
                                 break;
                             }
                         } catch (err3) {
@@ -764,6 +846,46 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
                                     {error}
                                 </div>
                             )}
+                        </div>
+                    )}
+
+                    {/* External URL Result */}
+                    {externalUrl && (
+                        <div className="space-y-4">
+                            <div className="p-6 rounded-xl border-2 bg-blue-50 border-blue-200">
+                                <div className="flex items-start gap-4">
+                                    <ExternalLink className="w-8 h-8 text-blue-600 flex-shrink-0 mt-1" />
+                                    <div className="flex-1">
+                                        <h3 className="text-xl font-bold text-[#00313A] mb-2">
+                                            External QR Code
+                                        </h3>
+                                        <p className="text-sm text-[#00313A]/70 mb-3">
+                                            This QR code links to an external website:
+                                        </p>
+                                        <div className="bg-white rounded-lg p-3 border border-blue-200 break-all">
+                                            <p className="text-sm text-blue-600 font-mono">{externalUrl}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3">
+                                <Button
+                                    onClick={handleOpenExternalUrl}
+                                    className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:shadow-lg"
+                                >
+                                    <ExternalLink className="w-4 h-4 mr-2" />
+                                    Open Link
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={handleScanAgain}
+                                    className="flex-1 border-[#00B512] text-[#00B512]"
+                                >
+                                    <Scan className="w-4 h-4 mr-2" />
+                                    Scan Another
+                                </Button>
+                            </div>
                         </div>
                     )}
                 </div>

@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Input, Button } from 'antd';
-import { User, Heart, Sparkles, Star, Gift, DollarSign, CreditCard, Coins, Banknote, Wallet, Instagram, Facebook, Twitter, Mail, MessageSquare, Plus, Ticket, Calendar, Clock, ChevronRight, Loader2 } from 'lucide-react';
+import { User, Heart, Sparkles, Star, Gift, DollarSign, CreditCard, Coins, Banknote, Wallet, Instagram, Facebook, Twitter, Mail, MessageSquare, Plus, Ticket, Calendar, Clock, ChevronRight, Loader2, Scan, QrCode } from 'lucide-react';
 import axios from 'axios';
 import baseUrl from '@/helpers/baseUrl';
 import Navigation from '@/components/Navigation';
@@ -136,9 +136,10 @@ const WelcomeProfilePage = () => {
     email: '',
     message: ''
   });
-  const { isAuthenticated, userId: currentUserId } = useUserInfo();
+  const { isAuthenticated, userId: currentUserId, accountType } = useUserInfo();
   const { getToken } = useAuthToken();
   const isLoggedIn = isAuthenticated;
+  const isLoggedInAsOrganization = accountType === 'organization';
 
   // Add a state to track if hydration is complete
   const [isHydrated, setIsHydrated] = useState(false);
@@ -578,6 +579,22 @@ const WelcomeProfilePage = () => {
     router.push('/auth/signup');
   };
 
+  // Handler for organizations to view and validate user's QR objects
+  const handleViewUserQRObjects = () => {
+    if (!isLoggedIn || !isLoggedInAsOrganization) {
+      toast({
+        title: "Access Denied",
+        description: "Only organizations can validate QR objects.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Navigate to the user's action page where the organization can see their QR objects
+    // Pass the user's ID to view their purchased QR objects
+    router.push(`/action/${userId}`);
+  };
+
   // Function to get the display image (prioritize profileImage over avatar, or logo for organizations)
   const getDisplayImage = () => {
     // For organizations, prioritize logo over profileImage
@@ -867,6 +884,19 @@ const WelcomeProfilePage = () => {
                           <span className="flex items-center justify-center gap-3">
                             <Plus className="w-5 h-5" />
                             <b>Add Friend</b>
+                          </span>
+                        </CustomButton>
+                      )}
+                      {/* Show Scan QR Objects button for logged-in organizations viewing a user's profile */}
+                      {isLoggedIn && isLoggedInAsOrganization && user.profileType !== 'organization' && (
+                        <CustomButton
+                          variant="outline"
+                          className="px-6 py-3 border-2 border-purple-500 text-purple-600 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:bg-purple-500 hover:text-white"
+                          onClick={handleViewUserQRObjects}
+                        >
+                          <span className="flex items-center justify-center gap-3">
+                            <QrCode className="w-5 h-5" />
+                            <b>View QR Objects</b>
                           </span>
                         </CustomButton>
                       )}
@@ -1341,6 +1371,20 @@ const WelcomeProfilePage = () => {
                         <span className="flex items-center justify-center gap-3">
                           <Plus className="w-5 h-5" />
                           <b>Add Friend</b>
+                        </span>
+                      </CustomButton>
+                    )}
+
+                    {/* Show Scan QR Objects button for logged-in organizations viewing a user's profile - Mobile */}
+                    {isLoggedIn && isLoggedInAsOrganization && user.profileType !== 'organization' && (
+                      <CustomButton
+                        variant="outline"
+                        className="w-full h-12 border-2 border-purple-500 text-purple-600 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:bg-purple-500 hover:text-white"
+                        onClick={handleViewUserQRObjects}
+                      >
+                        <span className="flex items-center justify-center gap-3">
+                          <QrCode className="w-5 h-5" />
+                          <b>View QR Objects</b>
                         </span>
                       </CustomButton>
                     )}
