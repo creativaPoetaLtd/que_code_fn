@@ -2,13 +2,14 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Input, Button } from 'antd';
-import { User, Heart, Sparkles, Star, Gift, DollarSign, CreditCard, Coins, Banknote, Wallet, Instagram, Facebook, Twitter, Mail, MessageSquare, Plus } from 'lucide-react';
+import { User, Heart, Sparkles, Star, Gift, DollarSign, CreditCard, Coins, Banknote, Wallet, Instagram, Facebook, Twitter, Mail, MessageSquare, Plus, Ticket, Calendar, Clock, ChevronRight, Loader2, Scan, QrCode } from 'lucide-react';
 import axios from 'axios';
 import baseUrl from '@/helpers/baseUrl';
 import Navigation from '@/components/Navigation';
 import { Header } from '@/components/Header';
 import { useUserInfo } from '@/hooks/use-user-info';
 import { useAuthToken } from '@/hooks/use-auth-token';
+import { toast } from '@/hooks/use-toast';
 import { Button as CustomButton } from '@/components/ui/button';
 import { Input as CustomInput } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -57,6 +58,71 @@ interface ContactFormData {
   message: string;
 }
 
+interface Action {
+  id: string;
+  organizationId: string;
+  type: string;
+  name: string;
+  slug: string;
+  displayLayout: string;
+  coverImage: string | null;
+  shortDescription: string | null;
+  description: string | null;
+  currency: string;
+  taxProfileId: string | null;
+  pricing: {
+    mode: string;
+  };
+  availability: {
+    endsAt: string | null;
+    startsAt: string | null;
+    timezone: string | null;
+    userQuota: number | null;
+    salesWindow: {
+      until: string | null;
+    } | null;
+  };
+  visibility: {
+    mode: string;
+  };
+  buyerFields: string[];
+  fulfillment: {
+    objectType: string;
+    storeOnBuyerQR: boolean;
+    postPurchaseMessage: string | null;
+  };
+  policy: {
+    refund: string | null;
+    tosUrl: string | null;
+    cancellation: string | null;
+  };
+  webhooks: {
+    onCheckout: string | null;
+    onScanValid: string | null;
+  };
+  customFields: Record<string, any>;
+  status: string;
+  dedicatedQrCode: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface SubAction {
+  id: string;
+  actionId: string;
+  name: string;
+  description: string | null;
+  price: string;
+  stock: number | null;
+  stockReserved: number;
+  variants: Record<string, any>;
+  metadata: Record<string, any>;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 const WelcomeProfilePage = () => {
   const params = useParams();
   const router = useRouter();
@@ -70,12 +136,26 @@ const WelcomeProfilePage = () => {
     email: '',
     message: ''
   });
-  const { isAuthenticated, userId: currentUserId } = useUserInfo();
+  const { isAuthenticated, userId: currentUserId, accountType } = useUserInfo();
   const { getToken } = useAuthToken();
   const isLoggedIn = isAuthenticated;
+  const isLoggedInAsOrganization = accountType === 'organization';
 
   // Add a state to track if hydration is complete
   const [isHydrated, setIsHydrated] = useState(false);
+
+  // Actions state
+  const [actions, setActions] = useState<Action[]>([]);
+  const [actionsLoading, setActionsLoading] = useState(false);
+  const [selectedAction, setSelectedAction] = useState<Action | null>(null);
+  const [subActions, setSubActions] = useState<SubAction[]>([]);
+  const [subActionsLoading, setSubActionsLoading] = useState(false);
+  const [isSubActionsModalOpen, setIsSubActionsModalOpen] = useState(false);
+
+  // Purchase state
+  const [purchaseData, setPurchaseData] = useState<Record<string, { quantity: number; buyerData: { fullName: string; email: string; phone: string } }>>({});
+  const [purchasing, setPurchasing] = useState<Record<string, boolean>>({});
+  const [purchaseError, setPurchaseError] = useState<Record<string, string>>({});
 
   useEffect(() => {
     setIsHydrated(true);
@@ -231,6 +311,216 @@ const WelcomeProfilePage = () => {
     fetchUser();
   }, [userId, getToken]);
 
+  // Fetch actions for organizations
+  useEffect(() => {
+    const fetchActions = async () => {
+      if (user.profileType !== 'organization' || !userId) {
+        return;
+      }
+
+      try {
+        setActionsLoading(true);
+        const token = getToken();
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const actionsUrl = `${baseUrl}/organizations/${userId}/actions/public`;
+
+        const response = await axios.get(actionsUrl, { headers });
+        
+        if (response.data.success && response.data.data) {
+          setActions(response.data.data);
+        }
+      } catch (error) {
+        console.error('Error fetching actions:', error);
+        setActions([]);
+      } finally {
+        setActionsLoading(false);
+      }
+    };
+
+    if (user.profileType === 'organization' && !loading) {
+      fetchActions();
+    }
+  }, [user.profileType, userId, loading, getToken]);
+
+  // Fetch sub-actions when an action is selected
+  const fetchSubActions = async (actionId: string) => {
+    try {
+      setSubActionsLoading(true);
+      const token = getToken();
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const subActionsUrl = `${baseUrl}/actions/${actionId}/sub-actions`;
+
+      const response = await axios.get(subActionsUrl, { headers });
+      
+      if (response.data && response.data.data) {
+        // Force state update by creating a new array reference
+        setSubActions([...response.data.data]);
+      } else if (response.data) {
+        // Handle case where data is directly in response.data
+        setSubActions(Array.isArray(response.data) ? [...response.data] : []);
+      }
+    } catch (error) {
+      console.error('Error fetching sub-actions:', error);
+      setSubActions([]);
+    } finally {
+      setSubActionsLoading(false);
+    }
+  };
+
+  const handleActionClick = async (action: Action) => {
+    setSelectedAction(action);
+    setIsSubActionsModalOpen(true);
+    await fetchSubActions(action.id);
+  };
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return 'N/A';
+    }
+  };
+
+  const formatPrice = (price: string, currency: string) => {
+    const numPrice = parseFloat(price);
+    if (isNaN(numPrice)) return price;
+    return `${currency} ${numPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  const handlePurchase = async (subAction: SubAction) => {
+    if (!selectedAction) return;
+
+    const data = purchaseData[subAction.id];
+    if (!data || !data.quantity || data.quantity <= 0) {
+      setPurchaseError(prev => ({ ...prev, [subAction.id]: 'Please enter a valid quantity' }));
+      return;
+    }
+
+    // Validate userQuota
+    const userQuota = selectedAction.availability.userQuota;
+    if (userQuota && data.quantity > userQuota) {
+      setPurchaseError(prev => ({ ...prev, [subAction.id]: `Maximum quantity allowed is ${userQuota}` }));
+      return;
+    }
+
+    // Validate stock availability
+    if (subAction.stock !== null && data.quantity > subAction.stock) {
+      setPurchaseError(prev => ({ ...prev, [subAction.id]: `Only ${subAction.stock} items available` }));
+      return;
+    }
+
+    // Validate buyer data
+    if (!data.buyerData.fullName || !data.buyerData.email || !data.buyerData.phone) {
+      setPurchaseError(prev => ({ ...prev, [subAction.id]: 'Please fill in all buyer information' }));
+      return;
+    }
+
+    try {
+      setPurchasing(prev => ({ ...prev, [subAction.id]: true }));
+      setPurchaseError(prev => ({ ...prev, [subAction.id]: '' }));
+
+      const token = getToken();
+      if (!token) {
+        setPurchaseError(prev => ({ ...prev, [subAction.id]: 'Please login to purchase' }));
+        setPurchasing(prev => ({ ...prev, [subAction.id]: false }));
+        return;
+      }
+
+      if (!currentUserId) {
+        setPurchaseError(prev => ({ ...prev, [subAction.id]: 'User ID not found. Please login again.' }));
+        setPurchasing(prev => ({ ...prev, [subAction.id]: false }));
+        return;
+      }
+
+      const purchaseUrl = `${baseUrl}/actions/${selectedAction.id}/purchase`;
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      };
+
+      const requestBody = {
+        subActionId: subAction.id,
+        quantity: data.quantity,
+        buyerId: currentUserId, // Add buyerId from logged-in user
+        buyerData: data.buyerData
+      };
+
+      const response = await axios.post(purchaseUrl, requestBody, { headers });
+
+      if (response.data) {
+        toast({
+          title: "Purchase Successful!",
+          description: `You have successfully purchased ${data.quantity} ${data.quantity === 1 ? 'item' : 'items'} of ${subAction.name}.`,
+        });
+        
+        // Reset purchase data for this sub-action
+        setPurchaseData(prev => {
+          const newData = { ...prev };
+          delete newData[subAction.id];
+          return newData;
+        });
+        
+        // Clear any errors
+        setPurchaseError(prev => {
+          const newErrors = { ...prev };
+          delete newErrors[subAction.id];
+          return newErrors;
+        });
+        
+        // Refresh sub-actions to update stock immediately
+        if (selectedAction) {
+          // Immediately refresh to get updated stock
+          await fetchSubActions(selectedAction.id);
+        }
+      }
+    } catch (error: any) {
+      console.error('Purchase error:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Purchase failed. Please try again.';
+      setPurchaseError(prev => ({ ...prev, [subAction.id]: errorMessage }));
+    } finally {
+      setPurchasing(prev => ({ ...prev, [subAction.id]: false }));
+    }
+  };
+
+  const updatePurchaseQuantity = (subActionId: string, quantity: number) => {
+    const numQuantity = parseInt(quantity.toString());
+    if (isNaN(numQuantity) || numQuantity < 0) {
+      return;
+    }
+
+    setPurchaseData(prev => ({
+      ...prev,
+      [subActionId]: {
+        ...prev[subActionId],
+        quantity: numQuantity,
+        buyerData: prev[subActionId]?.buyerData || { fullName: '', email: '', phone: '' }
+      }
+    }));
+    setPurchaseError(prev => ({ ...prev, [subActionId]: '' }));
+  };
+
+  const updateBuyerData = (subActionId: string, field: 'fullName' | 'email' | 'phone', value: string) => {
+    setPurchaseData(prev => ({
+      ...prev,
+      [subActionId]: {
+        quantity: prev[subActionId]?.quantity || 1,
+        buyerData: {
+          ...prev[subActionId]?.buyerData || { fullName: '', email: '', phone: '' },
+          [field]: value
+        }
+      }
+    }));
+    setPurchaseError(prev => ({ ...prev, [subActionId]: '' }));
+  };
+
   const handleSendMoney = () => {
     if (!isLoggedIn) {
       // For non-logged in users, show the modal (existing behavior)
@@ -287,6 +577,22 @@ const WelcomeProfilePage = () => {
 
   const handleSignupClick = () => {
     router.push('/auth/signup');
+  };
+
+  // Handler for organizations to view and validate user's QR objects
+  const handleViewUserQRObjects = () => {
+    if (!isLoggedIn || !isLoggedInAsOrganization) {
+      toast({
+        title: "Access Denied",
+        description: "Only organizations can validate QR objects.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Navigate to the user's action page where the organization can see their QR objects
+    // Pass the user's ID to view their purchased QR objects
+    router.push(`/action/${userId}`);
   };
 
   // Function to get the display image (prioritize profileImage over avatar, or logo for organizations)
@@ -581,6 +887,19 @@ const WelcomeProfilePage = () => {
                           </span>
                         </CustomButton>
                       )}
+                      {/* Show Scan QR Objects button for logged-in organizations viewing a user's profile */}
+                      {isLoggedIn && isLoggedInAsOrganization && user.profileType !== 'organization' && (
+                        <CustomButton
+                          variant="outline"
+                          className="px-6 py-3 border-2 border-purple-500 text-purple-600 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:bg-purple-500 hover:text-white"
+                          onClick={handleViewUserQRObjects}
+                        >
+                          <span className="flex items-center justify-center gap-3">
+                            <QrCode className="w-5 h-5" />
+                            <b>View QR Objects</b>
+                          </span>
+                        </CustomButton>
+                      )}
                       {!isLoggedIn && (
                         <Dialog>
                           <DialogTrigger asChild>
@@ -772,6 +1091,83 @@ const WelcomeProfilePage = () => {
                           />
                         </div>
                       </div>
+                    </div>
+                  )}
+
+                  {/* Organization Actions Section */}
+                  {user.profileType === 'organization' && (
+                    <div className="bg-gradient-to-br from-white via-[#f8fffa] to-[#f0fff4] rounded-2xl p-6 border-2 border-[#00B512]/10 shadow-lg hover:shadow-xl transition-all duration-300 animate-fade-in">
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="w-10 h-10 bg-gradient-to-br from-[#00B512] to-[#1fd331] rounded-full flex items-center justify-center shadow-md animate-pulse">
+                          <Ticket className="w-5 h-5 text-white" />
+                        </div>
+                        <h3 className="text-lg font-bold text-[#00313A]">Available Actions</h3>
+                      </div>
+
+                      {actionsLoading ? (
+                        <div className="flex items-center justify-center py-12">
+                          <Loader2 className="w-8 h-8 text-[#00B512] animate-spin" />
+                        </div>
+                      ) : actions.length === 0 ? (
+                        <div className="text-center py-8">
+                          <Ticket className="w-12 h-12 text-[#00B512]/30 mx-auto mb-3" />
+                          <p className="text-[#00313A]/60 font-medium">No actions available at the moment</p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 gap-4">
+                          {actions.map((action) => (
+                            <button
+                              key={action.id}
+                              onClick={() => handleActionClick(action)}
+                              className="bg-white/80 hover:bg-white rounded-xl p-5 border-2 border-[#00B512]/10 hover:border-[#00B512]/30 shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-[1.02] text-left group"
+                            >
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-3 mb-2">
+                                    <div className="w-10 h-10 bg-gradient-to-br from-[#00B512] to-[#1fd331] rounded-lg flex items-center justify-center shadow-sm">
+                                      <Ticket className="w-5 h-5 text-white" />
+                                    </div>
+                                    <h4 className="text-base font-bold text-[#00313A] group-hover:text-[#00B512] transition-colors">
+                                      {action.name}
+                                    </h4>
+                                  </div>
+                                  
+                                  {action.shortDescription && (
+                                    <p className="text-sm text-[#00313A]/70 mb-3 line-clamp-2">
+                                      {action.shortDescription}
+                                    </p>
+                                  )}
+
+                                  <div className="flex flex-wrap items-center gap-4 text-xs text-[#00313A]/60">
+                                    {action.availability.startsAt && (
+                                      <div className="flex items-center gap-1">
+                                        <Calendar className="w-3 h-3 text-[#00B512]" />
+                                        <span>{formatDate(action.availability.startsAt)}</span>
+                                      </div>
+                                    )}
+                                    {action.pricing.mode && (
+                                      <div className="flex items-center gap-1">
+                                        <DollarSign className="w-3 h-3 text-[#00B512]" />
+                                        <span className="capitalize">{action.pricing.mode} Pricing</span>
+                                      </div>
+                                    )}
+                                    {action.status && (
+                                      <div className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                        action.status === 'published' 
+                                          ? 'bg-[#00B512]/10 text-[#00B512]' 
+                                          : 'bg-gray-100 text-gray-600'
+                                      }`}>
+                                        {action.status}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                <ChevronRight className="w-5 h-5 text-[#00B512] opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -975,6 +1371,20 @@ const WelcomeProfilePage = () => {
                         <span className="flex items-center justify-center gap-3">
                           <Plus className="w-5 h-5" />
                           <b>Add Friend</b>
+                        </span>
+                      </CustomButton>
+                    )}
+
+                    {/* Show Scan QR Objects button for logged-in organizations viewing a user's profile - Mobile */}
+                    {isLoggedIn && isLoggedInAsOrganization && user.profileType !== 'organization' && (
+                      <CustomButton
+                        variant="outline"
+                        className="w-full h-12 border-2 border-purple-500 text-purple-600 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:bg-purple-500 hover:text-white"
+                        onClick={handleViewUserQRObjects}
+                      >
+                        <span className="flex items-center justify-center gap-3">
+                          <QrCode className="w-5 h-5" />
+                          <b>View QR Objects</b>
                         </span>
                       </CustomButton>
                     )}
@@ -1189,6 +1599,74 @@ const WelcomeProfilePage = () => {
                     </div>
                   </div>
                 )}
+
+                {/* Organization Actions Section - Mobile */}
+                {user.profileType === 'organization' && (
+                  <div className="bg-gradient-to-br from-white via-[#f8fffa] to-[#f0fff4] rounded-xl p-4 border-2 border-[#00B512]/10 shadow-lg hover:shadow-xl transition-all duration-300 animate-fade-in">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-8 h-8 bg-gradient-to-br from-[#00B512] to-[#1fd331] rounded-full flex items-center justify-center shadow-sm animate-pulse">
+                        <Ticket className="w-4 h-4 text-white" />
+                      </div>
+                      <h3 className="text-sm font-bold text-[#00313A]">Available Actions</h3>
+                    </div>
+
+                    {actionsLoading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="w-6 h-6 text-[#00B512] animate-spin" />
+                      </div>
+                    ) : actions.length === 0 ? (
+                      <div className="text-center py-6">
+                        <Ticket className="w-10 h-10 text-[#00B512]/30 mx-auto mb-2" />
+                        <p className="text-xs text-[#00313A]/60 font-medium">No actions available</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {actions.map((action) => (
+                          <button
+                            key={action.id}
+                            onClick={() => handleActionClick(action)}
+                            className="w-full bg-white/80 hover:bg-white rounded-lg p-3 border-2 border-[#00B512]/10 hover:border-[#00B512]/30 shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-[1.01] text-left group"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <div className="w-8 h-8 bg-gradient-to-br from-[#00B512] to-[#1fd331] rounded-lg flex items-center justify-center shadow-sm flex-shrink-0">
+                                    <Ticket className="w-4 h-4 text-white" />
+                                  </div>
+                                  <h4 className="text-sm font-bold text-[#00313A] group-hover:text-[#00B512] transition-colors truncate">
+                                    {action.name}
+                                  </h4>
+                                </div>
+                                
+                                {action.shortDescription && (
+                                  <p className="text-xs text-[#00313A]/70 mb-2 line-clamp-2">
+                                    {action.shortDescription}
+                                  </p>
+                                )}
+
+                                <div className="flex flex-wrap items-center gap-2 text-xs text-[#00313A]/60">
+                                  {action.availability.startsAt && (
+                                    <div className="flex items-center gap-1">
+                                      <Calendar className="w-3 h-3 text-[#00B512]" />
+                                      <span className="truncate">{formatDate(action.availability.startsAt)}</span>
+                                    </div>
+                                  )}
+                                  {action.pricing.mode && (
+                                    <div className="flex items-center gap-1">
+                                      <DollarSign className="w-3 h-3 text-[#00B512]" />
+                                      <span className="capitalize text-xs">{action.pricing.mode}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <ChevronRight className="w-4 h-4 text-[#00B512] opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Decorative divider */}
@@ -1230,65 +1708,320 @@ const WelcomeProfilePage = () => {
         )}
       </div>
 
-      {/* Footer - Only for logged in users */}
-      {isHydrated && isLoggedIn && (
-        <footer className="bg-[#00313A] text-white py-8 mt-12">
-          <div className="container mx-auto px-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div>
-                <h3 className="text-lg font-bold mb-4 text-[#00B512]">QiewCode</h3>
-                <p className="text-sm text-gray-300">
-                  Secure, fast, and reliable money transfer platform designed for modern users.
-                </p>
+      {/* Sub-Actions Modal */}
+      <Dialog open={isSubActionsModalOpen} onOpenChange={setIsSubActionsModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold text-[#00313A] flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-[#00B512] to-[#1fd331] rounded-lg flex items-center justify-center shadow-md">
+                <Ticket className="w-5 h-5 text-white" />
               </div>
-              <div>
-                <h4 className="text-md font-semibold mb-4 text-[#00B512]">Quick Links</h4>
-                <ul className="space-y-2 text-sm text-gray-300">
-                  <li><a href="/home" className="hover:text-[#00B512] transition-colors">Home</a></li>
-                  <li><a href="/profile" className="hover:text-[#00B512] transition-colors">Profile</a></li>
-                  <li><a href="/settings" className="hover:text-[#00B512] transition-colors">Settings</a></li>
-                  <li><a href="/statistics" className="hover:text-[#00B512] transition-colors">Statistics</a></li>
-                </ul>
+              {selectedAction?.name || 'Action Details'}
+            </DialogTitle>
+          </DialogHeader>
+
+          {selectedAction && (
+            <div className="space-y-6">
+              {/* Action Details */}
+              <div className="bg-gradient-to-br from-[#f0fff4] via-[#e6f9f0] to-[#f6fff9] rounded-xl p-5 border-2 border-[#00B512]/10">
+                {selectedAction.description && (
+                  <p className="text-sm text-[#00313A]/80 mb-4 leading-relaxed">
+                    {selectedAction.description}
+                  </p>
+                )}
+                
+                <div className="grid grid-cols-2 gap-4">
+                  {selectedAction.availability.startsAt && (
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-[#00B512]" />
+                      <div>
+                        <p className="text-xs text-[#00313A]/60 font-semibold">Start Date</p>
+                        <p className="text-sm text-[#00313A] font-medium">{formatDate(selectedAction.availability.startsAt)}</p>
+                      </div>
+                    </div>
+                  )}
+                  {selectedAction.availability.endsAt && (
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-[#00B512]" />
+                      <div>
+                        <p className="text-xs text-[#00313A]/60 font-semibold">End Date</p>
+                        <p className="text-sm text-[#00313A] font-medium">{formatDate(selectedAction.availability.endsAt)}</p>
+                      </div>
+                    </div>
+                  )}
+                  {selectedAction.pricing.mode && (
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="w-4 h-4 text-[#00B512]" />
+                      <div>
+                        <p className="text-xs text-[#00313A]/60 font-semibold">Pricing Mode</p>
+                        <p className="text-sm text-[#00313A] font-medium capitalize">{selectedAction.pricing.mode}</p>
+                      </div>
+                    </div>
+                  )}
+                  {selectedAction.currency && (
+                    <div className="flex items-center gap-2">
+                      <Coins className="w-4 h-4 text-[#00B512]" />
+                      <div>
+                        <p className="text-xs text-[#00313A]/60 font-semibold">Currency</p>
+                        <p className="text-sm text-[#00313A] font-medium">{selectedAction.currency}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
+
+              {/* Sub-Actions List */}
               <div>
-                <h4 className="text-md font-semibold mb-4 text-[#00B512]">Support</h4>
-                <ul className="space-y-2 text-sm text-gray-300">
-                  <li><a href="/help" className="hover:text-[#00B512] transition-colors">Help Center</a></li>
-                  <li><a href="/contact" className="hover:text-[#00B512] transition-colors">Contact Us</a></li>
-                  <li><a href="/privacy" className="hover:text-[#00B512] transition-colors">Privacy Policy</a></li>
-                  <li><a href="/terms" className="hover:text-[#00B512] transition-colors">Terms of Service</a></li>
-                </ul>
+                <h3 className="text-lg font-bold text-[#00313A] mb-4 flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-[#00B512] animate-pulse" />
+                  Available Options
+                </h3>
+
+                {subActionsLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-8 h-8 text-[#00B512] animate-spin" />
+                  </div>
+                ) : subActions.length === 0 ? (
+                  <div className="text-center py-8 bg-gradient-to-br from-[#f0fff4] via-[#e6f9f0] to-[#f6fff9] rounded-xl border-2 border-[#00B512]/10">
+                    <Ticket className="w-12 h-12 text-[#00B512]/30 mx-auto mb-3" />
+                    <p className="text-[#00313A]/60 font-medium">No options available for this action</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {subActions
+                      .filter(subAction => subAction.isActive)
+                      .sort((a, b) => a.sortOrder - b.sortOrder)
+                      .map((subAction) => (
+                        <div
+                          key={subAction.id}
+                          className="bg-white rounded-xl p-5 border-2 border-[#00B512]/10 hover:border-[#00B512]/30 shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-[1.01]"
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <div className="w-10 h-10 bg-gradient-to-br from-[#00B512] to-[#1fd331] rounded-lg flex items-center justify-center shadow-sm">
+                                  <Star className="w-5 h-5 text-white" />
+                                </div>
+                                <div>
+                                  <h4 className="text-base font-bold text-[#00313A]">
+                                    {subAction.name}
+                                  </h4>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <span className="text-lg font-bold text-[#00B512]">
+                                      {formatPrice(subAction.price, selectedAction.currency)}
+                                    </span>
+                                    {subAction.stock !== null && (
+                                      <span className="text-xs text-[#00313A]/60 bg-[#00B512]/10 px-2 py-1 rounded-full">
+                                        {subAction.stock} available
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              {subAction.description && (
+                                <p className="text-sm text-[#00313A]/70 mb-3 ml-[52px]">
+                                  {subAction.description}
+                                </p>
+                              )}
+
+                              {subAction.metadata && Object.keys(subAction.metadata).length > 0 && (
+                                <div className="ml-[52px] space-y-2">
+                                  {subAction.metadata.benefits && Array.isArray(subAction.metadata.benefits) && (
+                                    <div>
+                                      <p className="text-xs font-semibold text-[#00B512] mb-1">Benefits:</p>
+                                      <ul className="list-disc list-inside text-xs text-[#00313A]/70 space-y-1">
+                                        {subAction.metadata.benefits.map((benefit: string, index: number) => (
+                                          <li key={index}>{benefit}</li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+                                  {subAction.metadata.seatType && (
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs font-semibold text-[#00B512]">Seat Type:</span>
+                                      <span className="text-xs text-[#00313A]/70 capitalize">{subAction.metadata.seatType}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Purchase Form */}
+                              <div className="mt-4 ml-[52px] pt-4 border-t border-[#00B512]/10">
+                                <div className="space-y-4">
+                                  {/* Quantity Input */}
+                                  <div className="space-y-2">
+                                    <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
+                                      <span>Quantity</span>
+                                      {(() => {
+                                        const userQuota = selectedAction.availability.userQuota;
+                                        const availableStock = subAction.stock !== null ? subAction.stock : null;
+                                        
+                                        if (userQuota && availableStock !== null) {
+                                          const maxAllowed = Math.min(userQuota, availableStock);
+                                          return (
+                                            <span className="text-xs text-[#00313A]/60 font-normal">
+                                              (Max: {maxAllowed} {userQuota !== availableStock ? `(Quota: ${userQuota}, Stock: ${availableStock})` : ''})
+                                            </span>
+                                          );
+                                        } else if (userQuota) {
+                                          return (
+                                            <span className="text-xs text-[#00313A]/60 font-normal">
+                                              (Max: {userQuota})
+                                            </span>
+                                          );
+                                        } else if (availableStock !== null) {
+                                          return (
+                                            <span className="text-xs text-[#00313A]/60 font-normal">
+                                              (Max: {availableStock} available)
+                                            </span>
+                                          );
+                                        }
+                                        return null;
+                                      })()}
+                                    </label>
+                                    <div className="flex items-center gap-3">
+                                      <CustomInput
+                                        type="number"
+                                        min="1"
+                                        max={(() => {
+                                          const userQuota = selectedAction.availability.userQuota;
+                                          const availableStock = subAction.stock !== null ? subAction.stock : null;
+                                          
+                                          if (userQuota && availableStock !== null) {
+                                            return Math.min(userQuota, availableStock);
+                                          }
+                                          return userQuota || availableStock || undefined;
+                                        })()}
+                                        value={purchaseData[subAction.id]?.quantity || ''}
+                                        onChange={(e) => {
+                                          const value = parseInt(e.target.value);
+                                          const userQuota = selectedAction.availability.userQuota;
+                                          const availableStock = subAction.stock !== null ? subAction.stock : null;
+                                          
+                                          let maxValue: number | null = null;
+                                          if (userQuota && availableStock !== null) {
+                                            maxValue = Math.min(userQuota, availableStock);
+                                          } else {
+                                            maxValue = userQuota || availableStock || null;
+                                          }
+                                          
+                                          if (!isNaN(value) && value >= 0) {
+                                            if (maxValue !== null && value > maxValue) {
+                                              updatePurchaseQuantity(subAction.id, maxValue);
+                                            } else {
+                                              updatePurchaseQuantity(subAction.id, value);
+                                            }
+                                          } else if (e.target.value === '') {
+                                            updatePurchaseQuantity(subAction.id, 0);
+                                          }
+                                        }}
+                                        className="w-24 h-10 rounded-lg border-2 border-[#00313A]/10 focus:border-[#00B512] text-center font-semibold"
+                                        placeholder="0"
+                                      />
+                                      <span className="text-sm text-[#00313A]/60">
+                                        x {formatPrice(subAction.price, selectedAction.currency)} = {
+                                          purchaseData[subAction.id]?.quantity 
+                                            ? formatPrice((parseFloat(subAction.price) * purchaseData[subAction.id].quantity).toString(), selectedAction.currency)
+                                            : formatPrice('0', selectedAction.currency)
+                                        }
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {/* Buyer Data Form */}
+                                  {purchaseData[subAction.id]?.quantity && purchaseData[subAction.id].quantity > 0 && (
+                                    <div className="space-y-3 bg-gradient-to-br from-[#f0fff4] via-[#e6f9f0] to-[#f6fff9] rounded-lg p-4 border border-[#00B512]/10">
+                                      <p className="text-xs font-semibold text-[#00B512] mb-2">Buyer Information</p>
+                                      
+                                      <div className="space-y-2">
+                                        <div>
+                                          <label className="text-xs font-semibold text-[#00313A] mb-1 block">Full Name *</label>
+                                          <CustomInput
+                                            type="text"
+                                            value={purchaseData[subAction.id]?.buyerData?.fullName || ''}
+                                            onChange={(e) => updateBuyerData(subAction.id, 'fullName', e.target.value)}
+                                            className="h-9 rounded-lg border-2 border-[#00313A]/10 focus:border-[#00B512] text-sm"
+                                            placeholder="Enter full name"
+                                          />
+                                        </div>
+                                        
+                                        <div>
+                                          <label className="text-xs font-semibold text-[#00313A] mb-1 block">Email *</label>
+                                          <CustomInput
+                                            type="email"
+                                            value={purchaseData[subAction.id]?.buyerData?.email || ''}
+                                            onChange={(e) => updateBuyerData(subAction.id, 'email', e.target.value)}
+                                            className="h-9 rounded-lg border-2 border-[#00313A]/10 focus:border-[#00B512] text-sm"
+                                            placeholder="Enter email address"
+                                          />
+                                        </div>
+                                        
+                                        <div>
+                                          <label className="text-xs font-semibold text-[#00313A] mb-1 block">Phone *</label>
+                                          <CustomInput
+                                            type="tel"
+                                            value={purchaseData[subAction.id]?.buyerData?.phone || ''}
+                                            onChange={(e) => updateBuyerData(subAction.id, 'phone', e.target.value)}
+                                            className="h-9 rounded-lg border-2 border-[#00313A]/10 focus:border-[#00B512] text-sm"
+                                            placeholder="Enter phone number"
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Error Message */}
+                                  {purchaseError[subAction.id] && (
+                                    <div className="bg-red-50 border-2 border-red-200 text-red-800 px-3 py-2 rounded-lg text-xs">
+                                      {purchaseError[subAction.id]}
+                                    </div>
+                                  )}
+
+                                  {/* Purchase Button */}
+                                  <CustomButton
+                                    onClick={() => handlePurchase(subAction)}
+                                    disabled={!purchaseData[subAction.id]?.quantity || purchaseData[subAction.id].quantity <= 0 || purchasing[subAction.id]}
+                                    className="w-full h-11 bg-gradient-to-r from-[#00B512] to-[#1fd331] text-white rounded-lg font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                                  >
+                                    {purchasing[subAction.id] ? (
+                                      <span className="flex items-center justify-center gap-2">
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        Processing...
+                                      </span>
+                                    ) : (
+                                      <span className="flex items-center justify-center gap-2">
+                                        <CreditCard className="w-4 h-4" />
+                                        Purchase
+                                      </span>
+                                    )}
+                                  </CustomButton>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
               </div>
             </div>
-            <div className="border-t border-gray-600 mt-8 pt-8 text-center">
-              {/* Social Media Icons */}
-              <div className="flex justify-center gap-4 mb-6">
-                <button
-                  onClick={() => handleSocialMediaClick('Instagram')}
-                  className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 transform"
-                >
-                  <Instagram className="w-6 h-6 text-white" />
-                </button>
-                <button
-                  onClick={() => handleSocialMediaClick('Facebook')}
-                  className="w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 transform"
-                >
-                  <Facebook className="w-6 h-6 text-white" />
-                </button>
-                <button
-                  onClick={() => handleSocialMediaClick('Twitter')}
-                  className="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-500 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 transform"
-                >
-                  <Twitter className="w-6 h-6 text-white" />
-                </button>
-              </div>
-              <p className="text-sm text-gray-400">
-                © 2024 QiewCode. All rights reserved. Made with ❤️ for secure money transfers.
-              </p>
-            </div>
-          </div>
-        </footer>
-      )}
+          )}
+
+          <DialogFooter>
+            <CustomButton
+              variant="outline"
+              onClick={() => setIsSubActionsModalOpen(false)}
+              className="border-2 border-[#00B512] text-[#00B512] rounded-xl font-bold hover:bg-[#00B512] hover:text-white transition-all duration-300"
+            >
+              Close
+            </CustomButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      
+      
     </>
   );
 };

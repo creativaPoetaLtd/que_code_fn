@@ -52,7 +52,6 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
             setBalanceLoading(true);
             setBalanceError(null);
             try {
-
                 // First try as user
                 let response;
                 try {
@@ -60,7 +59,6 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
                 } catch (userError) {
                     // If user fails, try as organization
                     response = await getEntityBalance(userId, 'organization');
-                    throw userError;
                 }
 
                 if (response.success && response.data) {
