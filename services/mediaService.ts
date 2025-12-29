@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getValidToken } from '@/utils/tokenUtils';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
 
@@ -14,7 +15,7 @@ const apiClient = axios.create({
 // Add auth token to requests
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = getValidToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
