@@ -7,7 +7,7 @@ import Navigation from '@/components/Navigation';
 import { useChatOperations } from '@/hooks/use-chat-operations';
 import { useChatModals } from '@/hooks/use-chat-modals';
 import { useAuthToken } from '@/hooks/use-auth-token';
-import type { Chat, Conversation } from '@/types/chat.types';
+import type { Conversation } from '@/types/chat.types';
 import { useSidebar } from '@/context/SidebarContext';
 import { cn } from '@/lib/utils';
 
@@ -63,6 +63,9 @@ export default function ChatPageClean() {
   const [selectedChat, setSelectedChat] = useState<Conversation | null>(null);
   const [isGroupSettingsModalOpen, setIsGroupSettingsModalOpen] = useState(false);
 
+  // Determine if chat is active (used to hide bottom nav)
+  const isChatActive = !!selectedChat && !showMobileConversationList;
+
   // Auto-select conversation when activeChat changes (e.g., from joining a group)
   useEffect(() => {
     if (activeChat && conversations.length > 0) {
@@ -98,7 +101,7 @@ export default function ChatPageClean() {
           ? `${conversation.otherUser.firstName} ${conversation.otherUser.lastName}`
           : 'Unknown Contact'),
       isGroup: conversation.isGroup,
-      groupId: conversation.groupId, // Include groupId
+      groupId: conversation.groupId,
       avatar: conversation.avatar,
       participants: conversation.participants || [],
       unreadCount: conversation.unreadCount || 0,
@@ -116,6 +119,7 @@ export default function ChatPageClean() {
       setIsUserProfileModalOpen(true);
     }
   };
+
   const handleInviteToGroup = () => {
     if (selectedChat?.isGroup) {
       setIsInviteToGroupModalOpen(true);
@@ -133,10 +137,11 @@ export default function ChatPageClean() {
     return selectedChat.participants.find(p => p.userId !== activeChat)
       ?.user as any;
   };
+
   return (
     <div className='flex flex-col min-h-screen bg-gray-50 dark:bg-darkBg-main'>
-      {/* Desktop Sidebar */}
-      <Navigation />
+      {/* Desktop Sidebar - Always visible on desktop */}
+      <Navigation hideBottomNav={isChatActive} />
 
       {/* Main Content */}
       <main className={cn(
@@ -201,13 +206,7 @@ export default function ChatPageClean() {
         </div>
       </main>
 
-      {/* Bottom Navigation for small devices - Hidden when chat is active */}
-      {showMobileConversationList && (
-        <div className='lg:hidden fixed bottom-0 left-0 right-0 z-20 bg-white dark:bg-darkBg-card border-t border-gray-100 dark:border-darkBorder-light'>
-          <Navigation />
-        </div>
-      )}
-
+      {/* Modals */}
       <SendMoneyModal
         isOpen={isSendMoneyModalOpen}
         onClose={closeSendMoneyModal}

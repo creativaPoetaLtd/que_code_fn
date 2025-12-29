@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Loader2, Users, CheckCircle, XCircle, AlertCircle, Home, Clock, Lock } from "lucide-react"
 import { useJoinGroupByLinkMutation } from "@/states/groupSlice"
@@ -48,7 +48,7 @@ function JoinGroupContent() {
 
         // Auto-join when page loads with valid token
         handleJoinGroup()
-    }, [accessToken, token]) // eslint-disable-line react-hooks/exhaustive-deps
+    }, [accessToken, token])
 
     const handleJoinGroup = async () => {
         if (!accessToken || !token) return
