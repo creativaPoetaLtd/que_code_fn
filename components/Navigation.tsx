@@ -29,6 +29,7 @@ import {
 import { cn } from "@/lib/utils"
 import { useAuthToken } from "@/hooks/use-auth-token"
 import { useSidebar } from "@/context/SidebarContext"
+import { ChevronIcon } from "@/components/ui/chevron-icon"
 
 interface NavigationItem {
     id: string
@@ -191,16 +192,29 @@ export default function Navigation() {
                                     size="icon"
                                     onClick={toggleSidebar}
                                     className="h-10 w-10 text-white hover:bg-brand-green dark:hover:bg-brand-gold hover:text-[#00313A] rounded-lg transition-all hover:scale-110"
+                                    aria-label="Collapse sidebar"
                                 >
-                                    <PanelLeftClose size={22} />
+                                    <div className="flex items-center justify-center gap-1">
+                                        <ChevronIcon
+                                            direction="left"
+                                            size={16}
+                                            className="text-white"
+                                        />
+                                        <PanelLeftClose size={18} />
+                                    </div>
                                 </Button>
                             </>
                         ) : (
                             <button
                                 onClick={toggleSidebar}
                                 className="h-10 w-10 mx-auto bg-darkBorder-medium rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-lg hover:bg-brand-green dark:hover:bg-brand-gold hover:text-darkBg-main transition-all hover:scale-105"
+                                aria-label="Expand sidebar"
                             >
-                                QC
+                                <ChevronIcon
+                                    direction="right"
+                                    size={16}
+                                    className="text-white"
+                                />
                             </button>
                         )}
                     </div>
