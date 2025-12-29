@@ -136,7 +136,7 @@ export const Header = () => {
     };
 
     return (
-        <div className="flex justify-between items-center px-3 sm:px-4 py-3 sm:py-4 min-h-16 sm:min-h-18">
+        <div className="flex justify-between items-center px-3 sm:px-4 py-3 sm:py-4 min-h-16 sm:min-h-18 bg-white dark:bg-darkBg-main">
             {/* Left Section: Title */}
             <div className="flex items-center justify-start">
                 <h2 className="text-sm sm:text-md lg:text-2xl font-bold text-[#00313A] dark:text-white leading-tight whitespace-nowrap">

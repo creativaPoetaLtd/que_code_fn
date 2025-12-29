@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
-import { Copy, CreditCard, Send, Share2, User, Download, Square, Plus } from 'lucide-react';
+import { Copy, CreditCard, Send, Share2, User, Download, Square, Plus, Check } from 'lucide-react';
 import baseUrl from '@/helpers/baseUrl';
 import { getUserBalance, getEntityBalance } from '@/helpers/api';
 
@@ -19,6 +19,7 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
     const [balance, setBalance] = useState<number | null>(null);
     const [balanceLoading, setBalanceLoading] = useState(true);
     const [balanceError, setBalanceError] = useState<string | null>(null);
+    const [copied, setCopied] = useState(false);
 
     useEffect(() => {
         const fetchUserData = async () => {
@@ -147,6 +148,8 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
         try {
             const userLink = `https://yourdomain.com/welcome/${userId}`;
             await navigator.clipboard.writeText(userLink);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1000);
         } catch (error) {
             throw new Error('Failed to copy link');
         }
@@ -251,11 +254,11 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
                         <div className="flex gap-2">
                             <button
                                 onClick={handleCopy}
-                                className="flex items-center justify-center w-10 h-10 rounded-full bg-[#00313A] dark:bg-brand-gold/20 hover:bg-[#004D5C] dark:hover:bg-brand-gold/30 transition text-white dark:text-brand-gold"
-                                aria-label="Copy"
-                                title="Copy"
+                                className={`flex items-center justify-center w-10 h-10 rounded-full transition text-white dark:text-brand-gold bg-[#00313A] dark:bg-brand-gold/20 hover:bg-[#004D5C] dark:hover:bg-brand-gold/30`}
+                                aria-label={copied ? "Copied" : "Copy"}
+                                title={copied ? "Copied" : "Copy"}
                             >
-                                <Copy size={18} />
+                                {copied ? <Check size={18} /> : <Copy size={18} />}
                             </button>
                             <button
                                 onClick={handleShare}
