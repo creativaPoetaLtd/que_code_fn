@@ -13,6 +13,7 @@ export interface Contact {
     firstName: string;
     lastName: string;
     email: string;
+    phone: string;
   };
 }
 
@@ -32,12 +33,14 @@ export interface ContactInvitation {
     firstName: string;
     lastName: string;
     email: string;
+    phone: string;
   };
   invitee?: {
     id: string;
     firstName: string;
     lastName: string;
     email: string;
+    phone: string;
   };
 }
 
@@ -118,16 +121,17 @@ export const contactSlice = apiSlice.injectEndpoints({
         };
       },
     }),
-    getAcceptedContacts: builder.query({
-      query: (token: string) => {
-        return {
-          url: '/contacts/accepted',
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          }
-        };
-      },
+    getAcceptedContacts: builder.query<
+      { contacts: Contact[]; totalCount: number; pagination: { page: number; limit: number; totalPages: number } },
+      string
+    >({
+      query: (token: string) => ({
+        url: '/contacts/accepted',
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }),
     }),
 
     // New enhanced contact endpoints

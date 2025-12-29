@@ -8,6 +8,9 @@ import { useRouter, useParams } from "next/navigation";
 import { getUserBalance, getAllUsers, getEntityBalance } from "@/helpers/api";
 import { useAuthToken } from "@/hooks/use-auth-token";
 import { getUserIdFromToken, isTokenExpired } from "@/utils/jwtUtils";
+import { useSidebar } from "@/context/SidebarContext";
+import { cn } from "@/lib/utils";
+import { useGetAcceptedContactsQuery } from "@/states/contactSlice";
 
 interface Contact {
   id: string;
@@ -27,16 +30,22 @@ interface QuickAction {
 const TransferPageLayout = () => {
   const router = useRouter();
   const { getToken } = useAuthToken();
+  const { isExpanded } = useSidebar();
   const params = useParams();
   const paramUserId = params?.userId as string | undefined;
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
-  const [contactsLoading, setContactsLoading] = useState(true);
   const [contactsError, setContactsError] = useState<string | null>(null);
   const [balance, setBalance] = useState<number | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(true);
   const [balanceError, setBalanceError] = useState<string | null>(null);
+
+  // Use RTK Query for contacts
+  const token = getToken();
+  const { data: contactsData, isLoading: isContactsLoading, error: contactsQueryError } = useGetAcceptedContactsQuery(token || '', {
+    skip: !token,
+  });
 
   useEffect(() => {
   const fetchBalance = async () => {
@@ -77,27 +86,27 @@ const TransferPageLayout = () => {
       }
     };
     fetchBalance();
-
-    const fetchContacts = async () => {
-      setContactsLoading(true);
-      setContactsError(null);
-      try {
-        const users = await getAllUsers();
-        setContacts(users.map((u: any) => ({
-          id: u.id,
-          name: `${u.firstName} ${u.lastName}`,
-          phone: u.phone,
-          avatar: u.profileImage || "/Images/Profile.png",
-          isOnline: !!u.isOnline // or use a real field if available
-        })));
-      } catch (err: any) {
-        setContactsError('Could not fetch contacts');
-      } finally {
-        setContactsLoading(false);
-      }
-    };
-    fetchContacts();
   }, []);
+
+  // Handle contacts data from RTK Query
+  useEffect(() => {
+    if (contactsData && contactsData.contacts) {
+      const mappedContacts = contactsData.contacts.map((contact: any) => ({
+        id: contact.otherUser.id,
+        name: `${contact.otherUser.firstName} ${contact.otherUser.lastName}`,
+        phone: contact.otherUser.phone || '',
+        avatar: contact.otherUser.profileImage || "/Images/Profile.png",
+        isOnline: false,
+      }));
+      setContacts(mappedContacts);
+    }
+  }, [contactsData]);
+
+  useEffect(() => {
+    if (contactsQueryError) {
+      setContactsError('Could not fetch contacts');
+    }
+  }, [contactsQueryError]);
 
   const quickActions: QuickAction[] = [
     { 
@@ -144,7 +153,10 @@ const TransferPageLayout = () => {
       <Navigation />
 
       {/* Header */}
-      <div className="bg-white shadow-sm px-4 py-4 flex items-center lg:ml-20">
+      <div className={cn(
+        "bg-white shadow-sm px-4 py-4 flex items-center transition-all duration-300",
+        isExpanded ? "lg:ml-64" : "lg:ml-20"
+      )}>
         <button onClick={() => router.back()} className="mr-3 p-2 hover:bg-gray-100 rounded-full transition">
           <ArrowLeft className="w-5 h-5 text-gray-700" />
         </button>
@@ -152,7 +164,10 @@ const TransferPageLayout = () => {
       </div>
 
       {/* Main Content */}
-      <div className="lg:ml-20 p-6 max-w-4xl mx-auto">
+      <div className={cn(
+        "p-6 max-w-4xl mx-auto transition-all duration-300",
+        isExpanded ? "lg:ml-64" : "lg:ml-20"
+      )}>
         {/* Balance Card */}
         <div className="bg-gradient-to-r from-[#00313A] to-[#00252e] rounded-3xl p-6 mb-8 text-white relative overflow-hidden">
           <div className="relative z-10">
@@ -212,7 +227,7 @@ const TransferPageLayout = () => {
           </div>
 
           <div className="space-y-3">
-            {contactsLoading ? (
+            {isContactsLoading ? (
               <div className="text-center py-12">
                 <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                 <p className="text-gray-500">Loading contacts...</p>
