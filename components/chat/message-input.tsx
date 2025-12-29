@@ -129,7 +129,7 @@ export default function MessageInput({ onSendMessage = () => { } }: MessageInput
 
     return (
         <>
-            <div className="bg-white dark:bg-darkBg-card p-3 sm:p-4 border-t border-gray-100 dark:border-darkBorder-light shadow-sm fixed bottom-24 md:bottom-0 left-0 right-0 md:relative">
+            <div className="bg-white dark:bg-darkBg-card p-3 sm:p-4 border-t border-gray-100 dark:border-darkBorder-light shadow-sm fixed bottom-0 md:bottom-0 left-0 right-0 md:relative">
                 <div className="flex items-center gap-1 sm:gap-2">
                     <div className="relative" ref={dropdownRef}>
                         <Button

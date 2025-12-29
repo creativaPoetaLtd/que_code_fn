@@ -49,10 +49,25 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     }, [getToken])
 
     const addNotification = useCallback((notification: Notification) => {
-        setNotifications((prev) => [notification, ...prev])
-        if (!notification.isRead) {
-            setUnreadCount((prev) => prev + 1)
-        }
+        setNotifications((prev) => {
+            // Check for duplicate by ID or by matching type + data combination
+            const isDuplicate = prev.some(n => 
+                n.id === notification.id || 
+                (n.type === notification.type && 
+                 n.data?.groupId === notification.data?.groupId &&
+                 n.data?.userId === notification.data?.userId &&
+                 // Check if created within last 5 seconds to avoid duplicates from multiple socket events
+                 Math.abs(new Date(n.createdAt).getTime() - new Date(notification.createdAt).getTime()) < 5000)
+            )
+            if (isDuplicate) {
+                return prev
+            }
+            // Increment unread count only for new notifications
+            if (!notification.isRead) {
+                setUnreadCount((prevCount) => prevCount + 1)
+            }
+            return [notification, ...prev]
+        })
     }, [])
 
     const markAsRead = useCallback((notificationId: string) => {
@@ -100,15 +115,15 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         })
     }, [])
 
-    // Handle real-time notifications
+    // Handle real-time notifications from generic 'notification' socket event
     const handleNotification = useCallback(
         (notification: any) => {
             const formattedNotification: Notification = {
                 id: notification.id,
                 type: notification.type,
-                title: notification.title,
-                message: notification.data.message,
-                data: notification.data, // Ensure data is passed
+                title: notification.title || notification.data?.title || 'Notification',
+                message: notification.data?.message,
+                data: notification.data,
                 isRead: notification.isRead || false,
                 createdAt: notification.createdAt || new Date().toISOString(),
                 updatedAt: notification.updatedAt || new Date().toISOString(),
@@ -300,15 +315,9 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
                     socket.on("disconnect", handleDisconnect)
                     socket.on("connect_error", handleConnectError)
 
-                    // Set up event listeners for notifications
+                    // Set up event listeners for notifications - only use the generic notification handler
+                    // since backend emits all notifications via "notification" event
                     socketService.onNotification(handleNotification)
-                    socketService.onGroupInvitation(handleGroupInvitation)
-                    socketService.onContactRequest(handleContactRequest)
-                    socket.on("CONTACT_REQUEST_RECEIVED", handleContactRequest)
-                    socket.on("groupJoinApproved", handleGroupJoinApproved)
-                    socket.on("groupJoinRejected", handleGroupJoinRejected)
-                    socket.on("groupJoinRequest", handleGroupJoinRequest)
-                    socket.on("groupCreated", handleGroupCreated)
 
                     // Update connection status based on current state
                     setIsConnected(socket.connected)
@@ -319,13 +328,6 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
                         socket.off("disconnect", handleDisconnect)
                         socket.off("connect_error", handleConnectError)
                         socketService.offNotification(handleNotification)
-                        socketService.offGroupInvitation(handleGroupInvitation)
-                        socketService.offContactRequest(handleContactRequest)
-                        socket.off("CONTACT_REQUEST_RECEIVED", handleContactRequest)
-                        socket.off("groupJoinApproved", handleGroupJoinApproved)
-                        socket.off("groupJoinRejected", handleGroupJoinRejected)
-                        socket.off("groupJoinRequest", handleGroupJoinRequest)
-                        socket.off("groupCreated", handleGroupCreated)
                         setIsConnected(false)
                         if (reconnectTimeoutRef.current) {
                             clearTimeout(reconnectTimeoutRef.current)
@@ -343,16 +345,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
             console.warn("No valid token found")
             setIsConnected(false)
         }
-    }, [
-        authToken,
-        handleNotification,
-        handleGroupInvitation,
-        handleContactRequest,
-        handleGroupJoinApproved,
-        handleGroupJoinRejected,
-        handleGroupJoinRequest,
-        handleGroupCreated,
-    ])
+    }, [authToken, handleNotification])
 
     const value: NotificationContextType = {
         notifications,

@@ -38,7 +38,11 @@ interface NavigationItem {
     isCenterButton?: boolean
 }
 
-export default function Navigation() {
+interface NavigationProps {
+    hideBottomNav?: boolean // Add prop to control bottom nav visibility
+}
+
+export default function Navigation({ hideBottomNav = false }: NavigationProps) {
     const { isExpanded, toggleSidebar } = useSidebar()
     const [activeItem, setActiveItem] = useState<string>("Home")
     const [userId, setUserId] = useState<string>("")
@@ -249,92 +253,94 @@ export default function Navigation() {
                 </div>
             </aside>
 
-            {/* Mobile Bottom Navigation */}
-            <nav className="fixed bottom-0 left-0 right-0 lg:hidden z-50 bg-white dark:bg-darkBg-interactive border-t border-gray-200 dark:border-darkBorder-light pointer-events-auto">
-                {/* More Menu Popup */}
-                {isMoreMenuOpen && (
-                    <div className="absolute bottom-full right-4 mb-2 bg-darkBg-interactive rounded-2xl shadow-xl border border-darkBorder-light p-4 w-64 animate-in slide-in-from-bottom-10 fade-in duration-200">
-                        <div className="grid grid-cols-3 gap-4">
-                            {mobileSecondaryItems.map((item) => (
-                                <button
-                                    key={item.id}
-                                    onClick={() => handleClick(item.id, item.path)}
-                                    className={cn(
-                                        "flex flex-col items-center gap-1 px-2 py-2 rounded-lg transition-colors",
-                                        activeItem === item.id ? "bg-brand-gold/20 text-brand-gold" : "text-gray-400 hover:text-white"
-                                    )}
-                                >
-                                    <span className="text-lg">{item.icon}</span>
-                                    <span className="text-[10px] font-medium">{item.label}</span>
-                                </button>
-                            ))}
+            {/* Mobile Bottom Navigation - Only render if not hidden */}
+            {!hideBottomNav && (
+                <nav className="fixed bottom-0 left-0 right-0 sm:hidden z-50 bg-white dark:bg-darkBg-interactive border-t border-gray-200 dark:border-darkBorder-light pointer-events-auto">
+                    {/* More Menu Popup */}
+                    {isMoreMenuOpen && (
+                        <div className="absolute bottom-full right-4 mb-2 bg-darkBg-interactive rounded-2xl shadow-xl border border-darkBorder-light p-4 w-64 animate-in slide-in-from-bottom-10 fade-in duration-200">
+                            <div className="grid grid-cols-3 gap-4">
+                                {mobileSecondaryItems.map((item) => (
+                                    <button
+                                        key={item.id}
+                                        onClick={() => handleClick(item.id, item.path)}
+                                        className={cn(
+                                            "flex flex-col items-center gap-1 px-2 py-2 rounded-lg transition-colors",
+                                            activeItem === item.id ? "bg-brand-gold/20 text-brand-gold" : "text-gray-400 hover:text-white"
+                                        )}
+                                    >
+                                        <span className="text-lg">{item.icon}</span>
+                                        <span className="text-[10px] font-medium">{item.label}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="flex justify-between items-center px-4 py-3 max-w-md md:max-w-2xl mx-auto h-24">
+                        {/* Left items */}
+                        <div className="flex items-center gap-8 flex-1">
+                            <button
+                                onClick={() => handleClick('Home', mobilePrimaryItems[0].path)}
+                                className={cn(
+                                    "flex flex-col items-center gap-1 transition-colors duration-200",
+                                    activeItem === 'Home' ? "text-brand-green dark:text-brand-gold" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                                )}
+                            >
+                                <Home size={24} />
+                                <span className="text-xs font-medium">Home</span>
+                            </button>
+
+                            <button
+                                onClick={() => handleClick('Statistics', mobilePrimaryItems[1].path)}
+                                className={cn(
+                                    "flex flex-col items-center gap-1 transition-colors duration-200",
+                                    activeItem === 'Statistics' ? "text-brand-green dark:text-brand-gold" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                                )}
+                            >
+                                <TrendingUp size={24} />
+                                <span className="text-xs font-medium">Statistics</span>
+                            </button>
+                        </div>
+
+                        {/* Center Scan Button - Larger */}
+                        <button
+                            onClick={() => handleClick('Scan', '')}
+                            className="flex flex-col items-center gap-1 -mt-12 transition-transform active:scale-95 hover:scale-110 duration-200 mx-4"
+                        >
+                            <div className="w-16 h-16 bg-brand-green dark:bg-brand-gold rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-shadow">
+                                <ScanLine size={32} className="text-white dark:text-darkBg-main" strokeWidth={1.5} />
+                            </div>
+                            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-1">Scan</span>
+                        </button>
+
+                        {/* Right items */}
+                        <div className="flex items-center gap-8 flex-1 justify-end">
+                            <button
+                                onClick={() => handleClick('Chat', mobilePrimaryItems[3].path)}
+                                className={cn(
+                                    "flex flex-col items-center gap-1 transition-colors duration-200",
+                                    activeItem === 'Chat' ? "text-brand-green dark:text-brand-gold" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                                )}
+                            >
+                                <MessageCircle size={24} />
+                                <span className="text-xs font-medium">Messages</span>
+                            </button>
+
+                            <button
+                                onClick={() => handleClick('More', '')}
+                                className={cn(
+                                    "flex flex-col items-center gap-1 transition-colors duration-200",
+                                    isMoreMenuOpen ? "text-brand-gold" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                                )}
+                            >
+                                <MoreHorizontal size={24} />
+                                <span className="text-xs font-medium">More</span>
+                            </button>
                         </div>
                     </div>
-                )}
-
-                <div className="flex justify-between items-center px-4 py-3 max-w-md md:max-w-2xl mx-auto h-24">
-                    {/* Left items */}
-                    <div className="flex items-center gap-8 flex-1">
-                        <button
-                            onClick={() => handleClick('Home', mobilePrimaryItems[0].path)}
-                            className={cn(
-                                "flex flex-col items-center gap-1 transition-colors duration-200",
-                                activeItem === 'Home' ? "text-brand-green dark:text-brand-gold" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                            )}
-                        >
-                            <Home size={24} />
-                            <span className="text-xs font-medium">Home</span>
-                        </button>
-
-                        <button
-                            onClick={() => handleClick('Statistics', mobilePrimaryItems[1].path)}
-                            className={cn(
-                                "flex flex-col items-center gap-1 transition-colors duration-200",
-                                activeItem === 'Statistics' ? "text-brand-green dark:text-brand-gold" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                            )}
-                        >
-                            <TrendingUp size={24} />
-                            <span className="text-xs font-medium">Statistics</span>
-                        </button>
-                    </div>
-
-                    {/* Center Scan Button - Larger */}
-                    <button
-                        onClick={() => handleClick('Scan', '')}
-                        className="flex flex-col items-center gap-1 -mt-12 transition-transform active:scale-95 hover:scale-110 duration-200 mx-4"
-                    >
-                        <div className="w-16 h-16 bg-brand-green dark:bg-brand-gold rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-shadow">
-                            <ScanLine size={32} className="text-white dark:text-darkBg-main" strokeWidth={1.5} />
-                        </div>
-                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-1">Scan</span>
-                    </button>
-
-                    {/* Right items */}
-                    <div className="flex items-center gap-8 flex-1 justify-end">
-                        <button
-                            onClick={() => handleClick('Chat', mobilePrimaryItems[3].path)}
-                            className={cn(
-                                "flex flex-col items-center gap-1 transition-colors duration-200",
-                                activeItem === 'Chat' ? "text-brand-green dark:text-brand-gold" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                            )}
-                        >
-                            <MessageCircle size={24} />
-                            <span className="text-xs font-medium">Messages</span>
-                        </button>
-
-                        <button
-                            onClick={() => handleClick('More', '')}
-                            className={cn(
-                                "flex flex-col items-center gap-1 transition-colors duration-200",
-                                isMoreMenuOpen ? "text-brand-gold" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                            )}
-                        >
-                            <MoreHorizontal size={24} />
-                            <span className="text-xs font-medium">More</span>
-                        </button>
-                    </div>
-                </div>
-            </nav>
+                </nav>
+            )}
         </>
     )
 }
