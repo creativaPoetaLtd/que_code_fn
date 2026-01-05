@@ -148,26 +148,25 @@ const TransferPageLayout = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="flex min-h-screen">
       {/* Navigation */}
       <Navigation />
 
-      {/* Header */}
+      {/* Main Content Wrapper */}
       <div className={cn(
-        "bg-white shadow-sm px-4 py-4 flex items-center transition-all duration-300",
+        "flex-1 bg-gray-50 transition-all duration-300",
         isExpanded ? "lg:ml-64" : "lg:ml-20"
       )}>
-        <button onClick={() => router.back()} className="mr-3 p-2 hover:bg-gray-100 rounded-full transition">
-          <ArrowLeft className="w-5 h-5 text-gray-700" />
-        </button>
-        <h1 className="text-xl font-semibold text-gray-900">Send Money</h1>
-      </div>
+        {/* Header */}
+        <div className="bg-white shadow-sm px-4 py-4 flex items-center">
+          <button onClick={() => router.back()} className="mr-3 p-2 hover:bg-gray-100 rounded-full transition">
+            <ArrowLeft className="w-5 h-5 text-gray-700" />
+          </button>
+          <h1 className="text-xl font-semibold text-gray-900">Send Money</h1>
+        </div>
 
-      {/* Main Content */}
-      <div className={cn(
-        "p-6 max-w-4xl mx-auto transition-all duration-300",
-        isExpanded ? "lg:ml-64" : "lg:ml-20"
-      )}>
+        {/* Main Content */}
+        <div className="p-6 max-w-4xl mx-auto">
         {/* Balance Card */}
         <div className="bg-gradient-to-r from-[#00313A] to-[#00252e] rounded-3xl p-6 mb-8 text-white relative overflow-hidden">
           <div className="relative z-10">
@@ -289,6 +288,7 @@ const TransferPageLayout = () => {
               </div>
             )}
           </div>
+        </div>
         </div>
       </div>
     </div>
