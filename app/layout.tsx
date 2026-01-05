@@ -1,17 +1,27 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 // @ts-ignore: allow importing global css without type declarations
 import "antd/dist/reset.css";
 // @ts-ignore: allow importing global css without type declarations
 import "./globals.css";
-import { Poppins } from "next/font/google";
 import ClientProvider from "@/components/ClientProvider";
 import { Toaster } from "@/components/ui/toaster";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 
-const poppins = Poppins({
-  subsets: ["latin"],
-  weight: ["700", "400"],
+const poppins = localFont({
+  src: [
+    {
+      path: "../public/fonts/Poppins-Regular.ttf",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/Poppins-Bold.ttf",
+      weight: "700",
+      style: "normal",
+    },
+  ],
+  variable: "--font-poppins",
 });
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -47,12 +57,13 @@ export const metadata: Metadata = {
     title: "QueCode - Chat & Payment App",
     description: "Chat with friends, send money, and manage groups - all in one place",
   },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
-  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   themeColor: "#00B512",
 };
 
