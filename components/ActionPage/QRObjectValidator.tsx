@@ -176,17 +176,38 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
     };
 
     const captureAndValidateQR = async () => {
-        if (!QrScanner || !videoRef.current) return;
+        if (!QrScanner || !videoRef.current || !canvasRef.current) return;
         
         if (processingRef.current) return;
         processingRef.current = true;
         
         try {
             setError("");
-            // Scan the current video frame for QR code
-            const result = await QrScanner.scanImage(videoRef.current, {
+            
+            // Method 1: Try scanning directly from video
+            let result = await QrScanner.scanImage(videoRef.current, {
                 returnDetailedDetectionResult: true,
             });
+
+            // Method 2: If that fails, capture to canvas and scan from canvas
+            if (!result?.data) {
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext("2d");
+                
+                if (ctx && videoRef.current) {
+                    // Set canvas size to match video
+                    canvas.width = videoRef.current.videoWidth;
+                    canvas.height = videoRef.current.videoHeight;
+                    
+                    // Draw current video frame to canvas
+                    ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+                    
+                    // Try scanning from canvas
+                    result = await QrScanner.scanImage(canvas, {
+                        returnDetailedDetectionResult: true,
+                    });
+                }
+            }
 
             if (result?.data) {
                 stopCamera();
