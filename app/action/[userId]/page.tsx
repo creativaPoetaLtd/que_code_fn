@@ -692,7 +692,7 @@ const ActionsByAccountPage = () => {
                             )}
                         </div>
 
-                        {item.metadata?.benefits?.length ? (
+                        {Array.isArray(item.metadata?.benefits) && item.metadata.benefits.length > 0 ? (
                             <div className="mt-5">
                                 <p className="text-xs font-semibold text-[#00B512] dark:text-brand-green uppercase tracking-widest mb-2">Benefits</p>
                                 <ul className="space-y-1 text-sm text-[#00313A]/80 dark:text-gray-300">
