@@ -133,6 +133,10 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
                     try {
                         await videoRef.current?.play();
                         setIsScanning(true);
+                        // Wait a bit for video to start before starting QR detection
+                        setTimeout(() => {
+                            startQRDetection();
+                        }, 500);
                     } catch (err) {
                         console.error("Video play error:", err);
                         setError("Failed to start video preview");
@@ -175,70 +179,79 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
         processingRef.current = false;
     };
 
-    const captureAndValidateQR = async () => {
-        if (!videoRef.current || !canvasRef.current || !QrScanner) return;
-        
-        if (processingRef.current) return;
-        processingRef.current = true;
-        
-        try {
-            setError("");
-            
-            const canvas = canvasRef.current;
-            const ctx = canvas.getContext("2d");
-            
-            if (!ctx) {
-                throw new Error("Could not get canvas context");
-            }
-            
-            // Set canvas size to match video
-            canvas.width = videoRef.current.videoWidth;
-            canvas.height = videoRef.current.videoHeight;
-            
-            // Capture current video frame to canvas
-            ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-            
-            // Convert canvas to blob/image
-            const imageData = canvas.toDataURL("image/png");
-            
-            // Create image element from captured data
-            const img = new Image();
-            img.src = imageData;
-            
-            // Wait for image to load
-            await new Promise((resolve, reject) => {
-                img.onload = resolve;
-                img.onerror = reject;
-                setTimeout(reject, 5000); // 5 second timeout
-            });
-            
-            // Scan the captured image for QR code
-            const result = await QrScanner.scanImage(img, {
-                returnDetailedDetectionResult: true,
-            });
+    const startQRDetection = () => {
+        if (!QrScanner || !videoRef.current || !canvasRef.current) return;
 
-            if (result?.data) {
-                stopCamera();
-                await processScannedResult(result.data);
-            } else {
-                setError("No QR code detected. Please position the camera properly and try again.");
-                processingRef.current = false;
-                toast({
-                    title: "QR Code Not Found",
-                    description: "Could not find a QR code in the captured image. Please adjust the position and try again.",
-                    variant: "destructive",
+        const scan = async () => {
+            if (!videoRef.current || !canvasRef.current || processingRef.current) return;
+
+            try {
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext("2d");
+                
+                if (!ctx) return;
+                
+                // Set canvas size to match video
+                canvas.width = videoRef.current.videoWidth;
+                canvas.height = videoRef.current.videoHeight;
+                
+                // Draw current video frame to canvas
+                ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+                
+                // Convert canvas to image data URL
+                const imageData = canvas.toDataURL("image/png");
+                
+                // Create image element
+                const img = new Image();
+                img.src = imageData;
+                
+                // Wait for image to load
+                await new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = reject;
+                    setTimeout(reject, 1000);
                 });
+
+                // Try scanning image element first (like PDF method)
+                try {
+                    const result = await QrScanner.scanImage(img);
+                    if (result) {
+                        processingRef.current = true;
+                        stopCamera();
+                        await processScannedResult(result);
+                        return;
+                    }
+                } catch (err) {
+                    // Try scanning data URL
+                    try {
+                        const result = await QrScanner.scanImage(imageData);
+                        if (result) {
+                            processingRef.current = true;
+                            stopCamera();
+                            await processScannedResult(result);
+                            return;
+                        }
+                    } catch (err2) {
+                        // Try canvas directly
+                        try {
+                            const result = await QrScanner.scanImage(canvas);
+                            if (result) {
+                                processingRef.current = true;
+                                stopCamera();
+                                await processScannedResult(result);
+                                return;
+                            }
+                        } catch (err3) {
+                            // No QR code found, continue scanning
+                        }
+                    }
+                }
+            } catch (err) {
+                // Silently continue scanning on error
             }
-        } catch (err: any) {
-            console.error("QR scan error:", err);
-            setError("Failed to scan QR code. Please try again.");
-            processingRef.current = false;
-            toast({
-                title: "Scan Failed",
-                description: err?.message || "Could not scan the QR code. Please try again.",
-                variant: "destructive",
-            });
-        }
+        };
+
+        scanIntervalRef.current = setInterval(scan, 500);
     };
 
     // State for external URL detection
@@ -711,24 +724,12 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
                                         <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-[#00B512]"></div>
                                     </div>
                                 </div>
-                                <div className="mt-4 flex flex-col sm:flex-row justify-center gap-3">
-                                    <Button
-                                        onClick={captureAndValidateQR}
-                                        disabled={processingRef.current}
-                                        className="flex-1 bg-gradient-to-r from-[#00B512] to-[#1fd331] text-white hover:shadow-lg"
-                                    >
-                                        {processingRef.current ? (
-                                            <>
-                                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                                Validating...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Check className="w-4 h-4 mr-2" />
-                                                Validate QR Code
-                                            </>
-                                        )}
-                                    </Button>
+                                {/* Scanning indicator */}
+                                <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-[#00B512]/90 text-white px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2 z-10">
+                                    <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                                    Scanning...
+                                </div>
+                                <div className="mt-4 flex justify-center gap-3">
                                     <Button
                                         variant="outline"
                                         onClick={stopCamera}
