@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Scan, CheckCircle2, XCircle, Loader2, Camera, X, Upload, FileText, ExternalLink } from "lucide-react";
+import { Scan, CheckCircle2, XCircle, Loader2, Camera, X, Upload, FileText, ExternalLink, Check } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import axios from "axios";
 import baseUrl from "@/helpers/baseUrl";
@@ -133,10 +133,6 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
                     try {
                         await videoRef.current?.play();
                         setIsScanning(true);
-                        // Wait a bit for video to start before starting QR detection
-                        setTimeout(() => {
-                            startQRDetection();
-                        }, 500);
                     } catch (err) {
                         console.error("Video play error:", err);
                         setError("Failed to start video preview");
@@ -179,26 +175,41 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
         processingRef.current = false;
     };
 
-    const startQRDetection = () => {
-        if (!QrScanner || !videoRef.current || !canvasRef.current) return;
+    const captureAndValidateQR = async () => {
+        if (!QrScanner || !videoRef.current) return;
+        
+        if (processingRef.current) return;
+        processingRef.current = true;
+        
+        try {
+            setError("");
+            // Scan the current video frame for QR code
+            const result = await QrScanner.scanImage(videoRef.current, {
+                returnDetailedDetectionResult: true,
+            });
 
-        const scan = async () => {
-            if (!videoRef.current || !canvasRef.current) return;
-
-            try {
-                const result = await QrScanner.scanImage(videoRef.current, {
-                    returnDetailedDetectionResult: true,
+            if (result?.data) {
+                stopCamera();
+                await processScannedResult(result.data);
+            } else {
+                setError("No QR code detected. Please position the camera properly and try again.");
+                processingRef.current = false;
+                toast({
+                    title: "QR Code Not Found",
+                    description: "Could not find a QR code in the camera view. Please adjust the position and try again.",
+                    variant: "destructive",
                 });
-
-                if (result?.data) {
-                    handleScanSuccess(result.data);
-                }
-            } catch (err) {
-                // No QR code detected, continue scanning
             }
-        };
-
-        scanIntervalRef.current = setInterval(scan, 500);
+        } catch (err: any) {
+            console.error("QR scan error:", err);
+            setError("Failed to scan QR code. Please try again.");
+            processingRef.current = false;
+            toast({
+                title: "Scan Failed",
+                description: "Could not scan the QR code. Please try again.",
+                variant: "destructive",
+            });
+        }
     };
 
     // State for external URL detection
@@ -671,12 +682,24 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
                                         <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-[#00B512]"></div>
                                     </div>
                                 </div>
-                                {/* Scanning indicator */}
-                                <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-[#00B512]/90 text-white px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2 z-10">
-                                    <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-                                    Scanning...
-                                </div>
-                                <div className="mt-4 flex justify-center gap-3">
+                                <div className="mt-4 flex flex-col sm:flex-row justify-center gap-3">
+                                    <Button
+                                        onClick={captureAndValidateQR}
+                                        disabled={processingRef.current}
+                                        className="flex-1 bg-gradient-to-r from-[#00B512] to-[#1fd331] text-white hover:shadow-lg"
+                                    >
+                                        {processingRef.current ? (
+                                            <>
+                                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                Validating...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Check className="w-4 h-4 mr-2" />
+                                                Validate QR Code
+                                            </>
+                                        )}
+                                    </Button>
                                     <Button
                                         variant="outline"
                                         onClick={stopCamera}
