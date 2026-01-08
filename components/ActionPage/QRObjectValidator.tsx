@@ -176,50 +176,46 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
     };
 
     const captureAndValidateQR = async () => {
-        if (!QrScanner || !videoRef.current || !canvasRef.current) return;
+        if (!videoRef.current || !canvasRef.current || !QrScanner) return;
         
         if (processingRef.current) return;
         processingRef.current = true;
         
         try {
             setError("");
-            let result = null;
             
-            // Try multiple times with canvas-based scanning for better reliability
-            for (let attempt = 0; attempt < 3; attempt++) {
-                if (result?.data) break;
-                
-                try {
-                    const canvas = canvasRef.current;
-                    const ctx = canvas.getContext("2d");
-                    
-                    if (!ctx || !videoRef.current) continue;
-                    
-                    // Set canvas size to match video
-                    canvas.width = videoRef.current.videoWidth;
-                    canvas.height = videoRef.current.videoHeight;
-                    
-                    // Draw current video frame to canvas
-                    ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-                    
-                    // Try scanning from canvas
-                    try {
-                        result = await QrScanner.scanImage(canvas, {
-                            returnDetailedDetectionResult: true,
-                        });
-                    } catch (scanErr) {
-                        // Continue to next attempt
-                        if (attempt < 2) {
-                            await new Promise(resolve => setTimeout(resolve, 200));
-                        }
-                    }
-                } catch (err) {
-                    console.error(`Canvas capture attempt ${attempt + 1} failed:`, err);
-                    if (attempt < 2) {
-                        await new Promise(resolve => setTimeout(resolve, 200));
-                    }
-                }
+            const canvas = canvasRef.current;
+            const ctx = canvas.getContext("2d");
+            
+            if (!ctx) {
+                throw new Error("Could not get canvas context");
             }
+            
+            // Set canvas size to match video
+            canvas.width = videoRef.current.videoWidth;
+            canvas.height = videoRef.current.videoHeight;
+            
+            // Capture current video frame to canvas
+            ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+            
+            // Convert canvas to blob/image
+            const imageData = canvas.toDataURL("image/png");
+            
+            // Create image element from captured data
+            const img = new Image();
+            img.src = imageData;
+            
+            // Wait for image to load
+            await new Promise((resolve, reject) => {
+                img.onload = resolve;
+                img.onerror = reject;
+                setTimeout(reject, 5000); // 5 second timeout
+            });
+            
+            // Scan the captured image for QR code
+            const result = await QrScanner.scanImage(img, {
+                returnDetailedDetectionResult: true,
+            });
 
             if (result?.data) {
                 stopCamera();
@@ -229,7 +225,7 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
                 processingRef.current = false;
                 toast({
                     title: "QR Code Not Found",
-                    description: "Could not find a QR code in the camera view. Please adjust the position and try again.",
+                    description: "Could not find a QR code in the captured image. Please adjust the position and try again.",
                     variant: "destructive",
                 });
             }
@@ -239,7 +235,7 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
             processingRef.current = false;
             toast({
                 title: "Scan Failed",
-                description: "Could not scan the QR code. Please try again.",
+                description: err?.message || "Could not scan the QR code. Please try again.",
                 variant: "destructive",
             });
         }
