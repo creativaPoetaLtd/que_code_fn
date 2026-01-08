@@ -183,18 +183,18 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
         
         try {
             setError("");
+            let result = null;
             
-            // Method 1: Try scanning directly from video
-            let result = await QrScanner.scanImage(videoRef.current, {
-                returnDetailedDetectionResult: true,
-            });
-
-            // Method 2: If that fails, capture to canvas and scan from canvas
-            if (!result?.data) {
-                const canvas = canvasRef.current;
-                const ctx = canvas.getContext("2d");
+            // Try multiple times with canvas-based scanning for better reliability
+            for (let attempt = 0; attempt < 3; attempt++) {
+                if (result?.data) break;
                 
-                if (ctx && videoRef.current) {
+                try {
+                    const canvas = canvasRef.current;
+                    const ctx = canvas.getContext("2d");
+                    
+                    if (!ctx || !videoRef.current) continue;
+                    
                     // Set canvas size to match video
                     canvas.width = videoRef.current.videoWidth;
                     canvas.height = videoRef.current.videoHeight;
@@ -203,9 +203,21 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
                     ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
                     
                     // Try scanning from canvas
-                    result = await QrScanner.scanImage(canvas, {
-                        returnDetailedDetectionResult: true,
-                    });
+                    try {
+                        result = await QrScanner.scanImage(canvas, {
+                            returnDetailedDetectionResult: true,
+                        });
+                    } catch (scanErr) {
+                        // Continue to next attempt
+                        if (attempt < 2) {
+                            await new Promise(resolve => setTimeout(resolve, 200));
+                        }
+                    }
+                } catch (err) {
+                    console.error(`Canvas capture attempt ${attempt + 1} failed:`, err);
+                    if (attempt < 2) {
+                        await new Promise(resolve => setTimeout(resolve, 200));
+                    }
                 }
             }
 
