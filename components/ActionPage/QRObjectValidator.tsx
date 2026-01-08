@@ -61,6 +61,7 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const processingRef = useRef<boolean>(false);
     const [QrScanner, setQrScanner] = useState<any>(null);
 
     useEffect(() => {
@@ -175,6 +176,7 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
 
         setCameraActive(false);
         setIsScanning(false);
+        processingRef.current = false;
     };
 
     const startQRDetection = () => {
@@ -350,6 +352,10 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
     };
 
     const handleScanSuccess = async (scannedData: string) => {
+        // Prevent concurrent processing of multiple detections
+        if (processingRef.current) return;
+        processingRef.current = true;
+        
         stopCamera();
         await processScannedResult(scannedData);
     };
@@ -450,6 +456,7 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
     };
 
     const handleClose = () => {
+        processingRef.current = false;
         stopCamera();
         setScanResult("");
         setValidationResult(null);
@@ -464,6 +471,7 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
         setValidationResult(null);
         setError("");
         setExternalUrl(null);
+        processingRef.current = false;
         stopCamera();
     };
 
