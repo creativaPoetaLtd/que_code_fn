@@ -1,7 +1,11 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { requestNotificationPermission, onMessageListener } from '@/lib/firebase';
+import { 
+  initializePushAlerts, 
+  requestNotificationPermission, 
+  onMessageListener 
+} from '@/lib/pushalerts';
 import { useAuthToken } from './use-auth-token';
 import axios from 'axios';
 
@@ -25,10 +29,10 @@ export function usePushNotifications() {
           if ('serviceWorker' in navigator) {
             try {
               const registrations = await navigator.serviceWorker.getRegistrations();
-              const hasFirebaseSW = registrations.some(r => r.active?.scriptURL.includes('firebase-messaging-sw'));
+              const hasPushAlertsSW = registrations.some(r => r.active?.scriptURL.includes('sw.js'));
               console.log('[usePushNotifications] Service Worker status:', {
                 registered: registrations.length > 0,
-                hasFirebaseSW
+                hasPushAlertsSW
               });
               setSwReady(registrations.length > 0);
             } catch (swError) {
@@ -45,7 +49,7 @@ export function usePushNotifications() {
     initializeNotifications();
   }, []);
 
-  const registerToken = useCallback(async (fcmToken: string) => {
+  const registerSubscriberId = useCallback(async (subscriberId: string) => {
     const authToken = getToken();
     if (!authToken) {
       console.warn('[usePushNotifications] No auth token available');
@@ -53,20 +57,20 @@ export function usePushNotifications() {
     }
 
     try {
-      console.log('[usePushNotifications] Registering FCM token...');
+      console.log('[usePushNotifications] Registering PushAlerts subscriber ID...');
       const response = await axios.put(
-        `${process.env.NEXT_PUBLIC_API_URL}/fcm/token`,
-        { fcmToken },
+        `${process.env.NEXT_PUBLIC_API_URL}/fcm/subscriber`,
+        { subscriberId },
         {
           headers: {
             Authorization: `Bearer ${authToken}`,
           },
         }
       );
-      console.log('[usePushNotifications] FCM token registered successfully');
+      console.log('[usePushNotifications] PushAlerts subscriber ID registered successfully');
       return true;
     } catch (error) {
-      console.error('[usePushNotifications] Error registering FCM token:', error);
+      console.error('[usePushNotifications] Error registering PushAlerts subscriber ID:', error);
       setError('Failed to register device for notifications');
       return false;
     }
@@ -82,16 +86,17 @@ export function usePushNotifications() {
     setError(null);
 
     try {
-      console.log('[usePushNotifications] Requesting notification permission...');
-      const fcmToken = await requestNotificationPermission();
-      if (fcmToken) {
-        console.log('[usePushNotifications] Permission granted, registering token...');
+      console.log('[usePushNotifications] Initializing PushAlerts and requesting permission...');
+      await initializePushAlerts();
+      const subscriberId = await requestNotificationPermission();
+      if (subscriberId) {
+        console.log('[usePushNotifications] Permission granted, registering subscriber...');
         setPermission('granted');
-        const registered = await registerToken(fcmToken);
+        const registered = await registerSubscriberId(subscriberId);
         setLoading(false);
         return registered;
       }
-      console.warn('[usePushNotifications] No FCM token obtained');
+      console.warn('[usePushNotifications] No PushAlerts subscriber ID obtained');
       setPermission(Notification.permission);
       setLoading(false);
       return false;
@@ -101,22 +106,22 @@ export function usePushNotifications() {
       setLoading(false);
       return false;
     }
-  }, [isSupported, registerToken]);
+  }, [isSupported, registerSubscriberId]);
 
-  const unregisterToken = useCallback(async () => {
+  const unregisterSubscriber = useCallback(async () => {
     const authToken = getToken();
     if (!authToken) return false;
 
     try {
-      await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/fcm/token`, {
+      await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/fcm/subscriber`, {
         headers: {
           Authorization: `Bearer ${authToken}`,
         },
       });
-      console.log('[usePushNotifications] FCM token unregistered');
+      console.log('[usePushNotifications] PushAlerts subscriber unregistered');
       return true;
     } catch (error) {
-      console.error('[usePushNotifications] Error unregistering FCM token:', error);
+      console.error('[usePushNotifications] Error unregistering PushAlerts subscriber:', error);
       return false;
     }
   }, [getToken]);
@@ -134,13 +139,15 @@ export function usePushNotifications() {
         
         if (payload.notification) {
           // Show notification even when app is in foreground
-          new Notification(payload.notification.title, {
-            body: payload.notification.body,
-            icon: '/icon-192x192.png',
-            data: payload.data
-          }).catch(err => {
-            console.error('[usePushNotifications] Error showing foreground notification:', err);
-          });
+          try {
+            new Notification(payload.notification.title, {
+              body: payload.notification.body,
+              icon: '/icon-192x192.png',
+              data: payload.data
+            });
+          } catch (notifErr: any) {
+            console.error('[usePushNotifications] Error showing foreground notification:', notifErr);
+          }
         }
       }).catch((err: any) => {
         console.error('[usePushNotifications] Foreground listener error:', err);
@@ -159,6 +166,6 @@ export function usePushNotifications() {
     error,
     swReady,
     requestPermission,
-    unregisterToken,
+    unregisterSubscriber,
   };
 }

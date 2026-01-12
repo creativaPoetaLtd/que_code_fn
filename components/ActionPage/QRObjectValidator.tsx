@@ -358,8 +358,6 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
                     
                     if (welcomeIndex !== -1 && pathParts[welcomeIndex + 1]) {
                         const userId = pathParts[welcomeIndex + 1];
-                        console.log("Welcome URL detected, navigating to /action/" + userId);
-                        
                         toast({
                             title: "User Profile Scanned",
                             description: "Navigating to user's QR objects...",
