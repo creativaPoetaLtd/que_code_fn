@@ -42,7 +42,6 @@ export const initializePushAlerts = async (): Promise<boolean> => {
       return false;
     }
 
-    console.log('[PushAlerts] Service initialized successfully');
     pushAlertsEnabled = true;
     return true;
   } catch (error) {
@@ -70,11 +69,9 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
         registration = await navigator.serviceWorker.register('/sw.js', {
           scope: '/'
         });
-        console.log('[PushAlerts] Service Worker registered');
         
         // Wait for service worker to be active
         const swReady = await navigator.serviceWorker.ready;
-        console.log('[PushAlerts] Service Worker is ready');
       } catch (swError) {
         console.error('[PushAlerts] Service Worker registration failed:', swError);
         return null;
@@ -83,7 +80,6 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
 
     // Request notification permission from user
     if (Notification.permission === 'granted') {
-      console.log('[PushAlerts] Notification permission already granted');
       subscriberId = await generateSubscriberId();
       return subscriberId;
     }
@@ -94,11 +90,10 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
     }
 
     // Request permission
-    console.log('[PushAlerts] Requesting notification permission from user...');
+    
     const permission = await Notification.requestPermission();
 
     if (permission === 'granted') {
-      console.log('[PushAlerts] User granted notification permission');
       subscriberId = await generateSubscriberId();
       return subscriberId;
     } else {
@@ -136,7 +131,6 @@ const generateSubscriberId = async (): Promise<string> => {
     const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     
     const finalId = hashHex.substring(0, 32);
-    console.log('[PushAlerts] Generated subscriber ID:', finalId.substring(0, 8) + '...');
     
     return finalId;
   } catch (error) {
@@ -154,7 +148,6 @@ export const onMessageListener = (): Promise<any> => {
   return new Promise((resolve) => {
     if ('serviceWorker' in navigator) {
       const listener = (event: MessageEvent) => {
-        console.log('[PushAlerts] Message received from service worker:', event.data);
         
         if (event.data && event.data.type === 'FOREGROUND_MESSAGE') {
           if (messageCallback) {
@@ -165,7 +158,6 @@ export const onMessageListener = (): Promise<any> => {
       };
 
       navigator.serviceWorker.addEventListener('message', listener);
-      console.log('[PushAlerts] Foreground message listener attached');
     }
   });
 };
@@ -175,7 +167,6 @@ export const onMessageListener = (): Promise<any> => {
  */
 export const setMessageCallback = (callback: (payload: any) => void) => {
   messageCallback = callback;
-  console.log('[PushAlerts] Message callback registered');
 };
 
 /**
@@ -197,7 +188,6 @@ export const getSubscriberId = (): string | null => {
  */
 export const setSubscriberId = (id: string) => {
   subscriberId = id;
-  console.log('[PushAlerts] Subscriber ID set:', id.substring(0, 8) + '...');
 };
 
 /**
@@ -209,12 +199,10 @@ export const unsubscribeFromNotifications = async (): Promise<boolean> => {
       const registrations = await navigator.serviceWorker.getRegistrations();
       for (const registration of registrations) {
         await registration.unregister();
-        console.log('[PushAlerts] Service Worker unregistered');
       }
     }
 
     subscriberId = null;
-    console.log('[PushAlerts] Unsubscribed from notifications');
     return true;
   } catch (error) {
     console.error('[PushAlerts] Error unsubscribing:', error);
