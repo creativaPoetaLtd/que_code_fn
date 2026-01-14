@@ -25,18 +25,16 @@ export default function TestPushButton() {
       });
 
       const result = await response.json();
-      
+
       toast({
         title: result.success ? 'Notification Sent!' : 'Failed',
-        description: result.success 
-          ? 'Check your browser for the notification' 
+        description: result.success
+          ? 'Check your browser for the notification'
           : result.message || 'Failed to send notification',
         variant: result.success ? 'default' : 'destructive',
       });
-
-      console.log('Push notification result:', result);
     } catch (error) {
-      console.error('Error sending notification:', error);
+
       toast({
         title: 'Error',
         description: 'Failed to send test notification',
