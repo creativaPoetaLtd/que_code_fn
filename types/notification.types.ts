@@ -1,41 +1,27 @@
-export interface NotificationAction {
-    type: string
-    label: string
-    url: string
+export enum NotificationType {
+  MESSAGE = 'message',
+  MEDIA = 'media',
+  VOICE = 'voice',
+  DOCUMENT = 'document',
+  MONEY = 'money',
+  CONTACT_REQUEST = 'contact_request',
+  GROUP_INVITATION = 'group_invitation',
+  GROUP_DONATION = 'group_donation',
 }
 
-export interface Notification {
-    id: string
-    type: string
-    title: string
-    message?: string // Optional message field
-    data?: {
-        groupId?: string
-        groupName?: string
-        requestId?: string
-        userId?: string
-        userName?: string
-        message?: string
-        actions?: NotificationAction[] // Add this line
-        // Add other potential data fields as needed
-    }
-    isRead: boolean
-    createdAt: string
-    updatedAt: string
+export interface NotificationPayload {
+  type: NotificationType;
+  title: string;
+  message: string;
+  url?: string;
+  chatId?: string;
+  senderId?: string;
+  senderName?: string;
+  metadata?: Record<string, any>;
 }
 
-export interface NotificationResponse {
-    notifications: Notification[]
-    unreadCount: number
-}
-
-export interface NotificationContextType {
-    notifications: Notification[]
-    unreadCount: number
-    addNotification: (notification: Notification) => void
-    markAsRead: (notificationId: string) => void
-    clearNotifications: () => void
-    removeNotification: (notificationId: string) => void
-    removeContactRequestNotification: (userId: string) => void
-    isConnected: boolean
+export interface NotificationConfig {
+  enablePush: boolean;
+  enableToast: boolean;
+  enableSound: boolean;
 }

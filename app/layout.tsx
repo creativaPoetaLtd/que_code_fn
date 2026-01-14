@@ -7,6 +7,7 @@ import "./globals.css";
 import ClientProvider from "@/components/ClientProvider";
 import { Toaster } from "@/components/ui/toaster";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
+import PushNotificationPrompt from "@/components/PushNotificationPrompt";
 
 const poppins = localFont({
   src: [
@@ -102,6 +103,7 @@ export default function RootLayout({
         <ClientProvider>{children}</ClientProvider>
         <Toaster />
         <PWAInstallPrompt />
+        <PushNotificationPrompt />
       </body>
     </html>
   );

@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CheckCircle, XCircle, UserPlus, AlertCircle, Clock, Users, Loader2 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
+import { notificationService } from "@/services/notificationService"
 import {
     useGetPendingInvitationsUnifiedQuery,
     useGetAcceptedContactsQuery,
@@ -76,6 +77,14 @@ export default function ContactRequestModal({ isOpen, onClose }: ContactRequestM
                         ? `${inviterName} has been added to your contacts`
                         : `Contact request from ${inviterName} has been declined`,
             })
+
+            // Send notification using centralized service
+            if (action === "accept") {
+                notificationService.notifyContactRequest({
+                    from: inviterName,
+                    action: 'accepted',
+                });
+            }
 
             // Refetch pending invitations to update the list
             refetchPending()

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getValidToken } from '@/utils/tokenUtils';
+import { notificationService } from '@/services/notificationService';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
 
@@ -84,6 +85,13 @@ export const uploadMediaMessage = async (
         }
       },
     });
+
+    // Trigger notification for media upload (will be sent to recipient)
+    if (response.data.success && response.data.data) {
+      const messageType = getFileType(file.type);
+      // Note: Notification will be triggered by socket event on recipient's side
+      // This is just for consistency in the upload flow
+    }
 
     return response.data;
   } catch (error: any) {
