@@ -1,4 +1,4 @@
-import { sendPushNotification } from './pushAlertService';
+import { sendPushNotification } from '@/services/pushAlertService';
 
 export const triggerPushNotification = async (type: string, data: any) => {
   const notifications: Record<string, { title: string; message: string; url?: string }> = {
@@ -13,7 +13,7 @@ export const triggerPushNotification = async (type: string, data: any) => {
       message: `${data.senderName}: ${data.message}`,
       url: `/chat`,
     },
-    
+
     // Contact notifications
     'contact_request': {
       title: 'New Contact Request',
@@ -25,7 +25,7 @@ export const triggerPushNotification = async (type: string, data: any) => {
       message: `${data.userName} accepted your contact request`,
       url: `/contacts`,
     },
-    
+
     // Group notifications
     'group_invitation': {
       title: 'Group Invitation',
@@ -42,7 +42,7 @@ export const triggerPushNotification = async (type: string, data: any) => {
       message: `Your request to join ${data.groupName} was approved`,
       url: `/chat`,
     },
-    
+
     // Payment notifications
     'payment_received': {
       title: 'Payment Received',

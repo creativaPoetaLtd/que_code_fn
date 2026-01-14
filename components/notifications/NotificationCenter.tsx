@@ -144,10 +144,11 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
             refetchContactRequests()
 
             // Remove the contact request notification after successful response
-            // Find the invitation to get the inviter's userId
-            const invitation = pendingContactRequestsList.find(inv => inv.id === invitationId)
-            if (invitation?.inviter?.id) {
-                removeContactRequestNotification(invitation.inviter.id)
+            if (removeContactRequestNotification) {
+                const invitation = pendingContactRequestsList.find(inv => inv.id === invitationId)
+                if (invitation?.inviter?.id) {
+                    removeContactRequestNotification(invitation.inviter.id)
+                }
             }
         } catch (error: any) {
             toast({
