@@ -9,8 +9,6 @@ export async function POST(request: NextRequest) {
     formData.append('message', body.message || 'This is a test notification');
     formData.append('url', body.url || 'http://localhost:3000');
 
-    console.log('Sending push notification:', Object.fromEntries(formData));
-
     const response = await fetch('https://api.pushalert.co/rest/v1/send', {
       method: 'POST',
       headers: {
@@ -21,10 +19,8 @@ export async function POST(request: NextRequest) {
     });
 
     const result = await response.json();
-    console.log('PushAlert response:', result);
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Push notification error:', error);
     return NextResponse.json(
       { success: false, message: 'Failed to send notification' },
       { status: 500 }
