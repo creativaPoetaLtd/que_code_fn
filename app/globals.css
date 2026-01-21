@@ -63,6 +63,7 @@ body {
     opacity: 0;
     transform: translateX(-10px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -140,7 +141,12 @@ body {
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground transition-colors duration-300;
+  }
+
+  .dark body {
+    background: radial-gradient(circle at 5% 10%, #135825 0%, #06130f 60%, #040f0c 100%);
+    background-attachment: fixed;
   }
 }
 
@@ -205,6 +211,7 @@ body {
 
 /* Ant Design Dark Mode Styling */
 .dark {
+
   /* Select Component */
   .ant-select-selector {
     @apply dark:bg-darkBg-main dark:border-darkBorder-light dark:text-white !important;
