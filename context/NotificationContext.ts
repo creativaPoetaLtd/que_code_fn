@@ -29,16 +29,39 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     const { getToken } = useAuthToken()
     const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
     const [authToken, setAuthToken] = useState<string | null>(null)
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
     // Monitor token changes to trigger reconnection
     useEffect(() => {
         const token = getToken()
+        const userId = token ? getUserIdFromToken(token) : null
+        
+        // If userId changes (different user logged in), clear all notifications
+        if (currentUserId && userId && currentUserId !== userId) {
+            console.log('Different user detected, clearing notification state')
+            setNotifications([])
+            setUnreadCount(0)
+            setIsConnected(false)
+        }
+        
         setAuthToken(token)
+        setCurrentUserId(userId)
 
         // Listen for token changes via custom event
         const handleAuthTokenChange = (event: CustomEvent) => {
             const newToken = getToken()
+            const newUserId = newToken ? getUserIdFromToken(newToken) : null
+            
+            // If user changed, clear notifications
+            if (currentUserId && newUserId && currentUserId !== newUserId) {
+                console.log('User changed via token event, clearing notification state')
+                setNotifications([])
+                setUnreadCount(0)
+                setIsConnected(false)
+            }
+            
             setAuthToken(newToken)
+            setCurrentUserId(newUserId)
         }
 
         window.addEventListener('authTokenChanged', handleAuthTokenChange as EventListener)
@@ -46,7 +69,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         return () => {
             window.removeEventListener('authTokenChanged', handleAuthTokenChange as EventListener)
         }
-    }, [getToken])
+    }, [getToken, currentUserId])
 
     const addNotification = useCallback((notification: Notification) => {
         setNotifications((prev) => {
@@ -79,6 +102,20 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         setNotifications([])
         setUnreadCount(0)
     }, [])
+
+    const clearNotificationState = useCallback(() => {
+        // Disconnect notification listeners
+        const socket = socketService.getSocket();
+        if (socket) {
+            socketService.offNotification();
+        }
+        
+        // Clear all state
+        setNotifications([]);
+        setUnreadCount(0);
+        setIsConnected(false);
+        setAuthToken(null);
+    }, []);
 
     const removeNotification = useCallback((notificationId: string) => {
         setNotifications((prev) => {
@@ -356,6 +393,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         removeNotification,
         removeContactRequestNotification,
         isConnected,
+        clearNotificationState,
     }
 
     return React.createElement(

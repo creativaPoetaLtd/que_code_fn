@@ -29,6 +29,9 @@ import {
 import { cn } from "@/lib/utils"
 import { useAuthToken } from "@/hooks/use-auth-token"
 import { useSidebar } from "@/context/SidebarContext"
+import { socketService } from "@/services/socketService"
+import { apiSlice } from "@/states/apiSlice"
+import { useDispatch } from "react-redux"
 
 interface NavigationItem {
     id: string
@@ -52,6 +55,7 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
     const router = useRouter()
     const params = useParams()
     const pathname = usePathname()
+    const dispatch = useDispatch()
 
     // Get userId from URL params or token
     useEffect(() => {
@@ -144,8 +148,41 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
     const handleClick = (id: string, path: string) => {
         // Handle logout separately
         if (id === "Logout") {
-            removeToken();
-            router.push('/auth/login');
+            try {
+                // 1. Clear authentication tokens
+                removeToken();
+
+                // 2. Force disconnect socket
+                socketService.forceDisconnect();
+
+                // 3. Clear Redux RTK Query cache
+                dispatch(apiSlice.util.resetApiState());
+
+                // 4. Clear sessionStorage
+                sessionStorage.clear();
+
+                // 5. Clear localStorage (preserve theme and sidebar)
+                const preservedItems = {
+                    theme: localStorage.getItem('theme'),
+                    sidebarExpanded: localStorage.getItem('sidebarExpanded'),
+                };
+
+                localStorage.clear();
+
+                if (preservedItems.theme) {
+                    localStorage.setItem('theme', preservedItems.theme);
+                }
+                if (preservedItems.sidebarExpanded) {
+                    localStorage.setItem('sidebarExpanded', preservedItems.sidebarExpanded);
+                }
+            } catch (error) {
+                console.error('Error during logout:', error);
+            }
+
+            // 6. Force complete page reload to home using full URL
+            setTimeout(() => {
+                window.location.href = window.location.origin + "/";
+            }, 50);
             return;
         }
 
@@ -218,8 +255,8 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
                                     className={cn(
                                         "flex items-center px-3 py-2.5 transition-all rounded-xl duration-200",
                                         isExpanded ? "justify-start" : "justify-center",
-                                        activeItem === item.id 
-                                            ? "bg-brand-green dark:bg-brand-gold text-white dark:text-[#00313A] shadow-lg" 
+                                        activeItem === item.id
+                                            ? "bg-brand-green dark:bg-brand-gold text-white dark:text-[#00313A] shadow-lg"
                                             : "text-white hover:bg-[#004D5C] hover:shadow-md",
                                     )}
                                 >
@@ -239,8 +276,8 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
                                     className={cn(
                                         "flex items-center px-3 py-3.5 transition-all rounded-xl duration-200",
                                         isExpanded ? "justify-start" : "justify-center",
-                                        activeItem === item.id 
-                                            ? "bg-brand-green dark:bg-brand-gold text-white dark:text-[#00313A] shadow-lg" 
+                                        activeItem === item.id
+                                            ? "bg-brand-green dark:bg-brand-gold text-white dark:text-[#00313A] shadow-lg"
                                             : "text-white hover:bg-[#004D5C] hover:shadow-md",
                                     )}
                                 >
