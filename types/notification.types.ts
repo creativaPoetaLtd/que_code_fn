@@ -67,4 +67,5 @@ export interface NotificationContextType {
   removeNotification?: (id: string) => void;
   removeContactRequestNotification?: (userId: string) => void;
   isConnected?: boolean;
+  clearNotificationState?: () => void;
 }

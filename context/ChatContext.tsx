@@ -37,6 +37,7 @@ interface ChatContextType {
     updateMessageReadStatus: (chatId: string, messageId: string, readBy: any) => void;
     refreshConversations: () => void;
     refreshMessages: (chatId: string) => void;
+    clearChatState: () => void;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -63,6 +64,19 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     useEffect(() => {
         const currentToken = getToken();
         const currentUserId = getUserId();
+        
+        // If userId changes (different user logged in), clear all state
+        if (userId && currentUserId && userId !== currentUserId) {
+            console.log('Different user detected, clearing chat state');
+            setConversations([]);
+            setActiveChat(null);
+            setMessages({});
+            setTypingUsers([]);
+            setOnlineUsers([]);
+            setParticipantsStatus({});
+            socketService.forceDisconnect();
+        }
+        
         setToken(currentToken);
         setUserId(currentUserId);
         
@@ -73,6 +87,19 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         const handleAuthTokenChange = (event: CustomEvent) => {
             const newToken = getToken();
             const newUserId = getUserId();
+            
+            // If user changed, clear state
+            if (userId && newUserId && userId !== newUserId) {
+                console.log('User changed via token event, clearing chat state');
+                setConversations([]);
+                setActiveChat(null);
+                setMessages({});
+                setTypingUsers([]);
+                setOnlineUsers([]);
+                setParticipantsStatus({});
+                socketService.forceDisconnect();
+            }
+            
             setToken(newToken);
             setUserId(newUserId);
         };
@@ -82,7 +109,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         return () => {
             window.removeEventListener('authTokenChanged', handleAuthTokenChange as EventListener);
         };
-    }, [getToken, getUserId]);
+    }, [getToken, getUserId, userId]);
 
     const { data: chatsData, refetch: refetchChats } = useGetUserChatsQuery(undefined, {
         skip: !token
@@ -571,6 +598,22 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         }));
     }, []);
 
+    const clearChatState = useCallback(() => {
+        // Disconnect socket properly
+        socketService.disconnect();
+        
+        // Clear all state
+        setConversations([]);
+        setActiveChat(null);
+        setMessages({});
+        setTypingUsers([]);
+        setOnlineUsers([]);
+        setParticipantsStatus({});
+        setIsConnected(false);
+        setUserId(null);
+        setToken(null);
+    }, []);
+
     const value: ChatContextType = {
         isConnected,
         conversations,
@@ -593,7 +636,8 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         leaveChat,
         markMessageRead,
         addMessage,
-        updateMessageReadStatus
+        updateMessageReadStatus,
+        clearChatState
     };
 
     return (

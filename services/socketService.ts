@@ -60,6 +60,18 @@ class SocketService {
         }
     }
 
+    // Force disconnect (for logout)
+    forceDisconnect() {
+        console.log("Force disconnecting socket")
+        if (this.socket) {
+            this.socket.removeAllListeners()
+            this.socket.disconnect()
+            this.socket = null
+        }
+        this.userId = null
+        this.connectionCount = 0
+    }
+
     // Listen for real-time notifications
     onNotification(callback: (notification: any) => void) {
         if (this.socket) {
