@@ -217,7 +217,7 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
         <div className="bg-white dark:bg-darkBg-card rounded-2xl shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-100 dark:border-darkBorder-light overflow-hidden">
             {/* Header with Profile Link */}
             <div className="p-4 sm:p-6 border-b border-gray-100 dark:border-darkBorder-light flex justify-end">
-                <button 
+                <button
                     onClick={() => router.push('/profile')}
                     className="flex items-center gap-2 px-4 py-2 rounded-full border-2 border-brand-green dark:border-brand-gold text-brand-green dark:text-brand-gold hover:bg-brand-green/5 dark:hover:bg-brand-gold/5 transition-colors text-sm font-medium"
                 >
@@ -244,7 +244,7 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
 
                 {/* Share Link Section */}
                 <div className="w-full max-w-2xl mb-6">
-                    <div className="flex flex-col sm:flex-row items-center gap-3 bg-gray-50 dark:bg-darkBg-interactive rounded-2xl p-3 sm:p-4 border border-gray-200 dark:border-brand-gold/20">
+                    <div className="flex flex-col sm:flex-row items-center gap-3 bg-gray-50 dark:bg-darkBg-interactive rounded-2xl p-3 sm:p-4 border border-gray-200 dark:border-darkBorder-light">
                         <input
                             type="text"
                             value={userLink}
@@ -254,7 +254,7 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
                         <div className="flex gap-2">
                             <button
                                 onClick={handleCopy}
-                                className={`flex items-center justify-center w-10 h-10 rounded-full transition text-white dark:text-brand-gold bg-[#00313A] dark:bg-brand-gold/20 hover:bg-[#004D5C] dark:hover:bg-brand-gold/30`}
+                                className={`flex items-center justify-center w-10 h-10 rounded-full transition text-white dark:text-brand-gold bg-[#00313A] dark:bg-darkBg-overlay hover:bg-[#004D5C] dark:hover:bg-darkBg-main`}
                                 aria-label={copied ? "Copied" : "Copy"}
                                 title={copied ? "Copied" : "Copy"}
                             >
@@ -262,7 +262,7 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
                             </button>
                             <button
                                 onClick={handleShare}
-                                className="flex items-center justify-center w-10 h-10 rounded-full bg-[#00313A] dark:bg-brand-gold/20 hover:bg-[#004D5C] dark:hover:bg-brand-gold/30 transition text-white dark:text-brand-gold"
+                                className="flex items-center justify-center w-10 h-10 rounded-full bg-[#00313A] dark:bg-darkBg-overlay hover:bg-[#004D5C] dark:hover:bg-darkBg-main transition text-white dark:text-brand-gold"
                                 aria-label="Share"
                                 title="Share"
                             >

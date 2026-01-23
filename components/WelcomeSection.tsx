@@ -106,7 +106,7 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({ userId }) => {
                             <span className="h-6 w-6 flex items-center justify-center">
                                 <button
                                     onClick={toggleBalanceVisibility}
-                                    className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition rounded-full hover:bg-gray-100 dark:hover:bg-[#00313A] flex items-center justify-center"
+                                    className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition rounded-full hover:bg-gray-100 dark:hover:bg-darkBg-interactive flex items-center justify-center p-1"
                                     aria-label={isBalanceVisible ? "Hide Balance" : "Show Balance"}
                                 >
                                     {isBalanceVisible ? <EyeOff size={18} /> : <Eye size={18} />}
