@@ -246,6 +246,14 @@ export const getWalletRestrictions = (walletId: string) =>
 export const getTransactionDetails = (transactionId: string) =>
   apiGet(`/transactions/${transactionId}`);
 
+export const getRecentSends = async (limit: number = 15) => {
+  const params = new URLSearchParams({ limit: limit.toString() });
+  const res = await axios.get(`${baseUrl}/transactions/recent-sends?${params.toString()}`, {
+    headers: getAuthHeaders()
+  });
+  return res.data;
+};
+
 const pinRequest = (endpoint: string, data: any) =>
   apiPost(`/users/pin/${endpoint}`, data);
 

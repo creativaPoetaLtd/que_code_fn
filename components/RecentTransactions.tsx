@@ -67,17 +67,35 @@ export const RecentTransactions: React.FC = () => {
       .slice(0, 2);
   };
 
+  const getRelativeTime = (dateString: string) => {
+    const now = new Date();
+    const transactionDate = new Date(dateString);
+    const diffMs = now.getTime() - transactionDate.getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+
+    if (diffMins < 1) return 'just now';
+    if (diffMins < 60) return `${diffMins} min${diffMins > 1 ? 's' : ''} ago`;
+    if (diffHours < 24) return `${diffHours} hr${diffHours > 1 ? 's' : ''} ago`;
+    
+    // Show absolute date for transactions older than 24 hours (DD/MM/YY format)
+    const day = String(transactionDate.getDate()).padStart(2, '0');
+    const month = String(transactionDate.getMonth() + 1).padStart(2, '0');
+    const year = String(transactionDate.getFullYear()).slice(-2);
+    return `${day}/${month}/${year}`;
+  };
+
   const getTransactionDisplayInfo = (transaction: Transaction) => {
     // Determine if it's outgoing based on senderWallet.userId matching currentUserId
     const isOutgoing = transaction.senderWallet?.userId === currentUserId;
     const transactionAmount = Number(transaction.amount) || 0;
     const transactionFee = Number(transaction.fee) || 0;
     const amount = isOutgoing ? -(transactionAmount + transactionFee) : transactionAmount;
-    
+
     // Get recipient/sender name with better fallback logic
     let counterpartyName = 'Transaction';
     let isToOrganization = false;
-    
+
     if (isOutgoing) {
       // Sending money - check receiver first
       if (transaction.receiverWallet?.organization?.name) {
@@ -166,12 +184,12 @@ export const RecentTransactions: React.FC = () => {
           <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-brand-green dark:bg-brand-gold group-hover:w-full transition-all duration-300 ease-out"></span>
         </button>
       </div>
-      
+
       {/* Mobile & Desktop List View */}
       <div className="divide-y divide-gray-100 dark:divide-darkBorder-light">
         {displayedTransactions.map((transaction) => {
           const { amount, counterpartyName, transactionType, isOutgoing, isToOrganization, status } = getTransactionDisplayInfo(transaction);
-          
+
           // Determine circle color based on transaction type
           const getCircleColor = () => {
             if (isOutgoing) {
@@ -205,7 +223,7 @@ export const RecentTransactions: React.FC = () => {
           const initials = getInitials(counterpartyName);
 
           return (
-            <div key={transaction.id} className="p-3 sm:p-4 hover:bg-gray-50 dark:hover:bg-darkBg-interactive transition-colors duration-200 cursor-pointer">
+            <div key={transaction.id} className="p-3 sm:p-4 hover:bg-gray-100/50 dark:hover:bg-darkBg-interactive transition-colors duration-200 cursor-pointer">
               <div className="flex items-center gap-3">
                 {/* Circle with initials */}
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 font-semibold text-sm ${getCircleColor()}`}>
@@ -214,41 +232,18 @@ export const RecentTransactions: React.FC = () => {
 
                 {/* Transaction details */}
                 <div className="flex-1 min-w-0">
-                  {/* First line: Name and Amount */}
+                  {/* First line: Name and Date */}
                   <div className="flex justify-between items-center gap-2 mb-1">
                     <p className="font-semibold text-gray-900 dark:text-white truncate text-sm">{counterpartyName}</p>
-                    <span className={`text-sm font-bold flex-shrink-0 ${isOutgoing ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                      {isOutgoing ? '-' : '+'} RWF {isNaN(Math.abs(amount)) ? '0' : Math.abs(amount).toLocaleString()}
+                    <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+                      {getRelativeTime(transaction.createdAt)}
                     </span>
                   </div>
 
-                  {/* Second line: Type badge, Status, and Date */}
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      {/* Transaction type badge */}
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                        isOutgoing 
-                          ? isToOrganization 
-                            ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300' 
-                            : 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-300'
-                          : 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-300'
-                      }`}>
-                        {transactionType}
-                      </span>
-
-                      {/* Status indicator */}
-                      <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
-                        {getStatusIcon()}
-                        <span>{getStatusText()}</span>
-                      </div>
-                    </div>
-
-                    {/* Date */}
-                    <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
-                      {new Date(transaction.createdAt).toLocaleDateString('en-US', { 
-                        month: 'numeric', 
-                        day: 'numeric'
-                      })}
+                  {/* Second line: Amount */}
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm font-bold ${isOutgoing ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                      {isOutgoing ? '-' : '+'} RWF {isNaN(Math.abs(amount)) ? '0' : Math.abs(amount).toLocaleString()}
                     </span>
                   </div>
                 </div>

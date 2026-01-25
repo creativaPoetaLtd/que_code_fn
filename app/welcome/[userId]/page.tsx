@@ -744,7 +744,7 @@ const WelcomeProfilePage: React.FC = () => {
   return (
     <>
       {isHydrated && isLoggedIn && <Header />}
-      <div className='min-h-screen bg-white dark:bg-darkBg-main'>
+      <div className='min-h-screen bg-white dark:bg-transparent'>
         {/* Main Content Container */}
         <div className='container mx-auto px-4 py-8 lg:py-12 flex items-center justify-center min-h-screen'>
           {/* Single Centered Card Layout */}
@@ -765,7 +765,7 @@ const WelcomeProfilePage: React.FC = () => {
                     className={`absolute top-4 right-4 px-3 py-1.5 rounded-full text-xs font-semibold border ${user.profileType === 'organization'
                       ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-700'
                       : 'bg-[#00B512]/10 dark:bg-[#D4AF37]/20 text-[#00B512] dark:text-[#D4AF37] border-[#00B512]/20 dark:border-[#D4AF37]/30'
-                    }`}
+                      }`}
                   >
                     {user.profileType === 'organization' ? 'Organization' : 'Individual'}
                   </div>
@@ -1199,11 +1199,10 @@ const WelcomeProfilePage: React.FC = () => {
                                   )}
                                   {action.status && (
                                     <div
-                                      className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                                        action.status === 'published'
+                                      className={`px-2 py-1 rounded-full text-xs font-semibold ${action.status === 'published'
                                           ? 'bg-[#00B512]/10 text-[#00B512]'
                                           : 'bg-gray-100 text-gray-600'
-                                      }`}
+                                        }`}
                                     >
                                       {action.status}
                                     </div>
@@ -1559,17 +1558,17 @@ const WelcomeProfilePage: React.FC = () => {
                                         ={' '}
                                         {purchaseData[subAction.id]?.quantity
                                           ? formatPrice(
-                                              (
-                                                parseFloat(subAction.price) *
-                                                purchaseData[subAction.id]
-                                                  .quantity
-                                              ).toString(),
-                                              selectedAction.currency
-                                            )
+                                            (
+                                              parseFloat(subAction.price) *
+                                              purchaseData[subAction.id]
+                                                .quantity
+                                            ).toString(),
+                                            selectedAction.currency
+                                          )
                                           : formatPrice(
-                                              '0',
-                                              selectedAction.currency
-                                            )}
+                                            '0',
+                                            selectedAction.currency
+                                          )}
                                       </span>
                                     </div>
                                   </div>
@@ -1665,7 +1664,7 @@ const WelcomeProfilePage: React.FC = () => {
                                     disabled={
                                       !purchaseData[subAction.id]?.quantity ||
                                       purchaseData[subAction.id].quantity <=
-                                        0 ||
+                                      0 ||
                                       purchasing[subAction.id]
                                     }
                                     className='w-full h-11 bg-[#00B512] dark:bg-[#D4AF37] text-white rounded-lg font-bold shadow-lg hover:bg-[#1fd331] dark:hover:bg-[#C9A530] disabled:opacity-50 disabled:cursor-not-allowed'
