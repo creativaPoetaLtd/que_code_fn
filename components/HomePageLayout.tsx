@@ -27,10 +27,10 @@ export const HomePageLayout = () => {
         const getUserId = () => {
             // Prevent multiple redirects and limit attempts
             if (isRedirecting || redirectAttempts >= 3) return;
-            
+
             try {
                 const authToken = getToken();
-                
+
                 if (!authToken) {
                     // No token, redirect to login
                     router.push('/auth/login');
@@ -69,7 +69,7 @@ export const HomePageLayout = () => {
                     setIsRedirecting(true);
                     setRedirectAttempts(prev => prev + 1);
                     router.replace(`/home/${loggedInUserId}`);
-                    
+
                     // Add fallback redirect
                     setTimeout(() => {
                         if (window.location.pathname !== `/home/${loggedInUserId}`) {
@@ -85,7 +85,7 @@ export const HomePageLayout = () => {
                     setIsRedirecting(true);
                     setRedirectAttempts(prev => prev + 1);
                     router.replace(`/home/${loggedInUserId}`);
-                    
+
                     // Add fallback redirect
                     setTimeout(() => {
                         if (window.location.pathname !== `/home/${loggedInUserId}`) {
@@ -111,14 +111,14 @@ export const HomePageLayout = () => {
 
         // Add a small delay to ensure the component is fully mounted
         const timer = setTimeout(getUserId, 100);
-        
+
         return () => clearTimeout(timer);
     }, [params, router, isRedirecting, redirectAttempts, getToken]);
 
     // If too many redirect attempts, show error and manual redirect button
     if (redirectAttempts >= 3) {
         return (
-            <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-darkBg-main">
+            <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-transparent">
                 <div className="flex-1 flex items-center justify-center">
                     <div className="text-center">
                         <div className="text-red-500 dark:text-red-400 mb-4 font-medium">Redirect failed</div>
@@ -157,7 +157,7 @@ export const HomePageLayout = () => {
     // Show loading state while determining userId or redirecting
     if (loading || isRedirecting) {
         return (
-            <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-darkBg-main">
+            <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-transparent">
                 <div className="flex-1 flex items-center justify-center">
                     <div className="text-center">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-green dark:border-brand-gold mx-auto"></div>
@@ -179,7 +179,7 @@ export const HomePageLayout = () => {
     // Show error state
     if (error) {
         return (
-            <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-darkBg-main">
+            <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-transparent">
                 <div className="flex-1 flex items-center justify-center">
                     <div className="text-center">
                         <div className="text-red-500 dark:text-red-400 mb-4 font-medium">{error}</div>
@@ -191,7 +191,7 @@ export const HomePageLayout = () => {
     }
 
     return (
-        <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-darkBg-main">
+        <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-transparent">
             {/* Desktop Sidebar */}
             <Navigation />
 

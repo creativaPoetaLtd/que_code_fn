@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils"
 export default function SettingsPage() {
     const { isExpanded } = useSidebar();
     return (
-        <Layout className="min-h-screen bg-gray-50 dark:bg-darkBg-main transition-colors duration-300 mobile-bottom-padding">
+        <Layout className="min-h-screen bg-gray-50 dark:bg-transparent transition-colors duration-300 mobile-bottom-padding">
             <div className="flex min-h-screen">
                 <Navigation />
                 <div className={cn(

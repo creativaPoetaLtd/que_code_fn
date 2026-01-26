@@ -21,20 +21,20 @@ const AnalyticsPage = () => {
         startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Last 30 days
         endDate: new Date()
     });
-    
+
     // Helper function to determine optimal interval based on date range
     const calculateOptimalInterval = (start: Date, end: Date): 'daily' | 'weekly' | 'monthly' | 'yearly' => {
         const durationDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-        
+
         if (durationDays === 1) return 'daily';
-        if (durationDays <= 7) return 'daily'; 
+        if (durationDays <= 7) return 'daily';
         if (durationDays <= 31) return 'weekly';
         if (durationDays <= 365) return 'monthly';
         return 'yearly';
     };
 
     // Calculate interval based on current date range
-    const [interval, setInterval] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>(() => 
+    const [interval, setInterval] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>(() =>
         calculateOptimalInterval(
             new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
             new Date()
@@ -50,7 +50,7 @@ const AnalyticsPage = () => {
         }
     };
     return (
-        <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-darkBg-main transition-colors duration-300">
+        <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-transparent transition-colors duration-300">
             {/* Desktop Sidebar */}
             <Navigation />
 
@@ -69,7 +69,7 @@ const AnalyticsPage = () => {
                         <div className="mb-8">
                             <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-1">Finances</h1>
                             <p className="text-gray-600 dark:text-gray-300 mb-6">Track your spending patterns and financial insights.</p>
-                            <FiltersBar 
+                            <FiltersBar
                                 dateRange={dateRange}
                                 onDateRangeChange={handleDateRangeChange}
                             />

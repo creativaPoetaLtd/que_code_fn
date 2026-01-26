@@ -15,6 +15,7 @@ import {
     ChevronLeft,
     MessageCircle,
     ScanLine,
+    QrCode,
     CreditCard,
     PanelLeftClose,
     PanelLeft,
@@ -32,6 +33,8 @@ import { useSidebar } from "@/context/SidebarContext"
 import { socketService } from "@/services/socketService"
 import { apiSlice } from "@/states/apiSlice"
 import { useDispatch } from "react-redux"
+import { useTheme } from "@/context/ThemeContext"
+import { ChevronIcon } from "@/components/ui/chevron-icon"
 
 interface NavigationItem {
     id: string
@@ -47,6 +50,7 @@ interface NavigationProps {
 
 export default function Navigation({ hideBottomNav = false }: NavigationProps) {
     const { isExpanded, toggleSidebar } = useSidebar()
+    const { theme } = useTheme()
     const [activeItem, setActiveItem] = useState<string>("Home")
     const [userId, setUserId] = useState<string>("")
     const [isReady, setIsReady] = useState<boolean>(false)
@@ -122,7 +126,7 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
 
     const mobileSecondaryItems: NavigationItem[] = [
         { id: "Actions", icon: <FileText size={24} />, label: "Actions", path: userId ? `/action/${userId}` : '/action' },
-        { id: "Transactions", icon: <Wallet size={24} />, label: "Transactions", path: "/transactions" },
+        { id: "History", icon: <Wallet size={24} />, label: "Transactions", path: "/transactions" },
         { id: "Contacts", icon: <Users size={24} />, label: "Contacts", path: userId ? `/contacts/${userId}` : '/contacts' },
         { id: "Merchants", icon: <Store size={24} />, label: "Merchants", path: userId ? `/merchants/${userId}` : '/merchants' },
         { id: "Wallet", icon: <Wallet size={24} />, label: "Wallet", path: userId ? `/wallet/${userId}` : '/wallet' },
@@ -215,33 +219,60 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
             {/* Desktop Sidebar */}
             <aside
                 className={cn(
-                    "bg-darkBg-interactive fixed top-0 left-0 h-screen flex-col justify-between transition-all duration-300 hidden lg:flex z-20",
+                    "fixed top-0 left-0 h-screen flex-col justify-between transition-all duration-300 hidden lg:flex z-20",
+                    theme === "dark" ? "bg-darkBg-sidebar" : "bg-white border-r border-gray-200",
                     isExpanded ? "w-64" : "w-20",
                 )}
             >
                 <div className="flex flex-col h-full">
                     {/* Logo and Toggle Section */}
-                    <div className="flex items-center justify-between px-3 py-4 border-b border-darkBorder-light">
+                    <div className={cn(
+                        "flex items-center justify-between px-3 py-4 border-b",
+                        theme === "dark" ? "border-darkBorder-light" : "border-gray-200"
+                    )}>
                         {isExpanded ? (
                             <>
                                 <div className="flex items-center gap-2">
-                                    <span className="text-white font-bold text-xl">QiewCode</span>
+                                    <span className={cn("font-bold text-xl", theme === "dark" ? "text-white" : "text-gray-900")}>QiewCode</span>
                                 </div>
                                 <Button
                                     variant="ghost"
                                     size="icon"
                                     onClick={toggleSidebar}
-                                    className="h-10 w-10 text-white hover:bg-brand-green dark:hover:bg-brand-gold hover:text-[#00313A] rounded-lg transition-all hover:scale-110"
+                                    className={cn(
+                                        "h-10 w-10 rounded-lg transition-all hover:scale-110",
+                                        theme === "dark" 
+                                            ? "text-white hover:bg-brand-green hover:text-[#00313A]" 
+                                            : "text-gray-900 hover:bg-gray-100"
+                                    )}
+                                    aria-label="Collapse sidebar"
                                 >
-                                    <PanelLeftClose size={22} />
+                                    <div className="flex items-center justify-center gap-1">
+                                        <ChevronIcon
+                                            direction="left"
+                                            size={16}
+                                            className={theme === "dark" ? "text-white" : "text-gray-900"}
+                                        />
+                                        <PanelLeftClose size={18} />
+                                    </div>
                                 </Button>
                             </>
                         ) : (
                             <button
                                 onClick={toggleSidebar}
-                                className="h-10 w-10 mx-auto bg-darkBorder-medium rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-lg hover:bg-brand-green dark:hover:bg-brand-gold hover:text-darkBg-main transition-all hover:scale-105"
+                                className={cn(
+                                    "h-10 w-10 mx-auto rounded-lg flex items-center justify-center font-bold text-sm shadow-lg transition-all hover:scale-105",
+                                    theme === "dark"
+                                        ? "bg-darkBorder-medium text-white hover:bg-brand-green hover:text-darkBg-main"
+                                        : "bg-gray-200 text-gray-900 hover:bg-gray-300"
+                                )}
+                                aria-label="Expand sidebar"
                             >
-                                QC
+                                <ChevronIcon
+                                    direction="right"
+                                    size={16}
+                                    className={theme === "dark" ? "text-white" : "text-gray-900"}
+                                />
                             </button>
                         )}
                     </div>
@@ -256,8 +287,12 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
                                         "flex items-center px-3 py-2.5 transition-all rounded-xl duration-200",
                                         isExpanded ? "justify-start" : "justify-center",
                                         activeItem === item.id
-                                            ? "bg-brand-green dark:bg-brand-gold text-white dark:text-[#00313A] shadow-lg"
-                                            : "text-white hover:bg-[#004D5C] hover:shadow-md",
+                                            ? theme === "dark" 
+                                                ? "bg-brand-gold text-gray-900 shadow-lg" 
+                                                : "bg-brand-green text-white shadow-lg"
+                                            : theme === "dark"
+                                                ? "text-white hover:bg-darkBg-interactive hover:shadow-md"
+                                                : "text-gray-700 hover:bg-gray-100 hover:shadow-md"
                                     )}
                                 >
                                     <span className="inline-flex items-center justify-center">{item.icon}</span>
@@ -267,7 +302,10 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
                         </div>
                     </nav>
 
-                    <div className="border-t border-darkBorder-light pt-4 pb-8 px-2">
+                    <div className={cn(
+                        "border-t pt-4 pb-8 px-2",
+                        theme === "dark" ? "border-darkBorder-light" : "border-gray-200"
+                    )}>
                         <div className="flex flex-col gap-2">
                             {bottomMenuItems.map((item) => (
                                 <button
@@ -277,8 +315,12 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
                                         "flex items-center px-3 py-3.5 transition-all rounded-xl duration-200",
                                         isExpanded ? "justify-start" : "justify-center",
                                         activeItem === item.id
-                                            ? "bg-brand-green dark:bg-brand-gold text-white dark:text-[#00313A] shadow-lg"
-                                            : "text-white hover:bg-[#004D5C] hover:shadow-md",
+                                            ? theme === "dark"
+                                                ? "bg-brand-gold text-gray-900 shadow-lg"
+                                                : "bg-brand-green text-white shadow-lg"
+                                            : theme === "dark"
+                                                ? "text-white hover:bg-darkBg-interactive hover:shadow-md"
+                                                : "text-gray-700 hover:bg-gray-100 hover:shadow-md"
                                     )}
                                 >
                                     <span className="inline-flex items-center justify-center">{item.icon}</span>
@@ -290,94 +332,132 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
                 </div>
             </aside>
 
-            {/* Mobile Bottom Navigation - Only render if not hidden */}
-            {!hideBottomNav && (
-                <nav className="fixed bottom-0 left-0 right-0 sm:hidden z-50 bg-white dark:bg-darkBg-interactive border-t border-gray-200 dark:border-darkBorder-light pointer-events-auto">
-                    {/* More Menu Popup */}
-                    {isMoreMenuOpen && (
-                        <div className="absolute bottom-full right-4 mb-2 bg-darkBg-interactive rounded-2xl shadow-xl border border-darkBorder-light p-4 w-64 animate-in slide-in-from-bottom-10 fade-in duration-200">
-                            <div className="grid grid-cols-3 gap-4">
-                                {mobileSecondaryItems.map((item) => (
-                                    <button
-                                        key={item.id}
-                                        onClick={() => handleClick(item.id, item.path)}
-                                        className={cn(
-                                            "flex flex-col items-center gap-1 px-2 py-2 rounded-lg transition-colors",
-                                            activeItem === item.id ? "bg-brand-gold/20 text-brand-gold" : "text-gray-400 hover:text-white"
-                                        )}
-                                    >
-                                        <span className="text-lg">{item.icon}</span>
-                                        <span className="text-[10px] font-medium">{item.label}</span>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="flex justify-between items-center px-4 py-3 max-w-md md:max-w-2xl mx-auto h-24">
-                        {/* Left items */}
-                        <div className="flex items-center gap-8 flex-1">
-                            <button
-                                onClick={() => handleClick('Home', mobilePrimaryItems[0].path)}
-                                className={cn(
-                                    "flex flex-col items-center gap-1 transition-colors duration-200",
-                                    activeItem === 'Home' ? "text-brand-green dark:text-brand-gold" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                                )}
-                            >
-                                <Home size={24} />
-                                <span className="text-xs font-medium">Home</span>
-                            </button>
-
-                            <button
-                                onClick={() => handleClick('Statistics', mobilePrimaryItems[1].path)}
-                                className={cn(
-                                    "flex flex-col items-center gap-1 transition-colors duration-200",
-                                    activeItem === 'Statistics' ? "text-brand-green dark:text-brand-gold" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                                )}
-                            >
-                                <TrendingUp size={24} />
-                                <span className="text-xs font-medium">Statistics</span>
-                            </button>
-                        </div>
-
-                        {/* Center Scan Button - Larger */}
-                        <button
-                            onClick={() => handleClick('Scan', '')}
-                            className="flex flex-col items-center gap-1 -mt-12 transition-transform active:scale-95 hover:scale-110 duration-200 mx-4"
-                        >
-                            <div className="w-16 h-16 bg-brand-green dark:bg-brand-gold rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-shadow">
-                                <ScanLine size={32} className="text-white dark:text-darkBg-main" strokeWidth={1.5} />
-                            </div>
-                            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-1">Scan</span>
-                        </button>
-
-                        {/* Right items */}
-                        <div className="flex items-center gap-8 flex-1 justify-end">
-                            <button
-                                onClick={() => handleClick('Chat', mobilePrimaryItems[3].path)}
-                                className={cn(
-                                    "flex flex-col items-center gap-1 transition-colors duration-200",
-                                    activeItem === 'Chat' ? "text-brand-green dark:text-brand-gold" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                                )}
-                            >
-                                <MessageCircle size={24} />
-                                <span className="text-xs font-medium">Messages</span>
-                            </button>
-
-                            <button
-                                onClick={() => handleClick('More', '')}
-                                className={cn(
-                                    "flex flex-col items-center gap-1 transition-colors duration-200",
-                                    isMoreMenuOpen ? "text-brand-gold" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                                )}
-                            >
-                                <MoreHorizontal size={24} />
-                                <span className="text-xs font-medium">More</span>
-                            </button>
+            {/* Mobile Bottom Navigation */}
+            <nav className={cn(
+                "fixed bottom-0 left-0 right-0 lg:hidden z-50 border-t pointer-events-auto",
+                theme === "dark" 
+                    ? "bg-darkBg-sidebar border-darkBorder-light" 
+                    : "bg-white border-gray-200"
+            )}>
+                {/* More Menu Popup */}
+                {isMoreMenuOpen && (
+                    <div className={cn(
+                        "absolute bottom-full right-4 mb-2 rounded-2xl shadow-xl border p-4 w-64 animate-in slide-in-from-bottom-10 fade-in duration-200",
+                        theme === "dark"
+                            ? "bg-darkBg-sidebar border-darkBorder-light"
+                            : "bg-white border-gray-200"
+                    )}>
+                        <div className="grid grid-cols-3 gap-4">
+                            {mobileSecondaryItems.map((item) => (
+                                <button
+                                    key={item.id}
+                                    onClick={() => handleClick(item.id, item.path)}
+                                    className={cn(
+                                        "flex flex-col items-center gap-1 px-2 py-2 rounded-lg transition-colors",
+                                        activeItem === item.id 
+                                            ? "bg-brand-gold/20 text-brand-gold" 
+                                            : theme === "dark"
+                                                ? "text-gray-400 hover:text-white"
+                                                : "text-gray-600 hover:text-gray-900"
+                                    )}
+                                >
+                                    <span className="text-lg">{item.icon}</span>
+                                    <span className="text-[10px] font-medium">{item.label}</span>
+                                </button>
+                            ))}
                         </div>
                     </div>
-                </nav>
-            )}
+                )}
+
+                <div className="flex justify-between items-center px-4 py-3 max-w-md md:max-w-2xl mx-auto h-16">
+                    {/* Left items */}
+                    <div className="flex items-center gap-8 flex-1">
+                        <button
+                            onClick={() => handleClick('Home', mobilePrimaryItems[0].path)}
+                            className={cn(
+                                "flex flex-col items-center gap-1 transition-colors duration-200",
+                                activeItem === 'Home' 
+                                    ? theme === "dark"
+                                        ? "text-brand-gold"
+                                        : "text-brand-green"
+                                    : theme === "dark"
+                                        ? "text-gray-400 hover:text-gray-300"
+                                        : "text-gray-600 hover:text-gray-900"
+                            )}
+                        >
+                            <Home size={24} />
+                            <span className="text-xs font-medium">Home</span>
+                        </button>
+
+                        <button
+                            onClick={() => handleClick('Statistics', mobilePrimaryItems[1].path)}
+                            className={cn(
+                                "flex flex-col items-center gap-1 transition-colors duration-200",
+                                activeItem === 'Statistics' 
+                                    ? theme === "dark"
+                                        ? "text-brand-gold"
+                                        : "text-brand-green"
+                                    : theme === "dark"
+                                        ? "text-gray-400 hover:text-gray-300"
+                                        : "text-gray-600 hover:text-gray-900"
+                            )}
+                        >
+                            <TrendingUp size={24} />
+                            <span className="text-xs font-medium">Statistics</span>
+                        </button>
+                    </div>
+
+                    {/* Center Scan Button - Larger with Glow */}
+                    <button
+                        onClick={() => handleClick('Scan', '')}
+                        className="flex flex-col items-center gap-1 -mt-10 transition-all active:scale-95 hover:scale-105 duration-200 mx-4"
+                    >
+                        <div
+                            className="w-16 h-16 rounded-full flex items-center justify-center shadow-[0_18px_40px_rgba(245,158,11,0.6)] hover:shadow-[0_22px_50px_rgba(245,158,11,0.8)] hover:-translate-y-0.5 transition-all duration-200"
+                            style={{
+                                background: 'radial-gradient(circle at 20% 20%, #ffffff, #f6e08b, #f59e0b)'
+                            }}
+                        >
+                            <QrCode size={30} className="text-gray-900" strokeWidth={2} />
+                        </div>
+                    </button>
+
+                    {/* Right items */}
+                    <div className="flex items-center gap-8 flex-1 justify-end">
+                        <button
+                            onClick={() => handleClick('Chat', mobilePrimaryItems[3].path)}
+                            className={cn(
+                                "flex flex-col items-center gap-1 transition-colors duration-200",
+                                activeItem === 'Chat' 
+                                    ? theme === "dark"
+                                        ? "text-brand-gold"
+                                        : "text-brand-green"
+                                    : theme === "dark"
+                                        ? "text-gray-400 hover:text-gray-300"
+                                        : "text-gray-600 hover:text-gray-900"
+                            )}
+                        >
+                            <MessageCircle size={24} />
+                            <span className="text-xs font-medium">Messages</span>
+                        </button>
+
+                        <button
+                            onClick={() => handleClick('More', '')}
+                            className={cn(
+                                "flex flex-col items-center gap-1 transition-colors duration-200",
+                                isMoreMenuOpen 
+                                    ? "text-brand-gold" 
+                                    : theme === "dark"
+                                        ? "text-gray-400 hover:text-gray-300"
+                                        : "text-gray-600 hover:text-gray-900"
+                            )}
+                        >
+                            <MoreHorizontal size={24} />
+                            <span className="text-xs font-medium">More</span>
+                        </button>
+                    </div>
+                </div>
+            </nav>
         </>
     )
 }

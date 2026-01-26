@@ -41,7 +41,7 @@ export const Header = () => {
         // ChatContext is not available on this page
         chat = null;
     }
-    
+
     // Use chat connection status if available, otherwise use notifications
     const isConnected = chat?.isConnected ?? notifications.isConnected;
 
@@ -188,7 +188,7 @@ export const Header = () => {
     };
 
     return (
-        <div className="flex justify-between items-center px-3 sm:px-4 py-3 sm:py-4 min-h-16 sm:min-h-18">
+        <div className="flex justify-between items-center px-3 sm:px-4 py-3 sm:py-4 min-h-16 sm:min-h-18 bg-white dark:bg-transparent">
             {/* Left Section: Title */}
             <div className="flex items-center justify-start">
                 <h2 className="text-sm sm:text-md lg:text-2xl font-bold text-[#00313A] dark:text-white leading-tight whitespace-nowrap">
@@ -268,12 +268,12 @@ export const Header = () => {
 
                     {/* Dropdown Menu */}
                     {isDropdownOpen && (
-                        <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-darkBg-card border border-gray-200 dark:border-darkBorder-light rounded-md shadow-lg z-10">
+                        <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-darkBg-card border border-gray-200 dark:border-darkBorder-light rounded-md shadow-lg z-10 overflow-hidden">
                             <ul className="text-sm text-gray-700 dark:text-gray-300">
                                 <li>
                                     <button
                                         onClick={() => handleNavigation('/profile')}
-                                        className="block w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-darkBg-interactive"
+                                        className="block w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors"
                                     >
                                         Profile
                                     </button>
@@ -281,7 +281,7 @@ export const Header = () => {
                                 <li>
                                     <button
                                         onClick={() => handleNavigation('/settings')}
-                                        className="block w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-darkBg-interactive"
+                                        className="block w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors"
                                     >
                                         Settings
                                     </button>
@@ -289,15 +289,15 @@ export const Header = () => {
                                 <li>
                                     <button
                                         onClick={() => handleNavigation('/notifications')}
-                                        className="block w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-darkBg-interactive"
+                                        className="block w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors"
                                     >
                                         Notifications
                                     </button>
                                 </li>
-                                <li>
+                                <li className="border-t border-gray-100 dark:border-darkBorder-light">
                                     <button
-                                        onClick={handleLogout}
-                                        className="block w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-darkBg-interactive text-red-500"
+                                        onClick={() => handleNavigation('/logout')}
+                                        className="block w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-darkBg-overlay transition-colors text-red-500"
                                     >
                                         Logout
                                     </button>

@@ -37,14 +37,14 @@ export const RecentActions = () => {
           <span className="inline sm:hidden">New</span>
         </button>
       </div>
- 
+
       {/* Campaigns Grid */}
       <div className="p-3 sm:p-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {campaigns.map((campaign) => (
             <div
               key={campaign.id}
-              className="bg-gray-50 dark:bg-darkBg-interactive border border-gray-200 dark:border-darkBorder-medium rounded-2xl p-3 sm:p-4 hover:shadow-md transition-shadow cursor-pointer"
+              className="bg-gray-50 dark:bg-darkBg-interactive border border-gray-200 dark:border-darkBorder-light rounded-2xl p-3 sm:p-4 hover:shadow-md transition-shadow cursor-pointer"
             >
               <h4 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base mb-2">
                 {campaign.name}

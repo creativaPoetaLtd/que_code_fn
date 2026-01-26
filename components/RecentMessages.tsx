@@ -50,17 +50,17 @@ export const RecentMessages: React.FC = () => {
         yesterday.setDate(yesterday.getDate() - 1);
 
         if (messageDate.toDateString() === today.toDateString()) {
-            return messageDate.toLocaleTimeString('en-US', { 
-                hour: 'numeric', 
+            return messageDate.toLocaleTimeString('en-US', {
+                hour: 'numeric',
                 minute: '2-digit',
-                hour12: true 
+                hour12: true
             });
         } else if (messageDate.toDateString() === yesterday.toDateString()) {
             return 'Yesterday';
         } else {
-            return messageDate.toLocaleDateString('en-US', { 
-                month: 'short', 
-                day: 'numeric' 
+            return messageDate.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric'
             });
         }
     };
@@ -133,7 +133,7 @@ export const RecentMessages: React.FC = () => {
                 <h3 className="text-base sm:text-lg text-[#00313A] dark:text-white font-semibold">
                     Recent messages
                 </h3>
-                <button 
+                <button
                     onClick={() => router.push('/chat')}
                     className="relative text-sm text-[#00B512] dark:text-[#D4AF37] hover:text-[#00B512]/80 dark:hover:text-[#C9A530] transition-colors duration-200 font-medium group"
                 >
@@ -146,7 +146,7 @@ export const RecentMessages: React.FC = () => {
                 {conversations.map((chat) => (
                     <div
                         key={chat.id}
-                        className="p-2.5 sm:p-3 hover:bg-gray-50 dark:hover:bg-darkBg-interactive transition-colors duration-200 cursor-pointer"
+                        className="p-3 sm:p-4 hover:bg-gray-50 dark:hover:bg-darkBg-interactive transition-colors duration-200 cursor-pointer"
                         onClick={() => router.push('/chat')}
                     >
                         <div className="flex items-start gap-2.5">
