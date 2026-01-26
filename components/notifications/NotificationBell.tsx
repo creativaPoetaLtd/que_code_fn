@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Bell } from "lucide-react"
 import { useNotifications } from "@/context/NotificationContext"
 import { useGetPendingInvitationsUnifiedQuery } from "@/states/contactSlice"
+import { useGetPendingJoinRequestsQuery } from "@/states/groupSlice"
 import { useAuthToken } from "@/hooks/use-auth-token"
 import NotificationCenter from "./NotificationCenter"
 
@@ -22,9 +23,16 @@ const NotificationBell: React.FC = () => {
         limit: 20
     }, { skip: !token })
 
-    // Combine notification count with pending contact requests
+    // Get pending group join requests count to include in notification count
+    const { data: pendingJoinRequests } = useGetPendingJoinRequestsQuery(
+        token!,
+        { skip: !token }
+    )
+
+    // Combine notification count with pending contact requests and group join requests
     const contactRequestsCount = pendingContactRequests?.invitations?.length || 0
-    const totalUnreadCount = unreadCount + contactRequestsCount
+    const joinRequestsCount = pendingJoinRequests?.data?.requests?.length || 0
+    const totalUnreadCount = unreadCount + contactRequestsCount + joinRequestsCount
 
     return (
         <>

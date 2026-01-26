@@ -12,6 +12,7 @@ import {
     ChatParticipantStatus
 } from "@/types/chat.types";
 import { toast } from "@/hooks/use-toast";
+import { notificationService } from "@/services/notificationService";
 
 interface ChatContextType {
     isConnected: boolean;
@@ -36,6 +37,7 @@ interface ChatContextType {
     updateMessageReadStatus: (chatId: string, messageId: string, readBy: any) => void;
     refreshConversations: () => void;
     refreshMessages: (chatId: string) => void;
+    clearChatState: () => void;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -62,13 +64,42 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     useEffect(() => {
         const currentToken = getToken();
         const currentUserId = getUserId();
+        
+        // If userId changes (different user logged in), clear all state
+        if (userId && currentUserId && userId !== currentUserId) {
+            console.log('Different user detected, clearing chat state');
+            setConversations([]);
+            setActiveChat(null);
+            setMessages({});
+            setTypingUsers([]);
+            setOnlineUsers([]);
+            setParticipantsStatus({});
+            socketService.forceDisconnect();
+        }
+        
         setToken(currentToken);
         setUserId(currentUserId);
+        
+        // Update notification service with current user
+        notificationService.setUserId(currentUserId);
 
         // Listen for token changes via custom event
         const handleAuthTokenChange = (event: CustomEvent) => {
             const newToken = getToken();
             const newUserId = getUserId();
+            
+            // If user changed, clear state
+            if (userId && newUserId && userId !== newUserId) {
+                console.log('User changed via token event, clearing chat state');
+                setConversations([]);
+                setActiveChat(null);
+                setMessages({});
+                setTypingUsers([]);
+                setOnlineUsers([]);
+                setParticipantsStatus({});
+                socketService.forceDisconnect();
+            }
+            
             setToken(newToken);
             setUserId(newUserId);
         };
@@ -78,7 +109,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         return () => {
             window.removeEventListener('authTokenChanged', handleAuthTokenChange as EventListener);
         };
-    }, [getToken, getUserId]);
+    }, [getToken, getUserId, userId]);
 
     const { data: chatsData, refetch: refetchChats } = useGetUserChatsQuery(undefined, {
         skip: !token
@@ -197,13 +228,14 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
                 });
             });
 
-            if (message.chatId !== activeChat && message.sender.id !== userId) {
-                toast({
-                    title: `New message from ${message.sender.lastName}`,
-                    description: message.content.substring(0, 100),
-                    duration: 3000,
-                });
-            }
+            // Send notification using centralized service
+            notificationService.notifyNewMessage({
+                chatId: message.chatId,
+                senderId: message.sender.id,
+                senderName: message.sender.lastName || message.sender.name,
+                content: message.content,
+                messageType: message.messageType as any,
+            });
         };
 
         const handleMessageDelivered = (data: { chatId: string; messageId: string; deliveredAt: Date }) => {
@@ -335,13 +367,13 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         };
 
         const handleMoneyReceived = (data: { amount: number; from: string; transactionId: string; chatId: string }) => {
-            toast({
-                title: "💰 Money Received!",
-                description: `You received $${data.amount.toFixed(2)} from ${data.from}`,
-                duration: 5000,
+            // Send notification using centralized service
+            notificationService.notifyMoneyReceived({
+                amount: data.amount,
+                from: data.from,
+                chatId: data.chatId,
             });
 
-            // Refresh messages for the chat where money was received
             if (data.chatId === activeChat) {
                 refetchMessages();
             }
@@ -383,6 +415,9 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         if (activeChat && isConnected) {
             socketService.joinChat(activeChat);
             socketService.markMessageRead(activeChat, '');
+            
+            // Update notification service with active chat
+            notificationService.setActiveChat(activeChat);
 
             // Reset unread count for active chat
             setConversations(prev => prev.map(conv =>
@@ -394,6 +429,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
             return () => {
                 if (activeChat) {
                     socketService.leaveChat(activeChat);
+                    notificationService.setActiveChat(null);
                 }
             };
         }
@@ -562,6 +598,22 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         }));
     }, []);
 
+    const clearChatState = useCallback(() => {
+        // Disconnect socket properly
+        socketService.disconnect();
+        
+        // Clear all state
+        setConversations([]);
+        setActiveChat(null);
+        setMessages({});
+        setTypingUsers([]);
+        setOnlineUsers([]);
+        setParticipantsStatus({});
+        setIsConnected(false);
+        setUserId(null);
+        setToken(null);
+    }, []);
+
     const value: ChatContextType = {
         isConnected,
         conversations,
@@ -584,7 +636,8 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         leaveChat,
         markMessageRead,
         addMessage,
-        updateMessageReadStatus
+        updateMessageReadStatus,
+        clearChatState
     };
 
     return (

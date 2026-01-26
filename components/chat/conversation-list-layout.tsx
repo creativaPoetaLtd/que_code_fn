@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import ConversationItem from './conversation-item';
-import QuickActions, { type QuickActionType } from './quick-actions';
+import QuickActions from './quick-actions';
 import SearchBar from './search-bar';
 import ConversationFilters, { type FilterType } from './conversation-filters';
 import EmptyState from './empty-state';
@@ -43,8 +43,6 @@ export default function ConversationListLayout({
 }: ConversationListLayoutProps) {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
-  const [activeQuickTab, setActiveQuickTab] =
-    useState<QuickActionType>('conversations');
   const [isStartChatModalOpen, setIsStartChatModalOpen] =
     useState<boolean>(false);
   const [isJoinGroupByLinkModalOpen, setIsJoinGroupByLinkModalOpen] =
@@ -97,202 +95,178 @@ export default function ConversationListLayout({
     >
       {/* Header - Fixed */}
       <div className='flex-shrink-0 p-4 border-b border-gray-100 dark:border-darkBorder-light bg-white dark:bg-darkBg-card'>
-        <div className='flex justify-between items-center mb-4'>
-          <h2 className='text-xl font-bold text-gray-900 dark:text-white'>Messages</h2>
-          {totalUnreadCount > 0 && (
-            <Badge className='bg-brand-green dark:bg-brand-gold text-white dark:text-darkBg-main hover:bg-brand-green/90 dark:hover:bg-brand-gold/90'>
-              {totalUnreadCount} unread
-            </Badge>
-          )}
-        </div>
-
+      
         <QuickActions
-          activeTab={activeQuickTab}
-          onTabChange={setActiveQuickTab}
           onAddContact={onAddContact}
           onStartNewChat={() => setIsStartChatModalOpen(true)}
-          onViewMyGroups={() => setActiveQuickTab('groups')}
           onCreateGroup={() => setIsCreateGroupModalOpen(true)}
           onJoinGroupByLink={() => setIsJoinGroupByLinkModalOpen(true)}
           onViewContactRequests={onViewContactRequests}
-          onStartChatWithContact={contact => {
-            onStartNewChat?.(contact);
-            setActiveQuickTab('conversations');
-          }}
-          onJoinGroup={group => {
-            onJoinGroup?.(group);
-            setActiveQuickTab('conversations');
-          }}
-          contactsCount={userCount}
-          groupsCount={groupCount}
         />
       </div>
 
-      {/* Search and Filters - Only show when on conversations tab */}
-      {activeQuickTab === 'conversations' && (
-        <div className='p-4 space-y-3 border-b border-gray-100'>
-          <SearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} />
-          <ConversationFilters
-            activeFilter={activeFilter}
-            onFilterChange={setActiveFilter}
-            totalCount={conversations.length}
-            userCount={userCount}
-            groupCount={groupCount}
-          />
-        </div>
-      )}
+      {/* Search and Filters */}
+      <div className='p-4 space-y-3 border-b border-gray-100'>
+        <SearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} />
+        <ConversationFilters
+          activeFilter={activeFilter}
+          onFilterChange={setActiveFilter}
+          totalCount={conversations.length}
+          userCount={userCount}
+          groupCount={groupCount}
+        />
+      </div>
 
       {/* Content Area */}
       <div className='flex-1 overflow-y-auto'>
-        {activeQuickTab === 'conversations' &&
-          (activeFilter === 'groups' ? (
-            // Groups-specific rendering
-            groupsLoading ? (
-              <div className='flex items-center justify-center h-32'>
-                <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-[#00B512]'></div>
-                <span className='ml-2 text-gray-500'>Loading groups...</span>
-              </div>
-            ) : (
-              <div>
-                {/* Groups List */}
-                {filteredGroups.length > 0 ||
-                  filteredConversations.length > 0 ? (
-                  <div>
-                    {/* Show conversation groups first */}
-                    {filteredConversations.length > 0 && (
-                      <>
-                        <div className='px-4 py-2 bg-gray-50 border-b border-gray-100'>
-                          <p className='text-xs font-medium text-gray-600 uppercase tracking-wide'>
-                            Group Conversations ({filteredConversations.length})
-                          </p>
+        {activeFilter === 'groups' ? (
+          // Groups-specific rendering
+          groupsLoading ? (
+            <div className='flex items-center justify-center h-32'>
+              <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-[#00B512]'></div>
+              <span className='ml-2 text-gray-500'>Loading groups...</span>
+            </div>
+          ) : (
+            <div>
+              {/* Groups List */}
+              {filteredGroups.length > 0 ||
+                filteredConversations.length > 0 ? (
+                <div>
+                  {/* Show conversation groups first */}
+                  {filteredConversations.length > 0 && (
+                    <>
+                      <div className='px-4 py-2 bg-gray-50 border-b border-gray-100'>
+                        <p className='text-xs font-medium text-gray-600 uppercase tracking-wide'>
+                          Group Conversations ({filteredConversations.length})
+                        </p>
+                      </div>
+                      {filteredConversations.map(conversation => (
+                        <div key={conversation.id} className='relative group'>
+                          <ConversationItem
+                            conversation={conversation}
+                            isActive={
+                              activeConversation.id === conversation.id
+                            }
+                            onClick={() => onConversationSelect(conversation)}
+                          />
                         </div>
-                        {filteredConversations.map(conversation => (
-                          <div key={conversation.id} className='relative group'>
-                            <ConversationItem
-                              conversation={conversation}
-                              isActive={
-                                activeConversation.id === conversation.id
-                              }
-                              onClick={() => onConversationSelect(conversation)}
-                            />
-                          </div>
-                        ))}
-                      </>
-                    )}
+                      ))}
+                    </>
+                  )}
 
-                    {/* Show additional groups */}
-                    {filteredGroups.length > 0 && (
-                      <>
-                        <div className='px-4 py-2 bg-gray-50 border-b border-gray-100'>
-                          <p className='text-xs font-medium text-gray-600 uppercase tracking-wide'>
-                            Available Groups ({filteredGroups.length})
-                          </p>
-                        </div>
-                        {filteredGroups.map((group: any) => (
-                          <div
-                            key={group.id}
-                            className='p-3 sm:p-4 border-b border-gray-100 dark:border-darkBorder-light cursor-pointer hover:bg-gray-50 dark:hover:bg-darkBg-interactive hover:border-l-2 hover:border-l-brand-green dark:hover:border-l-brand-gold transition-all duration-200'
-                            onClick={() => onJoinGroup?.(group)}
-                          >
-                            <div className='flex items-center gap-2 sm:gap-3'>
-                              <div className='relative flex-shrink-0'>
-                                <div className='bg-brand-green dark:bg-brand-gold h-10 w-10 rounded-full flex items-center justify-center text-white dark:text-darkBg-main'>
-                                  <Send size={18} />
-                                </div>
+                  {/* Show additional groups */}
+                  {filteredGroups.length > 0 && (
+                    <>
+                      <div className='px-4 py-2 bg-gray-50 border-b border-gray-100'>
+                        <p className='text-xs font-medium text-gray-600 uppercase tracking-wide'>
+                          Available Groups ({filteredGroups.length})
+                        </p>
+                      </div>
+                      {filteredGroups.map((group: any) => (
+                        <div
+                          key={group.id}
+                          className='p-3 sm:p-4 border-b border-gray-100 dark:border-darkBorder-light cursor-pointer hover:bg-gray-50 dark:hover:bg-darkBg-interactive hover:border-l-2 hover:border-l-brand-green dark:hover:border-l-brand-gold transition-all duration-200'
+                          onClick={() => onJoinGroup?.(group)}
+                        >
+                          <div className='flex items-center gap-2 sm:gap-3'>
+                            <div className='relative flex-shrink-0'>
+                              <div className='bg-brand-green dark:bg-brand-gold h-10 w-10 rounded-full flex items-center justify-center text-white dark:text-darkBg-main'>
+                                <Send size={18} />
                               </div>
-                              <div className='flex-1 min-w-0'>
-                                <div className='flex justify-between items-center'>
-                                  <p className='font-medium truncate text-sm sm:text-base'>
-                                    {group.name}
-                                  </p>
-                                  <span className='text-xs text-gray-500 whitespace-nowrap ml-1'>
-                                    {group.memberCount || 0} members
-                                  </span>
-                                </div>
-                                <div className='flex justify-between items-center mt-1'>
-                                  <p className='text-xs sm:text-sm text-gray-500 truncate max-w-[70%]'>
-                                    {group.description || 'No description'}
-                                  </p>
-                                </div>
+                            </div>
+                            <div className='flex-1 min-w-0'>
+                              <div className='flex justify-between items-center'>
+                                <p className='font-medium truncate text-sm sm:text-base'>
+                                  {group.name}
+                                </p>
+                                <span className='text-xs text-gray-500 whitespace-nowrap ml-1'>
+                                  {group.memberCount || 0} members
+                                </span>
+                              </div>
+                              <div className='flex justify-between items-center mt-1'>
+                                <p className='text-xs sm:text-sm text-gray-500 truncate max-w-[70%]'>
+                                  {group.description || 'No description'}
+                                </p>
                               </div>
                             </div>
                           </div>
-                        ))}
-                      </>
-                    )}
-                  </div>
-                ) : (
-                  <div className='text-center py-8'>
-                    <p className='text-gray-500 mb-4'>No groups found</p>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div className='text-center py-8'>
+                  <p className='text-gray-500 mb-4'>No groups found</p>
+                  <Button
+                    onClick={() => setIsJoinGroupByLinkModalOpen(true)}
+                    variant='outline'
+                    size='sm'
+                    className='border-brand-green dark:border-brand-gold text-brand-green dark:text-brand-gold hover:bg-brand-green dark:hover:bg-brand-gold hover:text-white dark:hover:text-darkBg-main'
+                  >
+                    <Link size={14} className='mr-2' />
+                    Join Your First Group
+                  </Button>
+                </div>
+              )}
+            </div>
+          )
+        ) : // Regular conversations rendering
+          isLoading ? (
+            <div className='flex items-center justify-center h-32'>
+              <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-[#00B512]'></div>
+              <span className='ml-2 text-gray-500'>
+                Loading conversations...
+              </span>
+            </div>
+          ) : filteredConversations.length > 0 ? (
+            <div>
+              {/* Section Header */}
+              {searchTerm === '' && (
+                <div className='px-4 py-2 bg-gray-50 border-b border-gray-100'>
+                  <p className='text-xs font-medium text-gray-600 uppercase tracking-wide'>
+                    {activeFilter === 'all' && 'All Conversations'}
+                    {activeFilter === 'users' && 'Direct Messages'}
+                  </p>
+                </div>
+              )}
+
+              {filteredConversations.map(conversation => (
+                <div key={conversation.id} className='relative group'>
+                  <ConversationItem
+                    conversation={conversation}
+                    isActive={activeConversation.id === conversation.id}
+                    onClick={() => onConversationSelect(conversation)}
+                  />
+
+                  {/* Quick Send Money Button - Only for users */}
+                  {!conversation.isGroup && (
                     <Button
-                      onClick={() => setIsJoinGroupByLinkModalOpen(true)}
-                      variant='outline'
-                      size='sm'
-                      className='border-brand-green dark:border-brand-gold text-brand-green dark:text-brand-gold hover:bg-brand-green dark:hover:bg-brand-gold hover:text-white dark:hover:text-darkBg-main'
+                      variant='ghost'
+                      size='icon'
+                      onClick={e => {
+                        e.stopPropagation();
+                        onQuickSendMoney(conversation);
+                      }}
+                      className='absolute right-4 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-gray-100 dark:hover:bg-darkBg-interactive h-8 w-8'
+                      aria-label='Quick send money'
                     >
-                      <Link size={14} className='mr-2' />
-                      Join Your First Group
+                      <Send size={14} className='text-brand-green dark:text-brand-gold' />
                     </Button>
-                  </div>
-                )}
-              </div>
-            )
-          ) : // Regular conversations rendering
-            isLoading ? (
-              <div className='flex items-center justify-center h-32'>
-                <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-[#00B512]'></div>
-                <span className='ml-2 text-gray-500'>
-                  Loading conversations...
-                </span>
-              </div>
-            ) : filteredConversations.length > 0 ? (
-              <div>
-                {/* Section Header */}
-                {searchTerm === '' && (
-                  <div className='px-4 py-2 bg-gray-50 border-b border-gray-100'>
-                    <p className='text-xs font-medium text-gray-600 uppercase tracking-wide'>
-                      {activeFilter === 'all' && 'All Conversations'}
-                      {activeFilter === 'users' && 'Direct Messages'}
-                    </p>
-                  </div>
-                )}
-
-                {filteredConversations.map(conversation => (
-                  <div key={conversation.id} className='relative group'>
-                    <ConversationItem
-                      conversation={conversation}
-                      isActive={activeConversation.id === conversation.id}
-                      onClick={() => onConversationSelect(conversation)}
-                    />
-
-                    {/* Quick Send Money Button - Only for users */}
-                    {!conversation.isGroup && (
-                      <Button
-                        variant='ghost'
-                        size='icon'
-                        onClick={e => {
-                          e.stopPropagation();
-                          onQuickSendMoney(conversation);
-                        }}
-                        className='absolute right-4 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-gray-100 dark:hover:bg-darkBg-interactive h-8 w-8'
-                        aria-label='Quick send money'
-                      >
-                        <Send size={14} className='text-brand-green dark:text-brand-gold' />
-                      </Button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <EmptyState
-                filterType={activeFilter}
-                hasSearchTerm={!!searchTerm}
-                onStartNewChat={() => setIsStartChatModalOpen(true)}
-                onViewMyGroups={() => setActiveQuickTab('groups')}
-                onJoinGroupByLink={() => setIsJoinGroupByLinkModalOpen(true)}
-                onAddContact={onAddContact}
-              />
-            ))}
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              filterType={activeFilter}
+              hasSearchTerm={!!searchTerm}
+              onStartNewChat={() => setIsStartChatModalOpen(true)}
+              onViewMyGroups={() => { }}
+              onJoinGroupByLink={() => setIsJoinGroupByLinkModalOpen(true)}
+              onAddContact={onAddContact}
+            />
+          )}
       </div>
 
       {/* Modals */}

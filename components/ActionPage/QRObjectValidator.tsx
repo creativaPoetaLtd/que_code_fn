@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Scan, CheckCircle2, XCircle, Loader2, Camera, X, Upload, FileText, ExternalLink } from "lucide-react";
+import { Scan, CheckCircle2, XCircle, Loader2, Camera, X, Upload, FileText, ExternalLink, Check } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import axios from "axios";
 import baseUrl from "@/helpers/baseUrl";
@@ -43,6 +44,7 @@ interface QRObjectValidationResult {
 }
 
 export default function QRObjectValidator({ isOpen, onClose, organizationId }: QRObjectValidatorProps) {
+    const router = useRouter();
     const { getToken, getUserId } = useAuthToken();
     const [isScanning, setIsScanning] = useState(false);
     const [cameraActive, setCameraActive] = useState(false);
@@ -59,6 +61,7 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const processingRef = useRef<boolean>(false);
     const [QrScanner, setQrScanner] = useState<any>(null);
 
     useEffect(() => {
@@ -173,24 +176,78 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
 
         setCameraActive(false);
         setIsScanning(false);
+        processingRef.current = false;
     };
 
     const startQRDetection = () => {
         if (!QrScanner || !videoRef.current || !canvasRef.current) return;
 
         const scan = async () => {
-            if (!videoRef.current || !canvasRef.current) return;
+            if (!videoRef.current || !canvasRef.current || processingRef.current) return;
 
             try {
-                const result = await QrScanner.scanImage(videoRef.current, {
-                    returnDetailedDetectionResult: true,
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext("2d");
+                
+                if (!ctx) return;
+                
+                // Set canvas size to match video
+                canvas.width = videoRef.current.videoWidth;
+                canvas.height = videoRef.current.videoHeight;
+                
+                // Draw current video frame to canvas
+                ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+                
+                // Convert canvas to image data URL
+                const imageData = canvas.toDataURL("image/png");
+                
+                // Create image element
+                const img = new Image();
+                img.src = imageData;
+                
+                // Wait for image to load
+                await new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = reject;
+                    setTimeout(reject, 1000);
                 });
 
-                if (result?.data) {
-                    handleScanSuccess(result.data);
+                // Try scanning image element first (like PDF method)
+                try {
+                    const result = await QrScanner.scanImage(img);
+                    if (result) {
+                        processingRef.current = true;
+                        stopCamera();
+                        await processScannedResult(result);
+                        return;
+                    }
+                } catch (err) {
+                    // Try scanning data URL
+                    try {
+                        const result = await QrScanner.scanImage(imageData);
+                        if (result) {
+                            processingRef.current = true;
+                            stopCamera();
+                            await processScannedResult(result);
+                            return;
+                        }
+                    } catch (err2) {
+                        // Try canvas directly
+                        try {
+                            const result = await QrScanner.scanImage(canvas);
+                            if (result) {
+                                processingRef.current = true;
+                                stopCamera();
+                                await processScannedResult(result);
+                                return;
+                            }
+                        } catch (err3) {
+                            // No QR code found, continue scanning
+                        }
+                    }
                 }
             } catch (err) {
-                // No QR code detected, continue scanning
+                // Silently continue scanning on error
             }
         };
 
@@ -289,7 +346,34 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
                 }
             }
             
-            // Not a QR object URL (could be /welcome/ or any other URL) - treat as external
+            // Check if this is a /welcome/ URL from our app
+            try {
+                const parsedUrl = new URL(scannedData);
+                const path = parsedUrl.pathname.toLowerCase();
+                
+                if (path.includes('/welcome/')) {
+                    // Extract userId from /welcome/userId path
+                    const pathParts = parsedUrl.pathname.split('/').filter(p => p && p.length > 0);
+                    const welcomeIndex = pathParts.findIndex(p => p.toLowerCase() === 'welcome');
+                    
+                    if (welcomeIndex !== -1 && pathParts[welcomeIndex + 1]) {
+                        const userId = pathParts[welcomeIndex + 1];
+                        toast({
+                            title: "User Profile Scanned",
+                            description: "Navigating to user's QR objects...",
+                        });
+                        
+                        // Close the modal and navigate
+                        onClose();
+                        router.push(`/action/${userId}`);
+                        return true;
+                    }
+                }
+            } catch {
+                // URL parsing failed, continue to external handling
+            }
+            
+            // Not a QR object URL and not a welcome URL - treat as external
             setExternalUrl(scannedData);
             
             // Automatically open the external URL in a new tab
@@ -319,6 +403,10 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
     };
 
     const handleScanSuccess = async (scannedData: string) => {
+        // Prevent concurrent processing of multiple detections
+        if (processingRef.current) return;
+        processingRef.current = true;
+        
         stopCamera();
         await processScannedResult(scannedData);
     };
@@ -419,6 +507,7 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
     };
 
     const handleClose = () => {
+        processingRef.current = false;
         stopCamera();
         setScanResult("");
         setValidationResult(null);
@@ -433,6 +522,7 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
         setValidationResult(null);
         setError("");
         setExternalUrl(null);
+        processingRef.current = false;
         stopCamera();
     };
 
@@ -801,7 +891,7 @@ export default function QRObjectValidator({ isOpen, onClose, organizationId }: Q
                                 </div>
                             </div>
 
-                            {validationResult.metadata?.benefits && validationResult.metadata.benefits.length > 0 && (
+                            {Array.isArray(validationResult.metadata?.benefits) && validationResult.metadata.benefits.length > 0 && (
                                 <div className="bg-white rounded-xl p-4 border border-[#00B512]/10">
                                     <h4 className="text-sm font-semibold text-[#00B512] mb-2">Benefits:</h4>
                                     <ul className="list-disc list-inside space-y-1">

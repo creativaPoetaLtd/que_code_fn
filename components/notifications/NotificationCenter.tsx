@@ -12,15 +12,15 @@ import { Bell, Users, UserPlus, Check, X, Clock, AlertCircle, Info, Loader2 } fr
 import { toast } from "@/hooks/use-toast"
 import { useNotifications } from "@/context/NotificationContext"
 import { useAuthToken } from "@/hooks/use-auth-token"
-import { 
-    useRespondToJoinRequestEnhancedMutation, 
+import {
+    useRespondToJoinRequestEnhancedMutation,
     useGetPendingJoinRequestsQuery,
-    useGetPendingInvitationsQuery 
+    useGetPendingInvitationsQuery
 } from "@/states/groupSlice"
-import { 
+import {
     useGetPendingInvitationsUnifiedQuery,
     useRespondToInvitationEnhancedMutation,
-    useRespondToInvitationByTokenMutation 
+    useRespondToInvitationByTokenMutation
 } from "@/states/contactSlice"
 import type { Notification } from "@/types/notification.types"
 import { formatDistanceToNow } from "date-fns"
@@ -45,7 +45,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
 
     // Fetch pending requests and invitations
     const { data: pendingRequests, refetch: refetchRequests } = useGetPendingJoinRequestsQuery(
-        token!, 
+        token!,
         { skip: !token }
     )
     const { data: pendingInvitations } = useGetPendingInvitationsQuery(
@@ -142,12 +142,13 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
             })
 
             refetchContactRequests()
-            
+
             // Remove the contact request notification after successful response
-            // Find the invitation to get the inviter's userId
-            const invitation = pendingContactRequestsList.find(inv => inv.id === invitationId)
-            if (invitation?.inviter?.id) {
-                removeContactRequestNotification(invitation.inviter.id)
+            if (removeContactRequestNotification) {
+                const invitation = pendingContactRequestsList.find(inv => inv.id === invitationId)
+                if (invitation?.inviter?.id) {
+                    removeContactRequestNotification(invitation.inviter.id)
+                }
             }
         } catch (error: any) {
             toast({
@@ -173,7 +174,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
             })
 
             refetchContactRequests()
-            
+
             // Note: For token-based responses, we don't have direct access to userId here
             // The notification will be removed when the pending requests are refetched
         } catch (error: any) {
@@ -309,7 +310,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
                                             <p className="text-xs text-gray-500 dark:text-gray-400">
                                                 {request.inviter?.email}
                                             </p>
-                                            
+
                                             <div className="flex gap-2 mt-3">
                                                 <Button
                                                     size="sm"
@@ -373,7 +374,9 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
                                                     {request.user?.firstName} {request.user?.lastName}
                                                 </p>
                                                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                                                    {formatDistanceToNow(new Date(request.createdAt), { addSuffix: true })}
+                                                    {request.createdAt && !isNaN(new Date(request.createdAt).getTime())
+                                                        ? formatDistanceToNow(new Date(request.createdAt), { addSuffix: true })
+                                                        : 'Recently'}
                                                 </p>
                                             </div>
                                             <p className="text-sm text-gray-600 dark:text-gray-300">
@@ -384,7 +387,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
                                                     "{request.additionalInfo}"
                                                 </p>
                                             )}
-                                            
+
                                             {showRejectionInput === request.id ? (
                                                 <div className="mt-3 space-y-2">
                                                     <Textarea
@@ -465,11 +468,10 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
                             filteredNotifications.map((notification) => (
                                 <div
                                     key={notification.id}
-                                    className={`flex items-start space-x-3 p-3 rounded-lg cursor-pointer transition-colors ${
-                                        notification.isRead 
-                                            ? 'bg-gray-50 dark:bg-darkBg-card' 
+                                    className={`flex items-start space-x-3 p-3 rounded-lg cursor-pointer transition-colors ${notification.isRead
+                                            ? 'bg-gray-50 dark:bg-darkBg-card'
                                             : 'bg-blue-50 dark:bg-darkBg-interactive border border-blue-200 dark:border-darkBorder-light'
-                                    }`}
+                                        }`}
                                     onClick={() => handleNotificationClick(notification)}
                                 >
                                     <div className="flex-shrink-0 mt-1">
@@ -495,38 +497,38 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
                                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                             {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
                                         </p>
-                                        
+
                                         {/* Action buttons for actionable notifications */}
-                                        {notification.data?.actions && notification.data.actions.length > 0 && 
-                                         (notification.type === 'CONTACT_REQUEST_RECEIVED' || notification.type === 'contact_request') && (
-                                            <div className="flex gap-2 mt-2">
-                                                {notification.data.actions.map((action: any, index: number) => (
-                                                    <Button
-                                                        key={index}
-                                                        size="sm"
-                                                        variant={action.type === 'accept' ? 'default' : 'outline'}
-                                                        className={`text-xs ${action.type !== 'accept' ? 'dark:text-gray-300 dark:border-gray-600 dark:hover:bg-darkBg-card' : ''}`}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation()
-                                                            if (notification.data?.userId) {
-                                                                // Extract token from URL if available
-                                                                const urlMatch = action.url.match(/invitation\/([^?]+)/)
-                                                                if (urlMatch) {
-                                                                    const token = urlMatch[1]
-                                                                    handleContactRequestResponseByToken(token, action.type as 'accept' | 'decline')
+                                        {notification.data?.actions && notification.data.actions.length > 0 &&
+                                            (notification.type === 'CONTACT_REQUEST_RECEIVED' || notification.type === 'contact_request') && (
+                                                <div className="flex gap-2 mt-2">
+                                                    {notification.data.actions.map((action: any, index: number) => (
+                                                        <Button
+                                                            key={index}
+                                                            size="sm"
+                                                            variant={action.type === 'accept' ? 'default' : 'outline'}
+                                                            className={`text-xs ${action.type !== 'accept' ? 'dark:text-gray-300 dark:border-gray-600 dark:hover:bg-darkBg-card' : ''}`}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                if (notification.data?.userId) {
+                                                                    // Extract token from URL if available
+                                                                    const urlMatch = action.url.match(/invitation\/([^?]+)/)
+                                                                    if (urlMatch) {
+                                                                        const token = urlMatch[1]
+                                                                        handleContactRequestResponseByToken(token, action.type as 'accept' | 'decline')
+                                                                    }
                                                                 }
-                                                            }
-                                                        }}
-                                                        disabled={isRespondingToContact}
-                                                    >
-                                                        {isRespondingToContact ? (
-                                                            <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                                                        ) : null}
-                                                        {action.label}
-                                                    </Button>
-                                                ))}
-                                            </div>
-                                        )}
+                                                            }}
+                                                            disabled={isRespondingToContact}
+                                                        >
+                                                            {isRespondingToContact ? (
+                                                                <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                                            ) : null}
+                                                            {action.label}
+                                                        </Button>
+                                                    ))}
+                                                </div>
+                                            )}
                                     </div>
                                 </div>
                             ))

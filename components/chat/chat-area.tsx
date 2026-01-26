@@ -48,7 +48,6 @@ export default function ChatArea({
         md:flex flex-col flex-1
         bg-gray-50 dark:bg-darkBg-main
         h-full relative
-        pb-28 md:pb-0
       `}
         >
             {/* Header */}
@@ -121,8 +120,10 @@ export default function ChatArea({
                 )}
             </div>
 
-            {/* Message Input (fixed above bottom nav on mobile) */}
-            <MessageInput />
+            {/* Message Input - Fixed at bottom */}
+            <div className="fixed bottom-0 left-0 right-0 md:relative md:bottom-auto md:left-auto md:right-auto bg-white dark:bg-darkBg-card border-t border-gray-100 dark:border-darkBorder-light">
+                <MessageInput />
+            </div>
         </div>
     )
 }

@@ -15,9 +15,9 @@ const nextConfig = {
 
 const pwaConfig = withPWA({
     dest: 'public',
-    register: true,
+    register: false, // Disabled - using PushAlerts official service worker instead
     skipWaiting: true,
-    disable: process.env.NODE_ENV === 'development',
+    disable: true, // Disable next-pwa service worker generation entirely - PushAlerts handles notifications
     runtimeCaching: [
         {
             urlPattern: /^https:\/\/fonts\.(?:gstatic|googleapis)\.com\/.*/i,

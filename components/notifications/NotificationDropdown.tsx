@@ -217,7 +217,7 @@ const NotificationDropdown: React.FC = () => {
                 return "Reject"
             case "accept":
                 return "Accept"
-            case "reject":
+            case "decline":
                 return "Decline"
             default:
                 return actionType.charAt(0).toUpperCase() + actionType.slice(1)

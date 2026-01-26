@@ -30,6 +30,9 @@ import {
 import { cn } from "@/lib/utils"
 import { useAuthToken } from "@/hooks/use-auth-token"
 import { useSidebar } from "@/context/SidebarContext"
+import { socketService } from "@/services/socketService"
+import { apiSlice } from "@/states/apiSlice"
+import { useDispatch } from "react-redux"
 import { useTheme } from "@/context/ThemeContext"
 import { ChevronIcon } from "@/components/ui/chevron-icon"
 
@@ -41,7 +44,11 @@ interface NavigationItem {
     isCenterButton?: boolean
 }
 
-export default function Navigation() {
+interface NavigationProps {
+    hideBottomNav?: boolean // Add prop to control bottom nav visibility
+}
+
+export default function Navigation({ hideBottomNav = false }: NavigationProps) {
     const { isExpanded, toggleSidebar } = useSidebar()
     const { theme } = useTheme()
     const [activeItem, setActiveItem] = useState<string>("Home")
@@ -52,6 +59,7 @@ export default function Navigation() {
     const router = useRouter()
     const params = useParams()
     const pathname = usePathname()
+    const dispatch = useDispatch()
 
     // Get userId from URL params or token
     useEffect(() => {
@@ -144,8 +152,41 @@ export default function Navigation() {
     const handleClick = (id: string, path: string) => {
         // Handle logout separately
         if (id === "Logout") {
-            removeToken();
-            router.push('/auth/login');
+            try {
+                // 1. Clear authentication tokens
+                removeToken();
+
+                // 2. Force disconnect socket
+                socketService.forceDisconnect();
+
+                // 3. Clear Redux RTK Query cache
+                dispatch(apiSlice.util.resetApiState());
+
+                // 4. Clear sessionStorage
+                sessionStorage.clear();
+
+                // 5. Clear localStorage (preserve theme and sidebar)
+                const preservedItems = {
+                    theme: localStorage.getItem('theme'),
+                    sidebarExpanded: localStorage.getItem('sidebarExpanded'),
+                };
+
+                localStorage.clear();
+
+                if (preservedItems.theme) {
+                    localStorage.setItem('theme', preservedItems.theme);
+                }
+                if (preservedItems.sidebarExpanded) {
+                    localStorage.setItem('sidebarExpanded', preservedItems.sidebarExpanded);
+                }
+            } catch (error) {
+                console.error('Error during logout:', error);
+            }
+
+            // 6. Force complete page reload to home using full URL
+            setTimeout(() => {
+                window.location.href = window.location.origin + "/";
+            }, 50);
             return;
         }
 
