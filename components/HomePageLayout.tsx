@@ -211,7 +211,14 @@ export const HomePageLayout = () => {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 mt-6 sm:mt-8">
                         <div className="space-y-3 sm:space-y-4 lg:space-y-6">
                             <AccountInfo userId={userId} />
-                            <RecentActions />
+                            <RecentActions 
+                              userId={userId} 
+                              onCreateAction={() => {
+                                // This will be handled by the parent page component
+                                // For now, just navigate to the actions page
+                                router.push(`/action/${userId}`);
+                              }}
+                            />
                         </div>
                         <div className="space-y-4 sm:space-y-6 lg:space-y-8">
                             <RecentMessages />

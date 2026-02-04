@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Table, Button, Dropdown, Tag, message, Empty } from "antd";
+import { Table, Button, Dropdown, Tag, message, Empty, Tabs } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import type { MenuProps } from "antd";
 import { MoreOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
@@ -15,12 +15,15 @@ interface TableAction extends OrganizationAction {
     key: string;
 }
 
+type FilterTab = 'active' | 'archive';
+
 const ActionPageLayout: React.FC = () => {
     const { accountType, userId } = useUserInfo();
     const isOrganization = accountType === 'organization';
     const [actions, setActions] = useState<OrganizationAction[]>([]);
     const [loading, setLoading] = useState(false);
     const [wizardOpen, setWizardOpen] = useState(false);
+    const [activeTab, setActiveTab] = useState<FilterTab>('active');
 
     const fetchActions = useCallback(async () => {
         if (!userId) return;
@@ -57,6 +60,28 @@ const ActionPageLayout: React.FC = () => {
         }
     };
 
+    // Check if action is expired
+    const isActionExpired = (action: OrganizationAction): boolean => {
+        if (!action.availability?.endsAt) return false;
+        return dayjs(action.availability.endsAt).isBefore(dayjs());
+    };
+
+    // Check if action is archived
+    const isActionArchived = (action: OrganizationAction): boolean => {
+        return action.status === 'archived';
+    };
+
+    // Filter actions based on tab
+    const filteredActions = useMemo(() => {
+        if (activeTab === 'archive') {
+            // Show archived and expired actions
+            return actions.filter(action => isActionArchived(action) || isActionExpired(action));
+        } else {
+            // Show active actions (not archived and not expired)
+            return actions.filter(action => !isActionArchived(action) && !isActionExpired(action));
+        }
+    }, [actions, activeTab]);
+
     const getActionMenu = (action: OrganizationAction): MenuProps => ({
         items: [
             {
@@ -77,11 +102,11 @@ const ActionPageLayout: React.FC = () => {
 
     const tableData: TableAction[] = useMemo(
         () =>
-            actions.map((action) => ({
+            filteredActions.map((action) => ({
                 ...action,
                 key: action.id,
             })),
-        [actions],
+        [filteredActions],
     );
 
     const columns: ColumnsType<TableAction> = [
@@ -188,6 +213,26 @@ const ActionPageLayout: React.FC = () => {
                 </p>
             </div>
 
+            {/* Filter Tabs */}
+            <div className="mb-6">
+                <Tabs
+                    activeKey={activeTab}
+                    onChange={(key) => setActiveTab(key as FilterTab)}
+                    items={[
+                        {
+                            key: 'active',
+                            label: `Active (${actions.filter(a => !isActionArchived(a) && !isActionExpired(a)).length})`,
+                            children: null,
+                        },
+                        {
+                            key: 'archive',
+                            label: `Archive (${actions.filter(a => isActionArchived(a) || isActionExpired(a)).length})`,
+                            children: null,
+                        },
+                    ]}
+                />
+            </div>
+
             <div className="flex-1 overflow-auto">
                 <Table
                     loading={loading}
@@ -196,7 +241,15 @@ const ActionPageLayout: React.FC = () => {
                     pagination={{ pageSize: 6, showSizeChanger: false }}
                     rowSelection={{ type: 'checkbox' }}
                     locale={{
-                        emptyText: <Empty description="No actions yet. Create your first one to get started." />,
+                        emptyText: (
+                            <Empty 
+                                description={
+                                    activeTab === 'archive' 
+                                        ? "No archived or expired actions yet." 
+                                        : "No actions yet. Create your first one to get started."
+                                } 
+                            />
+                        ),
                     }}
                     className="border border-gray-100 rounded-2xl"
                 />
