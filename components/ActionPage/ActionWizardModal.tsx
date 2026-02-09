@@ -485,7 +485,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
     const [selectedType, setSelectedType] = useState<string | undefined>(undefined);
     const [pricingMode, setPricingMode] = useState<string>('fixed');
 
-    // Filter steps based on pricing mode - only show subActions for tiered/payAsYouWant
+    // Filter steps based on pricing mode - show subActions for tiered and pay_what_you_want pricing
     const stepItems = useMemo(() => {
         return allStepItems.filter(step => {
             if (step.key === 'subActions' && !['tiered', 'pay_what_you_want'].includes(pricingMode)) {
@@ -549,8 +549,10 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                 setSelectedType(undefined);
             }
         } else if (stepKey === 'stepB') {
+            const mode = existingAction?.pricing?.mode || 'fixed';
+            setPricingMode(mode);
             form.setFieldsValue({
-                pricingMode: existingAction?.pricing?.mode || 'fixed',
+                pricingMode: mode,
                 currency: existingAction?.currency || 'RWF',
                 amount: existingAction?.pricing?.amount ?? 0,
                 taxProfileId: existingAction?.taxProfileId || '',

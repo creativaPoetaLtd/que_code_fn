@@ -180,7 +180,7 @@ const WelcomeProfilePage: React.FC = () => {
   const [isSubActionsModalOpen, setIsSubActionsModalOpen] = useState(false);
 
   // Purchase state
-  const [purchaseData, setPurchaseData] = useState<Record<string, { quantity: number; buyerData: Record<string, string> }>>({});
+  const [purchaseData, setPurchaseData] = useState<Record<string, { quantity: number; buyerData: Record<string, string>; customAmount?: number }>>({});
   const [purchasing, setPurchasing] = useState<Record<string, boolean>>({});
   const [purchaseError, setPurchaseError] = useState<Record<string, string>>(
     {}
@@ -547,12 +547,17 @@ const WelcomeProfilePage: React.FC = () => {
         Authorization: `Bearer ${token}`,
       };
 
-      const requestBody = {
+      const requestBody: any = {
         subActionId: subAction.id,
         quantity: data.quantity,
         buyerId: currentUserId,
         buyerData: data.buyerData
       };
+
+      // For pay_what_you_want pricing, add custom amount
+      if (selectedAction?.pricing?.mode === 'pay_what_you_want') {
+        requestBody.amount = data.customAmount || 0;
+      }
 
       const response = await axios.post(purchaseUrl, requestBody, { headers });
 
@@ -609,9 +614,9 @@ const WelcomeProfilePage: React.FC = () => {
     setPurchaseData(prev => ({
       ...prev,
       [subActionId]: {
-        ...prev[subActionId],
         quantity: numQuantity,
-        buyerData: prev[subActionId]?.buyerData || {}
+        buyerData: prev[subActionId]?.buyerData || {},
+        customAmount: prev[subActionId]?.customAmount
       }
     }));
     setPurchaseError(prev => ({ ...prev, [subActionId]: '' }));
@@ -625,7 +630,8 @@ const WelcomeProfilePage: React.FC = () => {
         buyerData: {
           ...prev[subActionId]?.buyerData || {},
           [field]: value
-        }
+        },
+        customAmount: prev[subActionId]?.customAmount
       }
     }));
     setPurchaseError(prev => ({ ...prev, [subActionId]: '' }));
@@ -1930,8 +1936,43 @@ const WelcomeProfilePage: React.FC = () => {
                               )}
 
                               {/* Purchase Form */}
-                              <div className='mt-4 ml-[52px] pt-4 border-t border-[#00B512]/10 dark:border-[#D4AF37]/10'>
-                                <div className='space-y-4'>
+                              <div className="mt-4 ml-[52px] pt-4 border-t border-[#00B512]/10">
+                                <div className="space-y-4">
+                                  {/* Custom Amount for Pay What You Want */}
+                                  {selectedAction?.pricing?.mode === 'pay_what_you_want' && (
+                                    <div className="space-y-2">
+                                      <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
+                                        <span>Your Price</span>
+                                        <DollarSign className="w-4 h-4 text-[#00B512]" />
+                                      </label>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-sm font-semibold text-[#00313A]">{selectedAction.currency}</span>
+                                        <CustomInput
+                                          type="number"
+                                          min="0"
+                                          step="0.01"
+                                          value={purchaseData[subAction.id]?.customAmount || ''}
+                                          onChange={(e) => {
+                                            const value = e.target.value ? parseFloat(e.target.value) : 0;
+                                            if (!isNaN(value) && value >= 0) {
+                                              setPurchaseData(prev => ({
+                                                ...prev,
+                                                [subAction.id]: {
+                                                  quantity: prev[subAction.id]?.quantity || 1,
+                                                  buyerData: prev[subAction.id]?.buyerData || {},
+                                                  customAmount: value
+                                                }
+                                              }));
+                                            }
+                                          }}
+                                          className="flex-1 h-10 rounded-lg border-2 border-[#00B512]/30 focus:border-[#00B512] text-right font-semibold"
+                                          placeholder="Enter amount you want to pay"
+                                        />
+                                      </div>
+                                      <p className="text-xs text-[#00313A]/60">Enter any amount you'd like to pay</p>
+                                    </div>
+                                  )}
+
                                   {/* Quantity Input */}
                                   <div className='space-y-2'>
                                     <label className='text-sm font-semibold text-[#00313A] dark:text-white flex items-center gap-2'>
