@@ -95,14 +95,19 @@ export const RecentActions = ({ userId, onCreateAction }: RecentActionsProps) =>
           
           if (Array.isArray(actions) && actions.length > 0) {
             // It's an organization account with actions
-            const published = actions
-              .filter((action: any) => action.status === 'published')
-              .sort((a: any, b: any) => 
-                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-              )
+            // Filter out expired, then sort drafts first, then published
+            const sorted = actions
+              .filter((action: any) => !isExpired(action.availability?.endsAt))
+              .sort((a: any, b: any) => {
+                // Draft status comes first
+                if (a.status === 'draft' && b.status !== 'draft') return -1;
+                if (a.status !== 'draft' && b.status === 'draft') return 1;
+                // Then sort by date (newest first)
+                return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+              })
               .slice(0, 2);
 
-            setRecentActions(published || []);
+            setRecentActions(sorted || []);
             setIsOrganization(true);
             isFetchedAsOrg = true;
           }
@@ -122,8 +127,9 @@ export const RecentActions = ({ userId, onCreateAction }: RecentActionsProps) =>
 
             let items = userResponse.data?.data || userResponse.data || [];
             if (Array.isArray(items)) {
-              // Sort by creation date and get recent 2
+              // Sort by creation date and get recent 2, filtered to valid tickets only and not expired
               const recent = items
+                .filter((item: any) => item.status?.toLowerCase() === 'valid' && !isExpired(item.validUntil))
                 .sort((a: any, b: any) => 
                   new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
                 )
