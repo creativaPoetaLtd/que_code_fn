@@ -1200,10 +1200,32 @@ const WelcomeProfilePage: React.FC = () => {
                               e.preventDefault();
                               handleSubmit();
                             }}
-                          />
-                        </div>
-                      </div>
-                    </div>
+                          >
+                            <div className='space-y-2'>
+                              <label className='text-sm font-semibold text-[#00313A] dark:text-white flex items-center gap-2'>
+                                <DollarSign className='w-4 h-4 text-[#00B512] dark:text-[#D4AF37]' />
+                              </label>
+                              <CustomInput
+                                type='number'
+                                placeholder='Enter amount'
+                                value={amount}
+                                onChange={e => setAmount(e.target.value)}
+                                className='h-12 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] dark:focus:border-[#D4AF37] text-lg'
+                              />
+                            </div>
+                            <DialogFooter>
+                              <CustomButton
+                                type='submit'
+                                variant='default'
+                                className='w-full h-12 bg-[#00B512] dark:bg-[#D4AF37] border-none rounded-xl font-bold text-white shadow-lg text-lg'
+                              >
+                                <b>Next</b>
+                              </CustomButton>
+                            </DialogFooter>
+                          </form>
+                        </DialogContent>
+                      </Dialog>
+                    </>
                   )}
 
                   {/* Organization Actions Section */}
@@ -1378,140 +1400,141 @@ const WelcomeProfilePage: React.FC = () => {
                         {user.profileType === 'organization' ? 'Pay' : 'Send Money'}
                       </CustomButton>
                     ) : (
-                      // For non-logged in users, show modal
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <CustomButton variant="default" className="w-full h-12 bg-gradient-to-r from-[#00B512] to-[#1fd331] text-white rounded-xl font-bold shadow-lg">
-                            {user.profileType === 'organization' ? 'Pay' : 'Send Money'}
-                          </CustomButton>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-md">
-                          <DialogHeader>
-                            <DialogTitle>{user.profileType === 'organization' ? 'Pay' : 'Send Money'}</DialogTitle>
-                          </DialogHeader>
-                          <form className="space-y-4" onSubmit={e => { e.preventDefault(); handleSubmit(); }}>
-                            <div className="space-y-2">
-                              <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
-                                <span>Amount ($)</span>
-                                <Sparkles className='w-4 h-4 text-[#00B512]' />
-                              </label>
-                              <CustomInput
-                                type='number'
-                                placeholder='Enter amount'
-                                value={amount}
-                                onChange={e => setAmount(e.target.value)}
-                                className='h-12 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg'
-                              />
-                            </div>
-                            <div className='space-y-2'>
-                              <label className='text-sm font-semibold text-[#00313A] dark:text-white flex items-center gap-2'>
-                                <span>Message</span>
-                                <MessageSquare className='w-4 h-4 text-[#00B512] dark:text-[#D4AF37]' />
-                              </label>
-                              <Textarea
-                                placeholder='Enter a message (optional)'
-                                className='rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] dark:focus:border-[#D4AF37] text-lg'
-                                rows={3}
-                              />
-                            </div>
-                            <DialogFooter>
-                              <CustomButton
-                                type='submit'
-                                variant='default'
-                                className='w-full h-12 bg-[#00B512] dark:bg-[#D4AF37] border-none rounded-xl font-bold text-white shadow-lg text-lg'
-                                disabled={!amount}
-                              >
-                                <b>Next</b>
-                              </CustomButton>
-                            </DialogFooter>
-                          </form>
-                        </DialogContent>
-                      </Dialog>
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <CustomButton
-                            variant='outline'
-                            className='w-32 px-4 py-2 rounded-lg font-bold shadow-lg border-[#00B512] dark:border-[#D4AF37] text-[#00B512] dark:text-[#D4AF37] text-sm'
-                          >
-                            Contact
-                          </CustomButton>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Contact {user.name}</DialogTitle>
-                          </DialogHeader>
-                          <form
-                            className='space-y-6'
-                            onSubmit={e => {
-                              e.preventDefault();
-                              handleContactSubmit();
-                            }}
-                          >
-                            <div className='space-y-2'>
-                              <label className='text-sm font-semibold text-[#00313A] dark:text-white flex items-center gap-2'>
-                                <User className='w-4 h-4 text-[#00B512] dark:text-[#D4AF37]' />
-                              </label>
-                              <CustomInput
-                                placeholder='Enter your name'
-                                value={contactForm.name}
-                                onChange={e =>
-                                  setContactForm({
-                                    ...contactForm,
-                                    name: e.target.value,
-                                  })
-                                }
-                                className='h-12 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] dark:focus:border-[#D4AF37] text-lg'
-                              />
-                            </div>
-                            <div className='space-y-2'>
-                              <label className='text-sm font-semibold text-[#00313A] dark:text-white flex items-center gap-2'>
-                                <Mail className='w-4 h-4 text-[#00B512] dark:text-[#D4AF37]' />
-                              </label>
-                              <CustomInput
-                                type='email'
-                                placeholder='Enter your email'
-                                value={contactForm.email}
-                                onChange={e =>
-                                  setContactForm({
-                                    ...contactForm,
-                                    email: e.target.value,
-                                  })
-                                }
-                                className='h-12 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] dark:focus:border-[#D4AF37] text-lg'
-                              />
-                            </div>
-                            <div className='space-y-2'>
-                              <label className='text-sm font-semibold text-[#00313A] dark:text-white flex items-center gap-2'>
-                                <MessageSquare className='w-4 h-4 text-[#00B512] dark:text-[#D4AF37]' />
-                              </label>
-                              <Textarea
-                                placeholder='Enter your message'
-                                value={contactForm.message}
-                                onChange={e =>
-                                  setContactForm({
-                                    ...contactForm,
-                                    message: e.target.value,
-                                  })
-                                }
-                                className='rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] dark:focus:border-[#D4AF37] text-lg'
-                                rows={4}
-                              />
-                            </div>
-                            <DialogFooter>
-                              <CustomButton
-                                type='submit'
-                                variant='default'
-                                className='w-full h-12 bg-[#00B512] dark:bg-[#D4AF37] border-none rounded-xl font-bold text-white shadow-lg text-lg'
-                                disabled={!contactForm.name || !contactForm.email || !contactForm.message}
-                              >
-                                <b>Send Message</b>
-                              </CustomButton>
-                            </DialogFooter>
-                          </form>
-                        </DialogContent>
-                      </Dialog>
-                    </>
-                  )}
+                      // For non-logged in users, show modals
+                      <>
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <CustomButton variant="default" className="w-full h-12 bg-gradient-to-r from-[#00B512] to-[#1fd331] text-white rounded-xl font-bold shadow-lg">
+                              {user.profileType === 'organization' ? 'Pay' : 'Send Money'}
+                            </CustomButton>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-md">
+                            <DialogHeader>
+                              <DialogTitle>{user.profileType === 'organization' ? 'Pay' : 'Send Money'}</DialogTitle>
+                            </DialogHeader>
+                            <form className="space-y-4" onSubmit={e => { e.preventDefault(); handleSubmit(); }}>
+                              <div className="space-y-2">
+                                <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
+                                  <span>Amount ($)</span>
+                                  <Sparkles className='w-4 h-4 text-[#00B512]' />
+                                </label>
+                                <CustomInput
+                                  type='number'
+                                  placeholder='Enter amount'
+                                  value={amount}
+                                  onChange={e => setAmount(e.target.value)}
+                                  className='h-12 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] text-lg'
+                                />
+                              </div>
+                              <div className='space-y-2'>
+                                <label className='text-sm font-semibold text-[#00313A] dark:text-white flex items-center gap-2'>
+                                  <span>Message</span>
+                                  <MessageSquare className='w-4 h-4 text-[#00B512] dark:text-[#D4AF37]' />
+                                </label>
+                                <Textarea
+                                  placeholder='Enter a message (optional)'
+                                  className='rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] dark:focus:border-[#D4AF37] text-lg'
+                                  rows={3}
+                                />
+                              </div>
+                              <DialogFooter>
+                                <CustomButton
+                                  type='submit'
+                                  variant='default'
+                                  className='w-full h-12 bg-[#00B512] dark:bg-[#D4AF37] border-none rounded-xl font-bold text-white shadow-lg text-lg'
+                                  disabled={!amount}
+                                >
+                                  <b>Next</b>
+                                </CustomButton>
+                              </DialogFooter>
+                            </form>
+                          </DialogContent>
+                        </Dialog>
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <CustomButton
+                              variant='outline'
+                              className='w-full h-12 rounded-lg font-bold shadow-lg border-[#00B512] dark:border-[#D4AF37] text-[#00B512] dark:text-[#D4AF37]'
+                            >
+                              Contact
+                            </CustomButton>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Contact {user.name}</DialogTitle>
+                            </DialogHeader>
+                            <form
+                              className='space-y-6'
+                              onSubmit={e => {
+                                e.preventDefault();
+                                handleContactSubmit();
+                              }}
+                            >
+                              <div className='space-y-2'>
+                                <label className='text-sm font-semibold text-[#00313A] dark:text-white flex items-center gap-2'>
+                                  <User className='w-4 h-4 text-[#00B512] dark:text-[#D4AF37]' />
+                                </label>
+                                <CustomInput
+                                  placeholder='Enter your name'
+                                  value={contactForm.name}
+                                  onChange={e =>
+                                    setContactForm({
+                                      ...contactForm,
+                                      name: e.target.value,
+                                    })
+                                  }
+                                  className='h-12 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] dark:focus:border-[#D4AF37] text-lg'
+                                />
+                              </div>
+                              <div className='space-y-2'>
+                                <label className='text-sm font-semibold text-[#00313A] dark:text-white flex items-center gap-2'>
+                                  <Mail className='w-4 h-4 text-[#00B512] dark:text-[#D4AF37]' />
+                                </label>
+                                <CustomInput
+                                  type='email'
+                                  placeholder='Enter your email'
+                                  value={contactForm.email}
+                                  onChange={e =>
+                                    setContactForm({
+                                      ...contactForm,
+                                      email: e.target.value,
+                                    })
+                                  }
+                                  className='h-12 rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] dark:focus:border-[#D4AF37] text-lg'
+                                />
+                              </div>
+                              <div className='space-y-2'>
+                                <label className='text-sm font-semibold text-[#00313A] dark:text-white flex items-center gap-2'>
+                                  <MessageSquare className='w-4 h-4 text-[#00B512] dark:text-[#D4AF37]' />
+                                </label>
+                                <Textarea
+                                  placeholder='Enter your message'
+                                  value={contactForm.message}
+                                  onChange={e =>
+                                    setContactForm({
+                                      ...contactForm,
+                                      message: e.target.value,
+                                    })
+                                  }
+                                  className='rounded-xl border-2 border-[#00313A]/10 focus:border-[#00B512] dark:focus:border-[#D4AF37] text-lg'
+                                  rows={4}
+                                />
+                              </div>
+                              <DialogFooter>
+                                <CustomButton
+                                  type='submit'
+                                  variant='default'
+                                  className='w-full h-12 bg-[#00B512] dark:bg-[#D4AF37] border-none rounded-xl font-bold text-white shadow-lg text-lg'
+                                  disabled={!contactForm.name || !contactForm.email || !contactForm.message}
+                                >
+                                  <b>Send Message</b>
+                                </CustomButton>
+                              </DialogFooter>
+                            </form>
+                          </DialogContent>
+                        </Dialog>
+                      </>
+                    )}
                 </div>
               </div>
 
@@ -2210,6 +2233,7 @@ const WelcomeProfilePage: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </>
   );
 };
