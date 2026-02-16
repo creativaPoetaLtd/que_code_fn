@@ -134,7 +134,7 @@ const actionTypeConfig: Record<string, {
     },
     vote: {
         label: 'Vote',
-        showFields: ['shortDescription'],
+        showFields: ['shortDescription', 'coverImage'],
         placeholders: {
             name: 'Poll, Referendum, Election...',
             shortDescription: 'What are you voting on?',
@@ -188,11 +188,11 @@ const actionTypeConfig: Record<string, {
     },
 };
 
-const visibilityOptions = [
-    { label: 'Public', value: 'public' },
-    { label: 'Private', value: 'private' },
-    { label: 'Unlisted', value: 'unlisted' },
-];
+// const visibilityOptions = [
+//     { label: 'Public', value: 'public' },
+//     { label: 'Private', value: 'private' },
+//     { label: 'Unlisted', value: 'unlisted' },
+// ];
 
 const buyerFieldOptions = [
     { label: 'Full Name', value: 'fullName' },
@@ -484,6 +484,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
     const [subActionCoverImagePreview, setSubActionCoverImagePreview] = useState<string | null>(null);
     const [selectedType, setSelectedType] = useState<string | undefined>(undefined);
     const [pricingMode, setPricingMode] = useState<string>('fixed');
+    const [availabilityMode, setAvailabilityMode] = useState<string>('always');
 
     // Filter steps based on pricing mode - show subActions for tiered and pay_what_you_want pricing
     const stepItems = useMemo(() => {
@@ -514,6 +515,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
         setSubActionCoverImagePreview(null);
         setSelectedType(undefined);
         setPricingMode('fixed');
+        setAvailabilityMode('always');
     }, [form, subActionForm]);
 
     useEffect(() => {
@@ -558,13 +560,17 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                 taxProfileId: existingAction?.taxProfileId || '',
             });
         } else if (stepKey === 'configuration') {
-            const starts = existingAction?.availability?.startsAt ? dayjs(existingAction.availability.startsAt) : null;
-            const ends = existingAction?.availability?.endsAt ? dayjs(existingAction.availability.endsAt) : null;
+            const mode = existingAction?.availability?.mode || 'always';
+            const starts = existingAction?.availability?.startDate ? dayjs(existingAction.availability.startDate) : null;
+            const ends = existingAction?.availability?.endDate ? dayjs(existingAction.availability.endDate) : null;
+            setAvailabilityMode(mode);
             form.setFieldsValue({
-                eventWindow: starts && ends ? [starts, ends] : undefined,
+                availabilityMode: mode,
+                eventWindow: starts && ends ? [starts, ends] : starts ? [starts] : undefined,
+                startDateOnly: starts && !ends ? starts : undefined,
                 timezone: existingAction?.availability?.timezone || 'Africa/Kigali',
-                userQuota: existingAction?.availability?.userQuota ?? null,
-                visibilityMode: existingAction?.visibility?.mode || 'public',
+                // userQuota: existingAction?.availability?.userQuota ?? null,
+                // visibilityMode: existingAction?.visibility?.mode || 'public',
                 buyerFields: existingAction?.buyerFields || [],
                 refundPolicy: existingAction?.policy?.refund || '',
                 cancellationPolicy: existingAction?.policy?.cancellation || '',
@@ -923,23 +929,39 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
             if (key === 'configuration') {
                 const values = await form.validateFields();
                 setLoading(true);
-                const [start, end] = values.eventWindow || [];
+                
+                // Build availability object based on mode
+                let availability: any;
+                if (values.availabilityMode === 'always') {
+                    availability = { mode: 'always' };
+                } else if (values.availabilityMode === 'scheduled') {
+                    const [start, end] = values.eventWindow || [];
+                    availability = {
+                        mode: 'scheduled',
+                        startDate: start ? dayjs(start).toISOString() : null,
+                        endDate: end ? dayjs(end).toISOString() : null,
+                        timezone: values.timezone || 'Africa/Kigali',
+                    };
+                } else {
+                    // Empty object for unrestricted
+                    availability = {};
+                }
                 
                 // Update availability
                 await updateActionStepD(actionId as string, {
-                    availability: {
-                        startsAt: start ? dayjs(start).toISOString() : null,
-                        endsAt: end ? dayjs(end).toISOString() : null,
-                        timezone: values.timezone || 'Africa/Kigali',
-                        userQuota: values.userQuota ?? null,
-                    },
+                    availability,
                 });
                 
                 // Update visibility
+                // await updateActionStepE(actionId as string, {
+                //     visibility: {
+                //         mode: values.visibilityMode,
+                //     },
+                //     buyerFields: values.buyerFields || [],
+                // });
+                
+                // Update buyer fields
                 await updateActionStepE(actionId as string, {
-                    visibility: {
-                        mode: values.visibilityMode,
-                    },
                     buyerFields: values.buyerFields || [],
                 });
                 
@@ -1178,7 +1200,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                                 <Form.Item name="subActionStock" label="Stock">
                                     <InputNumber min={0} className="w-full" placeholder="Unlimited if empty" />
                                 </Form.Item>
-                                {selectedType && (selectedType === 'ticket' || selectedType === 'transport') && (
+                                {selectedType && (selectedType === 'ticket' || selectedType === 'transport' || selectedType === 'booking') && (
                                     <Form.Item name="subActionSeatType" label="Seat / Zone">
                                         <Input placeholder="Front-row, Balcony ..." />
                                     </Form.Item>
@@ -1245,9 +1267,11 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                             <Form.Item name="stock" label="Stock">
                                 <InputNumber min={0} className="w-full" placeholder="Unlimited if empty" />
                             </Form.Item>
-                            <Form.Item name="seatType" label="Seat / Zone">
-                                <Input placeholder="Front-row, Balcony ..." />
-                            </Form.Item>
+                            {selectedType && (selectedType === 'ticket' || selectedType === 'transport' || selectedType === 'booking') && (
+                                <Form.Item name="seatType" label="Seat / Zone">
+                                    <Input placeholder="Front-row, Balcony ..." />
+                                </Form.Item>
+                            )}
                             <Form.Item name="sortOrder" label="Sort Order">
                                 <InputNumber min={0} className="w-full" />
                             </Form.Item>
@@ -1403,39 +1427,99 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
             case 'configuration':
                 return (
                     <Form form={form} layout="vertical" className="space-y-6">
-                        {/* Schedule Section */}
+                        {/* Availability Section */}
                         <div className="border-b pb-6">
-                            <h3 className="text-base font-semibold mb-4">Schedule</h3>
+                            <h3 className="text-base font-semibold mb-4">Availability</h3>
                             <div className="grid gap-4 md:grid-cols-2">
-                                <Form.Item name="eventWindow" label="Event Window">
-                                    <DatePicker.RangePicker showTime className="w-full" />
-                                </Form.Item>
-                                <Form.Item name="timezone" label="Timezone" initialValue="Africa/Kigali">
+                                <Form.Item 
+                                    name="availabilityMode" 
+                                    label="Availability Mode"
+                                    initialValue="always"
+                                    className="md:col-span-2"
+                                >
                                     <Select
+                                        onChange={(value) => {
+                                            setAvailabilityMode(value);
+                                            form.setFieldValue('availabilityMode', value);
+                                        }}
                                         options={[
-                                            { label: 'Africa/Kigali', value: 'Africa/Kigali' },
-                                            { label: 'Africa/Nairobi', value: 'Africa/Nairobi' },
-                                            { label: 'UTC', value: 'UTC' },
+                                            { label: '🌐 Always Available (No restrictions)', value: 'unrestricted' },
+                                            { label: '✓ Always Available (Explicit)', value: 'always' },
+                                            { label: '📅 Scheduled (Set start and optional end date)', value: 'scheduled' },
                                         ]}
                                     />
                                 </Form.Item>
-                                <Form.Item name="userQuota" label="Per-user Limit">
-                                    <InputNumber min={0} className="w-full" placeholder="Unlimited if empty" />
-                                </Form.Item>
+                                {availabilityMode === 'scheduled' && (
+                                    <>
+                                        <Form.Item 
+                                            name="eventWindow" 
+                                            label="Schedule" 
+                                            tooltip="Set start date (required) and optionally end date. Leave end date empty for indefinite availability from start date."
+                                            className="md:col-span-2"
+                                            rules={[
+                                                {
+                                                    validator: (_, value) => {
+                                                        if (!value || !value[0]) {
+                                                            return Promise.reject('Start date is required for scheduled availability');
+                                                        }
+                                                        return Promise.resolve();
+                                                    }
+                                                }
+                                            ]}
+                                        >
+                                            <DatePicker.RangePicker
+                                                showTime
+                                                format="YYYY-MM-DD HH:mm"
+                                                className="w-full"
+                                                placeholder={['Start Date (Required)', 'End Date (Optional)']}
+                                            />
+                                        </Form.Item>
+                                        <Form.Item name="timezone" label="Timezone" initialValue="Africa/Kigali">
+                                            <Select
+                                                showSearch
+                                                options={[
+                                                    { label: 'Africa/Kigali (GMT+2)', value: 'Africa/Kigali' },
+                                                    { label: 'Africa/Nairobi (EAT)', value: 'Africa/Nairobi' },
+                                                    { label: 'UTC', value: 'UTC' },
+                                                    { label: 'America/New_York (EST)', value: 'America/New_York' },
+                                                    { label: 'Europe/London (GMT)', value: 'Europe/London' },
+                                                    { label: 'Asia/Tokyo (JST)', value: 'Asia/Tokyo' },
+                                                ]}
+                                            />
+                                        </Form.Item>
+                                    </>
+                                )}
                             </div>
                         </div>
 
-                        {/* Visibility Section */}
+                        {/* Rest of configuration sections... */}
                         <div className="border-b pb-6">
+                            <h3 className="text-base font-semibold mb-4">Buyer Information</h3>
+                            <Form.Item name="buyerFields" label="Buyer Fields">
+                                <Select
+                                    mode="multiple"
+                                    placeholder="Select fields to collect from buyers"
+                                    options={buyerFieldOptions}
+                                />
+                            </Form.Item>
+                        </div>
+
+                        {/* Visibility Section */}
+                        {/* <div className="border-b pb-6">
                             <h3 className="text-base font-semibold mb-4">Visibility</h3>
                             <div className="grid gap-4 md:grid-cols-2">
                                 <Form.Item name="visibilityMode" label="Visibility Mode">
                                     <Select options={visibilityOptions} />
                                 </Form.Item>
-                                <Form.Item name="buyerFields" label="Collect Buyer Fields">
-                                    <Select mode="multiple" options={buyerFieldOptions} placeholder="Select required fields" />
-                                </Form.Item>
                             </div>
+                        </div> */}
+
+                        {/* Buyer Information Section */}
+                        <div className="border-b pb-6">
+                            <h3 className="text-base font-semibold mb-4">Buyer Information</h3>
+                            <Form.Item name="buyerFields" label="Collect Buyer Fields">
+                                <Select mode="multiple" options={buyerFieldOptions} placeholder="Select required fields" />
+                            </Form.Item>
                         </div>
 
                         {/* Policies Section */}

@@ -668,7 +668,7 @@ const WelcomeProfilePage: React.FC = () => {
           <textarea
             value={value || ''}
             onChange={(e) => updateBuyerData(subActionId, field, e.target.value)}
-            className="w-full h-20 rounded-lg border-2 border-[#00313A]/10 focus:border-[#00B512] text-sm p-2 focus:outline-none"
+            className="w-full h-20 rounded-lg border-2 border-[#00313A]/10 focus:border-[#D4AF37] text-sm p-2 focus:outline-none"
             placeholder={config.placeholder}
           />
         ) : (
@@ -676,7 +676,7 @@ const WelcomeProfilePage: React.FC = () => {
             type={config.type}
             value={value || ''}
             onChange={(e) => updateBuyerData(subActionId, field, e.target.value)}
-            className="h-9 rounded-lg border-2 border-[#00313A]/10 focus:border-[#00B512] text-sm"
+            className="h-9 rounded-lg border-2 border-[#00313A]/10 focus:border-[#D4AF37] text-sm"
             placeholder={config.placeholder}
           />
         )}
@@ -685,7 +685,7 @@ const WelcomeProfilePage: React.FC = () => {
   };
 
   const renderActionCard = (action: Action) => {
-    const baseButtonClass = "bg-white/80 hover:bg-white rounded-xl border-2 border-[#00B512]/10 hover:border-[#00B512]/30 shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-[1.02] text-left group cursor-pointer";
+    const baseButtonClass = "bg-white/80 hover:bg-white rounded-xl border-2 border-[#D4AF37]/10 hover:border-[#D4AF37]/30 shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-[1.02] text-left group cursor-pointer";
 
     // List Layout (Default)
     if (action.displayLayout === 'list' || !action.displayLayout) {
@@ -698,10 +698,10 @@ const WelcomeProfilePage: React.FC = () => {
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 bg-gradient-to-br from-[#00B512] to-[#1fd331] rounded-lg flex items-center justify-center shadow-sm">
+                <div className="w-10 h-10 bg-gradient-to-br from-[#D4AF37] to-[#E5C158] rounded-lg flex items-center justify-center shadow-sm">
                   <Ticket className="w-5 h-5 text-white" />
                 </div>
-                <h4 className="text-base font-bold text-[#00313A] group-hover:text-[#00B512] transition-colors">
+                <h4 className="text-base font-bold text-[#00313A] group-hover:text-[#D4AF37] transition-colors">
                   {action.name}
                 </h4>
               </div>
@@ -715,20 +715,20 @@ const WelcomeProfilePage: React.FC = () => {
               <div className="flex flex-wrap items-center gap-4 text-xs text-[#00313A]/60">
                 {action.availability.startsAt && (
                   <div className="flex items-center gap-1">
-                    <Calendar className="w-3 h-3 text-[#00B512]" />
+                    <Calendar className="w-3 h-3 text-[#D4AF37]" />
                     <span>{formatDate(action.availability.startsAt)}</span>
                   </div>
                 )}
                 {action.pricing.mode && (
                   <div className="flex items-center gap-1">
-                    <DollarSign className="w-3 h-3 text-[#00B512]" />
+                    <DollarSign className="w-3 h-3 text-[#D4AF37]" />
                     <span className="capitalize">{action.pricing.mode} Pricing</span>
                   </div>
                 )}
                 {action.status && (
                   <div className={`px-2 py-1 rounded-full text-xs font-semibold ${
                     action.status === 'published' 
-                      ? 'bg-[#00B512]/10 text-[#00B512]' 
+                      ? 'bg-[#D4AF37]/10 text-[#D4AF37]' 
                       : 'bg-gray-100 text-gray-600'
                   }`}>
                     {action.status}
@@ -736,7 +736,7 @@ const WelcomeProfilePage: React.FC = () => {
                 )}
               </div>
             </div>
-            <ChevronRight className="w-5 h-5 text-[#00B512] opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+            <ChevronRight className="w-5 h-5 text-[#D4AF37] opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
           </div>
         </button>
       );
@@ -760,7 +760,7 @@ const WelcomeProfilePage: React.FC = () => {
           
           {/* Content - positioned at bottom */}
           <div className="relative flex-1 flex flex-col justify-end p-5 z-10">
-            <h4 className="text-xl font-bold text-white group-hover:text-[#1fd331] transition-colors mb-2">
+            <h4 className="text-xl font-bold text-white group-hover:text-[#E5C158] transition-colors mb-2">
               {action.name}
             </h4>
             
@@ -772,7 +772,7 @@ const WelcomeProfilePage: React.FC = () => {
 
             <div className="flex flex-wrap items-center gap-2 text-xs">
               {action.pricing.mode && (
-                <div className="flex items-center gap-1 bg-[#00B512]/80 backdrop-blur-sm px-3 py-1 rounded-full text-white font-semibold">
+                <div className="flex items-center gap-1 bg-[#D4AF37]/80 backdrop-blur-sm px-3 py-1 rounded-full text-white font-semibold">
                   <DollarSign className="w-3 h-3" />
                   <span className="capitalize">{action.pricing.mode}</span>
                 </div>
@@ -780,7 +780,7 @@ const WelcomeProfilePage: React.FC = () => {
               {action.status && (
                 <div className={`px-3 py-1 rounded-full text-xs font-semibold backdrop-blur-sm ${
                   action.status === 'published' 
-                    ? 'bg-[#00B512]/80 text-white' 
+                    ? 'bg-[#D4AF37]/80 text-white' 
                     : 'bg-gray-400/80 text-white'
                 }`}>
                   {action.status}
@@ -811,10 +811,10 @@ const WelcomeProfilePage: React.FC = () => {
           {/* Content */}
           <div className="relative flex-1 flex flex-col justify-end p-6 z-10">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-[#00B512] to-[#1fd331] rounded-lg flex items-center justify-center shadow-lg backdrop-blur-sm">
+              <div className="w-12 h-12 bg-gradient-to-br from-[#D4AF37] to-[#E5C158] rounded-lg flex items-center justify-center shadow-lg backdrop-blur-sm">
                 <Ticket className="w-6 h-6 text-white" />
               </div>
-              <h4 className="text-2xl font-bold text-white group-hover:text-[#1fd331] transition-colors">
+              <h4 className="text-2xl font-bold text-white group-hover:text-[#E5C158] transition-colors">
                 {action.name}
               </h4>
             </div>
@@ -827,7 +827,7 @@ const WelcomeProfilePage: React.FC = () => {
 
             <div className="flex flex-wrap items-center gap-3">
               {action.pricing.mode && (
-                <div className="flex items-center gap-2 bg-[#00B512]/90 backdrop-blur-sm px-4 py-2 rounded-full text-white font-bold shadow-lg">
+                <div className="flex items-center gap-2 bg-[#D4AF37]/90 backdrop-blur-sm px-4 py-2 rounded-full text-white font-bold shadow-lg">
                   <DollarSign className="w-4 h-4" />
                   <span className="capitalize">{action.pricing.mode} Pricing</span>
                 </div>
@@ -841,7 +841,7 @@ const WelcomeProfilePage: React.FC = () => {
               {action.status && (
                 <div className={`px-4 py-2 rounded-full text-sm font-bold backdrop-blur-sm shadow-lg ${
                   action.status === 'published' 
-                    ? 'bg-[#00B512]/90 text-white' 
+                    ? 'bg-[#D4AF37]/90 text-white' 
                     : 'bg-gray-500/80 text-white'
                 }`}>
                   {action.status}
@@ -863,11 +863,11 @@ const WelcomeProfilePage: React.FC = () => {
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 flex-1 min-w-0">
-              <div className="w-8 h-8 bg-gradient-to-br from-[#00B512] to-[#1fd331] rounded-lg flex items-center justify-center shadow-sm flex-shrink-0">
+              <div className="w-8 h-8 bg-gradient-to-br from-[#D4AF37] to-[#E5C158] rounded-lg flex items-center justify-center shadow-sm flex-shrink-0">
                 <Ticket className="w-4 h-4 text-white" />
               </div>
               <div className="min-w-0">
-                <h4 className="text-sm font-bold text-[#00313A] group-hover:text-[#00B512] transition-colors truncate">
+                <h4 className="text-sm font-bold text-[#00313A] group-hover:text-[#D4AF37] transition-colors truncate">
                   {action.name}
                 </h4>
                 {action.pricing.mode && (
@@ -877,7 +877,7 @@ const WelcomeProfilePage: React.FC = () => {
                 )}
               </div>
             </div>
-            <ChevronRight className="w-4 h-4 text-[#00B512] flex-shrink-0" />
+            <ChevronRight className="w-4 h-4 text-[#D4AF37] flex-shrink-0" />
           </div>
         </button>
       );
@@ -907,7 +907,7 @@ const WelcomeProfilePage: React.FC = () => {
           )}
           
           <div className="flex-1 flex flex-col">
-            <h4 className="text-sm font-bold text-[#00313A] group-hover:text-[#00B512] transition-colors mb-2 line-clamp-2">
+            <h4 className="text-sm font-bold text-[#00313A] group-hover:text-[#D4AF37] transition-colors mb-2 line-clamp-2">
               {action.name}
             </h4>
             
@@ -925,7 +925,7 @@ const WelcomeProfilePage: React.FC = () => {
               </div>
               <div className={`px-2 py-1 rounded-full text-xs font-semibold ${
                 action.status === 'published' 
-                  ? 'bg-[#00B512]/10 text-[#00B512]' 
+                  ? 'bg-[#D4AF37]/10 text-[#D4AF37]' 
                   : 'bg-gray-100 text-gray-600'
               }`}>
                 {action.status}
@@ -1775,7 +1775,7 @@ const WelcomeProfilePage: React.FC = () => {
         <DialogContent className='max-w-2xl max-h-[90vh] overflow-y-auto'>
           <DialogHeader>
             <DialogTitle className='text-2xl font-bold text-[#00313A] dark:text-white flex items-center gap-3'>
-              <div className='w-10 h-10 bg-[#00B512] dark:bg-[#D4AF37] rounded-lg flex items-center justify-center shadow-md'>
+              <div className='w-10 h-10 bg-[#D4AF37] rounded-lg flex items-center justify-center shadow-md'>
                 <Ticket className='w-5 h-5 text-white' />
               </div>
               {selectedAction?.name || 'Action Details'}
@@ -1785,7 +1785,7 @@ const WelcomeProfilePage: React.FC = () => {
           {selectedAction && (
             <div className='space-y-6'>
               {/* Action Details */}
-              <div className='bg-white dark:bg-darkBg-card rounded-xl p-5 border-2 border-[#00B512]/10 dark:border-[#D4AF37]/10'>
+              <div className='bg-white dark:bg-darkBg-card rounded-xl p-5 border-2 border-[#D4AF37]/10'>
                 {selectedAction.description && (
                   <p className='text-sm text-[#00313A]/80 dark:text-gray-300 mb-4 leading-relaxed'>
                     {selectedAction.description}
@@ -1795,7 +1795,7 @@ const WelcomeProfilePage: React.FC = () => {
                 <div className='grid grid-cols-2 gap-4'>
                   {selectedAction.availability.startsAt && (
                     <div className='flex items-center gap-2'>
-                      <Calendar className='w-4 h-4 text-[#00B512] dark:text-[#D4AF37]' />
+                      <Calendar className='w-4 h-4 text-[#D4AF37]' />
                       <div>
                         <p className='text-xs text-[#00313A]/60 dark:text-gray-400 font-semibold'>
                           Start Date
@@ -1808,7 +1808,7 @@ const WelcomeProfilePage: React.FC = () => {
                   )}
                   {selectedAction.availability.endsAt && (
                     <div className='flex items-center gap-2'>
-                      <Clock className='w-4 h-4 text-[#00B512] dark:text-[#D4AF37]' />
+                      <Clock className='w-4 h-4 text-[#D4AF37]' />
                       <div>
                         <p className='text-xs text-[#00313A]/60 dark:text-gray-400 font-semibold'>
                           End Date
@@ -1821,7 +1821,7 @@ const WelcomeProfilePage: React.FC = () => {
                   )}
                   {selectedAction.pricing.mode && (
                     <div className='flex items-center gap-2'>
-                      <DollarSign className='w-4 h-4 text-[#00B512] dark:text-[#D4AF37]' />
+                      <DollarSign className='w-4 h-4 text-[#D4AF37]' />
                       <div>
                         <p className='text-xs text-[#00313A]/60 dark:text-gray-400 font-semibold'>
                           Pricing Mode
@@ -1834,7 +1834,7 @@ const WelcomeProfilePage: React.FC = () => {
                   )}
                   {selectedAction.currency && (
                     <div className='flex items-center gap-2'>
-                      <Coins className='w-4 h-4 text-[#00B512] dark:text-[#D4AF37]' />
+                      <Coins className='w-4 h-4 text-[#D4AF37]' />
                       <div>
                         <p className='text-xs text-[#00313A]/60 dark:text-gray-400 font-semibold'>
                           Currency
@@ -1851,17 +1851,17 @@ const WelcomeProfilePage: React.FC = () => {
               {/* Sub-Actions List */}
               <div>
                 <h3 className='text-lg font-bold text-[#00313A] dark:text-white mb-4 flex items-center gap-2'>
-                  <Sparkles className='w-5 h-5 text-[#00B512] dark:text-[#D4AF37]' />
+                  <Sparkles className='w-5 h-5 text-[#D4AF37]' />
                   Available Options
                 </h3>
 
                 {subActionsLoading ? (
                   <div className='flex items-center justify-center py-12'>
-                    <Loader2 className='w-8 h-8 text-[#00B512] dark:text-[#D4AF37] animate-spin' />
+                    <Loader2 className='w-8 h-8 text-[#D4AF37] animate-spin' />
                   </div>
                 ) : subActions.length === 0 ? (
-                  <div className='text-center py-8 bg-white dark:bg-darkBg-card rounded-xl border-2 border-[#00B512]/10 dark:border-[#D4AF37]/10'>
-                    <Ticket className='w-12 h-12 text-[#00B512]/30 dark:text-[#D4AF37]/30 mx-auto mb-3' />
+                  <div className='text-center py-8 bg-white dark:bg-darkBg-card rounded-xl border-2 border-[#D4AF37]/10'>
+                    <Ticket className='w-12 h-12 text-[#D4AF37]/30 mx-auto mb-3' />
                     <p className='text-[#00313A]/60 dark:text-gray-400 font-medium'>
                       No options available for this action
                     </p>
@@ -1874,7 +1874,7 @@ const WelcomeProfilePage: React.FC = () => {
                       .map(subAction => (
                         <div
                           key={subAction.id}
-                          className='bg-white dark:bg-darkBg-card rounded-xl p-5 border-2 border-[#00B512]/10 dark:border-[#D4AF37]/10 hover:border-[#00B512]/30 dark:hover:border-[#D4AF37]/30 shadow-md hover:shadow-lg'
+                          className='bg-white dark:bg-darkBg-card rounded-xl p-5 border-2 border-[#D4AF37]/10 hover:border-[#D4AF37]/30 shadow-md hover:shadow-lg'
                         >
                           {/* Cover Image Display */}
                           {subAction.coverImage && (
@@ -1890,7 +1890,7 @@ const WelcomeProfilePage: React.FC = () => {
                           <div className="flex items-start justify-between gap-4">
                             <div className="flex-1">
                               <div className="flex items-center gap-3 mb-2">
-                                <div className="w-10 h-10 bg-gradient-to-br from-[#00B512] to-[#1fd331] rounded-lg flex items-center justify-center shadow-sm">
+                                <div className="w-10 h-10 bg-gradient-to-br from-[#D4AF37] to-[#E5C158] rounded-lg flex items-center justify-center shadow-sm">
                                   <Star className="w-5 h-5 text-white" />
                                 </div>
                                 <div>
@@ -1898,14 +1898,16 @@ const WelcomeProfilePage: React.FC = () => {
                                     {subAction.name}
                                   </h4>
                                   <div className='flex items-center gap-2 mt-1'>
-                                    <span className='text-lg font-bold text-[#00B512] dark:text-[#D4AF37]'>
-                                      {formatPrice(
-                                        subAction.price,
-                                        selectedAction.currency
-                                      )}
-                                    </span>
+                                    {selectedAction?.pricing?.mode !== 'pay_what_you_want' && (
+                                      <span className='text-lg font-bold text-[#D4AF37]'>
+                                        {formatPrice(
+                                          subAction.price,
+                                          selectedAction.currency
+                                        )}
+                                      </span>
+                                    )}
                                     {subAction.stock !== null && (
-                                      <span className='text-xs text-[#00313A]/60 dark:text-gray-400 bg-[#00B512]/10 dark:bg-[#D4AF37]/10 px-2 py-1 rounded-full'>
+                                      <span className='text-xs text-[#00313A]/60 dark:text-gray-400 bg-[#D4AF37]/10 px-2 py-1 rounded-full'>
                                         {subAction.stock} available
                                       </span>
                                     )}
@@ -1923,7 +1925,7 @@ const WelcomeProfilePage: React.FC = () => {
                                 <div className="ml-[52px] space-y-2">
                                   {subAction.metadata.benefits && Array.isArray(subAction.metadata.benefits) && (
                                     <div>
-                                      <p className="text-xs font-semibold text-[#00B512] mb-1">Benefits:</p>
+                                      <p className="text-xs font-semibold text-[#D4AF37] mb-1">Benefits:</p>
                                       <ul className="list-disc list-inside text-xs text-[#00313A]/70 space-y-1">
                                         {subAction.metadata.benefits.map((benefit: string, index: number) => (
                                           <li key={index}>{benefit}</li>
@@ -1933,7 +1935,7 @@ const WelcomeProfilePage: React.FC = () => {
                                   )}
                                   {subAction.metadata.seatType && (
                                     <div className="flex items-center gap-2">
-                                      <span className="text-xs font-semibold text-[#00B512]">Seat Type:</span>
+                                      <span className="text-xs font-semibold text-[#D4AF37]">Seat Type:</span>
                                       <span className="text-xs text-[#00313A]/70 capitalize">{subAction.metadata.seatType}</span>
                                     </div>
                                   )}
@@ -1944,32 +1946,32 @@ const WelcomeProfilePage: React.FC = () => {
                               {subAction.dedicatedQrCodeData && (
                                 <div className="ml-[52px] mt-4 space-y-2">
                                   <div className="flex items-center gap-2">
-                                    <QrCode className="w-4 h-4 text-[#00B512]" />
-                                    <span className="text-xs font-semibold text-[#00B512]">QR Code</span>
+                                    <QrCode className="w-4 h-4 text-[#D4AF37]" />
+                                    <span className="text-xs font-semibold text-[#D4AF37]">QR Code</span>
                                   </div>
-                                  <div className="bg-white border-2 border-[#00B512]/20 rounded-lg p-3 inline-block">
+                                  <div className="bg-white border-2 border-[#D4AF37]/20 rounded-lg p-3 inline-block">
                                     <img 
                                       src={subAction.dedicatedQrCodeData} 
                                       alt="QR Code" 
                                       className="w-24 h-24"
                                     />
                                   </div>
-                                  <p className="text-xs text-[#00313A]/60">Scan to access this ticket</p>
+                                  <p className="text-xs text-[#D4AF37] font-semibold">Scan to access this ticket</p>
                                 </div>
                               )}
 
                               {/* Purchase Form */}
-                              <div className="mt-4 ml-[52px] pt-4 border-t border-[#00B512]/10">
+                              <div className="mt-4 ml-[52px] pt-4 border-t border-[#D4AF37]/10">
                                 <div className="space-y-4">
                                   {/* Custom Amount for Pay What You Want */}
                                   {selectedAction?.pricing?.mode === 'pay_what_you_want' && (
                                     <div className="space-y-2">
-                                      <label className="text-sm font-semibold text-[#00313A] flex items-center gap-2">
-                                        <span>Your Price</span>
-                                        <DollarSign className="w-4 h-4 text-[#00B512]" />
+                                      <label className="text-sm font-semibold text-[#D4AF37] flex items-center gap-2">
+                                        <span>Amount</span>
+                                        <DollarSign className="w-4 h-4 text-[#D4AF37]" />
                                       </label>
                                       <div className="flex items-center gap-2">
-                                        <span className="text-sm font-semibold text-[#00313A]">{selectedAction.currency}</span>
+                                        <span className="text-sm font-semibold text-[#D4AF37]">{selectedAction.currency}</span>
                                         <CustomInput
                                           type="number"
                                           min="0"
@@ -1988,11 +1990,11 @@ const WelcomeProfilePage: React.FC = () => {
                                               }));
                                             }
                                           }}
-                                          className="flex-1 h-10 rounded-lg border-2 border-[#00B512]/30 focus:border-[#00B512] text-right font-semibold"
+                                          className="flex-1 h-10 rounded-lg border-2 border-[#D4AF37]/30 focus:border-[#D4AF37] text-right font-semibold"
                                           placeholder="Enter amount you want to pay"
                                         />
                                       </div>
-                                      <p className="text-xs text-[#00313A]/60">Enter any amount you'd like to pay</p>
+                                      <p className="text-xs text-[#D4AF37] font-semibold">Enter any amount you'd like to pay</p>
                                     </div>
                                   )}
 
@@ -2123,20 +2125,27 @@ const WelcomeProfilePage: React.FC = () => {
                                             );
                                           }
                                         }}
-                                        className='w-24 h-10 rounded-lg border-2 border-[#00313A]/10 focus:border-[#00B512] text-center font-semibold'
+                                        className='w-24 h-10 rounded-lg border-2 border-[#00313A]/10 focus:border-[#D4AF37] text-center font-semibold'
                                         placeholder='0'
                                       />
-                                      <span className='text-sm text-[#00313A]/60 dark:text-gray-400'>
+                                      <span className='text-sm font-semibold text-[#00313A] dark:text-gray-300'>
                                         x{' '}
-                                        {formatPrice(
-                                          subAction.price,
-                                          selectedAction.currency
-                                        )}{' '}
+                                        {selectedAction?.pricing?.mode === 'pay_what_you_want'
+                                          ? formatPrice(
+                                              (purchaseData[subAction.id]?.customAmount || 0).toString(),
+                                              selectedAction.currency
+                                            )
+                                          : formatPrice(
+                                              subAction.price,
+                                              selectedAction.currency
+                                            )}{' '}
                                         ={' '}
                                         {purchaseData[subAction.id]?.quantity
                                           ? formatPrice(
                                             (
-                                              parseFloat(subAction.price) *
+                                              (selectedAction?.pricing?.mode === 'pay_what_you_want'
+                                                ? (purchaseData[subAction.id]?.customAmount || 0)
+                                                : parseFloat(subAction.price)) *
                                               purchaseData[subAction.id]
                                                 .quantity
                                             ).toString(),
@@ -2152,10 +2161,10 @@ const WelcomeProfilePage: React.FC = () => {
 
                                   {/* Buyer Data Form - Collect Buyer Fields */}
                                   {purchaseData[subAction.id]?.quantity && purchaseData[subAction.id].quantity > 0 && (
-                                    <div className="space-y-3 bg-gradient-to-br from-[#f0fff4] via-[#e6f9f0] to-[#f6fff9] rounded-lg p-4 border border-[#00B512]/10">
+                                    <div className="space-y-3 bg-gradient-to-br from-[#FFF9E6] via-[#FFFBF0] to-[#FFFEF8] rounded-lg p-4 border border-[#D4AF37]/10">
                                       <div className="flex items-center gap-2 mb-3">
-                                        <span className="text-xs font-semibold text-[#00B512]">Buyer Information</span>
-                                        <User className="w-4 h-4 text-[#00B512]" />
+                                        <span className="text-xs font-semibold text-[#D4AF37]">Buyer Information</span>
+                                        <User className="w-4 h-4 text-[#D4AF37]" />
                                       </div>
                                       
                                       <div className="space-y-3">
@@ -2196,7 +2205,7 @@ const WelcomeProfilePage: React.FC = () => {
                                       0 ||
                                       purchasing[subAction.id]
                                     }
-                                    className='w-full h-11 bg-[#00B512] dark:bg-[#D4AF37] text-white rounded-lg font-bold shadow-lg hover:bg-[#1fd331] dark:hover:bg-[#C9A530] disabled:opacity-50 disabled:cursor-not-allowed'
+                                    className='w-full h-11 bg-[#D4AF37] text-white rounded-lg font-bold shadow-lg hover:bg-[#C9A530] disabled:opacity-50 disabled:cursor-not-allowed'
                                   >
                                     {purchasing[subAction.id] ? (
                                       <span className='flex items-center justify-center gap-2'>
@@ -2206,7 +2215,26 @@ const WelcomeProfilePage: React.FC = () => {
                                     ) : (
                                       <span className='flex items-center justify-center gap-2'>
                                         <CreditCard className='w-4 h-4' />
-                                        Purchase
+                                        {(() => {
+                                          switch (selectedAction.type) {
+                                            case 'ticket':
+                                            case 'service':
+                                              return 'Purchase';
+                                            case 'payment':
+                                            case 'transport':
+                                              return 'Pay';
+                                            case 'booking':
+                                              return 'Book Now';
+                                            case 'vote':
+                                              return 'Vote';
+                                            case 'subscription':
+                                              return 'Subscribe';
+                                            case 'donation':
+                                              return 'Donate';
+                                            default:
+                                              return 'Purchase';
+                                          }
+                                        })()}
                                       </span>
                                     )}
                                   </CustomButton>
@@ -2226,7 +2254,7 @@ const WelcomeProfilePage: React.FC = () => {
             <CustomButton
               variant='outline'
               onClick={() => setIsSubActionsModalOpen(false)}
-              className='border-2 border-[#00B512] text-[#00B512] rounded-xl font-bold hover:bg-[#00B512] hover:text-white'
+              className='border-2 border-[#D4AF37] text-[#D4AF37] rounded-xl font-bold hover:bg-[#D4AF37] hover:text-white'
             >
               Close
             </CustomButton>
