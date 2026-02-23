@@ -4,23 +4,36 @@ import React, { useState, useEffect } from "react";
 import { ArrowLeft, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuthToken } from "@/hooks/use-auth-token";
-import { useGetAcceptedContactsQuery } from "@/states/contactSlice";
+import { useGetAcceptedContactsQuery, useSendContactInvitationByPublicIdMutation } from "@/states/contactSlice";
+import { useLazyGetUserProfileForTransferQuery } from "@/states/userSlice";
 import { getEntityBalance, getRecentSends } from "@/helpers/api";
 import AddContactModal from "@/components/chat/add-contact-modal";
+import QRCodeScanner from "@/components/chat/qr-code-scanner";
+import { extractPublicIdFromLink, validatePublicId } from "@/utils/profile-link";
+import { toast } from "@/hooks/use-toast";
 
 import BalanceCard from "./BalanceCard";
 import ActionButtonsRow from "./ActionButtonsRow";
 import ContactTabs, { TabType } from "./ContactTabs";
 import ContactListItem, { Contact } from "./ContactListItem";
 import RecentSendItem, { RecentSend } from "./RecentSendItem";
+import ScanOptionsModal from "./ScanOptionsModal";
+import LinkInputModal from "./LinkInputModal";
 
 const TransferPageLayout = () => {
     const router = useRouter();
     const { getToken } = useAuthToken();
+    const [sendInvitationByPublicId, { isLoading: isInviting }] = useSendContactInvitationByPublicIdMutation();
+    const [getUserProfile, { isLoading: isLookingUpUser }] = useLazyGetUserProfileForTransferQuery();
     const [searchQuery, setSearchQuery] = useState("");
     const [contacts, setContacts] = useState<Contact[]>([]);
     const [isAddContactOpen, setIsAddContactOpen] = useState(false);
+    const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
+    const [scannedUserInfo, setScannedUserInfo] = useState<any>(null);
+    const [showScanOptions, setShowScanOptions] = useState(false);
+    const [isExistingContact, setIsExistingContact] = useState(false);
     const [activeTab, setActiveTab] = useState<TabType>("all");
+    const [isLinkInputOpen, setIsLinkInputOpen] = useState(false);
 
     // Balance state
     const [userId, setUserId] = useState<string>("");
@@ -85,7 +98,9 @@ const TransferPageLayout = () => {
                 id: contact.otherUser.id,
                 name: `${contact.otherUser.firstName} ${contact.otherUser.lastName}`,
                 phone: contact.otherUser.phone || '',
-                avatar: contact.otherUser.profileImage || "/Images/Profile.png",
+                avatar: contact.otherUser.profile?.profileImage || null,
+                isFavorite: contact.isFavorite,
+                tags: contact.tags || [],
             }));
             setContacts(mappedContacts);
         }
@@ -146,13 +161,199 @@ const TransferPageLayout = () => {
     );
 
     const handleScanQR = () => {
-        // TODO: Implement QR scanning
-        console.log("Scan QR");
+        setIsQRScannerOpen(true);
+    };
+
+    const handleScanComplete = async (result: string) => {
+        setIsQRScannerOpen(false);
+
+        // Extract public ID from QR code result
+        const publicId = extractPublicIdFromLink(result);
+
+        if (!publicId || !validatePublicId(publicId)) {
+            toast({
+                title: "Invalid QR Code",
+                description: "The scanned QR code does not contain a valid profile link",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        // Check if user is scanning their own QR code (only if userId is set)
+        if (userId && publicId === userId) {
+            toast({
+                title: "Your QR Code",
+                description: "This is your own QR code",
+            });
+            return;
+        }
+
+        // Check if user is already in contacts
+        const existingContact = contacts.find(contact => contact.id === publicId);
+
+        if (existingContact) {
+            // User is already a contact, show modal with just "Send Money" option
+            setIsExistingContact(true);
+            const userInfo = {
+                id: existingContact.id,
+                name: existingContact.name,
+                avatar: existingContact.avatar,
+                isOrganization: false,
+            };
+            setScannedUserInfo(userInfo);
+            setShowScanOptions(true);
+            return;
+        }
+
+        // User is not a contact, get user info and show options with contact invitation
+        setIsExistingContact(false);
+        await handleNewUserScanned(publicId, result, 'qr');
+    };
+
+    const handleNewUserScanned = async (publicId: string, profileLink: string, source: 'qr' | 'link' = 'qr') => {
+        const token = getToken();
+        if (!token) {
+            toast({
+                title: "Authentication Error",
+                description: "Please log in to continue",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        try {
+            // Look up user profile information
+            const result = await getUserProfile({
+                userId: publicId,
+                token,
+            }).unwrap();
+
+            const userInfo = {
+                id: publicId,
+                name: result.name,
+                profileLink,
+                type: result.type,
+                avatar: result.avatar,
+                isOrganization: result.isOrganization,
+            };
+
+            setScannedUserInfo(userInfo);
+            setShowScanOptions(true);
+
+        } catch (error: any) {
+            // User not found
+            const isQRSource = source === 'qr';
+            toast({
+                title: "User Not Found",
+                description: isQRSource
+                    ? "The scanned QR code does not belong to a valid user"
+                    : "The profile link does not belong to a valid user",
+                variant: "destructive",
+            });
+        }
+    };
+
+    const handleAddContactAndTransfer = async () => {
+        if (!scannedUserInfo) return;
+
+        const token = getToken();
+        if (!token) return;
+
+        try {
+            await sendInvitationByPublicId({
+                publicId: scannedUserInfo.id,
+                token,
+            }).unwrap();
+
+            toast({
+                title: "Invitation Sent",
+                description: `Contact invitation sent to ${scannedUserInfo.name}`,
+            });
+
+            // Navigate to amount page for direct transfer
+            const recipientData = {
+                id: scannedUserInfo.id,
+                name: scannedUserInfo.name,
+                phone: '',
+                avatar: scannedUserInfo.avatar || '/Images/Profile.png',
+                isOnline: false,
+                type: scannedUserInfo.type || 'user',
+            };
+
+            sessionStorage.setItem('selectedRecipient', JSON.stringify(recipientData));
+            setShowScanOptions(false);
+            setScannedUserInfo(null);
+            setIsExistingContact(false);
+            router.push('/home/transfer/amount');
+
+        } catch (error: any) {
+            toast({
+                title: "Invitation Failed",
+                description: error?.data?.message || "Failed to send invitation",
+                variant: "destructive",
+            });
+        }
+    };
+
+    const handleDirectTransfer = () => {
+        if (!scannedUserInfo) return;
+
+        // Navigate directly to amount page without adding as contact
+        const recipientData = {
+            id: scannedUserInfo.id,
+            name: scannedUserInfo.name,
+            phone: '',
+            avatar: scannedUserInfo.avatar || '/Images/Profile.png',
+            isOnline: false,
+            type: scannedUserInfo.type || 'user',
+        };
+
+        sessionStorage.setItem('selectedRecipient', JSON.stringify(recipientData));
+        setShowScanOptions(false);
+        setScannedUserInfo(null);
+        setIsExistingContact(false);
+        router.push('/home/transfer/amount');
     };
 
     const handleUseLink = () => {
-        // TODO: Implement link input
-        console.log("Use link");
+        setIsLinkInputOpen(true);
+    };
+
+    const handleLinkSubmit = async (link: string) => {
+        // Extract public ID from the link
+        const publicId = extractPublicIdFromLink(link);
+
+        if (!publicId || !validatePublicId(publicId)) {
+            throw new Error("Invalid profile link. Please check and try again.");
+        }
+
+        // Check if user is scanning their own QR code (only if userId is set)
+        if (userId && publicId === userId) {
+            throw new Error("This is your own profile link");
+        }
+
+        // Check if user is already in contacts
+        const existingContact = contacts.find(contact => contact.id === publicId);
+
+        if (existingContact) {
+            // User is already a contact, show modal with just "Send Money" option
+            setIsExistingContact(true);
+            const userInfo = {
+                id: existingContact.id,
+                name: existingContact.name,
+                avatar: existingContact.avatar,
+                isOrganization: false,
+            };
+            setScannedUserInfo(userInfo);
+            setIsLinkInputOpen(false);
+            setShowScanOptions(true);
+            return;
+        }
+
+        // User is not a contact, get user info and show options with contact invitation
+        setIsExistingContact(false);
+        setIsLinkInputOpen(false);
+        await handleNewUserScanned(publicId, link, 'link');
     };
 
     return (
@@ -160,7 +361,7 @@ const TransferPageLayout = () => {
             {/* Page Header */}
             <div className="flex items-center gap-4 mb-6">
                 <button
-                    onClick={() => router.back()}
+                    onClick={() => router.push(`/home/${userId}`)}
                     className="p-2 hover:bg-gray-100 dark:hover:bg-darkBg-interactive rounded-full transition text-gray-700 dark:text-gray-300"
                 >
                     <ArrowLeft className="w-6 h-6" />
@@ -186,6 +387,38 @@ const TransferPageLayout = () => {
             <AddContactModal
                 isOpen={isAddContactOpen}
                 onClose={() => setIsAddContactOpen(false)}
+            />
+
+            {/* QR Code Scanner Modal */}
+            <QRCodeScanner
+                isOpen={isQRScannerOpen}
+                onClose={() => setIsQRScannerOpen(false)}
+                onScanComplete={handleScanComplete}
+                title="Scan QR Code for Transfer"
+            />
+
+            {/* Link Input Modal */}
+            <LinkInputModal
+                isOpen={isLinkInputOpen}
+                onClose={() => setIsLinkInputOpen(false)}
+                onSubmit={handleLinkSubmit}
+                isLoading={isLookingUpUser}
+            />
+
+            {/* Scan Options Modal */}
+            <ScanOptionsModal
+                isOpen={showScanOptions}
+                onClose={() => {
+                    setShowScanOptions(false);
+                    setScannedUserInfo(null);
+                    setIsExistingContact(false);
+                }}
+                scannedUser={scannedUserInfo}
+                onAddContactAndTransfer={handleAddContactAndTransfer}
+                onDirectTransfer={handleDirectTransfer}
+                isInviting={isInviting}
+                isLookingUpUser={isLookingUpUser}
+                isExistingContact={isExistingContact}
             />
 
             {/* Contact Selection Card */}

@@ -145,7 +145,12 @@ body {
   }
 
   .dark body {
-    background: radial-gradient(circle at 5% 10%, #135825 0%, #06130f 60%, #040f0c 100%);
+    background: radial-gradient(
+      1200px 800px at 10% -10%,
+      #17624b 0%,
+      #06130f 50%,
+      #040f0c 100%
+    );
     background-attachment: fixed;
   }
 }

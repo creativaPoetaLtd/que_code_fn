@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuthToken } from '@/hooks/use-auth-token';
 import { useGetUserChatsQuery } from '@/states/chatSlice';
 import { MessageCircle, Send } from 'lucide-react';
+import { UserAvatar } from '@/components/UserAvatar';
 
 interface ChatMessage {
     id: string;
@@ -150,9 +151,13 @@ export const RecentMessages: React.FC = () => {
                         onClick={() => router.push('/chat')}
                     >
                         <div className="flex items-start gap-2.5">
-                            <div className="w-9 h-9 rounded-full bg-green-500 flex items-center justify-center overflow-hidden flex-shrink-0 text-white font-semibold text-xs">
-                                {chat.name.charAt(0).toUpperCase()}
-                            </div>
+                            <UserAvatar
+                                profileImage={chat.avatar}
+                                firstName={chat.name.split(' ')[0]}
+                                lastName={chat.name.split(' ')[1] || ''}
+                                className="w-9 h-9"
+                                userType="user" // Assuming mostly users for now
+                            />
                             <div className="flex-1 min-w-0">
                                 <div className="flex justify-between items-start gap-0">
                                     <p className="font-semibold text-gray-900 dark:text-white truncate text-xs">{chat.name}</p>

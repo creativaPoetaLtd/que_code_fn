@@ -6,7 +6,7 @@ import axios from "axios";
 import Image from "next/image";
 import baseUrl from "@/helpers/baseUrl";
 import { getUserBalance, getEntityBalance } from '@/helpers/api';
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/UserAvatar";
 import { useNotifications } from "@/context/NotificationContext";
 import { useChat } from "@/context/ChatContext";
 import NotificationBell from "./notifications/NotificationBell";
@@ -22,6 +22,7 @@ export const Header = () => {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isBalanceVisible, setIsBalanceVisible] = useState(true);
     const [profileImage, setProfileImage] = useState<string | null>(null);
+    const [userName, setUserName] = useState<{ firstName: string; lastName: string } | null>(null);
     const [userId, setUserId] = useState<string>("");
     const [balance, setBalance] = useState<number | null>(null);
     const [balanceLoading, setBalanceLoading] = useState(true);
@@ -32,7 +33,7 @@ export const Header = () => {
     const { getToken, removeToken } = useAuthToken();
     const { theme, toggleTheme } = useTheme();
     const dispatch = useDispatch();
-    
+
     // Try to get chat context, but don't fail if it's not available
     let chat;
     try {
@@ -80,11 +81,13 @@ export const Header = () => {
                 // Check if user data was successful
                 if (userRes.status === 'fulfilled') {
                     const data = userRes.value.data;
-                    setProfileImage(data.profileImage || null);
+                    setProfileImage(data.profile?.profileImage || null);
+                    setUserName({ firstName: data.firstName, lastName: data.lastName });
                 } else if (organizationRes.status === 'fulfilled') {
                     // If user failed but organization succeeded, use organization data
                     const data = organizationRes.value.data;
-                    setProfileImage(data.profileImage || null);
+                    setProfileImage(data.profile?.profileImage || null);
+                    setUserName({ firstName: data.name, lastName: '' });
                 } else {
                     // Both failed, but don't throw - just leave profileImage as null
                     setProfileImage(null);
@@ -136,7 +139,7 @@ export const Header = () => {
 
     const handleLogout = () => {
         setIsDropdownOpen(false);
-        
+
         try {
             // 1. Clear authentication tokens
             removeToken();
@@ -244,26 +247,16 @@ export const Header = () => {
                 <div className="relative flex items-center">
                     {/* Profile Picture */}
                     <button
-                        className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-200 overflow-hidden border-2 border-gray-300 hover:border-gray-400 flex items-center justify-center flex-shrink-0"
+                        className="rounded-full flex items-center justify-center flex-shrink-0 focus:outline-none"
                         onClick={toggleDropdown}
                         aria-label="User Profile"
                     >
-                        {profileImage ? (
-                            <Avatar className="w-8 h-8 sm:w-10 sm:h-10">
-                                <AvatarImage src={profileImage} alt="User profile" />
-                                <AvatarFallback>
-                                    <User size={20} className="text-gray-600" />
-                                </AvatarFallback>
-                            </Avatar>
-                        ) : (
-                            <Image
-                                src="/Images/Profile.png"
-                                alt="Profile"
-                                className="h-full w-full object-cover"
-                                width={40}
-                                height={40}
-                            />
-                        )}
+                        <UserAvatar
+                            profileImage={profileImage}
+                            firstName={userName?.firstName}
+                            lastName={userName?.lastName}
+                            className="w-8 h-8 sm:w-10 sm:h-10 border-2 border-gray-300 hover:border-gray-400"
+                        />
                     </button>
 
                     {/* Dropdown Menu */}

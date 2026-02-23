@@ -1,0 +1,260 @@
+import React, { useState, useEffect } from "react";
+import { Contact, useToggleContactFavoriteMutation } from "@/states/contactSlice";
+import { UserAvatar } from "@/components/UserAvatar";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { X, Send, DollarSign, Archive, MoreVertical, Star, ArrowUpRight, ArrowDownLeft, Plus, Edit } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { getContactTransactionStats, getTransactionHistory } from "@/helpers/api";
+import { useUserInfo } from "@/hooks/use-user-info";
+import { useRouter } from "next/navigation";
+import { useAuthToken } from "@/hooks/use-auth-token";
+import { useToast } from "@/hooks/use-toast";
+import { ManageTagsDialog } from "./ManageTagsDialog";
+
+interface ContactDetailsPanelProps {
+    contact: Contact | null;
+    isOpen: boolean;
+    onClose: () => void;
+}
+
+export function ContactDetailsPanel({ contact, isOpen, onClose }: ContactDetailsPanelProps) {
+    const { userId } = useUserInfo();
+    const authHook = useAuthToken();
+    const token = authHook.getToken();
+    const router = useRouter();
+    const { toast } = useToast();
+    const [stats, setStats] = useState<{ totalSent: number; totalReceived: number }>({
+        totalSent: 0,
+        totalReceived: 0
+    });
+    const [transactions, setTransactions] = useState<any[]>([]);
+    const [toggleFavorite] = useToggleContactFavoriteMutation();
+    const [isManageTagsOpen, setIsManageTagsOpen] = useState(false);
+
+    useEffect(() => {
+        if (contact && userId && isOpen) {
+            // Fetch stats
+            getContactTransactionStats(userId as string, contact.otherUser.id)
+                .then((data) => {
+                    if (data && data.success) {
+                        setStats(data.data);
+                    }
+                })
+                .catch(err => console.error("Failed to fetch contact stats", err));
+
+            // Fetch history
+            getTransactionHistory(userId as string, { contactId: contact.otherUser.id, limit: 5 })
+                .then((data) => {
+                    if (data && data.success) {
+                        setTransactions(data.data.transactions);
+                    }
+                })
+                .catch(err => console.error("Failed to fetch contact history", err));
+        }
+    }, [contact, userId, isOpen]);
+
+    if (!contact) return null;
+
+    const handlePay = () => {
+        // Save recipient to session storage as expected by the transfer flow
+        const recipient = {
+            id: contact.otherUser.id,
+            name: `${contact.otherUser.firstName} ${contact.otherUser.lastName}`,
+            phone: contact.otherUser.phone,
+            avatar: contact.otherUser.profile?.profileImage || "",
+            type: 'user'
+        };
+        sessionStorage.setItem('selectedRecipient', JSON.stringify(recipient));
+        router.push('/home/transfer/amount');
+    };
+
+    const handleToggleFavorite = async () => {
+        try {
+            await toggleFavorite({ contactId: contact.id, token: token || "" }).unwrap();
+            toast({
+                title: "Success",
+                description: contact.isFavorite ? "Removed from favorites" : "Added to favorites",
+            });
+        } catch (error) {
+            console.error("Failed to toggle favorite", error);
+            toast({
+                title: "Error",
+                description: "Failed to update favorite status",
+                variant: "destructive",
+            });
+        }
+    };
+
+    return (
+        <>
+            <div
+                className={cn(
+                    "fixed inset-y-0 right-0 w-96 bg-white dark:bg-darkBg-card shadow-2xl transform transition-transform duration-300 ease-in-out z-50 border-l border-gray-200 dark:border-darkBorder-light",
+                    isOpen ? "translate-x-0" : "translate-x-full"
+                )}
+            >
+                <div className="h-full flex flex-col">
+                    {/* Header */}
+                    <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-darkBorder-light">
+                        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Contact Details</h2>
+                        <Button variant="ghost" size="icon" onClick={onClose} className="hover:bg-gray-100 dark:hover:bg-darkBg-hover rounded-full">
+                            <X className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                        </Button>
+                    </div>
+
+                    {/* Profile Content */}
+                    <div className="flex-1 overflow-y-auto p-6 bg-white dark:bg-darkBg-card">
+                        <div className="flex flex-col items-center text-center mb-8">
+                            <div className="relative mb-4">
+                                <UserAvatar
+                                    profileImage={contact.otherUser.profile?.profileImage}
+                                    firstName={contact.otherUser.firstName}
+                                    lastName={contact.otherUser.lastName}
+                                    className="h-24 w-24 ring-4 ring-gray-50 dark:ring-darkBg-main bg-white dark:bg-darkBg-secondary"
+                                />
+                                <button
+                                    onClick={handleToggleFavorite}
+                                    className="absolute bottom-0 right-0 bg-white dark:bg-darkBg-card rounded-full p-1.5 shadow-sm border border-gray-100 dark:border-darkBorder-light hover:bg-gray-50 dark:hover:bg-darkBg-hover transition-colors"
+                                    title={contact.isFavorite ? "Remove from favorites" : "Add to favorites"}
+                                >
+                                    <Star className={cn("h-4 w-4", contact.isFavorite ? "text-yellow-500 fill-yellow-500" : "text-gray-400")} />
+                                </button>
+                            </div>
+
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
+                                {contact.otherUser.firstName} {contact.otherUser.lastName}
+                            </h3>
+                            <p className="text-gray-500 dark:text-gray-400 mb-4">{contact.otherUser.email}</p>
+
+                            <div className="flex flex-wrap justify-center items-center gap-2 mb-6">
+                                <Badge variant={contact.status === 'active' ? 'default' : 'destructive'} className="uppercase tracking-wider text-[10px]">
+                                    {contact.status}
+                                </Badge>
+                                {contact.tags?.map(tag => (
+                                    <Badge key={tag} variant="secondary" className="bg-gray-100 dark:bg-darkBg-secondary text-gray-600 dark:text-gray-300">
+                                        {tag}
+                                    </Badge>
+                                ))}
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setIsManageTagsOpen(true)}
+                                    className="h-5 w-5 p-0 rounded-full hover:bg-gray-100 dark:hover:bg-darkBg-hover"
+                                    title="Manage tags"
+                                >
+                                    <Edit className="h-3 w-3 text-gray-400" />
+                                </Button>
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-3 w-full mb-8">
+                                <Button
+                                    onClick={handlePay}
+                                    className="w-full bg-brand-green dark:bg-brand-gold hover:bg-brand-green/90 dark:hover:bg-brand-gold/90 text-white dark:text-darkBg-main gap-2 shadow-sm"
+                                >
+                                    <Send className="h-4 w-4" />
+                                    Pay
+                                </Button>
+                            </div>
+                        </div>
+
+                        <div className="space-y-6">
+                            <div>
+                                <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Information</h4>
+                                <div className="space-y-3">
+                                    <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-darkBorder-light">
+                                        <span className="text-sm text-gray-600 dark:text-gray-400">Phone</span>
+                                        <span className="text-sm font-medium text-gray-900 dark:text-white">{contact.otherUser.phone}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-darkBorder-light">
+                                        <span className="text-sm text-gray-600 dark:text-gray-400">Joined</span>
+                                        <span className="text-sm font-medium text-gray-900 dark:text-white">
+                                            {format(new Date(contact.createdAt), 'MMM d, yyyy')}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Financial Stats */}
+                            <div>
+                                <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Financial Overview</h4>
+                                <div className="bg-gray-50 dark:bg-darkBg-main rounded-lg p-4 border border-gray-100 dark:border-darkBorder-light mb-6">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-sm text-gray-600 dark:text-gray-400">Total Sent</span>
+                                        <span className="font-semibold text-gray-900 dark:text-white font-mono">
+                                            ${stats.totalSent.toFixed(2)}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-sm text-gray-600 dark:text-gray-400">Total Received</span>
+                                        <span className="font-semibold text-gray-900 dark:text-white font-mono">
+                                            ${stats.totalReceived.toFixed(2)}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Transaction History */}
+                            <div>
+                                <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Recent Transactions</h4>
+                                <div className="space-y-3">
+                                    {transactions.length > 0 ? (
+                                        transactions.map((txn: any) => (
+                                            <div key={txn.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-darkBg-main rounded-lg border border-gray-100 dark:border-darkBorder-light">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={cn(
+                                                        "p-2 rounded-full",
+                                                        txn.senderWallet?.userId === userId
+                                                            ? "bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400"
+                                                            : "bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400"
+                                                    )}>
+                                                        {txn.senderWallet?.userId === userId ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownLeft className="h-4 w-4" />}
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                                            {txn.description || (txn.senderWallet?.userId === userId ? 'Sent' : 'Received')}
+                                                        </p>
+                                                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                            {format(new Date(txn.createdAt), 'MMM d, h:mm a')}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <span className={cn(
+                                                    "text-sm font-semibold font-mono",
+                                                    txn.senderWallet?.userId === userId
+                                                        ? "text-gray-900 dark:text-white"
+                                                        : "text-brand-green dark:text-brand-gold"
+                                                )}>
+                                                    {txn.senderWallet?.userId === userId ? '-' : '+'}${parseFloat(txn.amount).toFixed(2)}
+                                                </span>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+                                            No transactions found.
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Footer Actions */}
+                    <div className="p-4 border-t border-gray-100 dark:border-darkBorder-light bg-gray-50 dark:bg-darkBg-secondary">
+                        <Button variant="ghost" className="w-full text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 hover:text-red-700 justify-start px-4">
+                            <Archive className="h-4 w-4 mr-3" />
+                            Archive / Block Contact
+                        </Button>
+                    </div>
+                </div>
+            </div>
+
+            <ManageTagsDialog
+                contact={contact}
+                open={isManageTagsOpen}
+                onOpenChange={setIsManageTagsOpen}
+            />
+        </>
+    );
+}
