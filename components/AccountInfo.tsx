@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Copy, CreditCard, Send, Share2, User, Download, Square, Plus, Check } from 'lucide-react';
 import baseUrl from '@/helpers/baseUrl';
 import { getUserBalance, getEntityBalance } from '@/helpers/api';
+import { useAuthToken } from '@/hooks/use-auth-token';
 
 interface AccountInfoProps {
     userId: string;
@@ -12,6 +13,7 @@ interface AccountInfoProps {
 
 const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
     const router = useRouter();
+    const { getToken } = useAuthToken();
 
     const [user, setUser] = useState({ firstName: '', lastName: '', qrCode: '' });
     const [loading, setLoading] = useState(true);
@@ -23,26 +25,6 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
 
     useEffect(() => {
         const fetchUserData = async () => {
-            const authToken = localStorage.getItem('authToken');
-            if (authToken) {
-                try {
-                    const base64Url = authToken.split('.')[1];
-                    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                    const payload = JSON.parse(atob(base64));
-
-                    if (!userId || userId === 'undefined') {
-                        const tokenUserId = payload?.userId || payload?.id || payload?.sub;
-
-                        if (tokenUserId) {
-                            await fetchUserDataById(tokenUserId);
-                            return;
-                        }
-                    }
-                } catch (tokenError) {
-                    throw new Error('Invalid token');
-                }
-            }
-
             if (!userId || userId === 'undefined') {
                 setError('User ID is not available. Please try logging in again.');
                 setLoading(false);
@@ -79,7 +61,7 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
                 setLoading(true);
                 setError(null);
 
-                const authToken = localStorage.getItem('authToken');
+                const authToken = getToken();
                 const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {};
                 // Try user endpoint first, then organization endpoint
                 const userUrl = `${baseUrl}/users/${id}`;
@@ -142,7 +124,7 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
         };
 
         fetchUserData();
-    }, [userId]);
+    }, [userId, getToken]);
 
     const handleCopy = async () => {
         try {

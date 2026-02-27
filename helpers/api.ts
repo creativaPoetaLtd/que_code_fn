@@ -6,7 +6,11 @@ import { getValidToken, handleTokenExpiration, getCurrentUserId, getCurrentUserI
 axios.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    // Only trigger logout when the request carried an auth token
+    // (meaning the token was rejected/expired server-side).
+    // Don't logout for requests that were sent without auth.
+    const hadAuthHeader = error.config?.headers?.Authorization || error.config?.headers?.authorization;
+    if (error.response?.status === 401 && hadAuthHeader) {
       handleTokenExpiration();
     }
     return Promise.reject(error);
