@@ -140,6 +140,7 @@ const ActionsByAccountPage = () => {
         description: '',
     });
     const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'published' | 'archived'>('all');
+    const [purchasedActionsFilter, setPurchasedActionsFilter] = useState<'all' | 'archive'>('all');
     const [editingSubActionId, setEditingSubActionId] = useState<string | null>(null);
     const [markingAsUsed, setMarkingAsUsed] = useState<Record<string, boolean>>({});
 
@@ -216,7 +217,8 @@ const ActionsByAccountPage = () => {
                 if (organizationRes.status === 'fulfilled') {
                     setAccountMode('organization');
                     const searchParams = new URLSearchParams();
-                    if (statusFilter !== 'all') {
+                    // Don't send 'archived' to the API - fetch all actions and filter client-side
+                    if (statusFilter !== 'all' && statusFilter !== 'archived') {
                         searchParams.append('status', statusFilter);
                     }
                     const query = searchParams.toString();
@@ -602,6 +604,22 @@ const ActionsByAccountPage = () => {
     };
 
     const renderPurchasedActions = () => {
+        // Check if QR object is expired
+        const isQRObjectExpired = (qrObject: QrObject): boolean => {
+            if (!qrObject.validUntil) return false;
+            return new Date(qrObject.validUntil) < new Date();
+        };
+
+        // Check if QR object is used or archived
+        const isQRObjectArchived = (qrObject: QrObject): boolean => {
+            return qrObject.status?.toLowerCase() === 'used' || isQRObjectExpired(qrObject);
+        };
+
+        // Filter purchased actions based on filter tab
+        const filteredPurchasedActions = purchasedActionsFilter === 'archive'
+            ? purchasedActions.filter(item => isQRObjectArchived(item))
+            : purchasedActions.filter(item => !isQRObjectArchived(item));
+
         if (!purchasedActions.length) {
             return (
                 <div className="bg-white dark:bg-darkBg-card border border-emerald-100 dark:border-darkBorder-light rounded-3xl p-8 text-center shadow-sm">
@@ -620,7 +638,36 @@ const ActionsByAccountPage = () => {
         }
 
         return (
-            <div className="space-y-6">
+            <div className="space-y-4">
+                {/* Filter Buttons - Always Visible */}
+                <div className="flex flex-wrap gap-4 items-center">
+                    <div>
+                        <label className="block text-xs font-semibold text-[#00313A] dark:text-white uppercase mb-2">Filter</label>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setPurchasedActionsFilter('all')}
+                                className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
+                                    purchasedActionsFilter === 'all'
+                                        ? 'bg-[#00B512] text-white shadow'
+                                        : 'border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-interactive dark:text-white text-[#00313A] hover:bg-gray-50 dark:hover:bg-darkBg-card'
+                                }`}
+                            >
+                                Valid ({purchasedActions.filter(item => !item.status?.toLowerCase().includes('used') && (!item.validUntil || new Date(item.validUntil) >= new Date())).length})
+                            </button>
+                            <button
+                                onClick={() => setPurchasedActionsFilter('archive')}
+                                className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
+                                    purchasedActionsFilter === 'archive'
+                                        ? 'bg-[#00B512] text-white shadow'
+                                        : 'border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-interactive dark:text-white text-[#00313A] hover:bg-gray-50 dark:hover:bg-darkBg-card'
+                                }`}
+                            >
+                                Archive ({purchasedActions.filter(item => item.status?.toLowerCase().includes('used') || (item.validUntil && new Date(item.validUntil) < new Date())).length})
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 {/* Toolbar for organizations viewing user's QR objects */}
                 {isLoggedInAsOrganization && isViewingAnotherUser && (
                     <div className="flex flex-wrap gap-3 items-center justify-between bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-2xl p-4">
@@ -638,9 +685,31 @@ const ActionsByAccountPage = () => {
                         </button>
                     </div>
                 )}
-                
-                <div className="grid gap-6 md:grid-cols-2">
-                    {purchasedActions.map((item) => (
+
+                {/* Content Section - Empty or Grid */}
+                {filteredPurchasedActions.length === 0 ? (
+                    <div className="bg-white dark:bg-darkBg-card border border-emerald-100 dark:border-darkBorder-light rounded-3xl p-8 text-center shadow-sm">
+                        <div className="flex items-center justify-center gap-2 text-emerald-600 dark:text-brand-green font-semibold mb-2">
+                            <Ticket className="w-5 h-5" />
+                            <span>
+                                {purchasedActionsFilter === 'archive'
+                                    ? 'No archived or expired items'
+                                    : isLoggedInAsOrganization && isViewingAnotherUser
+                                    ? 'No valid QR objects'
+                                    : 'No valid purchases yet'}
+                            </span>
+                        </div>
+                        <p className="text-gray-600 dark:text-gray-300 max-w-md mx-auto">
+                            {purchasedActionsFilter === 'archive'
+                                ? 'Your used and expired items will appear here.'
+                                : isLoggedInAsOrganization && isViewingAnotherUser
+                                ? 'This user has not purchased any valid tickets or actions from your organization.'
+                                : 'When you buy tickets or actions, they will appear here with instant access to their QR codes.'}
+                        </p>
+                    </div>
+                ) : (
+                    <div className="grid gap-6 md:grid-cols-2">
+                    {filteredPurchasedActions.map((item) => (
                         <div
                             key={item.id}
                             className="bg-white/95 dark:bg-darkBg-card backdrop-blur rounded-3xl border border-emerald-50 dark:border-darkBorder-light shadow-lg shadow-emerald-100/40 dark:shadow-none p-6 relative overflow-hidden"
@@ -661,11 +730,13 @@ const ActionsByAccountPage = () => {
                             </div>
                             <span
                                 className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${
-                                    statusClasses[item.status?.toLowerCase()] ||
+                                    isQRObjectExpired(item)
+                                        ? statusClasses['expired']
+                                        : statusClasses[item.status?.toLowerCase()] ||
                                     'bg-gray-100 dark:bg-darkBg-interactive text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-darkBorder-light'
                                 }`}
                             >
-                                {item.status || 'unknown'}
+                                {isQRObjectExpired(item) ? 'Expired' : item.status || 'unknown'}
                             </span>
                         </div>
 
@@ -751,61 +822,74 @@ const ActionsByAccountPage = () => {
                         )}
                     </div>
                 ))}
-                </div>
+                    </div>
+                )}
             </div>
         );
     };
 
+    // Check if action is expired based on endsAt date
+    const isActionExpired = (action: OrganizationAction): boolean => {
+        if (!action.availability?.endsAt) return false;
+        return new Date(action.availability.endsAt) < new Date();
+    };
+
     const renderOrganizationActions = () => {
-        if (!organizationActions.length) {
-            return (
-                <div className="bg-white dark:bg-darkBg-card border border-blue-100 dark:border-darkBorder-light rounded-3xl p-8 text-center shadow-sm">
-                    <div className="flex items-center justify-center gap-2 text-blue-600 dark:text-blue-400 font-semibold mb-2">
-                        <Ticket className="w-5 h-5" />
-                        <span>No actions published yet</span>
-                    </div>
-                    <p className="text-gray-600 dark:text-gray-300 max-w-md mx-auto mb-6">
-                        Create your first action to start accepting payments or issuing tickets. They will appear here in the same
-                        layout visitors see on your welcome page.
-                    </p>
-                    <button
-                        onClick={() => {
-                            setEditingActionId(null);
-                            setWizardOpen(true);
-                        }}
-                        className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#00B512] text-white text-sm font-semibold shadow hover:bg-[#009a0f] transition-colors"
-                    >
-                        <Sparkles className="w-4 h-4" />
-                        Create Your First Action
-                    </button>
-                </div>
+        // Filter actions considering expiration
+        const getFilteredOrganizationActions = () => {
+            if (statusFilter === 'all') {
+                return organizationActions;
+            }
+            if (statusFilter === 'archived') {
+                return organizationActions.filter(action => 
+                    action.status === 'archived' || isActionExpired(action)
+                );
+            }
+            return organizationActions.filter(action => 
+                action.status === statusFilter && !isActionExpired(action)
             );
-        }
+        };
+
+        const filteredActions = getFilteredOrganizationActions();
 
         return (
             <div className="space-y-4">
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                {/* Filter and Action Buttons - Always Visible */}
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div className="flex flex-wrap gap-4 items-center">
                         <div>
-                            <label className="block text-xs font-semibold text-[#00313A] dark:text-white uppercase mb-1">Status</label>
-                            <select
-                                value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value as 'all' | 'draft' | 'published' | 'archived')}
-                                className="rounded-full border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-interactive dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B512]/40"
-                            >
-                                <option value="all">All</option>
-                                <option value="published">Published</option>
-                                <option value="draft">Draft</option>
-                                <option value="archived">Archived</option>
-                            </select>
+                            <label className="block text-xs font-semibold text-[#00313A] dark:text-white uppercase mb-2">Status</label>
+                            <div className="flex flex-wrap gap-2">
+                                {[
+                                    { value: 'all', label: 'All' },
+                                    { value: 'published', label: 'Published' },
+                                    { value: 'draft', label: 'Draft' },
+                                    { value: 'archived', label: 'Archived' }
+                                ].map(filter => {
+                                    let count = 0;
+                                    if (filter.value === 'all') {
+                                        count = organizationActions.length;
+                                    } else if (filter.value === 'archived') {
+                                        count = organizationActions.filter(action => action.status === 'archived' || isActionExpired(action)).length;
+                                    } else {
+                                        count = organizationActions.filter(action => action.status === filter.value && !isActionExpired(action)).length;
+                                    }
+                                    return (
+                                        <button
+                                            key={filter.value}
+                                            onClick={() => setStatusFilter(filter.value as 'all' | 'draft' | 'published' | 'archived')}
+                                            className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
+                                                statusFilter === filter.value
+                                                    ? 'bg-[#00B512] text-white shadow'
+                                                    : 'border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-interactive dark:text-white text-[#00313A] hover:bg-gray-50 dark:hover:bg-darkBg-card'
+                                            }`}
+                                        >
+                                            {`${filter.label} (${count})`}
+                                        </button>
+                                    );
+                                })}
+                            </div>
                         </div>
-                        <button
-                            onClick={() => fetchData(effectiveUserId)}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-interactive dark:text-white text-sm font-semibold text-[#00313A] hover:bg-gray-50 dark:hover:bg-darkBg-main"
-                        >
-                            <Loader2 className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                            Refresh
-                        </button>
                     </div>
                     <div className="flex justify-end gap-3">
                         <button
@@ -827,8 +911,42 @@ const ActionsByAccountPage = () => {
                         </button>
                     </div>
                 </div>
-                <div className="grid gap-6 md:grid-cols-2">
-                    {organizationActions.map((action) => (
+
+                {/* Content Section - Empty or Actions Grid */}
+                {!organizationActions.length ? (
+                    <div className="bg-white dark:bg-darkBg-card border border-blue-100 dark:border-darkBorder-light rounded-3xl p-8 text-center shadow-sm">
+                        <div className="flex items-center justify-center gap-2 text-blue-600 dark:text-blue-400 font-semibold mb-2">
+                            <Ticket className="w-5 h-5" />
+                            <span>No actions published yet</span>
+                        </div>
+                        <p className="text-gray-600 dark:text-gray-300 max-w-md mx-auto mb-6">
+                            Create your first action to start accepting payments or issuing tickets. They will appear here in the same
+                            layout visitors see on your welcome page.
+                        </p>
+                        <button
+                            onClick={() => {
+                                setEditingActionId(null);
+                                setWizardOpen(true);
+                            }}
+                            className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#00B512] text-white text-sm font-semibold shadow hover:bg-[#009a0f] transition-colors"
+                        >
+                            <Sparkles className="w-4 h-4" />
+                            Create Your First Action
+                        </button>
+                    </div>
+                ) : filteredActions.length === 0 ? (
+                    <div className="bg-white dark:bg-darkBg-card border border-blue-100 dark:border-darkBorder-light rounded-3xl p-8 text-center shadow-sm">
+                        <div className="flex items-center justify-center gap-2 text-blue-600 dark:text-blue-400 font-semibold mb-2">
+                            <Ticket className="w-5 h-5" />
+                            <span>No actions in this category</span>
+                        </div>
+                        <p className="text-gray-600 dark:text-gray-300 max-w-md mx-auto">
+                            {statusFilter === 'archived' ? 'No archived or expired actions.' : `No ${statusFilter} actions.`}
+                        </p>
+                    </div>
+                ) : (
+                    <div className="grid gap-6 md:grid-cols-2">
+                    {filteredActions.map((action) => (
                         <button
                             type="button"
                             key={action.id}
@@ -845,12 +963,14 @@ const ActionsByAccountPage = () => {
                                 {action.status && (
                                     <span
                                         className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${
-                                            action.status === 'published'
+                                            isActionExpired(action)
+                                                ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400'
+                                                : action.status === 'published'
                                                 ? 'bg-[#00B512]/10 dark:bg-[#00B512]/20 text-[#00B512] dark:text-brand-green'
                                                 : 'bg-gray-100 dark:bg-darkBg-interactive text-gray-600 dark:text-gray-300'
                                         }`}
                                     >
-                                        {action.status}
+                                        {isActionExpired(action) ? 'Archived' : action.status}
                                     </span>
                                 )}
                             </div>
@@ -904,7 +1024,8 @@ const ActionsByAccountPage = () => {
                             )}
                         </button>
                     ))}
-                </div>
+                    </div>
+                )}
             </div>
         );
     };

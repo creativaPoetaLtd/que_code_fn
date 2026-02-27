@@ -1,20 +1,18 @@
 "use client";
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { useAuthToken } from "@/hooks/use-auth-token";
 import { socketService } from "@/services/socketService";
 import { apiSlice } from "@/states/apiSlice";
 import { useDispatch } from "react-redux";
 
 const LogoutPage = () => {
-  const router = useRouter();
   const { removeToken } = useAuthToken();
   const dispatch = useDispatch();
 
   useEffect(() => {
-    const performLogout = () => {
+    const performLogout = async () => {
       try {
-        // 1. Clear authentication tokens
+        // 1. Clear authentication tokens first
         removeToken();
 
         // 2. Force disconnect socket (this will also clear chat state)
@@ -42,18 +40,28 @@ const LogoutPage = () => {
         if (preservedItems.sidebarExpanded) {
           localStorage.setItem('sidebarExpanded', preservedItems.sidebarExpanded);
         }
+
+        // Small delay to ensure state is cleared
+        await new Promise(resolve => setTimeout(resolve, 100));
       } catch (error) {
         console.error('Error during logout:', error);
+      } finally {
+        // 6. Always redirect to home page, even if there's an error
+        window.location.replace("/");
       }
-
-      // 6. Immediate redirect using window.location for guaranteed navigation
-      window.location.href = "/";
     };
 
     performLogout();
-  }, []); // Empty deps - only run once on mount
+  }, [removeToken, dispatch]);
 
-  return null;
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-darkBg-main">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D4AF37] mx-auto mb-4"></div>
+        <p className="text-[#00313A] dark:text-white font-medium">Logging out...</p>
+      </div>
+    </div>
+  );
 };
 
 export default LogoutPage; 

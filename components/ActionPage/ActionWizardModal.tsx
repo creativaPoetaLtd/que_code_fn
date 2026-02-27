@@ -49,16 +49,12 @@ interface ActionWizardModalProps {
     editingActionId?: string | null;
 }
 
-const stepItems = [
+const allStepItems = [
     { key: 'stepA', title: 'Identity', description: 'Type & basics' },
     { key: 'stepB', title: 'Pricing', description: 'Currency & price' },
-    { key: 'subActions', title: 'Sub-actions', description: 'Tickets & tiers' },
-    { key: 'availability', title: 'Schedule', description: 'Timing & limits' },
-    { key: 'visibility', title: 'Visibility', description: 'Audience & fields' },
-    { key: 'policy', title: 'Policies', description: 'Rules & terms' },
-    { key: 'fulfillment', title: 'Fulfillment', description: 'Delivery rules' },
-    { key: 'advanced', title: 'Advanced', description: 'Custom & webhooks' },
-    { key: 'publish', title: 'Publish', description: 'Go live' },
+    { key: 'subActions', title: 'Tickets & sub-actions', description: 'Sub-actions' },
+    { key: 'configuration', title: 'Configuration', description: 'Schedule, policies & settings' },
+    { key: 'publish', title: 'Review & Publish', description: 'Review & go live' },
 ];
 
 const validTypes = [
@@ -76,11 +72,127 @@ const validTypes = [
     'group',
 ];
 
-const visibilityOptions = [
-    { label: 'Public', value: 'public' },
-    { label: 'Private', value: 'private' },
-    { label: 'Unlisted', value: 'unlisted' },
-];
+// Dynamic form configuration based on action type
+const actionTypeConfig: Record<string, {
+    label: string;
+    showFields: string[];
+    placeholders: Record<string, string>;
+}> = {
+    ticket: {
+        label: 'Ticket',
+        showFields: ['slug', 'shortDescription', 'description', 'coverImage', 'dedicatedQrCode'],
+        placeholders: {
+            name: 'Concert, Film, Conference...',
+            shortDescription: 'What event is this ticket for?',
+            description: 'Provide full details about the event',
+        },
+    },
+    transport: {
+        label: 'Transport',
+        showFields: ['slug', 'shortDescription', 'description', 'coverImage'],
+        placeholders: {
+            name: 'Bus, Train, Flight Route...',
+            shortDescription: 'Route or service name',
+            description: 'Departure, arrival, duration details',
+        },
+    },
+    service: {
+        label: 'Service',
+        showFields: ['slug', 'shortDescription', 'description', 'coverImage'],
+        placeholders: {
+            name: 'Consulting, Repair, Design...',
+            shortDescription: 'What service do you offer?',
+            description: 'Service details, duration, deliverables',
+        },
+    },
+    subscription: {
+        label: 'Subscription',
+        showFields: ['slug', 'shortDescription', 'description', 'coverImage'],
+        placeholders: {
+            name: 'Monthly Plan, Annual Plan...',
+            shortDescription: 'Subscription plan name',
+            description: 'What is included in this plan?',
+        },
+    },
+    payment: {
+        label: 'Payment',
+        showFields: ['shortDescription', 'description'],
+        placeholders: {
+            name: 'Donation, Contribution...',
+            shortDescription: 'What is this payment for?',
+            description: 'Additional details about the payment',
+        },
+    },
+    donation: {
+        label: 'Donation',
+        showFields: ['shortDescription', 'description', 'coverImage'],
+        placeholders: {
+            name: 'Charity, Cause...',
+            shortDescription: 'What is the cause?',
+            description: 'Tell donors why you need support',
+        },
+    },
+    vote: {
+        label: 'Vote',
+        showFields: ['shortDescription', 'coverImage'],
+        placeholders: {
+            name: 'Poll, Referendum, Election...',
+            shortDescription: 'What are you voting on?',
+            description: '',
+        },
+    },
+    booking: {
+        label: 'Booking',
+        showFields: ['slug', 'shortDescription', 'description', 'coverImage'],
+        placeholders: {
+            name: 'Hotel, Restaurant, Activity...',
+            shortDescription: 'What can be booked?',
+            description: 'Booking conditions and details',
+        },
+    },
+    license: {
+        label: 'License',
+        showFields: ['slug', 'shortDescription', 'description'],
+        placeholders: {
+            name: 'Software, Content License...',
+            shortDescription: 'License name',
+            description: 'License terms and conditions',
+        },
+    },
+    membership: {
+        label: 'Membership',
+        showFields: ['slug', 'shortDescription', 'description', 'coverImage'],
+        placeholders: {
+            name: 'Club, Association, Platform...',
+            shortDescription: 'Membership benefits',
+            description: 'Full membership details',
+        },
+    },
+    rental: {
+        label: 'Rental',
+        showFields: ['slug', 'shortDescription', 'description', 'coverImage'],
+        placeholders: {
+            name: 'Equipment, Property, Vehicle...',
+            shortDescription: 'What can be rented?',
+            description: 'Rental terms, pricing, conditions',
+        },
+    },
+    group: {
+        label: 'Group',
+        showFields: ['slug', 'shortDescription', 'description', 'coverImage'],
+        placeholders: {
+            name: 'Community, Team, Organization...',
+            shortDescription: 'Group description',
+            description: 'About the group and its purpose',
+        },
+    },
+};
+
+// const visibilityOptions = [
+//     { label: 'Public', value: 'public' },
+//     { label: 'Private', value: 'private' },
+//     { label: 'Unlisted', value: 'unlisted' },
+// ];
 
 const buyerFieldOptions = [
     { label: 'Full Name', value: 'fullName' },
@@ -361,12 +473,30 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
     const [actionId, setActionId] = useState<string | null>(null);
     const [subActions, setSubActions] = useState<SubActionSummary[]>([]);
     const [subActionsLoading, setSubActionsLoading] = useState(false);
+    const [showFixedMetadata, setShowFixedMetadata] = useState(false);
+    const [showSubActionMetadata, setShowSubActionMetadata] = useState(false);
+    const [showPolicies, setShowPolicies] = useState(false);
     const [existingAction, setExistingAction] = useState<any | null>(null);
     const [isEditingExisting, setIsEditingExisting] = useState(false);
     const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
     const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
+    const [subActionCoverImageFile, setSubActionCoverImageFile] = useState<File | null>(null);
+    const [subActionCoverImagePreview, setSubActionCoverImagePreview] = useState<string | null>(null);
+    const [selectedType, setSelectedType] = useState<string | undefined>(undefined);
+    const [pricingMode, setPricingMode] = useState<string>('fixed');
+    const [availabilityMode, setAvailabilityMode] = useState<string>('always');
 
-    const stepKey = useMemo(() => stepItems[currentStep].key, [currentStep]);
+    // Filter steps based on pricing mode - show subActions for tiered and pay_what_you_want pricing
+    const stepItems = useMemo(() => {
+        return allStepItems.filter(step => {
+            if (step.key === 'subActions' && !['tiered', 'pay_what_you_want'].includes(pricingMode)) {
+                return false;
+            }
+            return true;
+        });
+    }, [pricingMode]);
+
+    const stepKey = useMemo(() => stepItems[currentStep]?.key, [currentStep, stepItems]);
     const isLastStep = currentStep === stepItems.length - 1;
 
     const resetState = useCallback(() => {
@@ -381,6 +511,11 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
         setIsEditingExisting(false);
         setCoverImageFile(null);
         setCoverImagePreview(null);
+        setSubActionCoverImageFile(null);
+        setSubActionCoverImagePreview(null);
+        setSelectedType(undefined);
+        setPricingMode('fixed');
+        setAvailabilityMode('always');
     }, [form, subActionForm]);
 
     useEffect(() => {
@@ -397,6 +532,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
         form.resetFields();
         if (stepKey === 'stepA') {
             if (existingAction) {
+                setSelectedType(existingAction.type);
                 form.setFieldsValue({
                     type: existingAction.type,
                     name: existingAction.name,
@@ -411,46 +547,40 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                 if (existingAction.coverImage) {
                     setCoverImagePreview(existingAction.coverImage);
                 }
+            } else {
+                setSelectedType(undefined);
             }
         } else if (stepKey === 'stepB') {
+            const mode = existingAction?.pricing?.mode || 'fixed';
+            setPricingMode(mode);
             form.setFieldsValue({
-                pricingMode: existingAction?.pricing?.mode || 'fixed',
+                pricingMode: mode,
                 currency: existingAction?.currency || 'RWF',
                 amount: existingAction?.pricing?.amount ?? 0,
                 taxProfileId: existingAction?.taxProfileId || '',
             });
-        } else if (stepKey === 'visibility') {
+        } else if (stepKey === 'configuration') {
+            const mode = existingAction?.availability?.mode || 'always';
+            const starts = existingAction?.availability?.startDate ? dayjs(existingAction.availability.startDate) : null;
+            const ends = existingAction?.availability?.endDate ? dayjs(existingAction.availability.endDate) : null;
+            setAvailabilityMode(mode);
             form.setFieldsValue({
-                visibilityMode: existingAction?.visibility?.mode || 'public',
+                availabilityMode: mode,
+                eventWindow: starts && ends ? [starts, ends] : starts ? [starts] : undefined,
+                startDateOnly: starts && !ends ? starts : undefined,
+                timezone: existingAction?.availability?.timezone || 'Africa/Kigali',
+                // userQuota: existingAction?.availability?.userQuota ?? null,
+                // visibilityMode: existingAction?.visibility?.mode || 'public',
                 buyerFields: existingAction?.buyerFields || [],
-            });
-        } else if (stepKey === 'fulfillment') {
-            form.setFieldsValue({
+                refundPolicy: existingAction?.policy?.refund || '',
+                cancellationPolicy: existingAction?.policy?.cancellation || '',
+                tosUrl: existingAction?.policy?.tosUrl || '',
                 storeOnBuyerQR: existingAction?.fulfillment?.storeOnBuyerQR ?? true,
                 postPurchaseMessage: existingAction?.fulfillment?.postPurchaseMessage || '',
             });
         } else if (stepKey === 'publish') {
             form.setFieldsValue({
                 status: existingAction?.status || 'published',
-            });
-        } else if (stepKey === 'availability') {
-            const starts = existingAction?.availability?.startsAt ? dayjs(existingAction.availability.startsAt) : null;
-            const ends = existingAction?.availability?.endsAt ? dayjs(existingAction.availability.endsAt) : null;
-            form.setFieldsValue({
-                eventWindow: starts && ends ? [starts, ends] : undefined,
-                timezone: existingAction?.availability?.timezone || 'Africa/Kigali',
-                userQuota: existingAction?.availability?.userQuota ?? null,
-            });
-        } else if (stepKey === 'policy') {
-            form.setFieldsValue({
-                refundPolicy: existingAction?.policy?.refund || '',
-                cancellationPolicy: existingAction?.policy?.cancellation || '',
-                tosUrl: existingAction?.policy?.tosUrl || '',
-            });
-        } else if (stepKey === 'advanced') {
-            form.setFieldsValue({
-                customFields: existingAction?.customFields ? JSON.stringify(existingAction.customFields, null, 2) : '{}',
-                webhooks: existingAction?.webhooks ? JSON.stringify(existingAction.webhooks, null, 2) : '{}',
             });
         }
     }, [currentStep, existingAction, form, stepKey, subActionForm]);
@@ -507,37 +637,141 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
         }
         try {
             const values = await subActionForm.validateFields();
+            
+            // Validate required fields
+            if (!values.name || !values.name.trim()) {
+                message.error('Sub-action name is required');
+                return;
+            }
+            
+            if (pricingMode !== 'pay_what_you_want' && pricingMode !== 'free') {
+                if (values.price === null || values.price === undefined || values.price === '') {
+                    message.error('Price is required');
+                    return;
+                }
+            }
+            
             setLoading(true);
+            
+            // Sanitize ALL numeric inputs from form
+            const rawStock = values.stock;
+            const rawSortOrder = values.sortOrder;
+            const rawPrice = pricingMode !== 'pay_what_you_want' ? values.price : undefined;
+            
+            // Handle price - sanitize NaN values
+            let price: number;
+            if (pricingMode === 'pay_what_you_want') {
+                price = 0;
+            } else if (pricingMode === 'free') {
+                price = 0;
+            } else {
+                // For tiered and fixed modes, price must be a valid number
+                if (rawPrice === null || rawPrice === undefined || isNaN(rawPrice)) {
+                    throw new Error('Price is required and must be a valid number');
+                }
+                price = parseFloat(rawPrice);
+            }
+            
+            // Handle stock - ensure it's either null or a valid integer
+            const stock = (rawStock === null || rawStock === undefined || rawStock === '' || isNaN(rawStock))
+                ? null 
+                : parseInt(String(rawStock), 10);
+            
+            // Handle sortOrder - ensure it's a valid integer
+            const sortOrder = (rawSortOrder === null || rawSortOrder === undefined || rawSortOrder === '' || isNaN(rawSortOrder))
+                ? 0 
+                : parseInt(String(rawSortOrder), 10);
+            
+            // Handle metadata
+            let metadataObj: Record<string, any> = {};
+            if (values.seatType) {
+                metadataObj.seatType = values.seatType;
+            }
+            
+            // Parse custom metadata if provided
+            if (values.metadata) {
+                const metadataStr = typeof values.metadata === 'string' ? values.metadata : JSON.stringify(values.metadata);
+                if (metadataStr && metadataStr.trim().length > 0) {
+                    try {
+                        metadataObj = { ...metadataObj, ...JSON.parse(metadataStr) };
+                    } catch {
+                        message.warning('Custom metadata must be valid JSON. Using only standard fields.');
+                    }
+                }
+            }
+            
             const payload = {
                 name: values.name,
                 description: values.description || null,
-                price: values.price,
-                stock: values.stock ?? null,
-                metadata: {
-                    seatType: values.seatType || undefined,
-                    ...((values.metadata && values.metadata.trim().length)
-                        ? (() => {
-                              try {
-                                  return JSON.parse(values.metadata);
-                              } catch {
-                                  message.warning('Metadata must be valid JSON. Ignoring metadata.');
-                                  return {};
-                              }
-                          })()
-                        : {}),
-                },
-                sortOrder: values.sortOrder ?? 0,
+                price,
+                stock,
+                metadata: Object.keys(metadataObj).length > 0 ? metadataObj : {},
+                sortOrder,
             };
-            await createSubAction(actionId, payload);
+            
+            // Final validation - ensure no NaN values in numeric fields
+            if (isNaN(payload.price) || isNaN(payload.sortOrder)) {
+                throw new Error('Invalid numeric values detected');
+            }
+            
+            // Clean payload - remove any undefined or NaN values
+            const cleanPayload: Record<string, any> = {};
+            Object.keys(payload).forEach(key => {
+                const value = payload[key as keyof typeof payload];
+                // Skip undefined values, but allow null and 0
+                if (value !== undefined) {
+                    // For numeric fields, ensure they're not NaN
+                    if (typeof value === 'number') {
+                        if (!isNaN(value)) {
+                            cleanPayload[key] = value;
+                        }
+                    } else {
+                        cleanPayload[key] = value;
+                    }
+                }
+            });
+
+            // Add cover image if present
+            if (values.coverImage && !subActionCoverImageFile) {
+                // It's a URL string
+                cleanPayload.coverImage = values.coverImage;
+            }
+            
+            console.log('Clean payload being sent:', cleanPayload);
+            console.log('Form values:', values);
+            
+            // If there's a file, use FormData, otherwise use regular payload
+            if (subActionCoverImageFile) {
+                const formData = new FormData();
+                Object.keys(cleanPayload).forEach(key => {
+                    const value = cleanPayload[key];
+                    if (value !== null && value !== undefined) {
+                        if (typeof value === 'object' && !(value instanceof File)) {
+                            formData.append(key, JSON.stringify(value));
+                        } else {
+                            formData.append(key, value);
+                        }
+                    }
+                });
+                formData.append('coverImage', subActionCoverImageFile);
+                
+                await createSubAction(actionId, formData);
+            } else {
+                await createSubAction(actionId, cleanPayload);
+            }
+            
             message.success('Sub-action added');
             subActionForm.resetFields();
+            setSubActionCoverImageFile(null);
+            setSubActionCoverImagePreview(null);
             loadSubActions();
         } catch (err: any) {
             if (err?.errorFields) {
                 return;
             }
             console.error(err);
-            message.error(err?.response?.data?.message || 'Failed to add sub-action');
+            const errorMsg = err?.response?.data?.message || err?.message || 'Failed to add sub-action';
+            message.error(errorMsg);
         } finally {
             setLoading(false);
         }
@@ -634,6 +868,10 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
             if (key === 'stepB') {
                 const values = await form.validateFields();
                 setLoading(true);
+                
+                // Store pricing mode for step 3
+                setPricingMode(values.pricingMode);
+                
                 await updateActionStepB(actionId as string, {
                     pricing: {
                         mode: values.pricingMode,
@@ -642,6 +880,38 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                     currency: values.currency,
                     taxProfileId: values.taxProfileId || null,
                 });
+                
+                // Auto-create sub-action for Fixed pricing
+                if (values.pricingMode === 'fixed' || values.pricingMode === 'free') {
+                    const actionName = form.getFieldValue('name');
+                    const autoSubActionPayload = {
+                        name: actionName,
+                        description: values.subActionDescription || null,
+                        price: values.pricingMode === 'fixed' ? (values.amount ?? 0) : 0,
+                        stock: values.subActionStock ?? null,
+                        metadata: {
+                            seatType: values.subActionSeatType || undefined,
+                            ...((values.subActionMetadata && values.subActionMetadata.trim().length)
+                                ? (() => {
+                                      try {
+                                          return JSON.parse(values.subActionMetadata);
+                                      } catch {
+                                          return {};
+                                      }
+                                  })()
+                                : {}),
+                        },
+                        sortOrder: values.subActionSortOrder ?? 0,
+                    };
+                    try {
+                        await createSubAction(actionId as string, autoSubActionPayload);
+                        await loadSubActions();
+                    } catch (err) {
+                        console.error('Failed to create auto sub-action:', err);
+                    }
+                }
+                
+                // For all pricing modes, proceed to next step (Configuration for Fixed/Free, Sub-actions for Tiered/Pay-what-you-want)
                 message.success('Pricing updated');
                 setCurrentStep((prev) => prev + 1);
                 return;
@@ -656,40 +926,46 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                 return;
             }
 
-            if (key === 'availability') {
+            if (key === 'configuration') {
                 const values = await form.validateFields();
                 setLoading(true);
-                const [start, end] = values.eventWindow || [];
-                await updateActionStepD(actionId as string, {
-                    availability: {
-                        startsAt: start ? dayjs(start).toISOString() : null,
-                        endsAt: end ? dayjs(end).toISOString() : null,
+                
+                // Build availability object based on mode
+                let availability: any;
+                if (values.availabilityMode === 'always') {
+                    availability = { mode: 'always' };
+                } else if (values.availabilityMode === 'scheduled') {
+                    const [start, end] = values.eventWindow || [];
+                    availability = {
+                        mode: 'scheduled',
+                        startDate: start ? dayjs(start).toISOString() : null,
+                        endDate: end ? dayjs(end).toISOString() : null,
                         timezone: values.timezone || 'Africa/Kigali',
-                        userQuota: values.userQuota ?? null,
-                    },
+                    };
+                } else {
+                    // Empty object for unrestricted
+                    availability = {};
+                }
+                
+                // Update availability
+                await updateActionStepD(actionId as string, {
+                    availability,
                 });
-                message.success('Availability updated');
-                setCurrentStep((prev) => prev + 1);
-                return;
-            }
-
-            if (key === 'visibility') {
-                const values = await form.validateFields();
-                setLoading(true);
+                
+                // Update visibility
+                // await updateActionStepE(actionId as string, {
+                //     visibility: {
+                //         mode: values.visibilityMode,
+                //     },
+                //     buyerFields: values.buyerFields || [],
+                // });
+                
+                // Update buyer fields
                 await updateActionStepE(actionId as string, {
-                    visibility: {
-                        mode: values.visibilityMode,
-                    },
                     buyerFields: values.buyerFields || [],
                 });
-                message.success('Visibility updated');
-                setCurrentStep((prev) => prev + 1);
-                return;
-            }
-
-            if (key === 'policy') {
-                const values = await form.validateFields();
-                setLoading(true);
+                
+                // Update policies
                 await updateActionStepF(actionId as string, {
                     policy: {
                         refund: values.refundPolicy || null,
@@ -697,64 +973,16 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                         tosUrl: values.tosUrl || null,
                     },
                 });
-                message.success('Policies saved');
-                setCurrentStep((prev) => prev + 1);
-                return;
-            }
-
-            if (key === 'fulfillment') {
-                const values = await form.validateFields();
-                setLoading(true);
+                
+                // Update fulfillment
                 await updateActionStepG(actionId as string, {
                     fulfillment: {
                         storeOnBuyerQR: values.storeOnBuyerQR ?? false,
                         postPurchaseMessage: values.postPurchaseMessage || null,
                     },
                 });
-                message.success('Fulfillment updated');
-                setCurrentStep((prev) => prev + 1);
-                return;
-            }
-
-            if (key === 'advanced') {
-                const values = await form.validateFields();
-                setLoading(true);
                 
-                // Parse customFields if it's a JSON string
-                let customFields: Record<string, any> = {};
-                if (values.customFields) {
-                    if (typeof values.customFields === 'string') {
-                        try {
-                            customFields = JSON.parse(values.customFields);
-                        } catch {
-                            message.error('Custom fields must be valid JSON');
-                            return;
-                        }
-                    } else {
-                        customFields = values.customFields;
-                    }
-                }
-
-                // Parse webhooks if it's a JSON string
-                let webhooks: Record<string, any> = {};
-                if (values.webhooks) {
-                    if (typeof values.webhooks === 'string') {
-                        try {
-                            webhooks = JSON.parse(values.webhooks);
-                        } catch {
-                            message.error('Webhooks must be valid JSON');
-                            return;
-                        }
-                    } else {
-                        webhooks = values.webhooks;
-                    }
-                }
-
-                await updateActionStepH(actionId as string, {
-                    customFields,
-                    webhooks,
-                });
-                message.success('Advanced settings saved');
+                message.success('Configuration saved');
                 setCurrentStep((prev) => prev + 1);
                 return;
             }
@@ -783,24 +1011,66 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
         resetState();
     };
 
+    // Auto-generate slug from name
+    const generateSlug = (name: string): string => {
+        if (!name) return '';
+        return name
+            .toLowerCase()
+            .trim()
+            .replace(/\s+/g, '-')
+            .replace(/[^\w-]/g, '')
+            .replace(/-+/g, '-')
+            .replace(/^-+|-+$/g, '');
+    };
+
+    // Watch name field and auto-generate slug
+    useEffect(() => {
+        const subscription = form.getFieldValue('name');
+        if (stepKey === 'stepA' && subscription) {
+            const nameValue = form.getFieldValue('name');
+            if (nameValue && !coverImageFile && selectedType && actionTypeConfig[selectedType]?.showFields?.includes('slug')) {
+                form.setFieldValue('slug', generateSlug(nameValue));
+            }
+        }
+    }, [form.getFieldValue('name'), stepKey, selectedType, coverImageFile]);
+
     const renderStepContent = () => {
         switch (stepKey) {
             case 'stepA':
                 return (
                     <Form form={form} layout="vertical" className="grid gap-4 md:grid-cols-2">
                         <Form.Item name="type" label="Action Type" rules={[{ required: true, message: 'Select an action type' }]}>
-                            <Select placeholder="Select type" options={validTypes.map((type) => ({ label: type, value: type }))} />
+                            <Select 
+                                placeholder="Select type" 
+                                onChange={(value) => setSelectedType(value)}
+                                options={validTypes.map((type) => ({ 
+                                    label: actionTypeConfig[type].label, 
+                                    value: type 
+                                }))}
+                            />
                         </Form.Item>
                         <Form.Item
                             name="name"
                             label="Action Name"
                             rules={[{ required: true, message: 'Provide an action name' }]}
                         >
-                            <Input placeholder="Shaggy Concert – Brussels" />
+                            <Input 
+                                placeholder={selectedType ? actionTypeConfig[selectedType]?.placeholders?.name || 'Enter action name' : 'Enter action name'}
+                                onChange={(e) => {
+                                    const name = e.target.value;
+                                    if (selectedType && actionTypeConfig[selectedType]?.showFields?.includes('slug')) {
+                                        form.setFieldValue('slug', generateSlug(name));
+                                    }
+                                }}
+                            />
                         </Form.Item>
-                        <Form.Item name="slug" label="Slug">
-                            <Input placeholder="auto-generated if empty" />
-                        </Form.Item>
+                        
+                        {selectedType && actionTypeConfig[selectedType]?.showFields?.includes('slug') && (
+                            <Form.Item name="slug" label="Slug (auto-generated)">
+                                <Input placeholder="auto-generated from name" disabled />
+                            </Form.Item>
+                        )}
+                        
                         <Form.Item name="displayLayout" label="Display Layout" initialValue="card">
                             <Select
                                 options={[
@@ -810,74 +1080,76 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                                 ]}
                             />
                         </Form.Item>
-                        <Form.Item name="coverImage" label="Cover Image" className="md:col-span-2">
-                            <div className="space-y-3">
-                                <Upload
-                                    accept="image/*"
-                                    beforeUpload={(file) => {
-                                        // Prevent auto upload
-                                        setCoverImageFile(file);
-                                        // Create preview
-                                        const reader = new FileReader();
-                                        reader.onloadend = () => {
-                                            setCoverImagePreview(reader.result as string);
-                                        };
-                                        reader.readAsDataURL(file);
-                                        // Update form field with file name (will be replaced with URL after upload)
-                                        form.setFieldValue('coverImage', file.name);
-                                        return false; // Prevent upload
-                                    }}
-                                    onRemove={() => {
-                                        setCoverImageFile(null);
-                                        setCoverImagePreview(null);
-                                        form.setFieldValue('coverImage', '');
-                                        return true;
-                                    }}
-                                    maxCount={1}
-                                    fileList={coverImageFile ? [{
-                                        uid: '-1',
-                                        name: coverImageFile.name,
-                                        status: 'done',
-                                    }] : []}
-                                >
-                                    <Button icon={<UploadOutlined />}>Click to Upload</Button>
-                                </Upload>
-                                {coverImagePreview && (
-                                    <div className="mt-2">
-                                        <img 
-                                            src={coverImagePreview} 
-                                            alt="Cover preview" 
-                                            className="max-w-full h-48 object-cover rounded-lg border border-gray-200"
-                                        />
-                                    </div>
-                                )}
-                                {!coverImageFile && (
-                                    <Input 
-                                        placeholder="Or enter image URL (https://...)" 
-                                        value={form.getFieldValue('coverImage') || ''}
-                                        onChange={(e) => {
-                                            const url = e.target.value;
-                                            form.setFieldValue('coverImage', url);
-                                            // If URL is provided, set it as preview
-                                            if (url && url.startsWith('http')) {
-                                                setCoverImagePreview(url);
-                                            } else if (!url) {
-                                                setCoverImagePreview(null);
-                                            }
+                        
+                        {selectedType && actionTypeConfig[selectedType]?.showFields?.includes('coverImage') && (
+                            <Form.Item name="coverImage" label="Cover Image" className="md:col-span-2">
+                                <div className="space-y-3">
+                                    <Upload
+                                        accept="image/*"
+                                        beforeUpload={(file) => {
+                                            setCoverImageFile(file);
+                                            const reader = new FileReader();
+                                            reader.onloadend = () => {
+                                                setCoverImagePreview(reader.result as string);
+                                            };
+                                            reader.readAsDataURL(file);
+                                            form.setFieldValue('coverImage', file.name);
+                                            return false;
                                         }}
-                                    />
-                                )}
-                            </div>
-                        </Form.Item>
-                        <Form.Item name="shortDescription" label="Short Description" className="md:col-span-2">
-                            <Input placeholder="Quick headline for this action" />
-                        </Form.Item>
-                        <Form.Item name="description" label="Full Description" className="md:col-span-2">
-                            <TextArea rows={4} placeholder="Tell supporters what this action is about" />
-                        </Form.Item>
-                        <Form.Item name="dedicatedQrCode" label="Dedicated QR (optional)" className="md:col-span-2">
-                            <Input placeholder="Paste QR image URL" />
-                        </Form.Item>
+                                        onRemove={() => {
+                                            setCoverImageFile(null);
+                                            setCoverImagePreview(null);
+                                            form.setFieldValue('coverImage', '');
+                                            return true;
+                                        }}
+                                        maxCount={1}
+                                        fileList={coverImageFile ? [{
+                                            uid: '-1',
+                                            name: coverImageFile.name,
+                                            status: 'done',
+                                        }] : []}
+                                    >
+                                        <Button icon={<UploadOutlined />}>Click to Upload</Button>
+                                    </Upload>
+                                    {coverImagePreview && (
+                                        <div className="mt-2">
+                                            <img 
+                                                src={coverImagePreview} 
+                                                alt="Cover preview" 
+                                                className="max-w-full h-48 object-cover rounded-lg border border-gray-200"
+                                            />
+                                        </div>
+                                    )}
+                                    {!coverImageFile && (
+                                        <Input 
+                                            placeholder="Or enter image URL (https://...)" 
+                                            value={form.getFieldValue('coverImage') || ''}
+                                            onChange={(e) => {
+                                                const url = e.target.value;
+                                                form.setFieldValue('coverImage', url);
+                                                if (url && url.startsWith('http')) {
+                                                    setCoverImagePreview(url);
+                                                } else if (!url) {
+                                                    setCoverImagePreview(null);
+                                                }
+                                            }}
+                                        />
+                                    )}
+                                </div>
+                            </Form.Item>
+                        )}
+                        
+                        {selectedType && actionTypeConfig[selectedType]?.showFields?.includes('shortDescription') && (
+                            <Form.Item name="shortDescription" label="Short Description" className="md:col-span-2">
+                                <Input placeholder={actionTypeConfig[selectedType]?.placeholders?.shortDescription || 'Quick headline for this action'} />
+                            </Form.Item>
+                        )}
+                        
+                        {selectedType && actionTypeConfig[selectedType]?.showFields?.includes('description') && (
+                            <Form.Item name="description" label="Full Description" className="md:col-span-2">
+                                <TextArea rows={4} placeholder={actionTypeConfig[selectedType]?.placeholders?.description || 'Tell supporters what this action is about'} />
+                            </Form.Item>
+                        )}
                     </Form>
                 );
             case 'stepB':
@@ -885,34 +1157,81 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                     <Form form={form} layout="vertical" className="grid gap-4 md:grid-cols-2">
                         <Form.Item name="pricingMode" label="Pricing Mode" rules={[{ required: true, message: 'Select a pricing mode' }]}>
                             <Select
+                                onChange={(value) => setPricingMode(value)}
                                 options={[
-                                    { label: 'Fixed', value: 'fixed' },
-                                    { label: 'Tiered', value: 'tiered' },
-                                    { label: 'Free', value: 'free' },
-                                    { label: 'Pay what you want', value: 'pay_what_you_want' },
+                                    { label: 'Fixed - Creates one sub-action automatically', value: 'fixed' },
+                                    { label: 'Tiered - Create multiple sub-actions', value: 'tiered' },
+                                    { label: 'Free - No charge required', value: 'free' },
+                                    { label: 'Pay what you want - Let buyers decide', value: 'pay_what_you_want' },
                                 ]}
                             />
                         </Form.Item>
-                        <Form.Item
-                            name="amount"
-                            label="Default Amount"
-                            rules={[{ required: false }]}
-                            tooltip="Applies to fixed pricing"
-                        >
-                            <InputNumber min={0} className="w-full" prefix="RWF" />
-                        </Form.Item>
-                        <Form.Item name="currency" label="Currency" rules={[{ required: true, message: 'Select a currency' }]}>
-                            <Select
-                                options={[
-                                    { label: 'RWF', value: 'RWF' },
-                                    { label: 'USD', value: 'USD' },
-                                    { label: 'EUR', value: 'EUR' },
-                                ]}
-                            />
-                        </Form.Item>
+                        {(pricingMode === 'fixed' || pricingMode === 'tiered' || pricingMode === 'pay_what_you_want') && (
+                            <Form.Item
+                                name="amount"
+                                label={pricingMode === 'fixed' ? 'Default Amount' : pricingMode === 'tiered' ? 'Minimum Amount' : 'Suggested Amount'}
+                                rules={[{ required: pricingMode === 'fixed' || pricingMode === 'tiered' ? true : false }]}
+                                tooltip={pricingMode === 'fixed' ? 'Fixed price for this action' : pricingMode === 'tiered' ? 'Base price for sub-action options' : 'Suggested price (optional)'}
+                            >
+                                <InputNumber min={0} className="w-full" prefix="RWF" />
+                            </Form.Item>
+                        )}
+                        {pricingMode !== 'free' && (
+                            <Form.Item name="currency" label="Currency" rules={[{ required: true, message: 'Select a currency' }]}>
+                                <Select
+                                    options={[
+                                        { label: 'RWF', value: 'RWF' },
+                                        { label: 'USD', value: 'USD' },
+                                        { label: 'EUR', value: 'EUR' },
+                                    ]}
+                                />
+                            </Form.Item>
+                        )}
                         <Form.Item name="taxProfileId" label="Tax Profile ID">
                             <Input placeholder="Optional tax profile reference" />
                         </Form.Item>
+
+                        {/* Show sub-action fields for Fixed or Free pricing */}
+                        {(pricingMode === 'fixed' || pricingMode === 'free') && (
+                            <>
+                                <div className="md:col-span-2 border-t pt-4 mt-4">
+                                    {/* <h4 className="text-base font-semibold mb-4">Sub-action Details</h4> */}
+                                </div>
+                                <Form.Item name="subActionStock" label="Stock">
+                                    <InputNumber min={0} className="w-full" placeholder="Unlimited if empty" />
+                                </Form.Item>
+                                {selectedType && (selectedType === 'ticket' || selectedType === 'transport' || selectedType === 'booking') && (
+                                    <Form.Item name="subActionSeatType" label="Seat / Zone">
+                                        <Input placeholder="Front-row, Balcony ..." />
+                                    </Form.Item>
+                                )}
+                                <Form.Item name="subActionSortOrder" label="Sort Order">
+                                    <InputNumber min={0} className="w-full" />
+                                </Form.Item>
+                                <div className="md:col-span-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowFixedMetadata(!showFixedMetadata)}
+                                        className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium mb-3"
+                                    >
+                                        <span>{showFixedMetadata ? '▼' : '▶'}</span>
+                                        Extra Metadata (Optional)
+                                    </button>
+                                    {showFixedMetadata && (
+                                        <Form.Item 
+                                            name="subActionMetadata" 
+                                            label="" 
+                                            tooltip="Add custom key-value pairs (e.g., benefits, features)"
+                                        >
+                                            <KeyValueInput placeholder='e.g., benefits: VIP lounge, early access' />
+                                        </Form.Item>
+                                    )}
+                                </div>
+                                <Form.Item name="subActionDescription" label="Description" className="md:col-span-2">
+                                    <TextArea rows={3} placeholder="What makes this sub-action special?" />
+                                </Form.Item>
+                            </>
+                        )}
                     </Form>
                 );
             case 'subActions':
@@ -920,28 +1239,116 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                     <div className="space-y-4">
                         <Form form={subActionForm} layout="vertical" className="grid gap-4 md:grid-cols-2">
                             <Form.Item name="name" label="Sub-action Name" rules={[{ required: true, message: 'Provide a name' }]}>
-                                <Input placeholder="VIP Ticket" />
+                                <Input placeholder={selectedType && actionTypeConfig[selectedType]?.placeholders?.name ? `e.g., ${actionTypeConfig[selectedType]?.placeholders?.name}` : "VIP Ticket"} />
                             </Form.Item>
-                            <Form.Item name="price" label="Price" rules={[{ required: true, message: 'Provide a price' }]}>
-                                <InputNumber min={0} className="w-full" prefix="RWF" />
-                            </Form.Item>
+                            {pricingMode !== 'pay_what_you_want' && (
+                                <Form.Item 
+                                    name="price" 
+                                    label={pricingMode === 'free' ? 'Price (Free)' : 'Price'} 
+                                    rules={[
+                                        { 
+                                            required: pricingMode !== 'free', 
+                                            message: 'Price is required' 
+                                        },
+                                        {
+                                            validator: (_, value) => {
+                                                if (pricingMode === 'free') return Promise.resolve();
+                                                if (value === null || value === undefined || value === '' || isNaN(value)) {
+                                                    return Promise.reject(new Error('Price must be a valid number'));
+                                                }
+                                                return Promise.resolve();
+                                            }
+                                        }
+                                    ]}
+                                >
+                                    <InputNumber min={0} className="w-full" prefix="RWF" disabled={pricingMode === 'free'} placeholder={pricingMode === 'free' ? '0 (Free)' : 'Enter price'} />
+                                </Form.Item>
+                            )}
                             <Form.Item name="stock" label="Stock">
                                 <InputNumber min={0} className="w-full" placeholder="Unlimited if empty" />
                             </Form.Item>
-                            <Form.Item name="seatType" label="Seat / Zone">
-                                <Input placeholder="Front-row, Balcony ..." />
-                            </Form.Item>
+                            {selectedType && (selectedType === 'ticket' || selectedType === 'transport' || selectedType === 'booking') && (
+                                <Form.Item name="seatType" label="Seat / Zone">
+                                    <Input placeholder="Front-row, Balcony ..." />
+                                </Form.Item>
+                            )}
                             <Form.Item name="sortOrder" label="Sort Order">
                                 <InputNumber min={0} className="w-full" />
                             </Form.Item>
-                            <Form.Item 
-                                name="metadata" 
-                                label="Extra Metadata" 
-                                className="md:col-span-2"
-                                tooltip="Add custom key-value pairs (e.g., benefits, features)"
-                            >
-                                <KeyValueInput placeholder='e.g., benefits: VIP lounge, early access' />
+                            <Form.Item name="coverImage" label="Cover Image (Optional)" className="md:col-span-2">
+                                <div className="space-y-3">
+                                    <Upload
+                                        accept="image/*"
+                                        beforeUpload={(file) => {
+                                            setSubActionCoverImageFile(file);
+                                            const reader = new FileReader();
+                                            reader.onloadend = () => {
+                                                setSubActionCoverImagePreview(reader.result as string);
+                                            };
+                                            reader.readAsDataURL(file);
+                                            subActionForm.setFieldValue('coverImage', file.name);
+                                            return false;
+                                        }}
+                                        onRemove={() => {
+                                            setSubActionCoverImageFile(null);
+                                            setSubActionCoverImagePreview(null);
+                                            subActionForm.setFieldValue('coverImage', '');
+                                            return true;
+                                        }}
+                                        maxCount={1}
+                                        fileList={subActionCoverImageFile ? [{
+                                            uid: '-1',
+                                            name: subActionCoverImageFile.name,
+                                            status: 'done',
+                                        }] : []}
+                                    >
+                                        <Button icon={<UploadOutlined />}>Click to Upload</Button>
+                                    </Upload>
+                                    {subActionCoverImagePreview && (
+                                        <div className="mt-2">
+                                            <img 
+                                                src={subActionCoverImagePreview} 
+                                                alt="Cover preview" 
+                                                className="max-w-full h-40 object-cover rounded-lg border border-gray-200"
+                                            />
+                                        </div>
+                                    )}
+                                    {!subActionCoverImageFile && (
+                                        <Input 
+                                            placeholder="Or enter image URL (https://...)" 
+                                            value={subActionForm.getFieldValue('coverImage') || ''}
+                                            onChange={(e) => {
+                                                const url = e.target.value;
+                                                subActionForm.setFieldValue('coverImage', url);
+                                                if (url && url.startsWith('http')) {
+                                                    setSubActionCoverImagePreview(url);
+                                                } else if (!url) {
+                                                    setSubActionCoverImagePreview(null);
+                                                }
+                                            }}
+                                        />
+                                    )}
+                                </div>
                             </Form.Item>
+                            <div className="md:col-span-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowSubActionMetadata(!showSubActionMetadata)}
+                                    className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium mb-3"
+                                >
+                                    <span>{showSubActionMetadata ? '▼' : '▶'}</span>
+                                    Extra Metadata (Optional)
+                                </button>
+                                {showSubActionMetadata && (
+                                    <Form.Item 
+                                        name="metadata" 
+                                        label="" 
+                                        tooltip="Add custom key-value pairs (e.g., benefits, features)"
+                                    >
+                                        <KeyValueInput placeholder='e.g., benefits: VIP lounge, early access' />
+                                    </Form.Item>
+                                )}
+                            </div>
                             <Form.Item name="description" label="Description" className="md:col-span-2">
                                 <TextArea rows={3} placeholder="What makes this tier special?" />
                             </Form.Item>
@@ -951,144 +1358,356 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                                 Add Sub-action
                             </Button>
                         </div>
-                        <div className="bg-gray-50 rounded-2xl p-4">
+                        <div className="space-y-4">
                             <Typography.Title level={5} className="!text-[#00313A]">
                                 Added Sub-actions ({subActions.length})
                             </Typography.Title>
-                            <List
-                                loading={subActionsLoading}
-                                dataSource={subActions}
-                                locale={{ emptyText: 'No sub-actions yet' }}
-                                renderItem={(item) => (
-                                    <List.Item
-                                        actions={[
-                                            <Button
-                                                key="delete"
-                                                type="text"
-                                                danger
-                                                icon={<DeleteOutlined />}
-                                                onClick={() => handleDeleteSubAction(item.id)}
-                                            >
-                                                Remove
-                                            </Button>,
-                                        ]}
-                                    >
-                                        <List.Item.Meta
-                                            title={
-                                                <Space size="small">
-                                                    <span className="font-semibold text-[#00313A]">{item.name}</span>
-                                                    <Tag color="green">{Number(item.price).toLocaleString()} RWF</Tag>
-                                                </Space>
-                                            }
-                                            description={
-                                                <div className="text-sm text-gray-600 space-y-1">
-                                                    {item.description && <p>{item.description}</p>}
-                                                    {item.metadata?.seatType && <p>Seat: {item.metadata.seatType}</p>}
+                            {subActions.length > 0 ? (
+                                <div className="space-y-4">
+                                    {subActions.map((item, index) => (
+                                        <div
+                                            key={item.id}
+                                            className="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 border border-emerald-200 dark:border-emerald-700 rounded-2xl p-6"
+                                        >
+                                            <div className="flex items-start justify-between gap-4 mb-4">
+                                                <div>
+                                                    <h4 className="text-lg font-semibold text-[#00313A]">
+                                                        {index + 1}. {item.name}
+                                                    </h4>
                                                 </div>
-                                            }
-                                        />
-                                    </List.Item>
-                                )}
-                            />
+                                                <Button
+                                                    type="primary"
+                                                    danger
+                                                    size="small"
+                                                    icon={<DeleteOutlined />}
+                                                    onClick={() => handleDeleteSubAction(item.id)}
+                                                >
+                                                    Remove
+                                                </Button>
+                                            </div>
+
+                                            <div className="grid gap-3 md:grid-cols-2 text-sm">
+                                                {pricingMode !== 'pay_what_you_want' && (
+                                                    <div className="bg-white dark:bg-darkBg-card rounded-lg p-3 border border-emerald-100 dark:border-emerald-700">
+                                                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Price</p>
+                                                        <p className="font-bold text-[#00B512]">{Number(item.price).toLocaleString()} RWF</p>
+                                                    </div>
+                                                )}
+                                                {item.stock && (
+                                                    <div className="bg-white dark:bg-darkBg-card rounded-lg p-3 border border-emerald-100 dark:border-emerald-700">
+                                                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Stock</p>
+                                                        <p className="font-semibold">{item.stock} available</p>
+                                                    </div>
+                                                )}
+                                                {item.metadata?.seatType && (
+                                                    <div className="bg-white dark:bg-darkBg-card rounded-lg p-3 border border-emerald-100 dark:border-emerald-700">
+                                                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Seat/Zone</p>
+                                                        <p className="font-semibold capitalize">{item.metadata.seatType}</p>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {item.description && (
+                                                <div className="mt-3 bg-white dark:bg-darkBg-card rounded-lg p-3 border border-emerald-100 dark:border-emerald-700">
+                                                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Description</p>
+                                                    <p className="text-sm text-[#00313A] dark:text-gray-300">{item.description}</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-center py-8 text-gray-400">
+                                    <p>No sub-actions added yet. Add one using the form above.</p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 );
-            case 'availability':
+            case 'configuration':
                 return (
-                    <Form form={form} layout="vertical" className="grid gap-4 md:grid-cols-2">
-                        <Form.Item name="eventWindow" label="Event Window">
-                            <DatePicker.RangePicker showTime className="w-full" />
-                        </Form.Item>
-                        <Form.Item name="timezone" label="Timezone" initialValue="Africa/Kigali">
-                            <Select
-                                options={[
-                                    { label: 'Africa/Kigali', value: 'Africa/Kigali' },
-                                    { label: 'Africa/Nairobi', value: 'Africa/Nairobi' },
-                                    { label: 'UTC', value: 'UTC' },
-                                ]}
-                            />
-                        </Form.Item>
-                        <Form.Item name="userQuota" label="Per-user Limit">
-                            <InputNumber min={0} className="w-full" placeholder="Unlimited if empty" />
-                        </Form.Item>
-                    </Form>
-                );
-            case 'visibility':
-                return (
-                    <Form form={form} layout="vertical" className="grid gap-4 md:grid-cols-2">
-                        <Form.Item name="visibilityMode" label="Visibility Mode">
-                            <Select options={visibilityOptions} />
-                        </Form.Item>
-                        <Form.Item name="buyerFields" label="Collect Buyer Fields">
-                            <Select mode="multiple" options={buyerFieldOptions} placeholder="Select required fields" />
-                        </Form.Item>
-                    </Form>
-                );
-            case 'policy':
-                return (
-                    <Form form={form} layout="vertical" className="space-y-4">
-                        <Form.Item name="refundPolicy" label="Refund Policy">
-                            <TextArea rows={3} placeholder="Describe refund conditions" />
-                        </Form.Item>
-                        <Form.Item name="cancellationPolicy" label="Cancellation Policy">
-                            <TextArea rows={3} placeholder="Describe cancellation terms" />
-                        </Form.Item>
-                        <Form.Item name="tosUrl" label="Terms of Service URL">
-                            <Input placeholder="https://..." />
-                        </Form.Item>
-                    </Form>
-                );
-            case 'fulfillment':
-                return (
-                    <Form form={form} layout="vertical" className="space-y-4">
-                        <Form.Item name="storeOnBuyerQR" label="Store On Buyer QR" valuePropName="checked">
-                            <Switch />
-                        </Form.Item>
-                        <Form.Item name="postPurchaseMessage" label="Post Purchase Message">
-                            <TextArea rows={3} placeholder="Message shown after successful purchase" />
-                        </Form.Item>
-                    </Form>
-                );
-            case 'advanced':
-                return (
-                    <Form form={form} layout="vertical" className="space-y-4">
-                        <Form.Item 
-                            name="customFields" 
-                            label="Custom Fields"
-                            tooltip="Add custom fields as key-value pairs"
-                        >
-                            <KeyValueInput placeholder='e.g., vipOnly: true, priorityLevel: 5' />
-                        </Form.Item>
-                        <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-4">
-                            <p className="text-sm text-blue-800">
-                                <strong>Webhooks:</strong> Enter URLs that will be called when events occur
-                            </p>
+                    <Form form={form} layout="vertical" className="space-y-6">
+                        {/* Availability Section */}
+                        <div className="border-b pb-6">
+                            <h3 className="text-base font-semibold mb-4">Availability</h3>
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <Form.Item 
+                                    name="availabilityMode" 
+                                    label="Availability Mode"
+                                    initialValue="always"
+                                    className="md:col-span-2"
+                                >
+                                    <Select
+                                        onChange={(value) => {
+                                            setAvailabilityMode(value);
+                                            form.setFieldValue('availabilityMode', value);
+                                        }}
+                                        options={[
+                                            { label: '🌐 Always Available (No restrictions)', value: 'unrestricted' },
+                                            { label: '✓ Always Available (Explicit)', value: 'always' },
+                                            { label: '📅 Scheduled (Set start and optional end date)', value: 'scheduled' },
+                                        ]}
+                                    />
+                                </Form.Item>
+                                {availabilityMode === 'scheduled' && (
+                                    <>
+                                        <Form.Item 
+                                            name="eventWindow" 
+                                            label="Schedule" 
+                                            tooltip="Set start date (required) and optionally end date. Leave end date empty for indefinite availability from start date."
+                                            className="md:col-span-2"
+                                            rules={[
+                                                {
+                                                    validator: (_, value) => {
+                                                        if (!value || !value[0]) {
+                                                            return Promise.reject('Start date is required for scheduled availability');
+                                                        }
+                                                        return Promise.resolve();
+                                                    }
+                                                }
+                                            ]}
+                                        >
+                                            <DatePicker.RangePicker
+                                                showTime
+                                                format="YYYY-MM-DD HH:mm"
+                                                className="w-full"
+                                                placeholder={['Start Date (Required)', 'End Date (Optional)']}
+                                            />
+                                        </Form.Item>
+                                        <Form.Item name="timezone" label="Timezone" initialValue="Africa/Kigali">
+                                            <Select
+                                                showSearch
+                                                options={[
+                                                    { label: 'Africa/Kigali (GMT+2)', value: 'Africa/Kigali' },
+                                                    { label: 'Africa/Nairobi (EAT)', value: 'Africa/Nairobi' },
+                                                    { label: 'UTC', value: 'UTC' },
+                                                    { label: 'America/New_York (EST)', value: 'America/New_York' },
+                                                    { label: 'Europe/London (GMT)', value: 'Europe/London' },
+                                                    { label: 'Asia/Tokyo (JST)', value: 'Asia/Tokyo' },
+                                                ]}
+                                            />
+                                        </Form.Item>
+                                    </>
+                                )}
+                            </div>
                         </div>
-                        <Form.Item 
-                            name="webhooks" 
-                            label="Webhook URLs"
-                            tooltip="Add webhook URLs for different events (e.g., onCheckout, onScanValid)"
-                        >
-                            <KeyValueInput placeholder='e.g., onCheckout: https://your-api.com/webhook' />
-                        </Form.Item>
+
+                        {/* Rest of configuration sections... */}
+                        <div className="border-b pb-6">
+                            <h3 className="text-base font-semibold mb-4">Buyer Information</h3>
+                            <Form.Item name="buyerFields" label="Buyer Fields">
+                                <Select
+                                    mode="multiple"
+                                    placeholder="Select fields to collect from buyers"
+                                    options={buyerFieldOptions}
+                                />
+                            </Form.Item>
+                        </div>
+
+                        {/* Visibility Section */}
+                        {/* <div className="border-b pb-6">
+                            <h3 className="text-base font-semibold mb-4">Visibility</h3>
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <Form.Item name="visibilityMode" label="Visibility Mode">
+                                    <Select options={visibilityOptions} />
+                                </Form.Item>
+                            </div>
+                        </div> */}
+
+                        {/* Buyer Information Section */}
+                        <div className="border-b pb-6">
+                            <h3 className="text-base font-semibold mb-4">Buyer Information</h3>
+                            <Form.Item name="buyerFields" label="Collect Buyer Fields">
+                                <Select mode="multiple" options={buyerFieldOptions} placeholder="Select required fields" />
+                            </Form.Item>
+                        </div>
+
+                        {/* Policies Section */}
+                        <div className="border-b pb-6">
+                            <button
+                                type="button"
+                                onClick={() => setShowPolicies(!showPolicies)}
+                                className="flex items-center gap-2 text-lg font-semibold mb-4 text-blue-600 hover:text-blue-700"
+                            >
+                                <span>{showPolicies ? '▼' : '▶'}</span>
+                                Policies (Optional)
+                            </button>
+                            {showPolicies && (
+                                <div className="space-y-4">
+                                    <Form.Item name="refundPolicy" label="Refund Policy">
+                                        <TextArea rows={3} placeholder="Describe refund conditions" />
+                                    </Form.Item>
+                                    <Form.Item name="cancellationPolicy" label="Cancellation Policy">
+                                        <TextArea rows={3} placeholder="Describe cancellation terms" />
+                                    </Form.Item>
+                                    <Form.Item name="tosUrl" label="Terms of Service URL">
+                                        <Input placeholder="https://..." />
+                                    </Form.Item>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Fulfillment Section */}
+                        <div>
+                            <h3 className="text-base font-semibold mb-4">Fulfillment</h3>
+                            <div className="space-y-4">
+                                <Form.Item name="postPurchaseMessage" label="Post Purchase Message">
+                                    <TextArea rows={3} placeholder="Message shown after successful purchase" />
+                                </Form.Item>
+                            </div>
+                        </div>
                     </Form>
                 );
             case 'publish':
                 return (
-                    <Form form={form} layout="vertical">
+                    <Form form={form} layout="vertical" className="space-y-6">
                         <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 mb-4">
                             <p className="text-sm text-emerald-800">
-                                You can publish now or keep the action as draft. Drafts stay hidden from the public welcome page.
+                                Review your action details before publishing. You can publish now or keep it as draft.
                             </p>
                         </div>
-                        <Form.Item name="status" label="Action Status" rules={[{ required: true, message: 'Choose a status' }]}>
-                            <Select
-                                options={[
-                                    { label: 'Publish now', value: 'published' },
-                                    { label: 'Save as draft', value: 'draft' },
-                                ]}
-                            />
-                        </Form.Item>
+
+                        {/* Identity Review */}
+                        <div className="border-b pb-6">
+                            <h3 className="text-base font-semibold mb-4">Identity</h3>
+                            <div className="grid gap-4 md:grid-cols-2 text-sm">
+                                <div>
+                                    <p className="text-gray-600">Type</p>
+                                    <p className="font-semibold text-gray-900">{form.getFieldValue('type') || existingAction?.type || '-'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-gray-600">Name</p>
+                                    <p className="font-semibold text-gray-900">{form.getFieldValue('name') || existingAction?.name || '-'}</p>
+                                </div>
+                                {(form.getFieldValue('slug') || existingAction?.slug) && (
+                                    <div>
+                                        <p className="text-gray-600">Slug</p>
+                                        <p className="font-semibold text-gray-900">{form.getFieldValue('slug') || existingAction?.slug}</p>
+                                    </div>
+                                )}
+                                <div>
+                                    <p className="text-gray-600">Display Layout</p>
+                                    <p className="font-semibold text-gray-900 capitalize">{form.getFieldValue('displayLayout') || existingAction?.displayLayout || '-'}</p>
+                                </div>
+                                {(form.getFieldValue('shortDescription') || existingAction?.shortDescription) && (
+                                    <div className="md:col-span-2">
+                                        <p className="text-gray-600">Short Description</p>
+                                        <p className="font-semibold text-gray-900">{form.getFieldValue('shortDescription') || existingAction?.shortDescription}</p>
+                                    </div>
+                                )}
+                                {(form.getFieldValue('description') || existingAction?.description) && (
+                                    <div className="md:col-span-2">
+                                        <p className="text-gray-600">Full Description</p>
+                                        <p className="font-semibold text-gray-900 whitespace-pre-wrap">{form.getFieldValue('description') || existingAction?.description}</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Pricing Review */}
+                        <div className="border-b pb-6">
+                            <h3 className="text-base font-semibold mb-4">Pricing</h3>
+                            <div className="grid gap-4 md:grid-cols-2 text-sm">
+                                <div>
+                                    <p className="text-gray-600">Pricing Mode</p>
+                                    <p className="font-semibold text-gray-900 capitalize">{form.getFieldValue('pricingMode') || existingAction?.pricing?.mode || '-'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-gray-600">Currency</p>
+                                    <p className="font-semibold text-gray-900">{form.getFieldValue('currency') || existingAction?.currency || '-'}</p>
+                                </div>
+                                {((form.getFieldValue('amount') !== undefined && form.getFieldValue('amount') !== 0) || (existingAction?.pricing?.amount)) && (
+                                    <div>
+                                        <p className="text-gray-600">Default Amount</p>
+                                        <p className="font-semibold text-gray-900">{Number(form.getFieldValue('amount') ?? existingAction?.pricing?.amount).toLocaleString()} {form.getFieldValue('currency') || existingAction?.currency}</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Sub-actions Review */}
+                        {subActions.length > 0 && (
+                            <div className="border-b pb-6">
+                                <h3 className="text-base font-semibold mb-4">Sub-actions ({subActions.length})</h3>
+                                <div className="space-y-3">
+                                    {subActions.map((item) => (
+                                        <div key={item.id} className="p-3 bg-gray-50 rounded-lg">
+                                            <div className="flex justify-between items-start">
+                                                <div>
+                                                    <p className="font-semibold text-gray-900">{item.name}</p>
+                                                    {item.description && <p className="text-sm text-gray-600">{item.description}</p>}
+                                                </div>
+                                                <Tag color="green">{Number(item.price).toLocaleString()} RWF</Tag>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Configuration Review */}
+                        <div className="border-b pb-6">
+                            <h3 className="text-base font-semibold mb-4">Configuration</h3>
+                            <div className="space-y-4 text-sm">
+                                {(form.getFieldValue('eventWindow') || (existingAction?.availability?.startsAt && existingAction?.availability?.endsAt)) && (
+                                    <div>
+                                        <p className="text-gray-600">Event Window</p>
+                                        <p className="font-semibold text-gray-900">
+                                            {form.getFieldValue('eventWindow')?.[0]?.format('MMM DD, YYYY HH:mm') || dayjs(existingAction?.availability?.startsAt).format('MMM DD, YYYY HH:mm')} - {form.getFieldValue('eventWindow')?.[1]?.format('MMM DD, YYYY HH:mm') || dayjs(existingAction?.availability?.endsAt).format('MMM DD, YYYY HH:mm')}
+                                        </p>
+                                    </div>
+                                )}
+                                {(form.getFieldValue('timezone') || existingAction?.availability?.timezone) && (
+                                    <div>
+                                        <p className="text-gray-600">Timezone</p>
+                                        <p className="font-semibold text-gray-900">{form.getFieldValue('timezone') || existingAction?.availability?.timezone}</p>
+                                    </div>
+                                )}
+                                {(form.getFieldValue('visibilityMode') || existingAction?.visibility?.mode) && (
+                                    <div>
+                                        <p className="text-gray-600">Visibility</p>
+                                        <p className="font-semibold text-gray-900 capitalize">{form.getFieldValue('visibilityMode') || existingAction?.visibility?.mode}</p>
+                                    </div>
+                                )}
+                                {((form.getFieldValue('buyerFields') && form.getFieldValue('buyerFields').length > 0) || (existingAction?.buyerFields && existingAction?.buyerFields.length > 0)) && (
+                                    <div>
+                                        <p className="text-gray-600">Buyer Fields Required</p>
+                                        <p className="font-semibold text-gray-900">{(form.getFieldValue('buyerFields') || existingAction?.buyerFields || []).join(', ')}</p>
+                                    </div>
+                                )}
+                                {(form.getFieldValue('refundPolicy') || existingAction?.policy?.refund) && (
+                                    <div>
+                                        <p className="text-gray-600">Refund Policy</p>
+                                        <p className="font-semibold text-gray-900 whitespace-pre-wrap">{form.getFieldValue('refundPolicy') || existingAction?.policy?.refund}</p>
+                                    </div>
+                                )}
+                                {(form.getFieldValue('cancellationPolicy') || existingAction?.policy?.cancellation) && (
+                                    <div>
+                                        <p className="text-gray-600">Cancellation Policy</p>
+                                        <p className="font-semibold text-gray-900 whitespace-pre-wrap">{form.getFieldValue('cancellationPolicy') || existingAction?.policy?.cancellation}</p>
+                                    </div>
+                                )}
+                                {(form.getFieldValue('postPurchaseMessage') || existingAction?.fulfillment?.postPurchaseMessage) && (
+                                    <div>
+                                        <p className="text-gray-600">Post Purchase Message</p>
+                                        <p className="font-semibold text-gray-900 whitespace-pre-wrap">{form.getFieldValue('postPurchaseMessage') || existingAction?.fulfillment?.postPurchaseMessage}</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Publish Section */}
+                        <div>
+                            <h3 className="text-base font-semibold mb-4">Publish Status</h3>
+                            <Form.Item name="status" label="Action Status" rules={[{ required: true, message: 'Choose a status' }]}>
+                                <Select
+                                    options={[
+                                        { label: 'Publish now', value: 'published' },
+                                        { label: 'Save as draft', value: 'draft' },
+                                    ]}
+                                />
+                            </Form.Item>
+                        </div>
                     </Form>
                 );
             default:

@@ -218,7 +218,7 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
             {/* Header with Profile Link */}
             <div className="p-4 sm:p-6 border-b border-gray-100 dark:border-darkBorder-light flex justify-end">
                 <button
-                    onClick={() => router.push('/profile')}
+                    onClick={() => window.open(`${process.env.NEXT_PUBLIC_FRONTEND_URL}/welcome/${userId}`, '_blank')}
                     className="flex items-center gap-2 px-4 py-2 rounded-full border-2 border-brand-green dark:border-brand-gold text-brand-green dark:text-brand-gold hover:bg-brand-green/5 dark:hover:bg-brand-gold/5 transition-colors text-sm font-medium"
                 >
                     <User size={18} />
@@ -244,12 +244,12 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
 
                 {/* Share Link Section */}
                 <div className="w-full max-w-2xl mb-6">
-                    <div className="flex flex-col sm:flex-row items-center gap-3 bg-gray-50 dark:bg-darkBg-interactive rounded-2xl p-3 sm:p-4 border border-gray-200 dark:border-darkBorder-light">
+                    <div className="flex flex-col sm:flex-row items-center gap-3 bg-gray-50 dark:bg-darkBg-interactive rounded-2xl p-3 sm:p-4 border border-gray-200 dark:border-darkBorder-light cursor-pointer hover:bg-gray-100 dark:hover:bg-darkBg-overlay transition-colors" onClick={() => window.open(userLink, '_blank')}>
                         <input
                             type="text"
                             value={userLink}
                             readOnly
-                            className="flex-1 bg-transparent text-xs sm:text-sm text-gray-600 dark:text-gray-300 outline-none"
+                            className="flex-1 bg-transparent text-xs sm:text-sm text-gray-600 dark:text-gray-300 outline-none cursor-pointer"
                         />
                         <div className="flex gap-2">
                             <button

@@ -34,6 +34,7 @@ export interface OrganizationAction {
     status: 'draft' | 'published' | 'archived';
     displayLayout?: string;
     coverImage?: string | null;
+    dedicatedQrCodeData?: string | null;
     shortDescription?: string | null;
     description?: string | null;
     currency?: string;
@@ -68,6 +69,8 @@ export interface SubActionSummary {
     metadata?: Record<string, any>;
     sortOrder?: number;
     isActive?: boolean;
+    coverImage?: string | null;
+    dedicatedQrCodeData?: string | null;
     createdAt?: string;
     updatedAt?: string;
 }
