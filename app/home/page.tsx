@@ -12,13 +12,15 @@ const HomePage = () => {
   useEffect(() => {
     const redirectToUserHome = () => {
       // Prevent multiple redirects and limit attempts
-      if (isRedirecting || redirectAttempts >= 3) return;
-      
+      if (isRedirecting || redirectAttempts >= 3) {
+        return;
+      }
+
       setIsRedirecting(true);
       setRedirectAttempts(prev => prev + 1);
-      
+
       const authToken = getToken();
-      
+
       if (!authToken) {
         router.push('/auth/login');
         return;
@@ -35,10 +37,10 @@ const HomePage = () => {
           // Check if we're already on the correct page to prevent loops
           const currentPath = window.location.pathname;
           const targetPath = `/home/${loggedInUserId}`;
-          
+
           if (currentPath !== targetPath) {
             router.replace(targetPath);
-            
+
             // Add a fallback redirect after 3 seconds
             setTimeout(() => {
               if (window.location.pathname !== targetPath) {
@@ -60,8 +62,10 @@ const HomePage = () => {
 
     // Add a small delay to ensure the component is fully mounted
     const timer = setTimeout(redirectToUserHome, 100);
-    
-    return () => clearTimeout(timer);
+
+    return () => {
+      clearTimeout(timer);
+    };
   }, [router, isRedirecting, redirectAttempts, getToken]);
 
   // If too many redirect attempts, show error and manual redirect button

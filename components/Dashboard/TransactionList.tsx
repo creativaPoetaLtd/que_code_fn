@@ -3,10 +3,14 @@ import { Card } from '@/components/ui/card';
 import { Search, Download } from 'lucide-react';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Transaction } from '@/types/dashboard';
+import { UserAvatar } from '@/components/UserAvatar';
 import * as XLSX from 'xlsx';
 import { getTransactionHistory } from '@/helpers/api';
 import { useAuthToken } from '@/hooks/use-auth-token';
 import { getUserIdFromToken, isTokenExpired } from '@/utils/jwtUtils';
+import { useGetAcceptedContactsQuery } from '@/states/contactSlice';
+import { Combobox } from '@/components/ui/combobox';
+import { X } from 'lucide-react';
 
 interface TransactionListProps {
   transactions?: Transaction[];
@@ -14,7 +18,7 @@ interface TransactionListProps {
 
 export const TransactionList = ({ transactions: propTransactions }: TransactionListProps) => {
   const { getToken } = useAuthToken();
-   const [transactions, setTransactions] = useState<Transaction[]>(propTransactions || []);
+  const [transactions, setTransactions] = useState<Transaction[]>(propTransactions || []);
   const [loading, setLoading] = useState(!propTransactions);
   const [error, setError] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -26,6 +30,28 @@ export const TransactionList = ({ transactions: propTransactions }: TransactionL
   const [selectedTransactions, setSelectedTransactions] = useState<Set<string>>(new Set());
   const [selectAll, setSelectAll] = useState(false);
 
+  // Filter states
+  const [selectedContactId, setSelectedContactId] = useState<string | undefined>(undefined);
+
+  // Fetch accepted contacts for filtering
+  const token = getToken();
+  const { data: contactsData } = useGetAcceptedContactsQuery(token || '', {
+    skip: !token
+  });
+
+  const contactOptions = React.useMemo(() => {
+    if (!contactsData?.contacts) return [];
+
+    return contactsData.contacts.map(contact => {
+      const u = contact.otherUser;
+      return {
+        value: u.id,
+        label: `${u.firstName} ${u.lastName}`.trim(),
+        profileImage: u.profile?.profileImage
+      };
+    });
+  }, [contactsData]);
+
   // Debounce searchTerm to avoid re-render on every keystroke
   useEffect(() => {
     const handler = setTimeout(() => setDebouncedSearch(searchTerm), 500);
@@ -36,12 +62,12 @@ export const TransactionList = ({ transactions: propTransactions }: TransactionL
     if (!propTransactions) {
       fetchTransactions();
     }
-  }, [propTransactions, page, debouncedSearch, startDate, endDate]);
+  }, [propTransactions, page, debouncedSearch, startDate, endDate, selectedContactId]); // Trigger fetch when filter changes
 
   const fetchTransactions = async () => {
-     setLoading(true);
-     setError(null);
-     try {
+    setLoading(true);
+    setError(null);
+    try {
       const token = getToken();
       let userId: string | null | undefined;
       if (token && !isTokenExpired(token)) {
@@ -49,13 +75,14 @@ export const TransactionList = ({ transactions: propTransactions }: TransactionL
       }
       if (!userId) throw new Error('User not found');
       setCurrentUserId(userId);
-const response = await getTransactionHistory(userId, {
-  page,
-  limit: 10,
-  search: debouncedSearch || undefined,
-  startDate,
-  endDate
-});
+      const response = await getTransactionHistory(userId, {
+        page,
+        limit: 10,
+        search: debouncedSearch || undefined,
+        startDate,
+        endDate,
+        contactId: selectedContactId // Pass the selected contact ID
+      });
       setTransactions(response.data.transactions || []);
     } catch (err) {
       console.error('TransactionList - fetch error:', err);
@@ -66,33 +93,35 @@ const response = await getTransactionHistory(userId, {
   };
 
   const getTransactionDisplayInfo = (transaction: Transaction) => {
-    // Determine if it's outgoing based on senderWallet.userId matching currentUserId
     const isOutgoing = transaction.senderWallet?.userId === currentUserId;
     const transactionAmount = Number(transaction.amount) || 0;
     const transactionFee = Number(transaction.fee) || 0;
     const amount = isOutgoing ? -(transactionAmount + transactionFee) : transactionAmount;
-    
+
     // Get the counterparty user info
     let counterpartyName = 'Unknown User';
     let counterpartyEmail = '';
-    
+    let counterpartyProfileImage: string | undefined = undefined;
+
     if (isOutgoing && transaction.receiverWallet?.user) {
       // Outgoing: show receiver info
       const user = transaction.receiverWallet.user;
       counterpartyName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
       counterpartyEmail = user.email || '';
+      counterpartyProfileImage = user.profile?.profileImage;
     } else if (!isOutgoing && transaction.senderWallet?.user) {
       // Incoming: show sender info
       const user = transaction.senderWallet.user;
       counterpartyName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
       counterpartyEmail = user.email || '';
+      counterpartyProfileImage = user.profile?.profileImage;
     }
-    
+
     if (!counterpartyName || counterpartyName === '') {
       counterpartyName = transaction.description || (isOutgoing ? 'Money Sent' : 'Money Received');
     }
 
-    return { amount, counterpartyName, counterpartyEmail, isOutgoing };
+    return { amount, counterpartyName, counterpartyEmail, counterpartyProfileImage, isOutgoing };
   };
 
   const getInitials = (name: string) => {
@@ -125,11 +154,21 @@ const response = await getTransactionHistory(userId, {
   };
 
   const filteredTransactions = transactions.filter(transaction => {
-    const { counterpartyName } = getTransactionDisplayInfo(transaction);
+    const { counterpartyName, isOutgoing } = getTransactionDisplayInfo(transaction);
+
+    // Check contact filter
+    if (selectedContactId) {
+      let matchesContact = false;
+      if (isOutgoing && transaction.receiverWallet?.user?.id === selectedContactId) matchesContact = true;
+      if (!isOutgoing && transaction.senderWallet?.user?.id === selectedContactId) matchesContact = true;
+
+      if (!matchesContact) return false;
+    }
+
     return counterpartyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           transaction.status.toLowerCase().includes(searchTerm.toLowerCase());
+      transaction.status.toLowerCase().includes(searchTerm.toLowerCase());
   });
-  
+
   // Export displayed transactions to Excel
   const exportToExcel = () => {
     const headers = ['Transaction', 'Date', 'Type', 'Amount', 'Fee', 'Description', 'Status'];
@@ -153,7 +192,7 @@ const response = await getTransactionHistory(userId, {
       { wch: 12 },
       { wch: 12 },
       { wch: 30 },
-      { wch: 12 }, 
+      { wch: 12 },
     ];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Transactions');
@@ -172,23 +211,48 @@ const response = await getTransactionHistory(userId, {
               placeholder="Search transactions..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full md:w-64 pl-10 pr-4 py-2 border border-gray-300 dark:border-darkBorder-light rounded-lg text-sm bg-white dark:bg-darkBg-input text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full md:w-64 pl-10 pr-4 py-2 border border-gray-300 dark:border-darkBorder-light rounded-lg text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
+
+          {/* Contact Filter */}
+          <div className="w-full md:w-64 relative">
+            <div className="relative">
+              <Combobox
+                options={contactOptions}
+                value={selectedContactId}
+                onSelect={setSelectedContactId}
+                placeholder="Filter by person..."
+                searchPlaceholder="Search contacts..."
+                emptyText="No contacts found."
+                className="w-full bg-white dark:bg-gray-900 border-gray-300 dark:border-darkBorder-light"
+              />
+              {selectedContactId && (
+                <button
+                  onClick={() => setSelectedContactId(undefined)}
+                  className="absolute -right-2 -top-2 bg-gray-200 dark:bg-gray-700 rounded-full p-1 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors z-10"
+                  title="Clear filter"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* Date range filter */}
           <div className="flex items-center space-x-2">
             <input
               type="date"
               value={startDate || ''}
               onChange={(e) => setStartDate(e.target.value || undefined)}
-              className="border border-gray-300 dark:border-darkBorder-light rounded-lg px-3 py-2 text-sm bg-white dark:bg-darkBg-input text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="border border-gray-300 dark:border-darkBorder-light rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <span className="text-gray-500 dark:text-gray-400">to</span>
             <input
               type="date"
               value={endDate || ''}
               onChange={(e) => setEndDate(e.target.value || undefined)}
-              className="border border-gray-300 dark:border-darkBorder-light rounded-lg px-3 py-2 text-sm bg-white dark:bg-darkBg-input text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="border border-gray-300 dark:border-darkBorder-light rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             {/* CSV export */}
             <button
@@ -224,9 +288,9 @@ const response = await getTransactionHistory(userId, {
           </thead>
           <tbody>
             {filteredTransactions.map((transaction) => {
-              const { amount, counterpartyName, counterpartyEmail, isOutgoing } = getTransactionDisplayInfo(transaction);
+              const { amount, counterpartyName, counterpartyEmail, counterpartyProfileImage, isOutgoing } = getTransactionDisplayInfo(transaction);
               const isSelected = selectedTransactions.has(transaction.id);
-              
+
               return (
                 <tr key={transaction.id} className="border-t border-gray-200 dark:border-darkBorder-light hover:bg-gray-50 dark:hover:bg-darkBg-interactive transition-colors">
                   <td className="py-4 pl-4">
@@ -239,9 +303,16 @@ const response = await getTransactionHistory(userId, {
                   </td>
                   <td className="py-4 px-4 text-sm font-medium text-gray-900 dark:text-gray-100">{transaction.referenceId}</td>
                   <td className="py-4 px-4">
-                    <div className="flex flex-col">
-                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{counterpartyName}</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">{counterpartyEmail}</div>
+                    <div className="flex items-center gap-3">
+                      <UserAvatar
+                        profileImage={counterpartyProfileImage}
+                        firstName={counterpartyName.split(' ')[0]}
+                        lastName={counterpartyName.split(' ')[1] || ''}
+                      />
+                      <div className="flex flex-col">
+                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{counterpartyName}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">{counterpartyEmail}</div>
+                      </div>
                     </div>
                   </td>
                   <td className="py-4 px-4 text-sm text-gray-600 dark:text-gray-300">{isOutgoing ? 'Payment Sent' : 'Payment Received'}</td>
@@ -251,11 +322,10 @@ const response = await getTransactionHistory(userId, {
                     </span>
                   </td>
                   <td className="py-4 px-4">
-                    <span className={`px-3 py-1 rounded-md text-sm font-medium inline-block ${
-                      transaction.status === 'completed' ? 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400' :
+                    <span className={`px-3 py-1 rounded-md text-sm font-medium inline-block ${transaction.status === 'completed' ? 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400' :
                       transaction.status === 'pending' ? 'bg-yellow-100 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-400' :
-                      'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400'
-                    }`}>
+                        'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400'
+                      }`}>
                       {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
                     </span>
                   </td>
@@ -277,7 +347,7 @@ const response = await getTransactionHistory(userId, {
                         <DialogHeader>
                           <DialogTitle className="text-gray-900 dark:text-white">Transaction Details</DialogTitle>
                           {/* Prominent amount display */}
-                          <p className={`mt-2 text-2xl font-semibold ${amount < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}> 
+                          <p className={`mt-2 text-2xl font-semibold ${amount < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                             {amount < 0 ? '-' : '+'}RWF {Math.abs(amount).toLocaleString()}
                           </p>
                         </DialogHeader>
@@ -354,11 +424,10 @@ const response = await getTransactionHistory(userId, {
               <button
                 key={pageNum}
                 onClick={() => setPage(pageNum)}
-                className={`px-3 py-2 rounded transition-colors ${
-                  page === pageNum
-                    ? 'bg-blue-600 dark:bg-blue-700 text-white'
-                    : 'border border-gray-300 dark:border-darkBorder-light text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-darkBg-interactive'
-                }`}
+                className={`px-3 py-2 rounded transition-colors ${page === pageNum
+                  ? 'bg-blue-600 dark:bg-blue-700 text-white'
+                  : 'border border-gray-300 dark:border-darkBorder-light text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-darkBg-interactive'
+                  }`}
               >
                 {pageNum}
               </button>

@@ -28,13 +28,13 @@ const apiPut = (url: string, data: any) => axios.put(`${baseUrl}${url}`, data, {
 const apiDelete = (url: string) => axios.delete(`${baseUrl}${url}`, { headers: getAuthHeaders() });
 
 // Helper for FormData requests (no Content-Type header, let browser set it with boundary)
-const apiPostFormData = (url: string, formData: FormData) => 
-  axios.post(`${baseUrl}${url}`, formData, { 
+const apiPostFormData = (url: string, formData: FormData) =>
+  axios.post(`${baseUrl}${url}`, formData, {
     headers: getAuthHeaders()
   });
 
-const apiPutFormData = (url: string, formData: FormData) => 
-  axios.put(`${baseUrl}${url}`, formData, { 
+const apiPutFormData = (url: string, formData: FormData) =>
+  axios.put(`${baseUrl}${url}`, formData, {
     headers: getAuthHeaders()
   });
 
@@ -143,6 +143,7 @@ export const getTransactionHistory = async (userId: string, params?: {
   search?: string;
   startDate?: string;
   endDate?: string;
+  contactId?: string;
 }) => {
   let walletResponse;
   try {
@@ -167,6 +168,23 @@ export const getTransactionHistory = async (userId: string, params?: {
   return res.data;
 };
 
+export const getContactTransactionStats = async (userId: string, contactId: string) => {
+  let walletResponse;
+  try {
+    walletResponse = await getUserWallet(userId);
+  } catch {
+    walletResponse = await getOrganizationWallet(userId);
+  }
+
+  if (!walletResponse.success) {
+    throw new Error('Could not fetch wallet information');
+  }
+
+  const url = `${baseUrl}/transactions/wallet/${walletResponse.data.walletId}/contact-stats?contactId=${contactId}`;
+  const res = await axios.get(url, { headers: getAuthHeaders() });
+  return res.data;
+};
+
 export const getTransactionCategories = () => apiGet('/transactions/categories');
 
 const createAnalyticsUrl = (endpoint: string, userId: string, params: Record<string, any> = {}) => {
@@ -184,8 +202,8 @@ export const getAnalyticsSpendingTrends = (userId: string, startDate?: string, e
   apiGet(createAnalyticsUrl('spending-trends', userId, { startDate, endDate, interval }));
 
 export const getAnalyticsRecentTransactions = async (
-  userId: string, 
-  limit: number = 10, 
+  userId: string,
+  limit: number = 10,
   type?: string,
   startDate?: string,
   endDate?: string
@@ -205,7 +223,7 @@ export const getAnalyticsSpendingComparison = async (userId: string, startDate?:
   const params = new URLSearchParams({ userId, interval });
   if (startDate) params.append('startDate', startDate);
   if (endDate) params.append('endDate', endDate);
-  
+
   const res = await axios.get(`${baseUrl}/analytics/spending-comparison?${params.toString()}`, {
     headers: getAuthHeaders()
   });
@@ -219,7 +237,7 @@ export const getAnalyticsPeriodSummary = async (
   interval: 'daily' | 'weekly' | 'monthly' = 'daily'
 ) => {
   const params = new URLSearchParams({ userId, startDate, endDate, interval });
-  
+
   const res = await axios.get(`${baseUrl}/analytics/period-summary?${params.toString()}`, {
     headers: getAuthHeaders()
   });
@@ -227,16 +245,16 @@ export const getAnalyticsPeriodSummary = async (
 };
 
 export const getTransactionsByCategory = async (
-  userId: string, 
-  categoryId: string, 
-  startDate?: string, 
+  userId: string,
+  categoryId: string,
+  startDate?: string,
   endDate?: string,
   limit: number = 10
 ) => {
   const params = new URLSearchParams({ userId, categoryId, limit: limit.toString() });
   if (startDate) params.append('startDate', startDate);
   if (endDate) params.append('endDate', endDate);
-  
+
   const res = await axios.get(`${baseUrl}/analytics/category-transactions?${params.toString()}`, {
     headers: getAuthHeaders()
   });

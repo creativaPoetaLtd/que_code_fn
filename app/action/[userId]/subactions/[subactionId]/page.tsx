@@ -110,7 +110,6 @@ const SubActionDetailPage = () => {
 
     // Fetch subaction and parent action details
     const fetchSubActionDetails = useCallback(async () => {
-        console.log('fetchSubActionDetails called with userId:', userId, 'subactionId:', subactionId);
         
         if (!userId || !subactionId) {
             console.error('Missing required parameters - userId:', userId, 'subactionId:', subactionId);
@@ -127,14 +126,12 @@ const SubActionDetailPage = () => {
             setError(null);
 
             // Fetch the subaction directly by ID
-            console.log('Fetching subaction directly:', `${baseUrl}/sub-actions/${subactionId}`);
             const subActionResponse = await axios.get(
                 `${baseUrl}/sub-actions/${subactionId}`,
                 { headers }
             );
 
             const foundSubAction = subActionResponse.data?.data || subActionResponse.data;
-            console.log('Fetched subaction:', foundSubAction);
 
             if (!foundSubAction) {
                 setError('Subaction not found');
@@ -154,14 +151,12 @@ const SubActionDetailPage = () => {
 
             // Now fetch the parent action
             const actionId = foundSubAction.actionId;
-            console.log('Fetching parent action:', actionId);
             const actionResponse = await axios.get(
                 `${baseUrl}/actions/${actionId}`,
                 { headers }
             );
 
             const foundAction = actionResponse.data?.data || actionResponse.data;
-            console.log('Fetched parent action:', foundAction);
 
             setSubAction(foundSubAction);
             setParentAction(foundAction);

@@ -6,9 +6,12 @@ import { useRouter } from 'next/navigation';
 import { useAuthToken } from '@/hooks/use-auth-token';
 import { getUserIdFromToken, isTokenExpired } from '@/utils/jwtUtils';
 import { CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { UserAvatar } from '@/components/UserAvatar';
+import { TransactionDetailsModal } from '@/components/TransactionDetailsModal';
 
 export const RecentTransactions: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -77,7 +80,7 @@ export const RecentTransactions: React.FC = () => {
     if (diffMins < 1) return 'just now';
     if (diffMins < 60) return `${diffMins} min${diffMins > 1 ? 's' : ''} ago`;
     if (diffHours < 24) return `${diffHours} hr${diffHours > 1 ? 's' : ''} ago`;
-    
+
     // Show absolute date for transactions older than 24 hours (DD/MM/YY format)
     const day = String(transactionDate.getDate()).padStart(2, '0');
     const month = String(transactionDate.getMonth() + 1).padStart(2, '0');
@@ -86,7 +89,6 @@ export const RecentTransactions: React.FC = () => {
   };
 
   const getTransactionDisplayInfo = (transaction: Transaction) => {
-    // Determine if it's outgoing based on senderWallet.userId matching currentUserId
     const isOutgoing = transaction.senderWallet?.userId === currentUserId;
     const transactionAmount = Number(transaction.amount) || 0;
     const transactionFee = Number(transaction.fee) || 0;
@@ -95,14 +97,17 @@ export const RecentTransactions: React.FC = () => {
     // Get recipient/sender name with better fallback logic
     let counterpartyName = 'Transaction';
     let isToOrganization = false;
+    let counterpartyProfileImage: string | undefined = undefined;
 
     if (isOutgoing) {
       // Sending money - check receiver first
       if (transaction.receiverWallet?.organization?.name) {
         counterpartyName = transaction.receiverWallet.organization.name;
         isToOrganization = true;
+        counterpartyProfileImage = transaction.receiverWallet.organization.profile?.profileImage;
       } else if (transaction.receiverWallet?.user?.firstName || transaction.receiverWallet?.user?.lastName) {
         counterpartyName = `${transaction.receiverWallet.user.firstName || ''} ${transaction.receiverWallet.user.lastName || ''}`.trim();
+        counterpartyProfileImage = transaction.receiverWallet.user.profile?.profileImage;
       } else if (transaction.description) {
         counterpartyName = transaction.description;
       } else {
@@ -112,8 +117,11 @@ export const RecentTransactions: React.FC = () => {
       // Receiving money - check sender first
       if (transaction.senderWallet?.organization?.name) {
         counterpartyName = transaction.senderWallet.organization.name;
+        isToOrganization = true;
+        counterpartyProfileImage = transaction.senderWallet.organization.profile?.profileImage;
       } else if (transaction.senderWallet?.user?.firstName || transaction.senderWallet?.user?.lastName) {
         counterpartyName = `${transaction.senderWallet.user.firstName || ''} ${transaction.senderWallet.user.lastName || ''}`.trim();
+        counterpartyProfileImage = transaction.senderWallet.user.profile?.profileImage;
       } else if (transaction.description) {
         counterpartyName = transaction.description;
       } else {
@@ -121,11 +129,10 @@ export const RecentTransactions: React.FC = () => {
       }
     }
 
-    // Determine transaction status (assuming completed for now, can be enhanced based on API response)
     const status = transaction.status || 'completed'; // 'completed', 'pending', 'failed'
     const transactionType = isOutgoing ? 'Sent' : 'Received';
 
-    return { amount, counterpartyName, transactionType, isOutgoing, isToOrganization, status };
+    return { amount, counterpartyName, transactionType, isOutgoing, isToOrganization, status, counterpartyProfileImage };
   };
 
   if (loading) {
@@ -188,7 +195,7 @@ export const RecentTransactions: React.FC = () => {
       {/* Mobile & Desktop List View */}
       <div className="divide-y divide-gray-100 dark:divide-darkBorder-light">
         {displayedTransactions.map((transaction) => {
-          const { amount, counterpartyName, transactionType, isOutgoing, isToOrganization, status } = getTransactionDisplayInfo(transaction);
+          const { amount, counterpartyName, transactionType, isOutgoing, isToOrganization, status, counterpartyProfileImage } = getTransactionDisplayInfo(transaction);
 
           // Determine circle color based on transaction type
           const getCircleColor = () => {
@@ -223,18 +230,25 @@ export const RecentTransactions: React.FC = () => {
           const initials = getInitials(counterpartyName);
 
           return (
-            <div key={transaction.id} className="p-3 sm:p-4 hover:bg-gray-100/50 dark:hover:bg-darkBg-interactive transition-colors duration-200 cursor-pointer">
+            <div
+              key={transaction.id}
+              className="p-3 sm:p-4 hover:bg-gray-100/50 dark:hover:bg-darkBg-interactive transition-colors duration-200 cursor-pointer"
+              onClick={() => setSelectedTransaction(transaction)}
+            >
               <div className="flex items-center gap-3">
-                {/* Circle with initials */}
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 font-semibold text-sm ${getCircleColor()}`}>
-                  {initials}
-                </div>
+                <UserAvatar
+                  profileImage={counterpartyProfileImage}
+                  firstName={counterpartyName.split(' ')[0]}
+                  lastName={counterpartyName.split(' ')[1] || ''}
+                  className="w-10 h-10"
+                  userType={isToOrganization ? 'organization' : 'user'}
+                />
 
                 {/* Transaction details */}
                 <div className="flex-1 min-w-0">
                   {/* First line: Name and Date */}
                   <div className="flex justify-between items-center gap-2 mb-1">
-                    <p className="font-semibold text-gray-900 dark:text-white truncate text-sm">{counterpartyName}</p>
+                    <p className="font-medium text-gray-900 dark:text-white truncate text-sm">{counterpartyName}</p>
                     <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
                       {getRelativeTime(transaction.createdAt)}
                     </span>
@@ -242,7 +256,7 @@ export const RecentTransactions: React.FC = () => {
 
                   {/* Second line: Amount */}
                   <div className="flex items-center gap-2">
-                    <span className={`text-sm font-bold ${isOutgoing ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                    <span className={`text-sm font-medium ${isOutgoing ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                       {isOutgoing ? '-' : '+'} RWF {isNaN(Math.abs(amount)) ? '0' : Math.abs(amount).toLocaleString()}
                     </span>
                   </div>
@@ -252,6 +266,15 @@ export const RecentTransactions: React.FC = () => {
           );
         })}
       </div>
+
+      {/* Transaction Details Modal */}
+      {selectedTransaction && (
+        <TransactionDetailsModal
+          transaction={selectedTransaction}
+          currentUserId={currentUserId}
+          onClose={() => setSelectedTransaction(null)}
+        />
+      )}
     </div>
   );
 };

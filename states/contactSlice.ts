@@ -8,12 +8,17 @@ export interface Contact {
   status: "active" | "blocked";
   createdAt: string;
   updatedAt: string;
+  isFavorite?: boolean;
+  tags?: string[];
   otherUser: {
     id: string;
     firstName: string;
     lastName: string;
     email: string;
     phone: string;
+    profile?: {
+      profileImage: string;
+    };
   };
 }
 
@@ -34,6 +39,9 @@ export interface ContactInvitation {
     lastName: string;
     email: string;
     phone: string;
+    profile?: {
+      profileImage: string;
+    };
   };
   invitee?: {
     id: string;
@@ -41,6 +49,9 @@ export interface ContactInvitation {
     lastName: string;
     email: string;
     phone: string;
+    profile?: {
+      profileImage: string;
+    };
   };
 }
 
@@ -61,6 +72,9 @@ export interface SearchUsersResponse {
   firstName: string;
   lastName: string;
   email: string;
+  profile?: {
+    profileImage: string;
+  };
   relationshipStatus: "none" | "active" | "blocked" | "pending_invitation";
 }
 
@@ -357,6 +371,41 @@ export const contactSlice = apiSlice.injectEndpoints({
       }) => response.invitations,
       providesTags: ["ContactInvitation"],
     }),
+
+    toggleContactFavorite: builder.mutation<
+      { message: string; data: Contact },
+      { contactId: string; token: string }
+    >({
+      query: ({ contactId, token }) => ({
+        url: `/contacts/${contactId}/favorite`,
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }),
+      invalidatesTags: (result, error, { contactId }) => [
+        { type: "Contact", id: contactId },
+        "Contact",
+      ],
+    }),
+
+    manageContactTags: builder.mutation<
+      { message: string; data: Contact },
+      { contactId: string; tags: string[]; action: "add" | "remove" | "set"; token: string }
+    >({
+      query: ({ contactId, tags, action, token }) => ({
+        url: `/contacts/${contactId}/tags`,
+        method: "PUT",
+        body: { tags, action },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }),
+      invalidatesTags: (result, error, { contactId }) => [
+        { type: "Contact", id: contactId },
+        "Contact",
+      ],
+    }),
   }),
   overrideExisting: false,
 });
@@ -387,4 +436,6 @@ export const {
   useCancelInvitationMutation,
   useGetInvitationByTokenQuery,
   useGetPendingInvitationsEnhancedQuery,
+  useToggleContactFavoriteMutation,
+  useManageContactTagsMutation,
 } = contactSlice;

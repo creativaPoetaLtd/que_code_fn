@@ -29,11 +29,17 @@ export interface Transaction {
       firstName: string;
       lastName: string;
       email: string;
+      profile?: {
+        profileImage: string;
+      };
     } | null;
     organization?: {
       id: string;
       name: string;
       email: string;
+      profile?: {
+        profileImage: string;
+      };
     } | null;
   };
   receiverWallet: {
@@ -46,11 +52,17 @@ export interface Transaction {
       firstName: string;
       lastName: string;
       email: string;
+      profile?: {
+        profileImage: string;
+      };
     } | null;
     organization?: {
       id: string;
       name: string;
       email: string;
+      profile?: {
+        profileImage: string;
+      };
     } | null;
   };
   // Legacy fields for backward compatibility

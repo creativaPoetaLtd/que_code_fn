@@ -140,32 +140,36 @@ export default function QRCodeScanner({ isOpen, onClose, onScanComplete, title =
             if (videoRef.current) {
                 videoRef.current.srcObject = stream
 
-                // Wait for video to be ready
-                await new Promise((resolve, reject) => {
-                    if (videoRef.current) {
-                        videoRef.current.onloadedmetadata = resolve
-                        videoRef.current.onerror = reject
-                    }
-                })
-
-                await videoRef.current.play()
+                // Set camera active before playing so the video element is visible
                 setCameraActive(true)
+
+                // Wait for video to be ready and play
+                videoRef.current.onloadedmetadata = () => {
+                    
+                    // Auto-start scanning after video is ready
+                    setTimeout(() => {
+                        setScanningActive(true);
+                        setIsScanning(true);
+                    }, 500);
+                }
+
+                try {
+                    await videoRef.current.play()
+                } catch (playError) {
+                    console.error("Error playing video:", playError);
+                }
 
                 // Check for flash capability
                 const videoTrack = stream.getVideoTracks()[0]
                 const capabilities: any = videoTrack.getCapabilities?.()
                 setHasFlash(capabilities?.torch === true)
 
-                // Start preview rendering
-                startPreviewRendering()
-
                 toast({
                     title: "Camera Started",
-                    description: "Camera preview is active. Click 'Start Scanning' to begin QR detection",
+                    description: "Scanning for QR codes automatically...",
                 })
             }
         } catch (err: any) {
-
             let errorMessage = "Unable to access camera"
 
             if (err.name === "NotAllowedError") {
@@ -192,43 +196,56 @@ export default function QRCodeScanner({ isOpen, onClose, onScanComplete, title =
         }
     }
 
-    // Start preview rendering (shows camera feed without scanning)
+    // Start preview rendering (shows scanning overlay on top of video)
     const startPreviewRendering = () => {
-        if (!videoRef.current || !previewCanvasRef.current) return
+        if (!videoRef.current || !previewCanvasRef.current) {
+            return;
+        }
 
         const video = videoRef.current
         const canvas = previewCanvasRef.current
         const context = canvas.getContext("2d")
 
-        if (!context) return
+        if (!context) {
+            return;
+        }
 
         const renderFrame = () => {
+            // Only render if we're still scanning
+            if (!scanningActive) {
+                return;
+            }
+
             if (!video.videoWidth || !video.videoHeight || video.paused || video.ended) {
                 animationFrameRef.current = requestAnimationFrame(renderFrame)
                 return
             }
 
-            // Set canvas size to match video
-            canvas.width = video.videoWidth
-            canvas.height = video.videoHeight
+            try {
+                // Set canvas size to match video dimensions
+                if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+                    canvas.width = video.videoWidth
+                    canvas.height = video.videoHeight
+                }
 
-            // Clear canvas
-            context.clearRect(0, 0, canvas.width, canvas.height)
+                // Clear canvas (make transparent)
+                context.clearRect(0, 0, canvas.width, canvas.height)
 
-            // Draw video frame
-            context.drawImage(video, 0, 0, canvas.width, canvas.height)
-
-            // Draw scanning overlay if scanning is active
-            if (scanningActive) {
+                // Draw scanning overlay
                 drawScanningOverlay(context, canvas.width, canvas.height)
+
+                // Draw detected QR code outline if found
+                if (detectedQRPosition) {
+                    drawQROutline(context, detectedQRPosition)
+                }
+            } catch (error) {
+                console.error("Error drawing overlay:", error);
             }
 
-            // Draw detected QR code outline if found
-            if (detectedQRPosition) {
-                drawQROutline(context, detectedQRPosition)
+            // Continue animation loop if still scanning
+            if (scanningActive) {
+                animationFrameRef.current = requestAnimationFrame(renderFrame)
             }
-
-            animationFrameRef.current = requestAnimationFrame(renderFrame)
         }
 
         renderFrame()
@@ -328,6 +345,11 @@ export default function QRCodeScanner({ isOpen, onClose, onScanComplete, title =
 
         setScanningActive(true)
         setIsScanning(true)
+        
+        // Start preview rendering for scanning overlay
+        startPreviewRendering()
+        
+        // Start QR detection
         startQRDetection()
 
         toast({
@@ -393,17 +415,26 @@ export default function QRCodeScanner({ isOpen, onClose, onScanComplete, title =
 
     // QR code detection using canvas
     const startQRDetection = () => {
-        if (!videoRef.current || !canvasRef.current || !QrScanner) return
+        if (!videoRef.current || !canvasRef.current || !QrScanner) {
+            return;
+        }
 
         const video = videoRef.current
         const canvas = canvasRef.current
         const context = canvas.getContext("2d")
 
-        if (!context) return
+        if (!context) {
+            return;
+        }
+
+        let detectionCount = 0;
 
         const detectQR = async () => {
-            if (!video.videoWidth || !video.videoHeight || video.paused || video.ended || !scanningActive) return
+            if (!video.videoWidth || !video.videoHeight || video.paused || video.ended || !scanningActive) {
+                return;
+            }
 
+            detectionCount++;
             try {
                 // Set canvas size to match video
                 canvas.width = video.videoWidth
@@ -412,6 +443,12 @@ export default function QRCodeScanner({ isOpen, onClose, onScanComplete, title =
                 // Draw video frame to canvas
                 context.drawImage(video, 0, 0, canvas.width, canvas.height)
 
+                // Log canvas data occasionally
+                if (detectionCount % 20 === 0) {
+                    const imageData = context.getImageData(0, 0, Math.min(50, canvas.width), Math.min(50, canvas.height));
+                    const hasData = imageData.data.some(pixel => pixel > 0);
+                }
+
                 // Scan for QR code in the canvas
                 const result = await QrScanner.scanImage(canvas, {
                     returnDetailedScanResult: true,
@@ -419,7 +456,7 @@ export default function QRCodeScanner({ isOpen, onClose, onScanComplete, title =
                     highlightCodeOutline: true,
                 })
 
-                if (result && result.data) {
+                if (result && result.data) {                    
                     // Set detected QR position for visual feedback
                     if (result.cornerPoints) {
                         const minX = Math.min(...result.cornerPoints.map((p: any) => p.x))
@@ -441,13 +478,12 @@ export default function QRCodeScanner({ isOpen, onClose, onScanComplete, title =
                     setDetectedQRPosition(null)
                 }
             } catch (err) {
-                // No QR code found in this frame, continue scanning
                 setDetectedQRPosition(null)
             }
         }
 
-        // Scan every 150ms for better performance on mobile
-        scanIntervalRef.current = setInterval(detectQR, 150)
+        // Scan more frequently for better responsiveness (every 100ms)
+        scanIntervalRef.current = setInterval(detectQR, 100)
     }
 
     // Handle successful QR scan
@@ -539,6 +575,14 @@ export default function QRCodeScanner({ isOpen, onClose, onScanComplete, title =
         }
     }, [])
 
+    // Auto-start QR detection when scanning becomes active
+    useEffect(() => {
+        if (scanningActive && cameraActive) {
+            startPreviewRendering();
+            startQRDetection();
+        }
+    }, [scanningActive, cameraActive])
+
     // Request permission explicitly
     const requestCameraPermission = async () => {
         try {
@@ -576,33 +620,34 @@ export default function QRCodeScanner({ isOpen, onClose, onScanComplete, title =
 
                 <div className="flex flex-col items-center py-4">
                     {/* Camera Preview */}
-                    <div className="w-80 h-80 bg-gray-100 rounded-lg flex items-center justify-center mb-4 relative overflow-hidden border-2 border-dashed border-gray-300">
-                        {cameraActive ? (
+                    <div className="w-80 h-80 bg-gray-900 rounded-lg flex items-center justify-center mb-4 relative overflow-hidden border-2 border-gray-300">
+                        {/* Video element - always rendered but only visible when camera active */}
+                        <video
+                            ref={videoRef}
+                            className="absolute inset-0 w-full h-full object-cover rounded-lg"
+                            autoPlay
+                            playsInline
+                            muted
+                            style={{
+                                transform: facingMode === "user" ? "scaleX(-1)" : "none",
+                                display: cameraActive ? "block" : "none",
+                            }}
+                        />
+
+                        {/* Preview canvas - overlays video with scanning UI */}
+                        <canvas
+                            ref={previewCanvasRef}
+                            className="absolute inset-0 w-full h-full object-cover rounded-lg pointer-events-none"
+                            style={{
+                                transform: facingMode === "user" ? "scaleX(-1)" : "none",
+                                display: scanningActive ? "block" : "none",
+                            }}
+                        />
+
+                        {/* Camera controls - only show when camera is active */}
+                        {cameraActive && (
                             <>
-                                {/* Hidden video element */}
-                                <video
-                                    ref={videoRef}
-                                    className="absolute inset-0 w-full h-full object-cover"
-                                    autoPlay
-                                    playsInline
-                                    muted
-                                    style={{
-                                        transform: facingMode === "user" ? "scaleX(-1)" : "none",
-                                        opacity: 0, // Hide the video element, show canvas instead
-                                    }}
-                                />
-
-                                {/* Preview canvas - this shows the camera feed with overlays */}
-                                <canvas
-                                    ref={previewCanvasRef}
-                                    className="w-full h-full object-cover rounded-lg"
-                                    style={{
-                                        transform: facingMode === "user" ? "scaleX(-1)" : "none",
-                                    }}
-                                />
-
-                                {/* Camera controls */}
-                                <div className="absolute bottom-2 right-2 flex gap-1">
+                                <div className="absolute bottom-2 right-2 flex gap-1 z-10">
                                     <Button
                                         size="icon"
                                         variant="secondary"
@@ -625,16 +670,40 @@ export default function QRCodeScanner({ isOpen, onClose, onScanComplete, title =
 
                                 {/* Scanning status indicator */}
                                 {scanningActive && (
-                                    <div className="absolute top-2 left-2 bg-blue-500 text-white px-2 py-1 rounded text-xs flex items-center">
+                                    <div className="absolute top-2 left-2 bg-blue-500 text-white px-2 py-1 rounded text-xs flex items-center z-10">
                                         <Focus size={12} className="mr-1 animate-pulse" />
                                         Scanning...
                                     </div>
                                 )}
                             </>
-                        ) : (
-                            <div className="text-center w-full">
+                        )}
+
+                        {/* Placeholder when camera is not active */}
+                        {!cameraActive && (
+                            <div className="text-center w-full z-10">
                                 <Camera size={48} className="mx-auto mb-2 text-gray-400" />
-                                <p className="text-gray-500 text-sm px-4">Click "Start Preview" to activate camera</p>
+                                <p className="text-gray-400 text-sm px-4">Click "Start Preview" to activate camera</p>
+                            </div>
+                        )}
+
+                        {/* Scanning status overlay */}
+                        {cameraActive && (
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-5">
+                                <div className="text-center">
+                                    {scanningActive ? (
+                                        <div className="bg-blue-500/80 text-white px-3 py-2 rounded-lg">
+                                            <div className="flex items-center gap-2">
+                                                <Focus size={16} className="animate-pulse" />
+                                                <span className="text-sm font-medium">Scanning for QR codes...</span>
+                                            </div>
+                                            <p className="text-xs mt-1 opacity-90">Point camera at QR code</p>
+                                        </div>
+                                    ) : (
+                                        <div className="bg-gray-800/80 text-white px-3 py-2 rounded-lg">
+                                            <p className="text-sm">Camera Ready</p>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>
@@ -696,6 +765,47 @@ export default function QRCodeScanner({ isOpen, onClose, onScanComplete, title =
                                 <Button onClick={stopCamera} variant="outline" className="flex items-center bg-transparent">
                                     <Camera size={16} className="mr-2" />
                                     Stop Camera
+                                </Button>
+                                {/* Debug button */}
+                                <Button 
+                                    onClick={async () => {
+                                        if (videoRef.current && canvasRef.current && QrScanner) {
+                                            const video = videoRef.current;
+                                            const canvas = canvasRef.current;
+                                            const context = canvas.getContext("2d");
+                                            if (context) {
+                                                canvas.width = video.videoWidth;
+                                                canvas.height = video.videoHeight;
+                                                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                                                
+                                                try {
+                                                    const result = await QrScanner.scanImage(canvas);
+                                                    if (result) {
+                                                        toast({
+                                                            title: "Manual Scan Success!",
+                                                            description: result.substring(0, 50)
+                                                        });
+                                                    } else {
+                                                        toast({
+                                                            title: "No QR Code Found",
+                                                            description: "Point camera at QR code and try again"
+                                                        });
+                                                    }
+                                                } catch (err) {
+                                                    toast({
+                                                        title: "Scan Error",
+                                                        description: "No QR code detected",
+                                                        variant: "destructive"
+                                                    });
+                                                }
+                                            }
+                                        }
+                                    }}
+                                    variant="outline" 
+                                    size="sm"
+                                    className="text-xs"
+                                >
+                                    Test Scan
                                 </Button>
                             </>
                         )}

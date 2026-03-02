@@ -102,7 +102,7 @@ function redirectToReturnUrl(request: NextRequest, returnUrl: string): NextRespo
     try {
         // Decode the URL in case it's encoded
         const decodedUrl = decodeURIComponent(returnUrl);
-        
+
         // Handle relative URLs
         if (decodedUrl.startsWith('/') && !decodedUrl.startsWith('//')) {
             const redirectUrl = request.nextUrl.clone();
@@ -111,12 +111,12 @@ function redirectToReturnUrl(request: NextRequest, returnUrl: string): NextRespo
             redirectUrl.search = query || '';
             return NextResponse.redirect(redirectUrl);
         }
-        
+
         // Handle absolute URLs that match our domain
         if (decodedUrl.startsWith('http')) {
             const url = new URL(decodedUrl);
             const currentHost = request.nextUrl.host;
-            
+
             // Only redirect to same domain for security
             if (url.host === currentHost) {
                 const redirectUrl = request.nextUrl.clone();
@@ -129,7 +129,7 @@ function redirectToReturnUrl(request: NextRequest, returnUrl: string): NextRespo
         // If URL parsing fails, return null
         console.error('Error parsing returnUrl:', error);
     }
-    
+
     return null;
 }
 
@@ -137,13 +137,18 @@ function getAuthState(request: NextRequest): AuthState {
     const token = getToken(request);
     const isAuthenticated = token ? !isTokenExpired(token) : false;
     const { pathname } = request.nextUrl;
-    return {
+
+    // Explicitly add /home as a protected route along with its subpaths
+    const isProtected = isProtectedRoute(pathname) || pathname === '/home';
+
+    const state = {
         token,
         isAuthenticated,
-        isProtected: isProtectedRoute(pathname),
+        isProtected,
         isAuthRoute: isAuthRoute(pathname),
         isPublicInvitation: isPublicInvitationRoute(pathname),
     };
+    return state;
 }
 
 function handleExpiredToken(request: NextRequest): NextResponse {
@@ -166,12 +171,13 @@ function handleAuthenticatedAuthRoute(request: NextRequest): NextResponse {
 
 export function middleware(request: NextRequest) {
     const state = getAuthState(request);
-    
+    const { pathname } = request.nextUrl;
+
     // Allow public access to invitation routes
     if (state.isPublicInvitation) {
         return NextResponse.next();
     }
-    
+
     if (state.token && isTokenExpired(state.token)) {
         return handleExpiredToken(request);
     }
@@ -184,11 +190,24 @@ export function middleware(request: NextRequest) {
         return handleAuthenticatedAuthRoute(request);
     }
 
+    // Redirect authenticated users from landing page or /home to the user dashboard
+    if ((pathname === '/' || pathname === '/home') && state.isAuthenticated && state.token) {
+        const payload = decodeTokenPayload(state.token);
+        const userId = payload?.userId || payload?.id || payload?.sub;
+        if (userId) {
+            const userHomeUrl = request.nextUrl.clone();
+            userHomeUrl.pathname = `/home/${userId}`;
+            userHomeUrl.searchParams.delete('returnUrl');
+            return NextResponse.redirect(userHomeUrl);
+        }
+    }
+
     return NextResponse.next();
 }
 
 export const config = {
     matcher: [
+        '/',
         '/chat/:path*',
         '/profile/:path*',
         '/settings/:path*',

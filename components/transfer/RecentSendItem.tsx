@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import { Send, User, Building2 } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Send, Building2 } from "lucide-react";
+import { UserAvatar } from "@/components/UserAvatar";
 import { formatDistanceToNow } from "date-fns";
 
 export interface RecentSend {
@@ -11,6 +11,7 @@ export interface RecentSend {
     receiverName: string;
     receiverPhone: string | null;
     receiverEmail: string | null;
+    receiverProfileImage?: string | null;
     lastTransactionId: string;
     lastTransactionDate: string;
     lastTransactionAmount: number;
@@ -25,6 +26,9 @@ interface RecentSendItemProps {
 
 const RecentSendItem = ({ recipient, onSelect }: RecentSendItemProps) => {
     const isOrganization = recipient.receiverType === 'organization';
+    const nameParts = recipient.receiverName.split(" ");
+    const firstName = nameParts[0] || "";
+    const lastName = nameParts.slice(1).join(" ") || "";
 
     // Format the relative time
     const timeAgo = formatDistanceToNow(new Date(recipient.lastTransactionDate), { addSuffix: true });
@@ -41,17 +45,13 @@ const RecentSendItem = ({ recipient, onSelect }: RecentSendItemProps) => {
             className="w-full bg-white dark:bg-darkBg-card p-4 rounded-2xl shadow-sm hover:shadow-md transition-all border border-gray-100 dark:border-darkBorder-light group flex items-center gap-4"
         >
             {/* Avatar */}
-            <div className="w-12 h-12 rounded-full overflow-hidden shadow-sm flex-shrink-0">
-                <Avatar className="w-full h-full">
-                    <AvatarFallback className={`${isOrganization ? 'bg-brand-gold/10' : 'bg-gray-100 dark:bg-darkBg-main'}`}>
-                        {isOrganization ? (
-                            <Building2 className="w-6 h-6 text-brand-gold" />
-                        ) : (
-                            <User className="w-6 h-6 text-gray-400" />
-                        )}
-                    </AvatarFallback>
-                </Avatar>
-            </div>
+            <UserAvatar
+                profileImage={recipient.receiverProfileImage}
+                firstName={firstName}
+                lastName={lastName}
+                className="w-12 h-12 flex-shrink-0"
+                userType={isOrganization ? 'organization' : 'user'}
+            />
 
             {/* Name and Last Transaction Info */}
             <div className="flex-1 text-left min-w-0">

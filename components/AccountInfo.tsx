@@ -226,12 +226,12 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
 
                 {/* Share Link Section */}
                 <div className="w-full max-w-2xl mb-6">
-                    <div className="flex flex-col sm:flex-row items-center gap-3 bg-gray-50 dark:bg-darkBg-interactive rounded-2xl p-3 sm:p-4 border border-gray-200 dark:border-darkBorder-light cursor-pointer hover:bg-gray-100 dark:hover:bg-darkBg-overlay transition-colors" onClick={() => window.open(userLink, '_blank')}>
+                    <div className="flex flex-row items-center gap-2 sm:gap-3 bg-gray-50 dark:bg-darkBg-interactive rounded-2xl p-2 sm:p-4 border border-gray-200 dark:border-darkBorder-light">
                         <input
                             type="text"
                             value={userLink}
                             readOnly
-                            className="flex-1 bg-transparent text-xs sm:text-sm text-gray-600 dark:text-gray-300 outline-none cursor-pointer"
+                            className="flex-1 bg-transparent text-xs sm:text-sm text-gray-600 dark:text-gray-300 outline-none min-w-0 text-ellipsis"
                         />
                         <div className="flex gap-2">
                             <button
@@ -255,28 +255,28 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="w-full grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                <div className="w-full grid grid-cols-4 gap-2 sm:gap-4">
                     <button
                         onClick={() => router.push('/home/transfer')}
-                        className="flex flex-col items-center gap-2 p-3 sm:p-4 rounded-2xl border-2 border-gray-200 dark:border-darkBorder-light hover:border-brand-green dark:hover:border-brand-gold hover:bg-brand-green/5 dark:hover:bg-brand-gold/5 transition-colors group"
+                        className="flex flex-col items-center justify-center gap-1 sm:gap-2 p-2 sm:p-4 rounded-2xl border-2 border-gray-200 dark:border-darkBorder-light hover:border-brand-green dark:hover:border-brand-gold hover:bg-brand-green/5 dark:hover:bg-brand-gold/5 transition-colors group"
                     >
                         <Send size={24} className="text-green-500 dark:text-brand-gold group-hover:text-brand-green dark:group-hover:text-brand-gold" />
-                        <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">Send</span>
+                        <span className="text-[10px] sm:text-sm font-normal text-gray-700 dark:text-gray-300">Send</span>
                     </button>
 
-                    <button className="flex flex-col items-center gap-2 p-3 sm:p-4 rounded-2xl border-2 border-gray-200 dark:border-darkBorder-light hover:border-brand-green dark:hover:border-brand-gold hover:bg-brand-green/5 dark:hover:bg-brand-gold/5 transition-colors group">
+                    <button className="flex flex-col items-center justify-center gap-1 sm:gap-2 p-2 sm:p-4 rounded-2xl border-2 border-gray-200 dark:border-darkBorder-light hover:border-brand-green dark:hover:border-brand-gold hover:bg-brand-green/5 dark:hover:bg-brand-gold/5 transition-colors group">
                         <Download size={24} className="text-green-500 dark:text-brand-gold group-hover:text-brand-green dark:group-hover:text-brand-gold" />
-                        <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">Request</span>
+                        <span className="text-[10px] sm:text-sm font-normal text-gray-700 dark:text-gray-300">Request</span>
                     </button>
 
-                    <button className="flex flex-col items-center gap-2 p-3 sm:p-4 rounded-2xl border-2 border-gray-200 dark:border-darkBorder-light hover:border-brand-green dark:hover:border-brand-gold hover:bg-brand-green/5 dark:hover:bg-brand-gold/5 transition-colors group">
+                    <button className="flex flex-col items-center justify-center gap-1 sm:gap-2 p-2 sm:p-4 rounded-2xl border-2 border-gray-200 dark:border-darkBorder-light hover:border-brand-green dark:hover:border-brand-gold hover:bg-brand-green/5 dark:hover:bg-brand-gold/5 transition-colors group">
                         <CreditCard size={24} className="text-green-500 dark:text-brand-gold group-hover:text-brand-green dark:group-hover:text-brand-gold" />
-                        <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">Pay</span>
+                        <span className="text-[10px] sm:text-sm font-normal text-gray-700 dark:text-gray-300">Pay</span>
                     </button>
 
-                    <button className="flex flex-col items-center gap-2 p-3 sm:p-4 rounded-2xl border-2 border-gray-200 dark:border-darkBorder-light hover:border-brand-green dark:hover:border-brand-gold hover:bg-brand-green/5 dark:hover:bg-brand-gold/5 transition-colors group">
+                    <button className="flex flex-col items-center justify-center gap-1 sm:gap-2 p-2 sm:p-4 rounded-2xl border-2 border-gray-200 dark:border-darkBorder-light hover:border-brand-green dark:hover:border-brand-gold hover:bg-brand-green/5 dark:hover:bg-brand-gold/5 transition-colors group">
                         <Plus size={24} className="text-green-500 dark:text-brand-gold group-hover:text-brand-green dark:group-hover:text-brand-gold" />
-                        <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">Top up</span>
+                        <span className="text-[10px] sm:text-sm font-normal text-gray-700 dark:text-gray-300 whitespace-nowrap">Top up</span>
                     </button>
                 </div>
             </div>

@@ -25,7 +25,9 @@ import {
     Clock,
     Store,
     MoreHorizontal,
-    X
+    X,
+    HelpCircle,
+    Sun
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuthToken } from "@/hooks/use-auth-token"
@@ -50,7 +52,7 @@ interface NavigationProps {
 
 export default function Navigation({ hideBottomNav = false }: NavigationProps) {
     const { isExpanded, toggleSidebar } = useSidebar()
-    const { theme } = useTheme()
+    const { theme, toggleTheme } = useTheme()
     const [activeItem, setActiveItem] = useState<string>("Home")
     const [userId, setUserId] = useState<string>("")
     const [isReady, setIsReady] = useState<boolean>(false)
@@ -118,19 +120,19 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
 
     const mobilePrimaryItems: NavigationItem[] = [
         { id: "Home", icon: <Home size={24} />, label: "Home", path: userId ? `/home/${userId}` : '/home' },
-        { id: "Statistics", icon: <TrendingUp size={24} />, label: "Statistics", path: userId ? `/statistics/${userId}` : '/statistics' },
+        { id: "Finances", icon: <BarChart2 size={24} />, label: "Finances", path: "/analytics" },
         { id: "Scan", icon: <ScanLine size={24} />, label: "Scan", path: "", isCenterButton: true },
         { id: "Chat", icon: <MessageCircle size={24} />, label: "Chat", path: userId ? `/chat` : '/chat' },
         { id: "More", icon: <MoreHorizontal size={24} />, label: "More", path: "" },
     ]
 
     const mobileSecondaryItems: NavigationItem[] = [
-        { id: "Actions", icon: <FileText size={24} />, label: "Actions", path: userId ? `/action/${userId}` : '/action' },
-        { id: "History", icon: <Wallet size={24} />, label: "Transactions", path: "/transactions" },
-        { id: "Contacts", icon: <Users size={24} />, label: "Contacts", path: userId ? `/contacts/${userId}` : '/contacts' },
+        { id: "Contacts", icon: <Users size={24} />, label: "Contacts", path: '/contacts' },
         { id: "Merchants", icon: <Store size={24} />, label: "Merchants", path: userId ? `/merchants/${userId}` : '/merchants' },
+        { id: "History", icon: <Clock size={24} />, label: "History", path: "/transactions" },
         { id: "Wallet", icon: <Wallet size={24} />, label: "Wallet", path: userId ? `/wallet/${userId}` : '/wallet' },
         { id: "Settings", icon: <Settings size={24} />, label: "Settings", path: `/settings` },
+        { id: "Help", icon: <HelpCircle size={24} />, label: "Help", path: `/help` },
     ]
 
     const mainMenuItems: NavigationItem[] = [
@@ -138,7 +140,7 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
         { id: "Finances", icon: <BarChart2 size={24} />, label: "Finances", path: "/analytics" },
         { id: "Messages", icon: <MessageCircle size={24} />, label: "Messages", path: "/chat" },
         { id: "Actions", icon: <FileText size={24} />, label: "Actions", path: userId ? `/action/${userId}` : '/action' },
-        { id: "Contacts", icon: <Users size={24} />, label: "Contacts", path: userId ? `/contacts/${userId}` : '/contacts' },
+        { id: "Contacts", icon: <Users size={24} />, label: "Contacts", path: '/contacts' },
         { id: "Merchants", icon: <Store size={24} />, label: "Merchants", path: userId ? `/merchants/${userId}` : '/merchants' },
         { id: "History", icon: <Clock size={24} />, label: "History", path: "/transactions" },
         { id: "Wallet", icon: <Wallet size={24} />, label: "Wallet", path: userId ? `/wallet/${userId}` : '/wallet' },
@@ -213,7 +215,6 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
         }
     }
 
-
     return (
         <>
             {/* Desktop Sidebar */}
@@ -241,8 +242,8 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
                                     onClick={toggleSidebar}
                                     className={cn(
                                         "h-10 w-10 rounded-lg transition-all hover:scale-110",
-                                        theme === "dark" 
-                                            ? "text-white hover:bg-brand-green hover:text-[#00313A]" 
+                                        theme === "dark"
+                                            ? "text-white hover:bg-brand-green hover:text-[#00313A]"
                                             : "text-gray-900 hover:bg-gray-100"
                                     )}
                                     aria-label="Collapse sidebar"
@@ -287,8 +288,8 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
                                         "flex items-center px-3 py-2.5 transition-all rounded-xl duration-200",
                                         isExpanded ? "justify-start" : "justify-center",
                                         activeItem === item.id
-                                            ? theme === "dark" 
-                                                ? "bg-brand-gold text-gray-900 shadow-lg" 
+                                            ? theme === "dark"
+                                                ? "bg-brand-gold text-gray-900 shadow-lg"
                                                 : "bg-brand-green text-white shadow-lg"
                                             : theme === "dark"
                                                 ? "text-white hover:bg-darkBg-interactive hover:shadow-md"
@@ -330,44 +331,97 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
                         </div>
                     </div>
                 </div>
-            </aside>
+            </aside >
 
             {/* Mobile Bottom Navigation */}
-            <nav className={cn(
-                "fixed bottom-0 left-0 right-0 lg:hidden z-50 border-t pointer-events-auto",
-                theme === "dark" 
-                    ? "bg-darkBg-sidebar border-darkBorder-light" 
-                    : "bg-white border-gray-200"
-            )}>
-                {/* More Menu Popup */}
-                {isMoreMenuOpen && (
-                    <div className={cn(
-                        "absolute bottom-full right-4 mb-2 rounded-2xl shadow-xl border p-4 w-64 animate-in slide-in-from-bottom-10 fade-in duration-200",
-                        theme === "dark"
-                            ? "bg-darkBg-sidebar border-darkBorder-light"
-                            : "bg-white border-gray-200"
-                    )}>
-                        <div className="grid grid-cols-3 gap-4">
-                            {mobileSecondaryItems.map((item) => (
+            < nav className={
+                cn(
+                    "fixed bottom-0 left-0 right-0 lg:hidden z-50 border-t pointer-events-auto",
+                    theme === "dark"
+                        ? "bg-darkBg-sidebar border-darkBorder-light"
+                        : "bg-white border-gray-200"
+                )}>
+                {/* More Menu Modal Overlay */}
+                {
+                    isMoreMenuOpen && (
+                        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                            {/* Modal Container */}
+                            <div className={cn(
+                                "relative w-full max-w-sm rounded-3xl p-6 shadow-2xl flex flex-col items-center animate-in zoom-in-95 duration-200",
+                                theme === "dark" ? "bg-darkBg-card border border-darkBorder-light" : "bg-white"
+                            )}>
+                                {/* Header and Close Button */}
+                                <div className="w-full flex justify-between items-center mb-6">
+                                    <span className="opacity-0 w-8 flex-shrink-0"></span> {/* Spacer for centering */}
+                                    <h2 className={cn("text-lg font-bold flex-1 text-center", theme === "dark" ? "text-white" : "text-gray-900")}>
+                                        More
+                                    </h2>
+                                    <button
+                                        onClick={() => setIsMoreMenuOpen(false)}
+                                        className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-darkBg-interactive dark:hover:bg-darkBg-hover transition-colors text-gray-500 dark:text-gray-400"
+                                    >
+                                        <X size={18} strokeWidth={2.5} />
+                                    </button>
+                                </div>
+
+                                {/* Grid of Items */}
+                                <div className="grid grid-cols-2 gap-4 w-full mb-8">
+                                    {mobileSecondaryItems.map((item) => (
+                                        <button
+                                            key={item.id}
+                                            onClick={() => handleClick(item.id, item.path)}
+                                            className={cn(
+                                                "flex flex-col items-center justify-center gap-3 py-6 px-2 rounded-2xl transition-all border",
+                                                theme === "dark"
+                                                    ? "bg-darkBg-sidebar border-darkBorder-light hover:border-brand-gold hover:bg-brand-gold/5"
+                                                    : "bg-[#F8F9FA] border-gray-100 shadow-sm hover:border-brand-green/30 hover:shadow-md"
+                                            )}
+                                        >
+                                            <div className={cn(
+                                                "text-3xl",
+                                                theme === "dark" ? "text-brand-gold" : "text-brand-gold"
+                                            )}>
+                                                {item.icon}
+                                            </div>
+                                            <span className={cn(
+                                                "text-[13px] font-medium opacity-80",
+                                                theme === "dark" ? "text-gray-200" : "text-gray-600"
+                                            )}>
+                                                {item.label}
+                                            </span>
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Dark Mode Toggle */}
                                 <button
-                                    key={item.id}
-                                    onClick={() => handleClick(item.id, item.path)}
+                                    onClick={() => {
+                                        toggleTheme();
+                                    }}
                                     className={cn(
-                                        "flex flex-col items-center gap-1 px-2 py-2 rounded-lg transition-colors",
-                                        activeItem === item.id 
-                                            ? "bg-brand-gold/20 text-brand-gold" 
-                                            : theme === "dark"
-                                                ? "text-gray-400 hover:text-white"
-                                                : "text-gray-600 hover:text-gray-900"
+                                        "flex items-center gap-2 mb-8 transition-opacity hover:opacity-80 font-medium text-sm",
+                                        theme === "dark" ? "text-gray-300" : "text-gray-700"
                                     )}
                                 >
-                                    <span className="text-lg">{item.icon}</span>
-                                    <span className="text-[10px] font-medium">{item.label}</span>
+                                    {theme === "dark" ? (
+                                        <Sun size={20} className="text-brand-gold" />
+                                    ) : (
+                                        <Sun size={20} className="text-brand-gold fill-brand-gold" />
+                                    )}
+                                    <span>Light / Dark Mode</span>
                                 </button>
-                            ))}
+
+                                {/* Footer Copyright */}
+                                <div className={cn(
+                                    "text-xs mt-auto",
+                                    theme === "dark" ? "text-gray-500" : "text-gray-400"
+                                )}>
+                                    © {new Date().getFullYear()} QiewCode — <span className="text-brand-gold">Legal & Privacy</span>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )
+                }
 
                 <div className="flex justify-between items-center px-4 py-3 max-w-md md:max-w-2xl mx-auto h-16">
                     {/* Left items */}
@@ -376,7 +430,7 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
                             onClick={() => handleClick('Home', mobilePrimaryItems[0].path)}
                             className={cn(
                                 "flex flex-col items-center gap-1 transition-colors duration-200",
-                                activeItem === 'Home' 
+                                activeItem === 'Home'
                                     ? theme === "dark"
                                         ? "text-brand-gold"
                                         : "text-brand-green"
@@ -390,10 +444,10 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
                         </button>
 
                         <button
-                            onClick={() => handleClick('Statistics', mobilePrimaryItems[1].path)}
+                            onClick={() => handleClick('Finances', mobilePrimaryItems[1].path)}
                             className={cn(
                                 "flex flex-col items-center gap-1 transition-colors duration-200",
-                                activeItem === 'Statistics' 
+                                activeItem === 'Finances'
                                     ? theme === "dark"
                                         ? "text-brand-gold"
                                         : "text-brand-green"
@@ -403,7 +457,7 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
                             )}
                         >
                             <TrendingUp size={24} />
-                            <span className="text-xs font-medium">Statistics</span>
+                            <span className="text-xs font-medium">Finances</span>
                         </button>
                     </div>
 
@@ -428,7 +482,7 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
                             onClick={() => handleClick('Chat', mobilePrimaryItems[3].path)}
                             className={cn(
                                 "flex flex-col items-center gap-1 transition-colors duration-200",
-                                activeItem === 'Chat' 
+                                activeItem === 'Chat'
                                     ? theme === "dark"
                                         ? "text-brand-gold"
                                         : "text-brand-green"
@@ -445,8 +499,8 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
                             onClick={() => handleClick('More', '')}
                             className={cn(
                                 "flex flex-col items-center gap-1 transition-colors duration-200",
-                                isMoreMenuOpen 
-                                    ? "text-brand-gold" 
+                                isMoreMenuOpen
+                                    ? "text-brand-gold"
                                     : theme === "dark"
                                         ? "text-gray-400 hover:text-gray-300"
                                         : "text-gray-600 hover:text-gray-900"
@@ -457,7 +511,7 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
                         </button>
                     </div>
                 </div>
-            </nav>
+            </nav >
         </>
     )
 }

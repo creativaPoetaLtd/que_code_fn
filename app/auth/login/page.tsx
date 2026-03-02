@@ -1,7 +1,7 @@
 /* eslint-disable */
 'use client';
 import { GoogleOutlined } from '@ant-design/icons';
-import { notification } from 'antd';
+import { notification, Checkbox } from 'antd';
 import React, { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm, Controller } from 'react-hook-form';
@@ -17,6 +17,7 @@ import { useAuthToken } from '@/hooks/use-auth-token';
 interface LoginFormInputs {
   email: string;
   password: string;
+  rememberMe?: boolean;
 }
 
 interface APIError {
@@ -87,6 +88,7 @@ const LoginForm: React.FC = () => {
     defaultValues: {
       email: '',
       password: '',
+      rememberMe: false,
     },
   });
 
@@ -101,7 +103,8 @@ const LoginForm: React.FC = () => {
 
   const redirectAfterLogin = (userId: string, accountType?: string) => {
     // Check if there's a returnUrl to redirect to
-    if (returnUrl && returnUrl !== '/home') {
+    // check if returnUrl is '/logout' to prevent a logout loop
+    if (returnUrl && returnUrl !== '/home' && returnUrl !== '/logout') {
       try {
         // Handle both relative and absolute URLs
         if (returnUrl.startsWith('/')) {
@@ -110,14 +113,16 @@ const LoginForm: React.FC = () => {
         } else if (returnUrl.startsWith('http')) {
           // For absolute URLs, extract the path and query
           const url = new URL(returnUrl);
-          router.replace(url.pathname + url.search);
-          return;
+          if (url.pathname !== '/logout') {
+            router.replace(url.pathname + url.search);
+            return;
+          }
         }
       } catch (error) {
         console.error('Error parsing returnUrl:', error);
       }
     }
-    
+
     // Default redirect based on account type
     if (accountType === 'organization') {
       // For organizations, redirect to a different dashboard or home page
@@ -321,9 +326,23 @@ const LoginForm: React.FC = () => {
           )}
         </div>
 
-        <a href="forgot-password" className="text-sm text-[#00B512] hover:underline">
-          Forgot Password?
-        </a>
+        <div className="flex items-center justify-between mb-4 mt-2">
+          <Controller
+            name="rememberMe"
+            control={control}
+            render={({ field }) => (
+              <Checkbox
+                checked={field.value}
+                onChange={(e) => field.onChange(e.target.checked)}
+              >
+                Keep me logged in
+              </Checkbox>
+            )}
+          />
+          <a href="forgot-password" className="text-sm text-[#00B512] hover:underline">
+            Forgot Password?
+          </a>
+        </div>
 
         <Button
           htmlType="submit"
