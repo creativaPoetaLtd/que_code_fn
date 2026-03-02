@@ -736,10 +736,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                 // It's a URL string
                 cleanPayload.coverImage = values.coverImage;
             }
-            
-            console.log('Clean payload being sent:', cleanPayload);
-            console.log('Form values:', values);
-            
+                        
             // If there's a file, use FormData, otherwise use regular payload
             if (subActionCoverImageFile) {
                 const formData = new FormData();

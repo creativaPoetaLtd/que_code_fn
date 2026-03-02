@@ -155,7 +155,6 @@ export default function QRCodeScanner({ isOpen, onClose, onScanComplete, title =
 
                 try {
                     await videoRef.current.play()
-                    console.log("Video playing");
                 } catch (playError) {
                     console.error("Error playing video:", playError);
                 }
@@ -436,10 +435,6 @@ export default function QRCodeScanner({ isOpen, onClose, onScanComplete, title =
             }
 
             detectionCount++;
-            if (detectionCount % 10 === 0) { // Log every 10th attempt
-                console.log(`QR detection attempt #${detectionCount}`);
-            }
-
             try {
                 // Set canvas size to match video
                 canvas.width = video.videoWidth
@@ -452,7 +447,6 @@ export default function QRCodeScanner({ isOpen, onClose, onScanComplete, title =
                 if (detectionCount % 20 === 0) {
                     const imageData = context.getImageData(0, 0, Math.min(50, canvas.width), Math.min(50, canvas.height));
                     const hasData = imageData.data.some(pixel => pixel > 0);
-                    console.log(`Canvas has image data: ${hasData}, Canvas size: ${canvas.width}x${canvas.height}`);
                 }
 
                 // Scan for QR code in the canvas
@@ -462,9 +456,7 @@ export default function QRCodeScanner({ isOpen, onClose, onScanComplete, title =
                     highlightCodeOutline: true,
                 })
 
-                if (result && result.data) {
-                    console.log("QR Code detected:", result.data);
-                    
+                if (result && result.data) {                    
                     // Set detected QR position for visual feedback
                     if (result.cornerPoints) {
                         const minX = Math.min(...result.cornerPoints.map((p: any) => p.x))
@@ -486,10 +478,6 @@ export default function QRCodeScanner({ isOpen, onClose, onScanComplete, title =
                     setDetectedQRPosition(null)
                 }
             } catch (err) {
-                // Log errors occasionally to help debug
-                if (detectionCount % 30 === 0) {
-                    console.log("QR scan error (normal if no QR visible):", err);
-                }
                 setDetectedQRPosition(null)
             }
         }
@@ -590,7 +578,6 @@ export default function QRCodeScanner({ isOpen, onClose, onScanComplete, title =
     // Auto-start QR detection when scanning becomes active
     useEffect(() => {
         if (scanningActive && cameraActive) {
-            console.log("Starting QR detection from useEffect");
             startPreviewRendering();
             startQRDetection();
         }
@@ -790,11 +777,9 @@ export default function QRCodeScanner({ isOpen, onClose, onScanComplete, title =
                                                 canvas.width = video.videoWidth;
                                                 canvas.height = video.videoHeight;
                                                 context.drawImage(video, 0, 0, canvas.width, canvas.height);
-                                                console.log("Manual QR test - Canvas size:", canvas.width, "x", canvas.height);
                                                 
                                                 try {
                                                     const result = await QrScanner.scanImage(canvas);
-                                                    console.log("Manual scan result:", result);
                                                     if (result) {
                                                         toast({
                                                             title: "Manual Scan Success!",
@@ -807,7 +792,6 @@ export default function QRCodeScanner({ isOpen, onClose, onScanComplete, title =
                                                         });
                                                     }
                                                 } catch (err) {
-                                                    console.log("Manual scan error:", err);
                                                     toast({
                                                         title: "Scan Error",
                                                         description: "No QR code detected",

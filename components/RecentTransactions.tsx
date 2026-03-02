@@ -7,9 +7,11 @@ import { useAuthToken } from '@/hooks/use-auth-token';
 import { getUserIdFromToken, isTokenExpired } from '@/utils/jwtUtils';
 import { CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { UserAvatar } from '@/components/UserAvatar';
+import { TransactionDetailsModal } from '@/components/TransactionDetailsModal';
 
 export const RecentTransactions: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -87,7 +89,6 @@ export const RecentTransactions: React.FC = () => {
   };
 
   const getTransactionDisplayInfo = (transaction: Transaction) => {
-    // Determine if it's outgoing based on senderWallet.userId matching currentUserId
     const isOutgoing = transaction.senderWallet?.userId === currentUserId;
     const transactionAmount = Number(transaction.amount) || 0;
     const transactionFee = Number(transaction.fee) || 0;
@@ -116,7 +117,7 @@ export const RecentTransactions: React.FC = () => {
       // Receiving money - check sender first
       if (transaction.senderWallet?.organization?.name) {
         counterpartyName = transaction.senderWallet.organization.name;
-        isToOrganization = true; // Assuming sender can be organization too
+        isToOrganization = true;
         counterpartyProfileImage = transaction.senderWallet.organization.profile?.profileImage;
       } else if (transaction.senderWallet?.user?.firstName || transaction.senderWallet?.user?.lastName) {
         counterpartyName = `${transaction.senderWallet.user.firstName || ''} ${transaction.senderWallet.user.lastName || ''}`.trim();
@@ -128,7 +129,6 @@ export const RecentTransactions: React.FC = () => {
       }
     }
 
-    // Determine transaction status (assuming completed for now, can be enhanced based on API response)
     const status = transaction.status || 'completed'; // 'completed', 'pending', 'failed'
     const transactionType = isOutgoing ? 'Sent' : 'Received';
 
@@ -230,7 +230,11 @@ export const RecentTransactions: React.FC = () => {
           const initials = getInitials(counterpartyName);
 
           return (
-            <div key={transaction.id} className="p-3 sm:p-4 hover:bg-gray-100/50 dark:hover:bg-darkBg-interactive transition-colors duration-200 cursor-pointer">
+            <div
+              key={transaction.id}
+              className="p-3 sm:p-4 hover:bg-gray-100/50 dark:hover:bg-darkBg-interactive transition-colors duration-200 cursor-pointer"
+              onClick={() => setSelectedTransaction(transaction)}
+            >
               <div className="flex items-center gap-3">
                 <UserAvatar
                   profileImage={counterpartyProfileImage}
@@ -244,7 +248,7 @@ export const RecentTransactions: React.FC = () => {
                 <div className="flex-1 min-w-0">
                   {/* First line: Name and Date */}
                   <div className="flex justify-between items-center gap-2 mb-1">
-                    <p className="font-semibold text-gray-900 dark:text-white truncate text-sm">{counterpartyName}</p>
+                    <p className="font-medium text-gray-900 dark:text-white truncate text-sm">{counterpartyName}</p>
                     <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
                       {getRelativeTime(transaction.createdAt)}
                     </span>
@@ -252,7 +256,7 @@ export const RecentTransactions: React.FC = () => {
 
                   {/* Second line: Amount */}
                   <div className="flex items-center gap-2">
-                    <span className={`text-sm font-bold ${isOutgoing ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                    <span className={`text-sm font-medium ${isOutgoing ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                       {isOutgoing ? '-' : '+'} RWF {isNaN(Math.abs(amount)) ? '0' : Math.abs(amount).toLocaleString()}
                     </span>
                   </div>
@@ -262,6 +266,15 @@ export const RecentTransactions: React.FC = () => {
           );
         })}
       </div>
+
+      {/* Transaction Details Modal */}
+      {selectedTransaction && (
+        <TransactionDetailsModal
+          transaction={selectedTransaction}
+          currentUserId={currentUserId}
+          onClose={() => setSelectedTransaction(null)}
+        />
+      )}
     </div>
   );
 };

@@ -93,7 +93,6 @@ export const TransactionList = ({ transactions: propTransactions }: TransactionL
   };
 
   const getTransactionDisplayInfo = (transaction: Transaction) => {
-    // Determine if it's outgoing based on senderWallet.userId matching currentUserId
     const isOutgoing = transaction.senderWallet?.userId === currentUserId;
     const transactionAmount = Number(transaction.amount) || 0;
     const transactionFee = Number(transaction.fee) || 0;

@@ -156,16 +156,16 @@ export const RecentMessages: React.FC = () => {
                                 firstName={chat.name.split(' ')[0]}
                                 lastName={chat.name.split(' ')[1] || ''}
                                 className="w-9 h-9"
-                                userType="user" // Assuming mostly users for now
+                                userType="user"
                             />
                             <div className="flex-1 min-w-0">
                                 <div className="flex justify-between items-start gap-0">
-                                    <p className="font-semibold text-gray-900 dark:text-white truncate text-xs">{chat.name}</p>
-                                    <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+                                    <p className="font-medium text-gray-900 dark:text-white truncate text-sm">{chat.name}</p>
+                                    <span className="text-sm text-gray-500 dark:text-gray-400 flex-shrink-0">
                                         {chat.lastMessage ? getTimeDisplay(chat.lastMessage.createdAt) : ''}
                                     </span>
                                 </div>
-                                <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-1">
+                                <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-1">
                                     {chat.lastMessage ? truncateText(chat.lastMessage.content) : 'No messages yet'}
                                 </p>
                             </div>

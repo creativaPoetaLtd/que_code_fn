@@ -167,7 +167,6 @@ const TransferPageLayout = () => {
     const handleScanComplete = async (result: string) => {
         setIsQRScannerOpen(false);
 
-        // Extract public ID from QR code result
         const publicId = extractPublicIdFromLink(result);
 
         if (!publicId || !validatePublicId(publicId)) {
@@ -179,7 +178,6 @@ const TransferPageLayout = () => {
             return;
         }
 
-        // Check if user is scanning their own QR code (only if userId is set)
         if (userId && publicId === userId) {
             toast({
                 title: "Your QR Code",
@@ -192,7 +190,6 @@ const TransferPageLayout = () => {
         const existingContact = contacts.find(contact => contact.id === publicId);
 
         if (existingContact) {
-            // User is already a contact, show modal with just "Send Money" option
             setIsExistingContact(true);
             const userInfo = {
                 id: existingContact.id,
@@ -205,7 +202,6 @@ const TransferPageLayout = () => {
             return;
         }
 
-        // User is not a contact, get user info and show options with contact invitation
         setIsExistingContact(false);
         await handleNewUserScanned(publicId, result, 'qr');
     };
@@ -327,16 +323,13 @@ const TransferPageLayout = () => {
             throw new Error("Invalid profile link. Please check and try again.");
         }
 
-        // Check if user is scanning their own QR code (only if userId is set)
         if (userId && publicId === userId) {
             throw new Error("This is your own profile link");
         }
 
-        // Check if user is already in contacts
         const existingContact = contacts.find(contact => contact.id === publicId);
 
         if (existingContact) {
-            // User is already a contact, show modal with just "Send Money" option
             setIsExistingContact(true);
             const userInfo = {
                 id: existingContact.id,
@@ -350,7 +343,6 @@ const TransferPageLayout = () => {
             return;
         }
 
-        // User is not a contact, get user info and show options with contact invitation
         setIsExistingContact(false);
         setIsLinkInputOpen(false);
         await handleNewUserScanned(publicId, link, 'link');

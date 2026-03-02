@@ -92,7 +92,7 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({ userId }) => {
                     </p>
 
                     <div className="space-y-1">
-                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total Balance</p>
+                        <p className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total Balance</p>
                         <div className="flex items-baseline gap-2">
                             <h2 className="text-2xl font-bold text-[#00313A] dark:text-white">
                                 {balanceLoading

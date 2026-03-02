@@ -34,11 +34,9 @@ export default function ContactsPage() {
 
     const contacts = contactsData?.contacts || [];
 
-    // Update selectedContact if contacts list changes (e.g. after mutation)
     useEffect(() => {
         if (selectedContact) {
             const updatedContact = contacts.find(c => c.id === selectedContact.id);
-            // Only update if the object reference is different but ID matches
             if (updatedContact && updatedContact !== selectedContact) {
                 setSelectedContact(updatedContact);
             }
