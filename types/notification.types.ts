@@ -6,51 +6,114 @@ export enum NotificationType {
   DOCUMENT = 'document',
   MONEY = 'money',
   CONTACT_REQUEST = 'contact_request',
-  GROUP_INVITATION = 'group_invitation',
   GROUP_DONATION = 'group_donation',
-  
+
   // Chat-specific notification types
-  CHAT_MESSAGE_TEXT = 'chat_message_text',
-  CHAT_MESSAGE_IMAGE = 'chat_message_image',
-  CHAT_MESSAGE_VIDEO = 'chat_message_video',
-  CHAT_MESSAGE_AUDIO = 'chat_message_audio',
-  CHAT_MESSAGE_FILE = 'chat_message_file',
-  CHAT_MESSAGE_MONEY = 'chat_message_money',
-  CHAT_MESSAGE_RECEIVED = 'chat_message_received',
-  CHAT_MESSAGE_READ = 'chat_message_read',
-  CHAT_DM_CREATED = 'chat_dm_created',
-  CHAT_GROUP_CHAT_CREATED = 'chat_group_chat_created',
-  CHAT_DELETED = 'chat_deleted',
-  CHAT_USER_ADDED = 'chat_user_added',
-  
+  CHAT_MESSAGE_TEXT = 'CHAT_MESSAGE_TEXT',
+  CHAT_MESSAGE_IMAGE = 'CHAT_MESSAGE_IMAGE',
+  CHAT_MESSAGE_VIDEO = 'CHAT_MESSAGE_VIDEO',
+  CHAT_MESSAGE_AUDIO = 'CHAT_MESSAGE_AUDIO',
+  CHAT_MESSAGE_FILE = 'CHAT_MESSAGE_FILE',
+  CHAT_MESSAGE_MONEY = 'CHAT_MESSAGE_MONEY',
+  CHAT_MESSAGE_RECEIVED = 'CHAT_MESSAGE_RECEIVED',
+  CHAT_MESSAGE_READ = 'CHAT_MESSAGE_READ',
+  CHAT_DM_CREATED = 'CHAT_DM_CREATED',
+  CHAT_GROUP_CHAT_CREATED = 'CHAT_GROUP_CHAT_CREATED',
+  CHAT_DELETED = 'CHAT_DELETED',
+  CHAT_USER_ADDED = 'CHAT_USER_ADDED',
+
   // Group notifications
-  GROUP_CREATED = 'group_created',
-  GROUP_JOINED = 'group_joined',
-  GROUP_MESSAGE = 'group_message',
-  GROUP_JOIN_REQUEST = 'group_join_request',
-  GROUP_JOIN_APPROVED = 'group_join_approved',
-  GROUP_JOIN_REJECTED = 'group_join_rejected',
-  GROUP_LINK_JOIN_REQUEST = 'group_link_join_request',
-  GROUP_MEMBER_LEFT = 'group_member_left',
-  MEMBER_REMOVED_FROM_GROUP = 'member_removed_from_group',
-  GROUP_DELETED = 'group_deleted',
-  GROUP_INVITATION_SENT = 'group_invitation_sent',
-  GROUP_INVITATION_ACCEPTED = 'group_invitation_accepted',
-  GROUP_INVITATION_REJECTED = 'group_invitation_rejected',
-  GROUP_MEMBER_ADDED = 'group_member_added',
-  GROUP_MEMBER_REMOVED = 'group_member_removed',
-  GROUP_MEMBER_ROLE_CHANGED = 'group_member_role_changed',
-  GROUP_UPDATED = 'group_updated',
-  
+  GROUP_CREATED = 'GROUP_CREATED',
+  GROUP_INVITATION = 'GROUP_INVITATION',
+  GROUP_JOINED = 'GROUP_JOINED',
+  GROUP_MESSAGE = 'GROUP_MESSAGE',
+  GROUP_JOIN_REQUEST = 'GROUP_JOIN_REQUEST',
+  GROUP_JOIN_APPROVED = 'GROUP_JOIN_APPROVED',
+  GROUP_JOIN_REJECTED = 'GROUP_JOIN_REJECTED',
+  GROUP_LINK_JOIN_REQUEST = 'GROUP_LINK_JOIN_REQUEST',
+  GROUP_MEMBER_LEFT = 'GROUP_MEMBER_LEFT',
+  MEMBER_REMOVED_FROM_GROUP = 'MEMBER_REMOVED_FROM_GROUP',
+  GROUP_DELETED = 'GROUP_DELETED',
+  GROUP_INVITATION_SENT = 'GROUP_INVITATION_SENT',
+  GROUP_INVITATION_ACCEPTED = 'GROUP_INVITATION_ACCEPTED',
+  GROUP_INVITATION_REJECTED = 'GROUP_INVITATION_REJECTED',
+  GROUP_MEMBER_ADDED = 'GROUP_MEMBER_ADDED',
+  GROUP_MEMBER_REMOVED = 'GROUP_MEMBER_REMOVED',
+  GROUP_MEMBER_ROLE_CHANGED = 'GROUP_MEMBER_ROLE_CHANGED',
+  GROUP_UPDATED = 'GROUP_UPDATED',
+
   // Contact notifications
-  CONTACT_INVITATION_SENT = 'contact_invitation_sent',
-  CONTACT_REQUEST_RECEIVED = 'contact_request_received',
-  CONTACT_REQUEST_ACCEPTED = 'contact_request_accepted',
-  CONTACT_REQUEST_REJECTED = 'contact_request_rejected',
-  CONTACT_ADDED = 'contact_added',
-  CONTACT_BLOCKED = 'contact_blocked',
-  CONTACT_UNBLOCKED = 'contact_unblocked',
-  CONTACT_REMOVED = 'contact_removed',
+  CONTACT_INVITATION_SENT = 'CONTACT_INVITATION_SENT',
+  CONTACT_REQUEST_RECEIVED = 'CONTACT_REQUEST_RECEIVED',
+  CONTACT_REQUEST_ACCEPTED = 'CONTACT_REQUEST_ACCEPTED',
+  CONTACT_REQUEST_REJECTED = 'CONTACT_REQUEST_REJECTED',
+  CONTACT_ADDED = 'CONTACT_ADDED',
+  CONTACT_BLOCKED = 'CONTACT_BLOCKED',
+  CONTACT_UNBLOCKED = 'CONTACT_UNBLOCKED',
+  CONTACT_REMOVED = 'CONTACT_REMOVED',
+
+  // Transaction notifications
+  PAYMENT_RECEIVED = 'PAYMENT_RECEIVED',
+  PAYMENT_SENT = 'PAYMENT_SENT',
+  PAYMENT_FAILED = 'PAYMENT_FAILED',
+  PAYMENT_PENDING = 'PAYMENT_PENDING',
+  TRANSACTION_COMPLETED = 'TRANSACTION_COMPLETED',
+  TRANSACTION_REFUNDED = 'TRANSACTION_REFUNDED',
+  TRANSACTION_DISPUTED = 'TRANSACTION_DISPUTED',
+  LARGE_TRANSACTION_ALERT = 'LARGE_TRANSACTION_ALERT',
+
+  // Wallet notifications
+  WALLET_CREATED = 'WALLET_CREATED',
+  WALLET_RESTRICTION_ADDED = 'WALLET_RESTRICTION_ADDED',
+  WALLET_RESTRICTION_REMOVED = 'WALLET_RESTRICTION_REMOVED',
+  LOW_BALANCE_WARNING = 'LOW_BALANCE_WARNING',
+
+  // Action notifications (Tickets, Services, etc.)
+  ACTION_CREATED = 'ACTION_CREATED',
+  ACTION_UPDATED = 'ACTION_UPDATED',
+  ACTION_DELETED = 'ACTION_DELETED',
+  ACTION_PURCHASED = 'ACTION_PURCHASED',
+  ACTION_SOLD = 'ACTION_SOLD',
+  ACTION_EXPIRED = 'ACTION_EXPIRED',
+  SUB_ACTION_CREATED = 'SUB_ACTION_CREATED',
+  SUB_ACTION_UPDATED = 'SUB_ACTION_UPDATED',
+
+  // Organization notifications
+  ORGANIZATION_CREATED = 'ORGANIZATION_CREATED',
+  ORGANIZATION_VERIFIED = 'ORGANIZATION_VERIFIED',
+  ORGANIZATION_UPDATED = 'ORGANIZATION_UPDATED',
+  ORGANIZATION_DELETED = 'ORGANIZATION_DELETED',
+  ORGANIZATION_SUSPENDED = 'ORGANIZATION_SUSPENDED',
+  ORGANIZATION_MEMBER_ADDED = 'ORGANIZATION_MEMBER_ADDED',
+  ORGANIZATION_MEMBER_REMOVED = 'ORGANIZATION_MEMBER_REMOVED',
+  ORGANIZATION_ROLE_CHANGED = 'ORGANIZATION_ROLE_CHANGED',
+
+  // User account notifications
+  ACCOUNT_VERIFIED = 'ACCOUNT_VERIFIED',
+  ACCOUNT_SUSPENDED = 'ACCOUNT_SUSPENDED',
+  PASSWORD_CHANGED = 'PASSWORD_CHANGED',
+  PROFILE_UPDATED = 'PROFILE_UPDATED',
+  PIN_SET = 'PIN_SET',
+  PIN_CHANGED = 'PIN_CHANGED',
+
+  // Admin notifications
+  ADMIN_USER_CREATED = 'ADMIN_USER_CREATED',
+  ADMIN_USER_UPDATED = 'ADMIN_USER_UPDATED',
+  ADMIN_USER_DELETED = 'ADMIN_USER_DELETED',
+  ADMIN_STATUS_CHANGED = 'ADMIN_STATUS_CHANGED',
+  ADMIN_ROLE_ASSIGNED = 'ADMIN_ROLE_ASSIGNED',
+  ADMIN_ROLE_REMOVED = 'ADMIN_ROLE_REMOVED',
+
+  // External account notifications
+  EXTERNAL_ACCOUNT_LINKED = 'EXTERNAL_ACCOUNT_LINKED',
+  EXTERNAL_ACCOUNT_UNLINKED = 'EXTERNAL_ACCOUNT_UNLINKED',
+  EXTERNAL_ACCOUNT_VERIFIED = 'EXTERNAL_ACCOUNT_VERIFIED',
+
+  // General notifications
+  WELCOME = 'WELCOME',
+  REMINDER = 'REMINDER',
+  SYSTEM_MAINTENANCE = 'SYSTEM_MAINTENANCE',
+  FEATURE_ANNOUNCEMENT = 'FEATURE_ANNOUNCEMENT',
 }
 
 export interface NotificationPayload {
@@ -80,20 +143,27 @@ export interface Notification {
   createdAt: string;
   updatedAt?: string;
   data?: {
+    // General data
     message?: string;
-    groupId?: string;
-    groupName?: string;
+    title?: string;
+    description?: string;
+    url?: string;
+    reason?: string;
+
+    // User-related data
     userId?: string;
     userName?: string;
     userEmail?: string;
-    url?: string;
-    title?: string;
-    description?: string;
-    
+
+    // Group-related data
+    groupId?: string;
+    groupName?: string;
+    requestId?: string;
+
     // Contact-specific data
     contactId?: string;
     contactName?: string;
-    
+
     // Chat-specific data
     chatId?: string;
     messageId?: string;
@@ -105,11 +175,51 @@ export interface Notification {
     isGroupChat?: boolean;
     mediaUrl?: string;
     thumbnailUrl?: string;
-    
-    // Group-specific data
-    requestId?: string;
-    newRole?: string;
-    
+
+    // Transaction-related data
+    transactionId?: string;
+    amount?: number;
+    currency?: string;
+    transactionType?: string;
+    fee?: number;
+
+    // Action-related data
+    actionId?: string;
+    actionName?: string;
+    actionType?: string;
+    actionSlug?: string;
+    subActionId?: string;
+    subActionName?: string;
+    purchaseId?: string;
+    ticketNumber?: string;
+    expiryDate?: string;
+
+    // Organization-related data
+    organizationId?: string;
+    organizationName?: string;
+    organizationType?: string;
+    ownerName?: string;
+
+    // Wallet-related data
+    walletId?: string;
+    balance?: number;
+    restrictionType?: string;
+    thresholdAmount?: number;
+
+    // External account data
+    externalAccountId?: string;
+    externalAccountType?: string;
+    externalAccountName?: string;
+
+    // Admin action data
+    adminId?: string;
+    adminName?: string;
+    roleId?: string;
+    roleName?: string;
+    previousStatus?: string;
+    newStatus?: string;
+
+    // Actions
     actions?: Array<{
       type: string;
       url: string;
