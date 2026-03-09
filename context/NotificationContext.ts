@@ -156,21 +156,28 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     const handleNotification = useCallback(
         (notification: any) => {
             const formattedNotification: Notification = {
-                id: notification.id,
+                id: notification.id || `notification-${Date.now()}`,
                 type: notification.type,
                 title: notification.title || notification.data?.title || 'Notification',
-                message: notification.data?.message,
+                message: notification.message || notification.data?.message || '',
                 data: notification.data,
                 isRead: notification.isRead || false,
                 createdAt: notification.createdAt || new Date().toISOString(),
                 updatedAt: notification.updatedAt || new Date().toISOString(),
             }
             addNotification(formattedNotification)
-            toast({
-                title: formattedNotification.title,
-                description: formattedNotification.data?.message,
-                duration: 5000,
-            })
+            
+            // Only show toast for certain notification types (not for every chat message)
+            const shouldShowToast = !formattedNotification.type.startsWith('CHAT_MESSAGE_') || 
+                                   formattedNotification.type === 'CHAT_MESSAGE_MONEY';
+            
+            if (shouldShowToast) {
+                toast({
+                    title: formattedNotification.title,
+                    description: formattedNotification.message || formattedNotification.data?.message,
+                    duration: 5000,
+                })
+            }
         },
         [addNotification],
     )
