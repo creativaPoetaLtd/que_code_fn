@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { Eye, EyeOff, User, Wifi, WifiOff, MessageCircle, Moon, Sun } from "lucide-react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
@@ -194,9 +195,11 @@ export const Header = () => {
         <div className="flex justify-between items-center px-3 sm:px-4 py-3 sm:py-4 min-h-16 sm:min-h-18 bg-white dark:bg-transparent">
             {/* Left Section: Title */}
             <div className="flex items-center justify-start">
-                <h2 className="text-sm sm:text-md lg:text-2xl font-bold text-[#00313A] dark:text-white leading-tight whitespace-nowrap">
-                    QiewCode
-                </h2>
+                <Link href="/">
+                    <h2 className="text-sm sm:text-md lg:text-2xl font-bold text-[#00313A] dark:text-white leading-tight whitespace-nowrap cursor-pointer hover:opacity-80 transition-opacity">
+                        QiewCode
+                    </h2>
+                </Link>
             </div>
 
             {/* Right Section: Connection Status, Notification & User Profile */}

@@ -612,9 +612,9 @@ export default function QRCodeScanner({ isOpen, onClose, onScanComplete, title =
                             <Scan size={20} className="mr-2" />
                             {title}
                         </DialogTitle>
-                        <Button variant="ghost" size="icon" onClick={handleClose}>
+                        {/* <Button variant="ghost" size="icon" onClick={handleClose}>
                             <X size={16} />
-                        </Button>
+                        </Button> */}
                     </div>
                 </DialogHeader>
 

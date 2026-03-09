@@ -18,7 +18,7 @@ export function FavoritesRow({ favorites, onSelect }: FavoritesRowProps) {
                     <button
                         key={contact.id}
                         onClick={() => onSelect(contact)}
-                        className="group flex flex-col items-center gap-2 p-2 rounded-xl hover:bg-white dark:hover:bg-darkBg-card hover:shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-blue-500/40"
+                        className="group flex flex-col items-center gap-2 p-2 rounded-xl hover:bg-gray-50 dark:hover:bg-darkBg-interactive hover:shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-blue-500/40"
                     >
                         <div className="relative">
                             <UserAvatar

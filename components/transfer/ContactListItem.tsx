@@ -27,7 +27,7 @@ const ContactListItem = ({ contact, onSelect }: ContactListItemProps) => {
     return (
         <button
             onClick={() => onSelect(contact)}
-            className="w-full bg-white dark:bg-darkBg-card p-4 rounded-2xl shadow-sm hover:shadow-md transition-all border border-gray-100 dark:border-darkBorder-light group flex items-start gap-4"
+            className="w-full bg-white dark:bg-darkBg-card p-4 rounded-2xl shadow-sm hover:shadow-md transition-all border border-gray-100 dark:border-darkBorder-light group flex items-start gap-4 hover:bg-gray-50 dark:hover:bg-darkBg-interactive"
         >
             {/* Avatar */}
             <div className="relative flex-shrink-0">

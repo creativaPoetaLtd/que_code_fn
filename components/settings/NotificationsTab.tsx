@@ -59,12 +59,12 @@ export const NotificationsTab: React.FC = () => {
       </CardHeader>
       <CardContent className="space-y-6">
         <div>
-          <h3 className="text-lg font-medium mb-3 dark:text-white">Transaction Notifications</h3>
+          <h3 className="text-base sm:text-lg font-medium mb-3 dark:text-white">Transaction Notifications</h3>
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="space-y-0.5 flex-1 min-w-0">
                 <Label htmlFor="notify-sent" className="dark:text-gray-300">Money Sent</Label>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Get notified when you send money</p>
+                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Get notified when you send money</p>
               </div>
               <Switch 
                 id="notify-sent" 
@@ -73,10 +73,10 @@ export const NotificationsTab: React.FC = () => {
               />
             </div>
             <Separator className="dark:bg-darkBorder-light" />
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="space-y-0.5 flex-1 min-w-0">
                 <Label htmlFor="notify-received" className="dark:text-gray-300">Money Received</Label>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Get notified when you receive money</p>
+                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Get notified when you receive money</p>
               </div>
               <Switch 
                 id="notify-received" 
@@ -85,10 +85,10 @@ export const NotificationsTab: React.FC = () => {
               />
             </div>
             <Separator className="dark:bg-darkBorder-light" />
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="space-y-0.5 flex-1 min-w-0">
                 <Label htmlFor="notify-requested" className="dark:text-gray-300">Money Requested</Label>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Get notified when someone requests money from you</p>
+                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Get notified when someone requests money from you</p>
               </div>
               <Switch 
                 id="notify-requested" 
@@ -100,12 +100,12 @@ export const NotificationsTab: React.FC = () => {
         </div>
 
         <div>
-          <h3 className="text-lg font-medium mb-3">Group Notifications</h3>
+          <h3 className="text-base sm:text-lg font-medium mb-3 dark:text-white">Group Notifications</h3>
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="notify-group-activity">Group Activity</Label>
-                <p className="text-sm text-gray-500">Get notified about new messages in groups</p>
+            <div className="flex items-center justify-between gap-3">
+              <div className="space-y-0.5 flex-1 min-w-0">
+                <Label htmlFor="notify-group-activity" className="dark:text-gray-300">Group Activity</Label>
+                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Get notified about new messages in groups</p>
               </div>
               <Switch 
                 id="notify-group-activity" 
@@ -113,11 +113,11 @@ export const NotificationsTab: React.FC = () => {
                 onCheckedChange={(checked) => updateSetting('notifyGroupActivity', checked)}
               />
             </div>
-            <Separator />
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="notify-contribution">Contribution Updates</Label>
-                <p className="text-sm text-gray-500">Get notified about contribution group updates</p>
+            <Separator className="dark:bg-darkBorder-light" />
+            <div className="flex items-center justify-between gap-3">
+              <div className="space-y-0.5 flex-1 min-w-0">
+                <Label htmlFor="notify-contribution" className="dark:text-gray-300">Contribution Updates</Label>
+                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Get notified about contribution group updates</p>
               </div>
               <Switch 
                 id="notify-contribution" 
@@ -129,12 +129,12 @@ export const NotificationsTab: React.FC = () => {
         </div>
 
         <div>
-          <h3 className="text-lg font-medium mb-3">Notification Channels</h3>
+          <h3 className="text-base sm:text-lg font-medium mb-3 dark:text-white">Notification Channels</h3>
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="channel-push">Push Notifications</Label>
-                <p className="text-sm text-gray-500">Receive notifications on your device</p>
+            <div className="flex items-center justify-between gap-3">
+              <div className="space-y-0.5 flex-1 min-w-0">
+                <Label htmlFor="channel-push" className="dark:text-gray-300">Push Notifications</Label>
+                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Receive notifications on your device</p>
               </div>
               <Switch 
                 id="channel-push" 
@@ -142,11 +142,11 @@ export const NotificationsTab: React.FC = () => {
                 onCheckedChange={(checked) => updateSetting('channelPush', checked)}
               />
             </div>
-            <Separator />
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="channel-email">Email Notifications</Label>
-                <p className="text-sm text-gray-500">Receive notifications via email</p>
+            <Separator className="dark:bg-darkBorder-light" />
+            <div className="flex items-center justify-between gap-3">
+              <div className="space-y-0.5 flex-1 min-w-0">
+                <Label htmlFor="channel-email" className="dark:text-gray-300">Email Notifications</Label>
+                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Receive notifications via email</p>
               </div>
               <Switch 
                 id="channel-email" 
