@@ -19,6 +19,7 @@ import RecipientHeader from "@/components/transfer/RecipientHeader";
 import AmountInput from "@/components/transfer/AmountInput";
 import CategorySelector from "@/components/transfer/CategorySelector";
 import PinEntry from "@/components/transfer/PinEntry";
+import { PinSetupModal } from "@/components/PinSetupModal";
 import { Loader2 } from "lucide-react";
 import { isTokenExpired, getUserIdFromToken } from "@/utils/jwtUtils";
 
@@ -54,6 +55,8 @@ const AmountPage = () => {
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+    const [showPinSetup, setShowPinSetup] = useState(false);
+    const [hasPinSet, setHasPinSet] = useState<boolean | null>(null);
 
     // Load recipient from session storage
     useEffect(() => {
@@ -65,7 +68,25 @@ const AmountPage = () => {
         } else {
             router.push('/home/transfer');
         }
-    }, [router]);
+
+        // Check PIN status
+        const checkPin = async () => {
+            const token = getToken();
+            if (token) {
+                try {
+                    const response: any = await checkUserPinStatus();
+                    const pinStatus = response?.hasPinSet || false;
+                    setHasPinSet(pinStatus);
+                    if (!pinStatus) {
+                        setShowPinSetup(true);
+                    }
+                } catch (error) {
+                    console.error('Error checking PIN status:', error);
+                }
+            }
+        };
+        checkPin();
+    }, [router, getToken]);
 
     // Fetch balance and categories
     useEffect(() => {
@@ -266,6 +287,12 @@ const AmountPage = () => {
             <div className="lg:hidden">
                 <Navigation />
             </div>
+
+            <PinSetupModal
+                open={showPinSetup}
+                onOpenChange={setShowPinSetup}
+                onSuccess={() => setHasPinSet(true)}
+            />
         </div>
     );
 };
