@@ -37,6 +37,8 @@ import { apiSlice } from "@/states/apiSlice"
 import { useDispatch } from "react-redux"
 import { useTheme } from "@/context/ThemeContext"
 import { ChevronIcon } from "@/components/ui/chevron-icon"
+import { useQRScanner } from "@/context/QRScannerContext"
+import QRCodeScanner from "@/components/chat/qr-code-scanner"
 
 interface NavigationItem {
     id: string
@@ -53,6 +55,7 @@ interface NavigationProps {
 export default function Navigation({ hideBottomNav = false }: NavigationProps) {
     const { isExpanded, toggleSidebar } = useSidebar()
     const { theme, toggleTheme } = useTheme()
+    const { isOpen, openScanner, closeScanner, onScanComplete } = useQRScanner()
     const [activeItem, setActiveItem] = useState<string>("Home")
     const [userId, setUserId] = useState<string>("")
     const [isReady, setIsReady] = useState<boolean>(false)
@@ -192,10 +195,10 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
             return;
         }
 
-        // Handle scan button (no navigation)
+        // Handle scan button - open QR scanner
         if (id === "Scan") {
             setActiveItem(id);
-            // Add scan functionality here
+            openScanner(undefined, "Scan Profile QR Code");
             return;
         }
 
@@ -512,6 +515,19 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
                     </div>
                 </div>
             </nav >
+            
+            {/* Global QR Code Scanner Modal */}
+            <QRCodeScanner
+                isOpen={isOpen}
+                onClose={closeScanner}
+                onScanComplete={async (result: string) => {
+                    if (onScanComplete) {
+                        await onScanComplete(result);
+                    }
+                    closeScanner();
+                }}
+                title="Scan Profile QR Code"
+            />
         </>
     )
 }

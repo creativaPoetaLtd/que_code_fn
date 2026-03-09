@@ -8,6 +8,7 @@ import { NotificationProvider } from "@/context/NotificationContext"
 import { ChatProvider } from "@/context/ChatContext"
 import { SidebarProvider } from "@/context/SidebarContext"
 import { ThemeProvider } from "@/context/ThemeContext"
+import { QRScannerProvider } from "@/context/QRScannerContext"
 
 
 const ClientProvider = ({ children }: { children: React.ReactNode }) => {
@@ -17,7 +18,9 @@ const ClientProvider = ({ children }: { children: React.ReactNode }) => {
                 <NotificationProvider>
                     <ChatProvider>
                         <SidebarProvider>
-                            {children}
+                            <QRScannerProvider>
+                                {children}
+                            </QRScannerProvider>
                         </SidebarProvider>
                     </ChatProvider>
                 </NotificationProvider>

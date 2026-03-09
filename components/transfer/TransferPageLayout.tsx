@@ -7,8 +7,8 @@ import { useAuthToken } from "@/hooks/use-auth-token";
 import { useGetAcceptedContactsQuery, useSendContactInvitationByPublicIdMutation } from "@/states/contactSlice";
 import { useLazyGetUserProfileForTransferQuery } from "@/states/userSlice";
 import { getEntityBalance, getRecentSends } from "@/helpers/api";
+import { useQRScanner } from "@/context/QRScannerContext";
 import AddContactModal from "@/components/chat/add-contact-modal";
-import QRCodeScanner from "@/components/chat/qr-code-scanner";
 import { extractPublicIdFromLink, validatePublicId } from "@/utils/profile-link";
 import { toast } from "@/hooks/use-toast";
 
@@ -23,12 +23,12 @@ import LinkInputModal from "./LinkInputModal";
 const TransferPageLayout = () => {
     const router = useRouter();
     const { getToken } = useAuthToken();
+    const { openScanner } = useQRScanner();
     const [sendInvitationByPublicId, { isLoading: isInviting }] = useSendContactInvitationByPublicIdMutation();
     const [getUserProfile, { isLoading: isLookingUpUser }] = useLazyGetUserProfileForTransferQuery();
     const [searchQuery, setSearchQuery] = useState("");
     const [contacts, setContacts] = useState<Contact[]>([]);
     const [isAddContactOpen, setIsAddContactOpen] = useState(false);
-    const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
     const [scannedUserInfo, setScannedUserInfo] = useState<any>(null);
     const [showScanOptions, setShowScanOptions] = useState(false);
     const [isExistingContact, setIsExistingContact] = useState(false);
@@ -161,12 +161,10 @@ const TransferPageLayout = () => {
     );
 
     const handleScanQR = () => {
-        setIsQRScannerOpen(true);
+        openScanner(handleScanComplete, "Scan QR Code for Transfer");
     };
 
     const handleScanComplete = async (result: string) => {
-        setIsQRScannerOpen(false);
-
         const publicId = extractPublicIdFromLink(result);
 
         if (!publicId || !validatePublicId(publicId)) {
@@ -379,14 +377,6 @@ const TransferPageLayout = () => {
             <AddContactModal
                 isOpen={isAddContactOpen}
                 onClose={() => setIsAddContactOpen(false)}
-            />
-
-            {/* QR Code Scanner Modal */}
-            <QRCodeScanner
-                isOpen={isQRScannerOpen}
-                onClose={() => setIsQRScannerOpen(false)}
-                onScanComplete={handleScanComplete}
-                title="Scan QR Code for Transfer"
             />
 
             {/* Link Input Modal */}

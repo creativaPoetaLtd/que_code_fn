@@ -66,15 +66,15 @@ export function ContactsTable({ contacts, isLoading, onSelect }: ContactsTablePr
                         <span className="text-xl">?</span>
                     </div>
                 </div>
-                <h3 className="text-lg font-medium text-gray-900">No contacts found</h3>
-                <p className="mt-1 text-sm text-gray-500">Get started by adding a new contact.</p>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">No contacts found</h3>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Get started by adding a new contact.</p>
             </div>
         );
     }
 
     return (
         <>
-            <div className="w-full">
+            <div className="w-full overflow-x-auto scrollbar-hide">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-darkBorder-light">
                     <thead className="bg-gray-50 dark:bg-darkBg-card border-b border-gray-200 dark:border-darkBorder-light">
                         <tr>
@@ -100,7 +100,7 @@ export function ContactsTable({ contacts, isLoading, onSelect }: ContactsTablePr
                             <tr
                                 key={contact.id}
                                 onClick={() => onSelect(contact)}
-                                className="hover:bg-gray-50 dark:hover:bg-darkBg-secondary/50 transition-colors cursor-pointer group"
+                                className="hover:bg-gray-50 dark:hover:bg-darkBg-interactive transition-colors cursor-pointer group"
                             >
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="flex items-center">

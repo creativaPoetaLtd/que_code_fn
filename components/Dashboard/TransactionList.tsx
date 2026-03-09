@@ -200,7 +200,7 @@ export const TransactionList = ({ transactions: propTransactions }: TransactionL
   };
 
   return (
-    <Card className="p-6 bg-white dark:bg-darkBg-card border border-gray-200 dark:border-darkBorder-light">
+    <Card className="p-4 md:p-6 bg-white dark:bg-darkBg-card border border-gray-200 dark:border-darkBorder-light">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
         <h2 className="text-xl font-semibold mb-4 md:mb-0 text-gray-900 dark:text-white">Transactions</h2>
         <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
@@ -240,7 +240,7 @@ export const TransactionList = ({ transactions: propTransactions }: TransactionL
           </div>
 
           {/* Date range filter */}
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-wrap items-center gap-2">
             <input
               type="date"
               value={startDate || ''}
@@ -265,7 +265,7 @@ export const TransactionList = ({ transactions: propTransactions }: TransactionL
           </div>
         </div>
       </div>
-      <div className="overflow-x-auto">
+      <div className="hidden md:block overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="text-left text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-darkBg-interactive border-b border-gray-200 dark:border-darkBorder-light">
@@ -406,8 +406,132 @@ export const TransactionList = ({ transactions: propTransactions }: TransactionL
           </div>
         )}
       </div>
+
+      {/* Mobile card list */}
+      <div className="block md:hidden space-y-3">
+        {/* Select All on mobile */}
+        <div className="flex items-center gap-2 px-1 pb-2 border-b border-gray-200 dark:border-darkBorder-light">
+          <input
+            type="checkbox"
+            checked={selectAll}
+            onChange={(e) => handleSelectAll(e.target.checked)}
+            className="w-4 h-4 rounded border-gray-300 dark:border-darkBorder-light dark:bg-darkBg-input"
+          />
+          <span className="text-sm text-gray-600 dark:text-gray-400">Select all</span>
+        </div>
+        {filteredTransactions.map((transaction) => {
+          const { amount, counterpartyName, counterpartyEmail, counterpartyProfileImage, isOutgoing } = getTransactionDisplayInfo(transaction);
+          const isSelected = selectedTransactions.has(transaction.id);
+          return (
+            <div key={transaction.id} className="border border-gray-200 dark:border-darkBorder-light rounded-lg p-4 bg-gray-50 dark:bg-darkBg-interactive">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-3 min-w-0">
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={(e) => handleSelectTransaction(transaction.id, e.target.checked)}
+                    className="w-4 h-4 shrink-0 rounded border-gray-300 dark:border-darkBorder-light dark:bg-darkBg-input"
+                  />
+                  <UserAvatar
+                    profileImage={counterpartyProfileImage}
+                    firstName={counterpartyName.split(' ')[0]}
+                    lastName={counterpartyName.split(' ')[1] || ''}
+                  />
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{counterpartyName}</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{counterpartyEmail}</div>
+                  </div>
+                </div>
+                <span className={`text-sm font-semibold shrink-0 ${amount < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                  {amount < 0 ? '-' : '+'}RWF {isNaN(Math.abs(amount)) ? '0' : Math.abs(amount).toLocaleString()}
+                </span>
+              </div>
+              <div className="mt-3 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${transaction.status === 'completed' ? 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400' :
+                    transaction.status === 'pending' ? 'bg-yellow-100 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-400' :
+                      'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400'
+                  }`}>
+                    {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
+                  </span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">{isOutgoing ? 'Sent' : 'Received'}</span>
+                  <span className="text-xs text-gray-400 dark:text-gray-500">
+                    {new Date(transaction.createdAt).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}
+                  </span>
+                </div>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <button className="px-3 py-1 shrink-0 bg-white dark:bg-transparent border border-gray-300 dark:border-white text-gray-700 dark:text-white text-xs font-medium rounded hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
+                      View
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent className="bg-white dark:bg-darkBg-card border dark:border-darkBorder-light">
+                    <DialogHeader>
+                      <DialogTitle className="text-gray-900 dark:text-white">Transaction Details</DialogTitle>
+                      <p className={`mt-2 text-2xl font-semibold ${amount < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                        {amount < 0 ? '-' : '+'}RWF {Math.abs(amount).toLocaleString()}
+                      </p>
+                    </DialogHeader>
+                    <DialogDescription className="dark:text-gray-300">
+                      <dl className="divide-y divide-gray-200 dark:divide-darkBorder-light text-sm">
+                        <div className="py-2 flex justify-between gap-2">
+                          <dt className="font-bold text-gray-700 dark:text-gray-300 shrink-0">Reference ID</dt>
+                          <dd className="text-gray-900 dark:text-gray-100 text-right break-all">{transaction.referenceId}</dd>
+                        </div>
+                        <div className="py-2 flex justify-between gap-2">
+                          <dt className="font-bold text-gray-700 dark:text-gray-300 shrink-0">Date & Time</dt>
+                          <dd className="text-gray-900 dark:text-gray-100 text-right">{new Date(transaction.createdAt).toLocaleString()}</dd>
+                        </div>
+                        <div className="py-2 flex justify-between gap-2">
+                          <dt className="font-bold text-gray-700 dark:text-gray-300 shrink-0">Type</dt>
+                          <dd className="text-gray-900 dark:text-gray-100">{isOutgoing ? 'Payment Sent' : 'Payment Received'}</dd>
+                        </div>
+                        <div className="py-2 flex justify-between gap-2">
+                          <dt className="font-bold text-gray-700 dark:text-gray-300 shrink-0">{isOutgoing ? 'Sent to' : 'Received from'}</dt>
+                          <dd className="text-gray-900 dark:text-gray-100 text-right">{counterpartyName}</dd>
+                        </div>
+                        <div className="py-2 flex justify-between gap-2">
+                          <dt className="font-bold text-gray-700 dark:text-gray-300 shrink-0">Amount</dt>
+                          <dd className="text-gray-900 dark:text-gray-100">RWF {Number(transaction.amount).toLocaleString()}</dd>
+                        </div>
+                        <div className="py-2 flex justify-between gap-2">
+                          <dt className="font-bold text-gray-700 dark:text-gray-300 shrink-0">Fee</dt>
+                          <dd className="text-gray-900 dark:text-gray-100">RWF {Number(transaction.fee).toLocaleString()}</dd>
+                        </div>
+                        {transaction.description && (
+                          <div className="py-2 flex justify-between gap-2">
+                            <dt className="font-bold text-gray-700 dark:text-gray-300 shrink-0">Description</dt>
+                            <dd className="text-gray-900 dark:text-gray-100 text-right">{transaction.description}</dd>
+                          </div>
+                        )}
+                        <div className="py-2 flex justify-between gap-2">
+                          <dt className="font-bold text-gray-700 dark:text-gray-300 shrink-0">Status</dt>
+                          <dd className="text-gray-900 dark:text-gray-100">{transaction.status}</dd>
+                        </div>
+                      </dl>
+                    </DialogDescription>
+                    <DialogFooter>
+                      <DialogClose className="px-4 py-2 bg-[#00B512] dark:bg-[#D4AF37] text-white dark:text-[#00313A] transition-colors">Close</DialogClose>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </div>
+          );
+        })}
+        {filteredTransactions.length === 0 && (
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+            {searchTerm ? 'No transactions found matching your search.' : 'No transactions found.'}
+          </div>
+        )}
+      </div>
+
       {/* Pagination controls */}
-      <div className="flex justify-between items-center mt-6">
+      <div className="flex flex-wrap justify-between items-center mt-6 gap-3">
         <div className="text-sm text-gray-600 dark:text-gray-400">
           {filteredTransactions.length > 0 ? `Showing page ${page}` : 'No results'}
         </div>

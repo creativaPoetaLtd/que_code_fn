@@ -138,7 +138,7 @@ const LoginForm: React.FC = () => {
       const response = await login(data).unwrap();
       const { token, account } = response;
 
-      setToken(token);
+      setToken(token, data.rememberMe ? 30 : 1);
 
       // Decode token to get user information
       const tokenInfo = decodeToken(token);
