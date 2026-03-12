@@ -71,6 +71,8 @@ interface OrganizationAction {
         userQuota?: number | null;
     };
     status?: string;
+    subActions?: SubAction[];
+    totalSubActionBalance?: number;
 }
 
 interface SubAction {
@@ -83,6 +85,11 @@ interface SubAction {
     isActive?: boolean;
     sortOrder?: number;
     metadata?: Record<string, any>;
+    wallet?: {
+        id: string;
+        balance: number;
+        currency: string;
+    };
 }
 
 type AccountMode = 'individual' | 'organization' | null;
@@ -996,6 +1003,15 @@ const ActionsByAccountPage = () => {
                                         <span className="font-semibold capitalize">{action.pricing.mode} pricing</span>
                                     </div>
                                 )}
+                                {action.totalSubActionBalance !== undefined && action.totalSubActionBalance !== null && (
+                                    <div className="flex items-center gap-2 mt-2 pt-2 border-t border-[#00B512]/10 dark:border-darkBorder-light">
+                                        <DollarSign className="w-4 h-4 text-[#00B512]" />
+                                        <span className="font-semibold">Total collected:</span>
+                                        <span className="font-bold text-[#00B512] dark:text-brand-green">
+                                            {action.currency || 'RWF'} {action.totalSubActionBalance.toLocaleString()}
+                                        </span>
+                                    </div>
+                                )}
                             </div>
                             {action.status === 'draft' && (
                                 <div className="mt-4">
@@ -1116,10 +1132,10 @@ const ActionsByAccountPage = () => {
             </div>
 
             <Dialog open={isSubActionsModalOpen} onOpenChange={setIsSubActionsModalOpen}>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto dark:bg-darkBg-card dark:border-darkBorder-light">
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto dark:bg-darkBg-card border-2 border-[#D4AF37]/20 dark:border-[#D4AF37]/20">
                     <DialogHeader>
                         <DialogTitle className="text-2xl font-bold text-[#00313A] dark:text-white flex items-center gap-3">
-                            <div className="w-10 h-10 bg-gradient-to-br from-[#00B512] to-[#1fd331] rounded-lg flex items-center justify-center shadow-md">
+                            <div className="w-10 h-10 bg-gradient-to-br from-[#D4AF37] to-[#E5C158] rounded-lg flex items-center justify-center shadow-md">
                                 <Ticket className="w-5 h-5 text-white" />
                             </div>
                             {selectedAction?.name || 'Action Details'}
@@ -1129,109 +1145,81 @@ const ActionsByAccountPage = () => {
                     {selectedAction && (
                         <div className="space-y-6">
                             {selectedAction.description && (
-                                <div className="bg-gradient-to-br from-[#f0fff4] via-[#e6f9f0] to-[#f6fff9] dark:bg-darkBg-interactive rounded-xl p-5 border-2 border-[#00B512]/10 dark:border-darkBorder-light text-sm text-[#00313A]/80 dark:text-gray-300 leading-relaxed">
+                                <div className="bg-gradient-to-br from-[#FFF9E6] to-[#FFFEF8] dark:bg-darkBg-interactive rounded-xl p-5 border-2 border-[#D4AF37]/20 dark:border-[#D4AF37]/20 text-sm text-[#00313A] dark:text-[#00313A] leading-relaxed">
                                     {selectedAction.description}
                                 </div>
                             )}
 
-                            <div className="space-y-3 text-sm text-[#00313A]/80 dark:text-gray-300">
-                                {selectedAction.availability?.startsAt && (
-                                    <div className="flex items-center gap-2">
-                                        <Calendar className="w-4 h-4 text-[#00B512]" />
-                                        <span className="font-semibold">Starts:</span>
-                                        <span>{formatDate(selectedAction.availability.startsAt)}</span>
-                                    </div>
-                                )}
-                                {selectedAction.availability?.endsAt && (
-                                    <div className="flex items-center gap-2">
-                                        <Clock className="w-4 h-4 text-[#00B512]" />
-                                        <span className="font-semibold">Ends:</span>
-                                        <span>{formatDate(selectedAction.availability.endsAt)}</span>
-                                    </div>
-                                )}
-                                {selectedAction.pricing?.mode && (
-                                    <div className="flex items-center gap-2">
-                                        <DollarSign className="w-4 h-4 text-[#00B512]" />
-                                        <span className="font-semibold capitalize">{selectedAction.pricing.mode} pricing</span>
-                                    </div>
-                                )}
-                            </div>
-
                             {accountMode === 'organization' && (
-                                <div className="bg-gray-50 dark:bg-darkBg-interactive border border-[#00B512]/10 dark:border-darkBorder-light rounded-2xl p-4 space-y-3">
-                                    <h4 className="text-sm font-semibold text-[#00313A] dark:text-white">Add Sub-action</h4>
-                                    <div className="grid gap-3 md:grid-cols-2">
-                                        <input
-                                            type="text"
-                                            placeholder="Name"
-                                            value={newSubAction.name}
-                                            onChange={(e) => handleSubActionFieldChange('name', e.target.value)}
-                                            className="w-full rounded-xl border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-main dark:text-white dark:placeholder-gray-500 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B512]/40"
-                                        />
-                                        <input
-                                            type="number"
-                                            placeholder="Price"
-                                            value={newSubAction.price}
-                                            onChange={(e) => handleSubActionFieldChange('price', e.target.value)}
-                                            className="w-full rounded-xl border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-main dark:text-white dark:placeholder-gray-500 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B512]/40"
-                                        />
-                                        <input
-                                            type="text"
-                                            placeholder="Seat / Zone"
-                                            value={newSubAction.seatType}
-                                            onChange={(e) => handleSubActionFieldChange('seatType', e.target.value)}
-                                            className="w-full rounded-xl border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-main dark:text-white dark:placeholder-gray-500 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B512]/40"
-                                        />
-                                        <input
-                                            type="number"
-                                            placeholder="Stock (optional)"
-                                            value={newSubAction.stock}
-                                            onChange={(e) => handleSubActionFieldChange('stock', e.target.value)}
-                                            className="w-full rounded-xl border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-main dark:text-white dark:placeholder-gray-500 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B512]/40"
-                                        />
-                                    </div>
-                                    <textarea
-                                        placeholder="Description (optional)"
-                                        value={newSubAction.description}
-                                        onChange={(e) => handleSubActionFieldChange('description', e.target.value)}
-                                        className="w-full rounded-xl border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-main dark:text-white dark:placeholder-gray-500 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00B512]/40"
-                                        rows={3}
-                                    />
-                                    {subActionError && <p className="text-sm text-red-500 dark:text-red-400">{subActionError}</p>}
-                                    <div className="flex items-center gap-3">
-                                        {editingSubActionId && (
-                                            <button
-                                                type="button"
-                                                onClick={resetSubActionForm}
-                                                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-main text-sm font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-darkBg-card"
-                                            >
-                                                Cancel Edit
-                                            </button>
+                                <div className="bg-gradient-to-br from-[#FFF9E6] to-[#FFFEF8] dark:bg-darkBg-interactive border-2 border-[#D4AF37]/20 dark:border-[#D4AF37]/20 rounded-2xl p-4 space-y-3">
+                                    <h4 className="text-sm font-semibold text-[#D4AF37] uppercase tracking-wide flex items-center gap-2">
+                                        <Sparkles className="w-4 h-4 text-[#D4AF37]" />
+                                        Action Details
+                                    </h4>
+                                    <div className="grid gap-3 sm:grid-cols-2 text-sm">
+                                        {selectedAction.status && (
+                                            <div className="flex flex-col gap-1">
+                                                <span className="text-xs font-semibold text-[#D4AF37] uppercase tracking-widest">Status</span>
+                                                <span className={`font-semibold capitalize ${
+                                                    isActionExpired(selectedAction)
+                                                        ? 'text-orange-600 dark:text-orange-400'
+                                                        : selectedAction.status === 'published'
+                                                        ? 'text-[#00B512] dark:text-brand-green'
+                                                        : 'text-gray-500 dark:text-gray-300'
+                                                }`}>
+                                                    {isActionExpired(selectedAction) ? 'Archived (Expired)' : selectedAction.status}
+                                                </span>
+                                            </div>
                                         )}
-                                        <button
-                                            onClick={handleSaveSubAction}
-                                            disabled={creatingSubAction}
-                                            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full bg-[#00B512] text-white text-sm font-semibold shadow hover:bg-[#009a0f] disabled:opacity-60"
-                                        >
-                                            {creatingSubAction ? 'Saving...' : editingSubActionId ? 'Update Sub-action' : 'Add Sub-action'}
-                                        </button>
+                                        {selectedAction.currency && (
+                                            <div className="flex flex-col gap-1">
+                                                <span className="text-xs font-semibold text-[#D4AF37] uppercase tracking-widest">Currency</span>
+                                                <span className="font-semibold text-[#00313A] dark:text-[#00313A]">{selectedAction.currency}</span>
+                                            </div>
+                                        )}
+                                        {selectedAction.pricing?.mode && (
+                                            <div className="flex flex-col gap-1">
+                                                <span className="text-xs font-semibold text-[#D4AF37] uppercase tracking-widest">Pricing Mode</span>
+                                                <span className="font-semibold text-[#00313A] dark:text-[#00313A] capitalize">{selectedAction.pricing.mode}</span>
+                                            </div>
+                                        )}
+                                        {selectedAction.totalSubActionBalance !== undefined && selectedAction.totalSubActionBalance !== null && (
+                                            <div className="flex flex-col gap-1">
+                                                <span className="text-xs font-semibold text-[#D4AF37] uppercase tracking-widest">Total Collected</span>
+                                                <span className="font-bold text-[#D4AF37]">
+                                                    {selectedAction.currency || 'RWF'} {selectedAction.totalSubActionBalance.toLocaleString()}
+                                                </span>
+                                            </div>
+                                        )}
+                                        {selectedAction.availability?.startsAt && (
+                                            <div className="flex flex-col gap-1">
+                                                <span className="text-xs font-semibold text-[#D4AF37] uppercase tracking-widest">Starts At</span>
+                                                <span className="font-semibold text-[#00313A] dark:text-[#00313A]">{formatDate(selectedAction.availability.startsAt)}</span>
+                                            </div>
+                                        )}
+                                        {selectedAction.availability?.endsAt && (
+                                            <div className="flex flex-col gap-1">
+                                                <span className="text-xs font-semibold text-[#D4AF37] uppercase tracking-widest">Ends At</span>
+                                                <span className="font-semibold text-[#00313A] dark:text-[#00313A]">{formatDate(selectedAction.availability.endsAt)}</span>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             )}
 
                             <div>
                                 <h3 className="text-lg font-bold text-[#00313A] dark:text-white mb-4 flex items-center gap-2">
-                                    <Sparkles className="w-5 h-5 text-[#00B512] dark:text-brand-green" />
+                                    <Sparkles className="w-5 h-5 text-[#D4AF37]" />
                                     Available Options
                                 </h3>
 
                                 {subActionsLoading ? (
                                     <div className="flex items-center justify-center py-12">
-                                        <Loader2 className="w-8 h-8 text-[#00B512] dark:text-brand-green animate-spin" />
+                                        <Loader2 className="w-8 h-8 text-[#D4AF37] animate-spin" />
                                     </div>
                                 ) : subActions.length === 0 ? (
-                                    <div className="text-center py-8 bg-gradient-to-br from-[#f0fff4] via-[#e6f9f0] to-[#f6fff9] dark:bg-darkBg-interactive rounded-xl border-2 border-[#00B512]/10 dark:border-darkBorder-light">
-                                        <Ticket className="w-12 h-12 text-[#00B512]/30 dark:text-brand-green/30 mx-auto mb-3" />
+                                    <div className="text-center py-8 bg-gradient-to-br from-[#FFF9E6] to-[#FFFEF8] dark:bg-darkBg-interactive rounded-xl border-2 border-[#D4AF37]/20">
+                                        <Ticket className="w-12 h-12 text-[#D4AF37]/30 mx-auto mb-3" />
                                         <p className="text-[#00313A]/60 dark:text-gray-300 font-medium">No sub actions available.</p>
                                     </div>
                                 ) : (
@@ -1242,7 +1230,7 @@ const ActionsByAccountPage = () => {
                                             .map((subAction) => (
                                                 <div
                                                     key={subAction.id}
-                                                    className="bg-white dark:bg-darkBg-main rounded-xl p-5 border-2 border-[#00B512]/10 dark:border-darkBorder-light shadow-md hover:shadow-lg dark:hover:bg-darkBg-interactive transition-all duration-300"
+                                                    className="bg-white dark:bg-darkBg-main rounded-xl p-5 border-2 border-[#D4AF37]/20 dark:border-[#D4AF37]/20 shadow-md hover:shadow-lg hover:border-[#D4AF37]/40 dark:hover:bg-darkBg-interactive transition-all duration-300"
                                                 >
                                                     <div className="flex items-start justify-between gap-4">
                                                         <div className="flex-1">
@@ -1251,31 +1239,39 @@ const ActionsByAccountPage = () => {
                                                                 <p className="text-sm text-[#00313A]/70 dark:text-gray-300 mt-1">{subAction.description}</p>
                                                             )}
                                                         </div>
-                                                        <div className="text-right">
-                                                            <p className="text-lg font-bold text-[#00B512] dark:text-brand-green">
+                                                        <div className="text-right flex-shrink-0">
+                                                            <p className="text-lg font-bold text-[#D4AF37]">
                                                                 {subAction.price && selectedAction.currency
                                                                     ? `${selectedAction.currency} ${parseFloat(subAction.price).toLocaleString()}`
                                                                     : subAction.price}
                                                             </p>
                                                             {subAction.stock !== null && subAction.stock !== undefined && (
-                                                                <p className="text-xs text-[#00313A]/60 dark:text-gray-400">{subAction.stock} available</p>
+                                                                <p className="text-xs text-[#00313A]/60 dark:text-gray-400 mt-0.5">{subAction.stock} available</p>
                                                             )}
+                                                            {subAction.stockReserved !== null && subAction.stockReserved !== undefined && (
+                                                                <p className="text-xs font-semibold text-[#D4AF37] mt-0.5">{subAction.stockReserved} sold</p>
+                                                            )}
+                                                            {subAction.wallet && accountMode === 'organization' ? (
+                                                                <p className="text-xs font-semibold text-[#D4AF37] mt-1">
+                                                                    Wallet: {subAction.wallet.currency} {subAction.wallet.balance.toLocaleString()}
+                                                                </p>
+                                                            ) : null}
                                                         </div>
-                                                    <div className="flex items-center gap-2">
-                                                        {accountMode === 'organization' && selectedAction?.status === 'published' && (
+                                                    </div>
+                                                    {accountMode === 'organization' && selectedAction?.status === 'published' && (
+                                                        <div className="mt-3 pt-3 border-t border-[#D4AF37]/10 flex justify-end">
                                                             <button
                                                                 type="button"
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
                                                                     handleEditSubActionClick(subAction);
                                                                 }}
-                                                                className="text-xs font-semibold text-[#00B512] dark:text-brand-green hover:underline"
+                                                                className="text-xs font-semibold text-[#D4AF37] hover:underline"
                                                             >
                                                                 Edit
                                                             </button>
-                                                        )}
-                                                    </div>
-                                                </div>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             ))}
                                     </div>
@@ -1288,7 +1284,7 @@ const ActionsByAccountPage = () => {
                         <button
                             type="button"
                             onClick={() => setIsSubActionsModalOpen(false)}
-                            className="px-4 py-2 rounded-full border-2 border-[#00B512] dark:border-brand-green text-[#00B512] dark:text-brand-green font-semibold hover:bg-[#00B512] dark:hover:bg-brand-green hover:text-white transition-colors"
+                            className="px-4 py-2 rounded-full border-2 border-[#D4AF37] text-[#D4AF37] font-semibold hover:bg-[#D4AF37] hover:text-white transition-colors"
                         >
                             Close
                         </button>

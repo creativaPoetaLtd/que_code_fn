@@ -141,6 +141,20 @@ const ActionPageLayout: React.FC = () => {
             ),
         },
         {
+            title: "Collected",
+            key: "totalSubActionBalance",
+            render: (_, record) => {
+                if (record.totalSubActionBalance === undefined || record.totalSubActionBalance === null) {
+                    return <span className="text-gray-400">—</span>;
+                }
+                return (
+                    <span className="font-semibold text-[#00B512]">
+                        {record.currency || 'RWF'} {record.totalSubActionBalance.toLocaleString()}
+                    </span>
+                );
+            },
+        },
+        {
             title: "Visibility",
             dataIndex: ["visibility", "mode"],
             key: "visibility",

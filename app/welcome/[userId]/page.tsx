@@ -148,6 +148,11 @@ interface SubAction {
   dedicatedQrCodeData?: string | null;
   createdAt: string;
   updatedAt: string;
+  wallet?: {
+    id: string;
+    balance: number;
+    currency: string;
+  };
 }
 
 const WelcomeProfilePage: React.FC = () => {
@@ -185,6 +190,14 @@ const WelcomeProfilePage: React.FC = () => {
   const [purchaseError, setPurchaseError] = useState<Record<string, string>>(
     {}
   );
+  const [purchaseResult, setPurchaseResult] = useState<{
+    referenceId: string;
+    description: string;
+    buyerBalanceAfter: number;
+    buyerCurrency: string;
+    qrCodeData?: string;
+  } | null>(null);
+  const [isPurchaseSuccessOpen, setIsPurchaseSuccessOpen] = useState(false);
 
   useEffect(() => {
     setIsHydrated(true);
@@ -562,17 +575,7 @@ const WelcomeProfilePage: React.FC = () => {
       const response = await axios.post(purchaseUrl, requestBody, { headers });
 
       if (response.data) {
-        // Build toast description with post-purchase message if available
-        let description = `You have successfully purchased ${data.quantity} ${data.quantity === 1 ? 'item' : 'items'} of ${subAction.name}.`;
-        
-        if (selectedAction?.fulfillment?.postPurchaseMessage) {
-          description += `\n\n${selectedAction.fulfillment.postPurchaseMessage}`;
-        }
-        
-        toast({
-          title: "Purchase Successful!",
-          description,
-        });
+        const resultData = response.data?.data;
 
         // Reset purchase data for this sub-action
         setPurchaseData(prev => {
@@ -588,7 +591,29 @@ const WelcomeProfilePage: React.FC = () => {
           return newErrors;
         });
 
-        // Refresh sub-actions to update stock immediately
+        if (resultData?.transaction) {
+          // Show enriched success dialog
+          setPurchaseResult({
+            referenceId: resultData.transaction.referenceId || '',
+            description: resultData.transaction.description || '',
+            buyerBalanceAfter: resultData.wallets?.buyer?.balanceAfter ?? 0,
+            buyerCurrency: resultData.wallets?.buyer?.currency || 'RWF',
+            qrCodeData: resultData.qrObject?.qrCodeData,
+          });
+          setIsPurchaseSuccessOpen(true);
+        } else {
+          // Fallback toast
+          let description = `You have successfully purchased ${data.quantity} ${data.quantity === 1 ? 'item' : 'items'} of ${subAction.name}.`;
+          if (selectedAction?.fulfillment?.postPurchaseMessage) {
+            description += `\n\n${selectedAction.fulfillment.postPurchaseMessage}`;
+          }
+          toast({
+            title: 'Purchase Successful!',
+            description,
+          });
+        }
+
+        // Refresh sub-actions to update stock
         if (selectedAction) {
           await fetchSubActions(selectedAction.id);
         }
@@ -668,7 +693,7 @@ const WelcomeProfilePage: React.FC = () => {
           <textarea
             value={value || ''}
             onChange={(e) => updateBuyerData(subActionId, field, e.target.value)}
-            className="w-full h-20 rounded-lg border-2 border-[#00313A]/10 focus:border-[#D4AF37] text-sm p-2 focus:outline-none"
+            className="w-full h-20 rounded-lg border-2 border-[#00313A]/10 focus:border-[#D4AF37] text-sm p-2 focus:outline-none text-black"
             placeholder={config.placeholder}
           />
         ) : (
@@ -676,7 +701,7 @@ const WelcomeProfilePage: React.FC = () => {
             type={config.type}
             value={value || ''}
             onChange={(e) => updateBuyerData(subActionId, field, e.target.value)}
-            className="h-9 rounded-lg border-2 border-[#00313A]/10 focus:border-[#D4AF37] text-sm"
+            className="h-9 rounded-lg border-2 border-[#00313A]/10 focus:border-[#D4AF37] text-sm text-black"
             placeholder={config.placeholder}
           />
         )}
@@ -1912,6 +1937,11 @@ const WelcomeProfilePage: React.FC = () => {
                                       </span>
                                     )}
                                   </div>
+                                  {subAction.wallet && currentUserId === userId && isLoggedInAsOrganization && (
+                                    <p className='text-xs font-semibold text-[#D4AF37] mt-1'>
+                                      Wallet: {subAction.wallet.currency} {subAction.wallet.balance.toLocaleString()}
+                                    </p>
+                                  )}
                                 </div>
                               </div>
 
@@ -2254,6 +2284,75 @@ const WelcomeProfilePage: React.FC = () => {
             <CustomButton
               variant='outline'
               onClick={() => setIsSubActionsModalOpen(false)}
+              className='border-2 border-[#D4AF37] text-[#D4AF37] rounded-xl font-bold hover:bg-[#D4AF37] hover:text-white'
+            >
+              Close
+            </CustomButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Purchase Success Dialog */}
+      <Dialog open={isPurchaseSuccessOpen} onOpenChange={setIsPurchaseSuccessOpen}>
+        <DialogContent className='bg-white dark:bg-darkBg-card border border-gray-200 dark:border-darkBorder-light rounded-3xl max-w-md'>
+          <DialogHeader>
+            <DialogTitle className='text-2xl font-bold text-[#00313A] dark:text-white flex items-center gap-3'>
+              <div className='w-10 h-10 bg-gradient-to-br from-[#D4AF37] to-[#E5C158] rounded-full flex items-center justify-center shadow-md'>
+                <Star className='w-6 h-6 text-white' />
+              </div>
+              Purchase Successful!
+            </DialogTitle>
+          </DialogHeader>
+          {purchaseResult && (
+            <div className='space-y-5 py-4'>
+              {/* Reference ID */}
+              <div className='bg-[#FFF9E6] dark:bg-darkBg-interactive rounded-xl p-4 border border-[#D4AF37]/20'>
+                <p className='text-xs font-semibold text-[#D4AF37] uppercase tracking-wide mb-1'>Receipt / Reference</p>
+                <p className='text-base font-bold text-[#00313A] dark:text-white font-mono'>{purchaseResult.referenceId}</p>
+              </div>
+
+              {/* Description */}
+              {purchaseResult.description && (
+                <div className='bg-gray-50 dark:bg-darkBg-interactive rounded-xl p-4 border border-gray-200 dark:border-darkBorder-light'>
+                  <p className='text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1'>Purchase Summary</p>
+                  <p className='text-sm text-[#00313A] dark:text-white'>{purchaseResult.description}</p>
+                </div>
+              )}
+
+              {/* Updated Wallet Balance */}
+              <div className='bg-gradient-to-br from-[#FFF9E6] to-[#FFFEF8] dark:from-darkBg-interactive dark:to-darkBg-card rounded-xl p-4 border-2 border-[#D4AF37]/20'>
+                <p className='text-xs font-semibold text-[#D4AF37] uppercase tracking-wide mb-1'>Your New Wallet Balance</p>
+                <p className='text-2xl font-bold text-[#00313A] dark:text-white'>
+                  {purchaseResult.buyerCurrency} {purchaseResult.buyerBalanceAfter.toLocaleString()}
+                </p>
+              </div>
+
+              {/* Post Purchase Message */}
+              {selectedAction?.fulfillment?.postPurchaseMessage && (
+                <div className='bg-gradient-to-br from-[#FFF9E6] to-[#FFFEF8] dark:bg-darkBg-interactive rounded-xl p-4 border-2 border-[#D4AF37]/20'>
+                  <p className='text-xs font-semibold text-[#D4AF37] uppercase tracking-wide mb-1'>Message from Organizer</p>
+                  <p className='text-sm font-bold text-[#00313A] leading-relaxed'>{selectedAction.fulfillment.postPurchaseMessage}</p>
+                </div>
+              )}
+
+              {/* QR Code */}
+              {purchaseResult.qrCodeData && (
+                <div className='flex flex-col items-center gap-3 bg-white dark:bg-darkBg-main rounded-xl p-4 border-2 border-[#D4AF37]/20'>
+                  <p className='text-xs font-semibold text-[#D4AF37] uppercase tracking-wide'>Your Ticket QR Code</p>
+                  <img
+                    src={purchaseResult.qrCodeData}
+                    alt='Ticket QR Code'
+                    className='w-40 h-40 rounded-lg'
+                  />
+                  <p className='text-xs text-gray-500 dark:text-gray-400 text-center'>Show this at the entry gate</p>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <CustomButton
+              variant='outline'
+              onClick={() => setIsPurchaseSuccessOpen(false)}
               className='border-2 border-[#D4AF37] text-[#D4AF37] rounded-xl font-bold hover:bg-[#D4AF37] hover:text-white'
             >
               Close
