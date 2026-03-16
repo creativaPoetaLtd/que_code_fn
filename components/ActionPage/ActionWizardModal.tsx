@@ -52,7 +52,7 @@ interface ActionWizardModalProps {
 const allStepItems = [
     { key: 'stepA', title: 'Identity', description: 'Type & basics' },
     { key: 'stepB', title: 'Pricing', description: 'Currency & price' },
-    { key: 'subActions', title: 'Tickets & sub-actions', description: 'Sub-actions' },
+    { key: 'subActions', title: 'Sub-actions', description: 'Sub-actions' },
     { key: 'configuration', title: 'Configuration', description: 'Schedule, policies & settings' },
     { key: 'publish', title: 'Review & Publish', description: 'Review & go live' },
 ];
@@ -483,6 +483,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
     const [subActionCoverImageFile, setSubActionCoverImageFile] = useState<File | null>(null);
     const [subActionCoverImagePreview, setSubActionCoverImagePreview] = useState<string | null>(null);
     const [selectedType, setSelectedType] = useState<string | undefined>(undefined);
+    const [actionNameForSubActions, setActionNameForSubActions] = useState<string>('');
     const [pricingMode, setPricingMode] = useState<string>('fixed');
     const [availabilityMode, setAvailabilityMode] = useState<string>('always');
 
@@ -498,6 +499,15 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
 
     const stepKey = useMemo(() => stepItems[currentStep]?.key, [currentStep, stepItems]);
     const isLastStep = currentStep === stepItems.length - 1;
+    const shouldAskStock = !['service', 'donation', 'vote'].includes(selectedType || '');
+    const isVoteTieredPricing = selectedType === 'vote' && pricingMode === 'tiered';
+    const nextSubActionSortOrder = useMemo(() => {
+        const currentMaxSortOrder = subActions.reduce((max, item) => {
+            const itemSortOrder = Number((item as any).sortOrder);
+            return Number.isFinite(itemSortOrder) ? Math.max(max, itemSortOrder) : max;
+        }, 0);
+        return currentMaxSortOrder + 1;
+    }, [subActions]);
 
     const resetState = useCallback(() => {
         setCurrentStep(0);
@@ -514,6 +524,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
         setSubActionCoverImageFile(null);
         setSubActionCoverImagePreview(null);
         setSelectedType(undefined);
+        setActionNameForSubActions('');
         setPricingMode('fixed');
         setAvailabilityMode('always');
     }, [form, subActionForm]);
@@ -527,12 +538,16 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
     useEffect(() => {
         if (stepKey === 'subActions') {
             subActionForm.resetFields();
+            if (pricingMode === 'pay_what_you_want' && actionNameForSubActions) {
+                subActionForm.setFieldValue('name', actionNameForSubActions);
+            }
             return;
         }
         form.resetFields();
         if (stepKey === 'stepA') {
             if (existingAction) {
                 setSelectedType(existingAction.type);
+                setActionNameForSubActions(existingAction.name || '');
                 form.setFieldsValue({
                     type: existingAction.type,
                     name: existingAction.name,
@@ -551,7 +566,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                 setSelectedType(undefined);
             }
         } else if (stepKey === 'stepB') {
-            const mode = existingAction?.pricing?.mode || 'fixed';
+            const mode = selectedType === 'vote' ? 'tiered' : (existingAction?.pricing?.mode || 'fixed');
             setPricingMode(mode);
             form.setFieldsValue({
                 pricingMode: mode,
@@ -606,6 +621,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
             setIsEditingExisting(false);
             setExistingAction(null);
             setActionId(null);
+            setActionNameForSubActions('');
         }
     }, [editingActionId, open]);
 
@@ -630,10 +646,10 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
         }
     }, [actionId, loadSubActions]);
 
-    const handleAddSubAction = async () => {
+    const handleAddSubAction = async (): Promise<boolean> => {
         if (!actionId) {
             message.error('Complete steps A & B before adding sub-actions.');
-            return;
+            return false;
         }
         try {
             const values = await subActionForm.validateFields();
@@ -641,13 +657,13 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
             // Validate required fields
             if (!values.name || !values.name.trim()) {
                 message.error('Sub-action name is required');
-                return;
+                return false;
             }
             
-            if (pricingMode !== 'pay_what_you_want' && pricingMode !== 'free') {
+            if (pricingMode !== 'pay_what_you_want' && pricingMode !== 'free' && !isVoteTieredPricing) {
                 if (values.price === null || values.price === undefined || values.price === '') {
                     message.error('Price is required');
-                    return;
+                    return false;
                 }
             }
             
@@ -655,8 +671,8 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
             
             // Sanitize ALL numeric inputs from form
             const rawStock = values.stock;
-            const rawSortOrder = values.sortOrder;
-            const rawPrice = pricingMode !== 'pay_what_you_want' ? values.price : undefined;
+            const rawPrice = pricingMode !== 'pay_what_you_want' && !isVoteTieredPricing ? values.price : undefined;
+            const minimumTieredAmount = Number(form.getFieldValue('amount') ?? existingAction?.pricing?.amount ?? 0);
             
             // Handle price - sanitize NaN values
             let price: number;
@@ -664,6 +680,11 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                 price = 0;
             } else if (pricingMode === 'free') {
                 price = 0;
+            } else if (isVoteTieredPricing) {
+                if (isNaN(minimumTieredAmount)) {
+                    throw new Error('Minimum amount is required for vote tiered pricing');
+                }
+                price = minimumTieredAmount;
             } else {
                 // For tiered and fixed modes, price must be a valid number
                 if (rawPrice === null || rawPrice === undefined || isNaN(rawPrice)) {
@@ -676,11 +697,6 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
             const stock = (rawStock === null || rawStock === undefined || rawStock === '' || isNaN(rawStock))
                 ? null 
                 : parseInt(String(rawStock), 10);
-            
-            // Handle sortOrder - ensure it's a valid integer
-            const sortOrder = (rawSortOrder === null || rawSortOrder === undefined || rawSortOrder === '' || isNaN(rawSortOrder))
-                ? 0 
-                : parseInt(String(rawSortOrder), 10);
             
             // Handle metadata
             let metadataObj: Record<string, any> = {};
@@ -706,11 +722,11 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                 price,
                 stock,
                 metadata: Object.keys(metadataObj).length > 0 ? metadataObj : {},
-                sortOrder,
+                sortOrder: nextSubActionSortOrder,
             };
             
             // Final validation - ensure no NaN values in numeric fields
-            if (isNaN(payload.price) || isNaN(payload.sortOrder)) {
+            if (isNaN(payload.price)) {
                 throw new Error('Invalid numeric values detected');
             }
             
@@ -759,16 +775,21 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
             
             message.success('Sub-action added');
             subActionForm.resetFields();
+            if (pricingMode === 'pay_what_you_want' && actionNameForSubActions) {
+                subActionForm.setFieldValue('name', actionNameForSubActions);
+            }
             setSubActionCoverImageFile(null);
             setSubActionCoverImagePreview(null);
-            loadSubActions();
+            await loadSubActions();
+            return true;
         } catch (err: any) {
             if (err?.errorFields) {
-                return;
+                return false;
             }
             console.error(err);
             const errorMsg = err?.response?.data?.message || err?.message || 'Failed to add sub-action';
             message.error(errorMsg);
+            return false;
         } finally {
             setLoading(false);
         }
@@ -815,6 +836,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                 
                 if (actionId) {
                     await updateActionWithFormData(actionId, formData);
+                    setActionNameForSubActions(values.name);
                     message.success('Action details updated');
                     setCurrentStep((prev) => prev + 1);
                     return;
@@ -826,6 +848,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                     throw new Error('Failed to retrieve new action ID');
                 }
                 setActionId(newActionId);
+                setActionNameForSubActions(values.name);
                 // Clear file after successful upload
                 setCoverImageFile(null);
                 message.success('Step A completed');
@@ -845,6 +868,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                 };
                 if (actionId) {
                     await updateAction(actionId, payload);
+                    setActionNameForSubActions(values.name);
                     message.success('Action details updated');
                     setCurrentStep((prev) => prev + 1);
                     return;
@@ -856,6 +880,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                     throw new Error('Failed to retrieve new action ID');
                 }
                 setActionId(newActionId);
+                setActionNameForSubActions(values.name);
                 message.success('Step A completed');
                 setCurrentStep((prev) => prev + 1);
                 return;
@@ -865,13 +890,14 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
             if (key === 'stepB') {
                 const values = await form.validateFields();
                 setLoading(true);
+                const effectivePricingMode = selectedType === 'vote' ? 'tiered' : values.pricingMode;
                 
                 // Store pricing mode for step 3
-                setPricingMode(values.pricingMode);
+                setPricingMode(effectivePricingMode);
                 
                 await updateActionStepB(actionId as string, {
                     pricing: {
-                        mode: values.pricingMode,
+                        mode: effectivePricingMode,
                         amount: values.amount ?? 0,
                     },
                     currency: values.currency,
@@ -879,12 +905,12 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                 });
                 
                 // Auto-create sub-action for Fixed pricing
-                if (values.pricingMode === 'fixed' || values.pricingMode === 'free') {
-                    const actionName = form.getFieldValue('name');
+                if (effectivePricingMode === 'fixed' || effectivePricingMode === 'free') {
+                    const actionName = actionNameForSubActions || form.getFieldValue('name');
                     const autoSubActionPayload = {
                         name: actionName,
                         description: values.subActionDescription || null,
-                        price: values.pricingMode === 'fixed' ? (values.amount ?? 0) : 0,
+                        price: effectivePricingMode === 'fixed' ? (values.amount ?? 0) : 0,
                         stock: values.subActionStock ?? null,
                         metadata: {
                             seatType: values.subActionSeatType || undefined,
@@ -898,7 +924,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                                   })()
                                 : {}),
                         },
-                        sortOrder: values.subActionSortOrder ?? 0,
+                        sortOrder: nextSubActionSortOrder,
                     };
                     try {
                         await createSubAction(actionId as string, autoSubActionPayload);
@@ -915,6 +941,15 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
             }
 
             if (key === 'subActions') {
+                const pendingSubActionName = subActionForm.getFieldValue('name');
+                if (pendingSubActionName && String(pendingSubActionName).trim().length > 0) {
+                    const added = await handleAddSubAction();
+                    if (!added) {
+                        return;
+                    }
+                    setCurrentStep((prev) => prev + 1);
+                    return;
+                }
                 if (subActions.length === 0) {
                     message.warning('Add at least one sub-action before continuing.');
                     return;
@@ -1155,18 +1190,27 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                         <Form.Item name="pricingMode" label="Pricing Mode" rules={[{ required: true, message: 'Select a pricing mode' }]}>
                             <Select
                                 onChange={(value) => setPricingMode(value)}
-                                options={[
-                                    { label: 'Fixed - Creates one sub-action automatically', value: 'fixed' },
-                                    { label: 'Tiered - Create multiple sub-actions', value: 'tiered' },
-                                    { label: 'Free - No charge required', value: 'free' },
-                                    { label: 'Pay what you want - Let buyers decide', value: 'pay_what_you_want' },
-                                ]}
+                                disabled={selectedType === 'vote'}
+                                options={selectedType === 'vote'
+                                    ? [{ label: 'Tiered - Create multiple sub-actions', value: 'tiered' }]
+                                    : [
+                                        { label: 'Fixed - Creates one sub-action automatically', value: 'fixed' },
+                                        { label: 'Tiered - Create multiple sub-actions', value: 'tiered' },
+                                        { label: 'Free - No charge required', value: 'free' },
+                                        { label: 'Pay what you want - Let buyers decide', value: 'pay_what_you_want' },
+                                    ]}
                             />
                         </Form.Item>
                         {(pricingMode === 'fixed' || pricingMode === 'tiered' || pricingMode === 'pay_what_you_want') && (
                             <Form.Item
                                 name="amount"
-                                label={pricingMode === 'fixed' ? 'Default Amount' : pricingMode === 'tiered' ? 'Minimum Amount' : 'Suggested Amount'}
+                                label={
+                                    pricingMode === 'fixed'
+                                        ? 'Default Amount'
+                                        : pricingMode === 'tiered'
+                                          ? (selectedType === 'vote' ? 'Voting Price' : 'Minimum Amount')
+                                          : 'Suggested Amount'
+                                }
                                 rules={[{ required: pricingMode === 'fixed' || pricingMode === 'tiered' ? true : false }]}
                                 tooltip={pricingMode === 'fixed' ? 'Fixed price for this action' : pricingMode === 'tiered' ? 'Base price for sub-action options' : 'Suggested price (optional)'}
                             >
@@ -1194,17 +1238,16 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                                 <div className="md:col-span-2 border-t pt-4 mt-4">
                                     {/* <h4 className="text-base font-semibold mb-4">Sub-action Details</h4> */}
                                 </div>
-                                <Form.Item name="subActionStock" label="Stock">
-                                    <InputNumber min={0} className="w-full" placeholder="Unlimited if empty" />
-                                </Form.Item>
+                                {shouldAskStock && (
+                                    <Form.Item name="subActionStock" label="Stock">
+                                        <InputNumber min={0} className="w-full" placeholder="Unlimited if empty" />
+                                    </Form.Item>
+                                )}
                                 {selectedType && (selectedType === 'ticket' || selectedType === 'transport' || selectedType === 'booking') && (
                                     <Form.Item name="subActionSeatType" label="Seat / Zone">
                                         <Input placeholder="Front-row, Balcony ..." />
                                     </Form.Item>
                                 )}
-                                <Form.Item name="subActionSortOrder" label="Sort Order">
-                                    <InputNumber min={0} className="w-full" />
-                                </Form.Item>
                                 <div className="md:col-span-2">
                                     <button
                                         type="button"
@@ -1238,7 +1281,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                             <Form.Item name="name" label="Sub-action Name" rules={[{ required: true, message: 'Provide a name' }]}>
                                 <Input placeholder={selectedType && actionTypeConfig[selectedType]?.placeholders?.name ? `e.g., ${actionTypeConfig[selectedType]?.placeholders?.name}` : "VIP Ticket"} />
                             </Form.Item>
-                            {pricingMode !== 'pay_what_you_want' && (
+                            {pricingMode !== 'pay_what_you_want' && !isVoteTieredPricing && (
                                 <Form.Item 
                                     name="price" 
                                     label={pricingMode === 'free' ? 'Price (Free)' : 'Price'} 
@@ -1261,17 +1304,16 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                                     <InputNumber min={0} className="w-full" prefix="RWF" disabled={pricingMode === 'free'} placeholder={pricingMode === 'free' ? '0 (Free)' : 'Enter price'} />
                                 </Form.Item>
                             )}
-                            <Form.Item name="stock" label="Stock">
-                                <InputNumber min={0} className="w-full" placeholder="Unlimited if empty" />
-                            </Form.Item>
+                            {shouldAskStock && (
+                                <Form.Item name="stock" label="Stock">
+                                    <InputNumber min={0} className="w-full" placeholder="Unlimited if empty" />
+                                </Form.Item>
+                            )}
                             {selectedType && (selectedType === 'ticket' || selectedType === 'transport' || selectedType === 'booking') && (
                                 <Form.Item name="seatType" label="Seat / Zone">
                                     <Input placeholder="Front-row, Balcony ..." />
                                 </Form.Item>
                             )}
-                            <Form.Item name="sortOrder" label="Sort Order">
-                                <InputNumber min={0} className="w-full" />
-                            </Form.Item>
                             <Form.Item name="coverImage" label="Cover Image (Optional)" className="md:col-span-2">
                                 <div className="space-y-3">
                                     <Upload
@@ -1390,7 +1432,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                                                         <p className="font-bold text-[#00B512]">{Number(item.price).toLocaleString()} RWF</p>
                                                     </div>
                                                 )}
-                                                {item.stock && (
+                                                {shouldAskStock && item.stock && (
                                                     <div className="bg-white dark:bg-darkBg-card rounded-lg p-3 border border-emerald-100 dark:border-emerald-700">
                                                         <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Stock</p>
                                                         <p className="font-semibold">{item.stock} available</p>
@@ -1487,18 +1529,6 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                                     </>
                                 )}
                             </div>
-                        </div>
-
-                        {/* Rest of configuration sections... */}
-                        <div className="border-b pb-6">
-                            <h3 className="text-base font-semibold mb-4">Buyer Information</h3>
-                            <Form.Item name="buyerFields" label="Buyer Fields">
-                                <Select
-                                    mode="multiple"
-                                    placeholder="Select fields to collect from buyers"
-                                    options={buyerFieldOptions}
-                                />
-                            </Form.Item>
                         </div>
 
                         {/* Visibility Section */}
