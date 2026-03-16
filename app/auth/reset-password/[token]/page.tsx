@@ -15,17 +15,33 @@ const ResetPasswordPage: React.FC = () => {
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!token) {
+      message.error('Invalid or missing reset token');
+      return;
+    }
+
+    if (!newPassword || newPassword.length < 8) {
+      message.error('Password must be at least 8 characters long');
+      return;
+    }
+
     setLoading(true);
     try {
       const response = await axios.post(`${baseUrl}/auth/reset-password`, {
         token,
         newPassword,
       });
-      message.success(response.data.message);
-      navigate.push('/auth/login');
+      setNewPassword('');
+      message.success(response.data.message || 'Password reset successful');
+      setTimeout(() => {
+        navigate.replace('/auth/login');
+      }, 800);
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
         message.error(error.response?.data?.message || 'An error occurred');
+      } else {
+        message.error('An error occurred');
       }
     } finally {
       setLoading(false);
