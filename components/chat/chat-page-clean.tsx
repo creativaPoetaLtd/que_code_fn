@@ -155,7 +155,7 @@ export default function ChatPageClean() {
       {/* Main Content */}
       <main className={cn(
         'flex flex-col transition-all duration-300',
-        'h-screen overflow-hidden',
+        'h-[100dvh] overflow-hidden',
         isExpanded ? 'lg:ml-64' : 'lg:ml-20'
       )}>
         {/* Fixed Header */}

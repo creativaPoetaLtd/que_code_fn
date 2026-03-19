@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { Eye, EyeOff, User, Wifi, WifiOff, MessageCircle, Moon, Sun } from "lucide-react";
+import { Eye, EyeOff, User, Wifi, WifiOff, MessageCircle, Moon, Sun, ChevronLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import Image from "next/image";
@@ -19,7 +19,11 @@ import { apiSlice } from "@/states/apiSlice";
 import { useDispatch } from "react-redux";
 
 
-export const Header = () => {
+interface HeaderProps {
+    showBackButton?: boolean;
+}
+
+export const Header = ({ showBackButton = false }: HeaderProps) => {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isBalanceVisible, setIsBalanceVisible] = useState(true);
     const [profileImage, setProfileImage] = useState<string | null>(null);
@@ -194,7 +198,16 @@ export const Header = () => {
     return (
         <div className="flex justify-between items-center px-3 sm:px-4 py-3 sm:py-4 min-h-16 sm:min-h-18 bg-white dark:bg-transparent">
             {/* Left Section: Title */}
-            <div className="flex items-center justify-start">
+            <div className="flex items-center justify-start gap-2">
+                {showBackButton && (
+                    <button
+                        onClick={() => router.back()}
+                        className="lg:hidden flex items-center justify-center w-8 h-8 rounded-full hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors"
+                        aria-label="Go back"
+                    >
+                        <ChevronLeft className="h-5 w-5 text-[#00313A] dark:text-white" />
+                    </button>
+                )}
                 <Link href="/">
                     <h2 className="text-sm sm:text-md lg:text-2xl font-bold text-[#00313A] dark:text-white leading-tight whitespace-nowrap cursor-pointer hover:opacity-80 transition-opacity">
                         QiewCode
