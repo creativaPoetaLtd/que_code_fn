@@ -48,6 +48,9 @@ const SetAccountPasswordContent: React.FC = () => {
       setConfirmPassword('');
       message.success(response.data.message || 'Password set successfully');
       setTimeout(() => {
+        // Clear any existing token to force user to log in with new password
+        localStorage.removeItem('authToken');
+        sessionStorage.removeItem('authToken');
         router.replace('/auth/login');
       }, 800);
     } catch (error: unknown) {
