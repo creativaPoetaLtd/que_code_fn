@@ -54,7 +54,7 @@ const SuccessPage = () => {
 
     return (
         <div className="flex min-h-screen bg-white dark:bg-transparent">
-            <Navigation />
+            <Navigation hideBottomNav />
 
             <div className={cn(
                 "flex-1 flex flex-col transition-all duration-300",

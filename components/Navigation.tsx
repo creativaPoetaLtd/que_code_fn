@@ -337,7 +337,7 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
             </aside >
 
             {/* Mobile Bottom Navigation */}
-            < nav className={
+            {!hideBottomNav && < nav className={
                 cn(
                     "fixed bottom-0 left-0 right-0 lg:hidden z-50 border-t pointer-events-auto",
                     theme === "dark"
@@ -514,8 +514,8 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
                         </button>
                     </div>
                 </div>
-            </nav >
-            
+            </nav >}
+
             {/* Global QR Code Scanner Modal */}
             <QRCodeScanner
                 isOpen={isOpen}

@@ -11,17 +11,15 @@ const TransferPage = () => {
 
     return (
         <div className="flex flex-col min-h-screen bg-white dark:bg-transparent">
-            {/* Desktop Sidebar */}
-            <Navigation />
+            <Navigation hideBottomNav />
 
             {/* Main Content */}
             <main className={cn(
                 "flex-1 flex flex-col p-4 sm:p-6 lg:p-8 transition-all duration-300",
                 isExpanded ? "lg:ml-64" : "lg:ml-20"
             )}>
-                <div className="flex-1 overflow-y-auto pb-28 sm:pb-24 lg:pb-8">
-                    {/* Common Header */}
-                    <Header />
+                <div className="flex-1 overflow-y-auto pb-4 sm:pb-6 lg:pb-8">
+                    <Header showBackButton />
 
                     {/* Transfer Content */}
                     <div className="mt-6">
@@ -29,11 +27,6 @@ const TransferPage = () => {
                     </div>
                 </div>
             </main>
-
-            {/* Bottom Navigation for small devices */}
-            <div className="lg:hidden">
-                <Navigation />
-            </div>
         </div>
     )
 }

@@ -101,7 +101,7 @@ export default function ChatArea({
                             </div>
                         )}
 
-                        <div ref={messagesEndRef} className="h-24 md:h-6" />
+                        <div ref={messagesEndRef} className="h-4" />
                     </>
                 ) : (
                     <div className="flex items-center justify-center h-full text-gray-600 dark:text-gray-400">
@@ -120,8 +120,8 @@ export default function ChatArea({
                 )}
             </div>
 
-            {/* Message Input - Fixed at bottom */}
-            <div className="fixed bottom-0 left-0 right-0 md:relative md:bottom-auto md:left-auto md:right-auto bg-white dark:bg-darkBg-card border-t border-gray-100 dark:border-darkBorder-light">
+            {/* Message Input */}
+            <div className="flex-shrink-0 bg-white dark:bg-darkBg-card border-t border-gray-100 dark:border-darkBorder-light">
                 <MessageInput />
             </div>
         </div>
