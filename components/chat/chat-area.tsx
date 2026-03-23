@@ -8,6 +8,52 @@ import MessageItem from "./message-item"
 import MessageInput from "./message-input"
 import type { Conversation, Message, LegacyMessage } from "@/types/chat.types"
 
+// ─── Date helpers ─────────────────────────────────────────────────────────────
+
+function getMidnight(date: Date): number {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
+}
+
+function formatDateLabel(date: Date): string {
+    const now = new Date()
+    const todayMs     = getMidnight(now)
+    const yesterdayMs = todayMs - 86_400_000
+    const msgMs       = getMidnight(date)
+
+    if (msgMs === todayMs)     return "Today"
+    if (msgMs === yesterdayMs) return "Yesterday"
+
+    // e.g. "Friday, 20 March 2026"
+    return date.toLocaleDateString("en-GB", {
+        weekday: "long",
+        day:     "numeric",
+        month:   "long",
+        year:    "numeric",
+    })
+}
+
+function getMessageDate(message: Message | LegacyMessage): Date {
+    if ("createdAt" in message && message.createdAt) return new Date(message.createdAt)
+    if ("timestamp" in message && message.timestamp) return new Date(message.timestamp)
+    return new Date()
+}
+
+// ─── DateSeparator component ──────────────────────────────────────────────────
+
+function DateSeparator({ date }: { date: Date }) {
+    return (
+        <div className="flex items-center gap-3 my-5 px-1 select-none" aria-label={`Messages from ${formatDateLabel(date)}`}>
+            <div className="flex-1 h-px bg-gray-200 dark:bg-darkBorder-medium" />
+            <span className="text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-400 px-4 py-1.5 rounded-full bg-gray-100 dark:bg-darkBg-interactive border border-gray-200 dark:border-darkBorder-light whitespace-nowrap tracking-wide">
+                {formatDateLabel(date)}
+            </span>
+            <div className="flex-1 h-px bg-gray-200 dark:bg-darkBorder-medium" />
+        </div>
+    )
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
 interface ChatAreaProps {
     conversation: Conversation
     messages: Message[] | LegacyMessage[]
@@ -73,15 +119,30 @@ export default function ChatArea({
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-4">
                 {messages.length > 0 ? (
                     <>
-                        {messages.map((message) => (
-                            <MessageItem key={message.id} message={message} />
-                        ))}
+                        {(() => {
+                            let lastDateKey = ""
+                            return (messages as Array<Message | LegacyMessage>).map((message) => {
+                                const msgDate   = getMessageDate(message)
+                                const dateKey   = `${msgDate.getFullYear()}-${msgDate.getMonth()}-${msgDate.getDate()}`
+                                const showSep   = dateKey !== lastDateKey
+                                lastDateKey     = dateKey
+
+                                return (
+                                    <div key={message.id}>
+                                        {showSep && <DateSeparator date={msgDate} />}
+                                        <div className="mb-4">
+                                            <MessageItem message={message} />
+                                        </div>
+                                    </div>
+                                )
+                            })
+                        })()}
 
                         {typingUsers.length > 0 && (
-                            <div className="flex items-center gap-2 p-3 bg-white dark:bg-darkBg-card rounded-lg border border-gray-100 dark:border-darkBorder-light">
+                            <div className="flex items-center gap-2 p-3 bg-white dark:bg-darkBg-card rounded-lg border border-gray-100 dark:border-darkBorder-light mb-4">
                                 <div className="flex space-x-1">
                                     <div className="w-2 h-2 bg-brand-green dark:bg-brand-gold rounded-full animate-bounce" />
                                     <div
@@ -121,7 +182,7 @@ export default function ChatArea({
             </div>
 
             {/* Message Input */}
-            <div className="flex-shrink-0 bg-white dark:bg-darkBg-card border-t border-gray-100 dark:border-darkBorder-light">
+            <div className="flex-shrink-0">
                 <MessageInput />
             </div>
         </div>

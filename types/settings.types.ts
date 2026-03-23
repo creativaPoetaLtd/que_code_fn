@@ -92,15 +92,19 @@ export interface NotificationSettings {
   notifySent: boolean;
   notifyReceived: boolean;
   notifyRequested: boolean;
-  
+
   // Group Notifications
   notifyGroupActivity: boolean;
   notifyContribution: boolean;
-  
+
   // Notification Channels
   channelPush: boolean;
   channelEmail: boolean;
   channelSms: boolean;
+
+  // Sound & Vibration
+  soundEnabled: boolean;
+  vibrationEnabled: boolean;
 }
 
 export interface PaymentMethod {
