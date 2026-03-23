@@ -131,6 +131,7 @@ export interface NotificationConfig {
   enablePush: boolean;
   enableToast: boolean;
   enableSound: boolean;
+  enableVibration: boolean;
 }
 
 // Existing notification types (for UI dropdown and API)

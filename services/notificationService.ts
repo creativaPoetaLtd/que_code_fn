@@ -1,11 +1,13 @@
 import { NotificationType, NotificationPayload, NotificationConfig } from '@/types/notification.types';
 import { toast } from '@/hooks/use-toast';
+import { soundService, getPrefs } from './soundService';
 
 class NotificationService {
   private config: NotificationConfig = {
     enablePush: true,
     enableToast: true,
-    enableSound: false,
+    enableSound: true,
+    enableVibration: true,
   };
 
   private userId: string | null = null;
@@ -23,13 +25,25 @@ class NotificationService {
     this.config = { ...this.config, ...config };
   }
 
+  /**
+   * Sync runtime config from localStorage prefs.
+   * Called once on app boot and after the user changes settings.
+   */
+  syncFromPrefs() {
+    const prefs = getPrefs();
+    this.updateConfig({
+      enableSound: prefs.soundEnabled,
+      enableVibration: prefs.vibrationEnabled,
+    });
+  }
+
   private shouldNotify(payload: NotificationPayload): boolean {
     // Don't notify if it's from the current user
     if (payload.senderId === this.userId) return false;
-    
+
     // Don't notify if it's from the active chat (user is already viewing it)
     if (payload.chatId && payload.chatId === this.activeChat) return false;
-    
+
     return true;
   }
 
@@ -61,8 +75,17 @@ class NotificationService {
     });
   }
 
+  /** Play sound + vibration according to current config. */
+  private playFeedback() {
+    if (this.config.enableSound) soundService.playMessageSound();
+    if (this.config.enableVibration) soundService.vibrate();
+  }
+
   async notify(payload: NotificationPayload) {
     if (!this.shouldNotify(payload)) return;
+
+    // Auditory / haptic feedback first (feels most immediate)
+    this.playFeedback();
 
     // Send push notification
     await this.sendPushNotification(payload);
@@ -124,14 +147,14 @@ class NotificationService {
     from: string;
     action: 'received' | 'accepted';
   }) {
-    const title = data.action === 'received' 
+    const title = data.action === 'received'
       ? `New contact request from ${data.from}`
       : `${data.from} accepted your contact request`;
-    
+
     await this.notify({
       type: NotificationType.CONTACT_REQUEST,
       title,
-      message: data.action === 'received' 
+      message: data.action === 'received'
         ? 'Tap to view and respond'
         : 'You can now start chatting',
       url: `${window.location.origin}/contacts`,
