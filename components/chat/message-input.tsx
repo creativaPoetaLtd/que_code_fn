@@ -69,7 +69,9 @@ export default function MessageInput({ onSendMessage = () => { } }: MessageInput
         if (!el) return
         el.style.height = "auto"
         el.style.height = `${Math.min(el.scrollHeight, MAX_HEIGHT)}px`
-        el.style.overflowY = el.scrollHeight > MAX_HEIGHT ? "auto" : "hidden"
+        // Use "scroll" (not "auto") to avoid a layout-shifting scrollbar appearing;
+        // the scrollbar itself is hidden via the `hide-scrollbar` CSS class.
+        el.style.overflowY = el.scrollHeight > MAX_HEIGHT ? "scroll" : "hidden"
     }, [])
 
     useEffect(() => { resizeTextarea() }, [messageText, resizeTextarea])
@@ -90,6 +92,20 @@ export default function MessageInput({ onSendMessage = () => { } }: MessageInput
         document.addEventListener("mousedown", handler)
         return () => document.removeEventListener("mousedown", handler)
     }, [])
+
+    // ── Toggle emoji picker — dismisses keyboard on mobile ───────────────────
+    const toggleEmojiPicker = () => {
+        const next = !showEmojiPicker
+        setShowEmojiPicker(next)
+        if (next) {
+            // Blur the textarea so the mobile software keyboard is dismissed,
+            // letting the emoji picker occupy that space without overlap.
+            textareaRef.current?.blur()
+        } else {
+            // Restore focus so the user can keep typing after closing the picker.
+            requestAnimationFrame(() => textareaRef.current?.focus())
+        }
+    }
 
     // ── Save cursor position ──────────────────────────────────────────────────
     const saveCursor = () => {
@@ -269,14 +285,14 @@ export default function MessageInput({ onSendMessage = () => { } }: MessageInput
                             rows={1}
                             aria-label="Message input"
                             aria-multiline="true"
-                            className="w-full resize-none rounded-2xl bg-gray-50 dark:bg-darkBg-interactive border border-gray-200 dark:border-darkBorder-light py-2.5 pl-4 pr-10 text-base leading-6 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-green dark:focus:ring-brand-gold focus:ring-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
+                            className="w-full resize-none rounded-2xl bg-gray-50 dark:bg-darkBg-interactive border border-gray-200 dark:border-darkBorder-light py-2.5 pl-4 pr-10 text-base leading-6 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-green dark:focus:ring-brand-gold focus:ring-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden hide-scrollbar"
                             style={{ minHeight: "44px" }}
                         />
                         {/* Emoji trigger — anchored to bottom-right of the textarea */}
                         <button
                             ref={emojiButtonRef}
                             type="button"
-                            onClick={() => setShowEmojiPicker((v) => !v)}
+                            onClick={toggleEmojiPicker}
                             aria-label="Open emoji picker"
                             aria-expanded={showEmojiPicker}
                             className={`absolute right-2 bottom-2 h-7 w-7 flex items-center justify-center rounded-full transition-colors ${

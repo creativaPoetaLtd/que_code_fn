@@ -36,6 +36,7 @@ interface ChatHeaderProps {
   onViewProfile: () => void;
   onInviteToGroup?: () => void;
   onGroupSettings?: () => void;
+  onDeleteGroup?: () => void;
 }
 
 export default function ChatHeader({
@@ -44,6 +45,7 @@ export default function ChatHeader({
   onViewProfile,
   onInviteToGroup,
   onGroupSettings,
+  onDeleteGroup,
 }: ChatHeaderProps) {
   const chat = useChat();
   const { getToken } = useAuthToken();
@@ -234,15 +236,32 @@ export default function ChatHeader({
               <Lock size={14} className='mr-2' />
               Initialize Encryption
             </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() =>
-                chat.activeChat && chat.deleteChat(chat.activeChat)
-              }
-              className='cursor-pointer text-red-600 hover:text-red-700'
-            >
-              <Trash2 size={14} className='mr-2' />
-              Delete Chat
-            </DropdownMenuItem>
+
+            {/* Delete Group — only visible to owners and admins */}
+            {conversation.isGroup &&
+              (group?.userRole === 'owner' || group?.userRole === 'admin') &&
+              onDeleteGroup && (
+                <DropdownMenuItem
+                  onClick={onDeleteGroup}
+                  className='cursor-pointer text-red-600 hover:text-red-700 focus:text-red-700'
+                >
+                  <Trash2 size={14} className='mr-2' />
+                  Delete Group
+                </DropdownMenuItem>
+              )}
+
+            {/* Delete Chat — only for direct (non-group) conversations */}
+            {!conversation.isGroup && (
+              <DropdownMenuItem
+                onClick={() =>
+                  chat.activeChat && chat.deleteChat(chat.activeChat)
+                }
+                className='cursor-pointer text-red-600 hover:text-red-700'
+              >
+                <Trash2 size={14} className='mr-2' />
+                Delete Chat
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
