@@ -64,6 +64,7 @@ interface ChatAreaProps {
     onViewProfile: () => void
     onInviteToGroup: () => void
     onGroupSettings?: () => void
+    onDeleteGroup?: () => void
     typingUsers?: any[]
     onlineUsers?: any[]
 }
@@ -78,6 +79,7 @@ export default function ChatArea({
     onViewProfile,
     onInviteToGroup,
     onGroupSettings,
+    onDeleteGroup,
     typingUsers = [],
     onlineUsers = [],
 }: ChatAreaProps) {
@@ -104,6 +106,7 @@ export default function ChatArea({
                     onViewProfile={onViewProfile}
                     onInviteToGroup={onInviteToGroup}
                     onGroupSettings={onGroupSettings}
+                    onDeleteGroup={onDeleteGroup}
                 />
             </div>
 

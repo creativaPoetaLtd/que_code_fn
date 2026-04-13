@@ -11,6 +11,9 @@ import { useAuthToken } from '@/hooks/use-auth-token';
 import type { Conversation } from '@/types/chat.types';
 import { useSidebar } from '@/context/SidebarContext';
 import { cn } from '@/lib/utils';
+import { useDeleteGroupMutation } from '@/states/groupSlice';
+import GroupDialogs from '@/components/chat/GroupDialogs';
+import { toast } from '@/hooks/use-toast';
 
 import SendMoneyModal from '@/components/chat/send-money-modal';
 import RequestMoneyModal from '@/components/chat/request-money-modal';
@@ -60,10 +63,16 @@ export default function ChatPageClean() {
     setIsInviteToGroupModalOpen,
   } = useChatModals();
 
+  const [deleteGroupMutation, { isLoading: isDeleting }] = useDeleteGroupMutation();
+
   const [showMobileConversationList, setShowMobileConversationList] =
     useState(true);
   const [selectedChat, setSelectedChat] = useState<Conversation | null>(null);
   const [isGroupSettingsModalOpen, setIsGroupSettingsModalOpen] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState<{ isOpen: boolean; groupId: string | null }>({
+    isOpen: false,
+    groupId: null,
+  });
 
   // Determine if chat is active (used to hide bottom nav)
   const isChatActive = !!selectedChat && !showMobileConversationList;
@@ -141,6 +150,27 @@ export default function ChatPageClean() {
     }
   };
 
+  // Opens the delete confirmation dialog for the active group chat
+  const handleDeleteGroup = () => {
+    if (selectedChat?.isGroup && selectedChat.groupId) {
+      setDeleteDialog({ isOpen: true, groupId: selectedChat.groupId });
+    }
+  };
+
+  // Calls the API after the user confirms deletion
+  const handleConfirmDeleteGroup = async (groupId: string) => {
+    if (!token) return;
+    try {
+      await deleteGroupMutation({ groupId, token }).unwrap();
+      toast({ title: 'Group deleted', description: 'The group has been permanently deleted.' });
+      setDeleteDialog({ isOpen: false, groupId: null });
+      setSelectedChat(null);
+      setShowMobileConversationList(true);
+    } catch {
+      toast({ title: 'Delete failed', description: 'Could not delete the group. Please try again.', variant: 'destructive' });
+    }
+  };
+
   const getUserFromChat = () => {
     if (!selectedChat || selectedChat.isGroup) return undefined;
     return selectedChat.participants.find(p => p.userId !== activeChat)
@@ -197,6 +227,7 @@ export default function ChatPageClean() {
               onViewProfile={handleViewProfile}
               onInviteToGroup={handleInviteToGroup}
               onGroupSettings={handleGroupSettings}
+              onDeleteGroup={handleDeleteGroup}
               typingUsers={typingUsers}
               onlineUsers={onlineUsers}
             />
@@ -264,6 +295,19 @@ export default function ChatPageClean() {
         isOpen={isGroupSettingsModalOpen}
         onClose={() => setIsGroupSettingsModalOpen(false)}
         groupId={selectedChat?.groupId || null}
+      />
+
+      {/* Delete Group confirmation dialog (role-gated in ChatHeader) */}
+      <GroupDialogs
+        leaveDialog={{ isOpen: false, groupId: null }}
+        deleteDialog={deleteDialog}
+        groups={conversations as any[]}
+        isLeaving={false}
+        isDeleting={isDeleting}
+        onLeaveGroup={() => {}}
+        onDeleteGroup={(groupId) => handleConfirmDeleteGroup(groupId)}
+        onCloseLeaveDialog={() => {}}
+        onCloseDeleteDialog={() => setDeleteDialog({ isOpen: false, groupId: null })}
       />
     </div>
   );
