@@ -157,6 +157,12 @@ export default function ChatPageClean() {
     }
   };
 
+  const handleHideChat = () => {
+    setShowMobileConversationList(true);
+    setActiveChat(null);
+    setSelectedChat(null);
+  };
+
   // Calls the API after the user confirms deletion
   const handleConfirmDeleteGroup = async (groupId: string) => {
     if (!token) return;
@@ -165,6 +171,7 @@ export default function ChatPageClean() {
       toast({ title: 'Group deleted', description: 'The group has been permanently deleted.' });
       setDeleteDialog({ isOpen: false, groupId: null });
       setSelectedChat(null);
+      setActiveChat(null);
       setShowMobileConversationList(true);
     } catch {
       toast({ title: 'Delete failed', description: 'Could not delete the group. Please try again.', variant: 'destructive' });
@@ -221,7 +228,7 @@ export default function ChatPageClean() {
               conversation={selectedChat as any}
               messages={messages}
               showOnMobile={!showMobileConversationList}
-              onBackClick={() => setShowMobileConversationList(true)}
+              onBackClick={handleHideChat}
               onSendMoney={() => openSendMoneyModal(selectedChat.name)}
               onRequestMoney={() => setIsRequestMoneyModalOpen(true)}
               onViewProfile={handleViewProfile}
