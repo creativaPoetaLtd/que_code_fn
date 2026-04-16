@@ -36,7 +36,19 @@ self.addEventListener('push', function(event) {
   };
 
   event.waitUntil(
-    self.registration.showNotification(data.title || defaultData.title, options)
+    // Check if any client window is focused
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
+      const isFocused = clients.some(client => client.focused);
+
+      if (isFocused) {
+        // App is open and focused, don't show notification
+        console.log('App is focused, skipping push notification');
+        return;
+      }
+
+      // App is not focused, show notification
+      return self.registration.showNotification(data.title || defaultData.title, options);
+    })
   );
 });
 

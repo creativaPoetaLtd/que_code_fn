@@ -10,13 +10,33 @@ export default function PushNotificationPrompt() {
   const [permissionGranted, setPermissionGranted] = useState(false);
   const { subscriberId } = usePushNotifications();
 
+  // Detect if device is mobile
+  const isMobile = () => {
+    if (typeof window === 'undefined') return false;
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  };
+
   useEffect(() => {
+    // Skip notifications on mobile devices
+    if (isMobile()) {
+      console.log('Notifications disabled on mobile device');
+      return;
+    }
+
     // Check if notifications are supported
     if (!('Notification' in window)) return;
+
+    // Check if permission was already granted and stored
+    const storedPermission = localStorage.getItem('notificationPermissionGranted');
+    if (storedPermission === 'true') {
+      setPermissionGranted(true);
+      return;
+    }
 
     // Check current permission status
     if (Notification.permission === 'granted') {
       setPermissionGranted(true);
+      localStorage.setItem('notificationPermissionGranted', 'true');
       return;
     }
 
@@ -36,6 +56,7 @@ export default function PushNotificationPrompt() {
       const permission = await Notification.requestPermission();
       if (permission === 'granted') {
         setPermissionGranted(true);
+        localStorage.setItem('notificationPermissionGranted', 'true');
         // Register service worker if not already registered
         if ('serviceWorker' in navigator) {
           const registration = await navigator.serviceWorker.register('/sw.js');
