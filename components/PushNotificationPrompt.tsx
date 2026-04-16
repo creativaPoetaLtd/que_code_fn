@@ -10,19 +10,7 @@ export default function PushNotificationPrompt() {
   const [permissionGranted, setPermissionGranted] = useState(false);
   const { subscriberId } = usePushNotifications();
 
-  // Detect if device is mobile
-  const isMobile = () => {
-    if (typeof window === 'undefined') return false;
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-  };
-
   useEffect(() => {
-    // Skip notifications on mobile devices
-    if (isMobile()) {
-      console.log('Notifications disabled on mobile device');
-      return;
-    }
-
     // Check if notifications are supported
     if (!('Notification' in window)) return;
 

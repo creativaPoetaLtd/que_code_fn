@@ -38,8 +38,11 @@ class NotificationService {
   }
 
   private shouldNotify(payload: NotificationPayload): boolean {
+    const currentUserId = String(this.userId || "");
+    const senderId = payload.senderId ? String(payload.senderId) : "";
+
     // Don't notify if it's from the current user
-    if (payload.senderId === this.userId) return false;
+    if (senderId && senderId === currentUserId) return false;
 
     // Don't notify if it's from the active chat (user is already viewing it)
     if (payload.chatId && payload.chatId === this.activeChat) return false;

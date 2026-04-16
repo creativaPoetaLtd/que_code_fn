@@ -151,7 +151,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         if (!isConnected || !userId) return;
 
         const handleNewMessage = (message: Message) => {
-            const enhancedMessage = { ...message, isMe: message.sender.id === userId };
+            const enhancedMessage = { ...message, isMe: String(message.sender.id) === String(userId || "") };
 
             // Check if message already exists to prevent duplicates
             setMessages(prev => {
@@ -451,7 +451,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         if (messagesData?.data?.messages && activeChat) {
             const messagesWithIsMe = messagesData.data.messages.map((msg: Message) => ({
                 ...msg,
-                isMe: msg.sender.id === userId
+                isMe: String(msg.sender.id) === String(userId || "")
             }));
 
             setMessages(prev => ({
