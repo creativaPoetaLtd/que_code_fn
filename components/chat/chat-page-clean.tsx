@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { usePushNotifications } from '@/hooks/use-push-notifications';
 import ChatArea from '@/components/chat/chat-area';
 import ConversationListLayout from '@/components/chat/conversation-list-layout';
@@ -30,6 +31,7 @@ export default function ChatPageClean() {
   const token = getToken();
   const { isExpanded } = useSidebar();
   const { requestPermission } = usePushNotifications();
+  const pathname = usePathname();
 
   const {
     conversations,
@@ -109,6 +111,13 @@ export default function ChatPageClean() {
       requestPermission();
     }
   }, [token, requestPermission]);
+
+  // Clear activeChat when navigating away from chat page
+  useEffect(() => {
+    if (pathname !== '/chat') {
+      setActiveChat(null);
+    }
+  }, [pathname, setActiveChat]);
 
   const handleConversationSelect = (conversation: any) => {
     setSelectedChat({
