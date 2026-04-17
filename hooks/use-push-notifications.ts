@@ -24,6 +24,7 @@ export const usePushNotifications = () => {
     const supported = isPushSupported();
     const configured = isPushConfigured();
     const installRequired = requiresIosInstallForPush();
+    const token = getToken();
 
     setIsSupported(supported);
     setIsConfigured(configured);
@@ -37,11 +38,31 @@ export const usePushNotifications = () => {
 
     setPermission(Notification.permission);
 
-    const existingSubscription = await getExistingPushSubscription();
+    let existingSubscription = await getExistingPushSubscription();
+
+    if (
+      token &&
+      configured &&
+      supported &&
+      !installRequired &&
+      Notification.permission === 'granted' &&
+      !existingSubscription
+    ) {
+      try {
+        const subscribeResult = await subscribeToWebPush(token);
+        if (subscribeResult.success) {
+          existingSubscription = await getExistingPushSubscription();
+        } else {
+          console.warn('Automatic web push subscription did not complete:', subscribeResult.reason);
+        }
+      } catch (error) {
+        console.error('Automatic web push subscription failed:', error);
+      }
+    }
+
     setIsSubscribed(Boolean(existingSubscription));
 
     if (existingSubscription && Notification.permission === 'granted') {
-      const token = getToken();
       if (token) {
         await syncExistingWebPushSubscription(token).catch((error) => {
           console.error('Failed to sync existing push subscription:', error);
