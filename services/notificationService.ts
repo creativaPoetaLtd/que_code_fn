@@ -37,6 +37,10 @@ class NotificationService {
     });
   }
 
+  private isPageVisible() {
+    return typeof document !== 'undefined' && document.visibilityState === 'visible';
+  }
+
   private shouldNotify(payload: NotificationPayload): boolean {
     const currentUserId = String(this.userId || "");
     const senderId = payload.senderId ? String(payload.senderId) : "";
@@ -44,28 +48,7 @@ class NotificationService {
     // Don't notify if it's from the current user
     if (senderId && senderId === currentUserId) return false;
 
-    // Don't notify if it's from the active chat (user is already viewing it)
-    if (payload.chatId && payload.chatId === this.activeChat) return false;
-
     return true;
-  }
-
-  private async sendPushNotification(payload: NotificationPayload) {
-    if (!this.config.enablePush) return;
-
-    try {
-      await fetch('/api/push/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: payload.title,
-          message: payload.message,
-          url: payload.url || `${window.location.origin}/chat`,
-        }),
-      });
-    } catch (error) {
-      console.error('Push notification failed:', error);
-    }
   }
 
   private showToast(payload: NotificationPayload) {
@@ -84,17 +67,23 @@ class NotificationService {
     if (this.config.enableVibration) soundService.vibrate();
   }
 
+  private shouldShowToast(payload: NotificationPayload) {
+    if (!this.isPageVisible()) return false;
+    if (payload.chatId && payload.chatId === this.activeChat) return false;
+    return true;
+  }
+
   async notify(payload: NotificationPayload) {
     if (!this.shouldNotify(payload)) return;
 
-    // Auditory / haptic feedback first (feels most immediate)
+    if (!this.isPageVisible()) return;
+
+    // Auditory / haptic feedback first for foreground events
     this.playFeedback();
 
-    // Send push notification
-    await this.sendPushNotification(payload);
-
-    // Show toast notification
-    this.showToast(payload);
+    if (this.shouldShowToast(payload)) {
+      this.showToast(payload);
+    }
   }
 
   // Convenience methods for specific notification types

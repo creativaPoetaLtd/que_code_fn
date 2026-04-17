@@ -7,6 +7,7 @@ import { useAuthToken } from "@/hooks/use-auth-token"
 import { getUserIdFromToken, isTokenExpired } from "@/utils/jwtUtils"
 import { toast } from "@/hooks/use-toast"
 import type { Notification, NotificationContextType } from "@/types/notification.types"
+import { notificationService } from "@/services/notificationService"
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined)
 
@@ -166,16 +167,23 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
                 updatedAt: notification.updatedAt || new Date().toISOString(),
             }
             addNotification(formattedNotification)
-            
+             
             // Only show toast for certain notification types (not for every chat message)
-            const shouldShowToast = !formattedNotification.type.startsWith('CHAT_MESSAGE_') || 
-                                   formattedNotification.type === 'CHAT_MESSAGE_MONEY';
-            
-            if (shouldShowToast) {
-                toast({
+            const shouldHandleLocally = !formattedNotification.type.startsWith('CHAT_MESSAGE_') ||
+              formattedNotification.type === 'CHAT_MESSAGE_MONEY';
+             
+            if (shouldHandleLocally) {
+                void notificationService.notify({
+                    type: formattedNotification.type as any,
                     title: formattedNotification.title,
-                    description: formattedNotification.message || formattedNotification.data?.message,
-                    duration: 5000,
+                    message: formattedNotification.message || formattedNotification.data?.message || '',
+                    url: formattedNotification.data?.url,
+                    chatId: formattedNotification.data?.chatId,
+                    senderId: formattedNotification.data?.senderId,
+                    senderName: formattedNotification.data?.senderName,
+                    metadata: formattedNotification.data,
+                }).catch((error) => {
+                    console.error('Failed to handle foreground notification:', error)
                 })
             }
         },

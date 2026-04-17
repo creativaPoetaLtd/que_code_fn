@@ -1,71 +1,82 @@
-importScripts("https://cdn.pushalert.co/sw-87118_2.js");
+self.addEventListener('install', (event) => {
+  event.waitUntil(self.skipWaiting());
+});
 
-// Custom push event handler for PWA notifications
-self.addEventListener('push', function(event) {
-  const defaultData = {
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
+self.addEventListener('push', (event) => {
+  const defaultPayload = {
     title: 'QueCode',
-    message: 'New notification',
-    url: '/chat',
+    body: 'You have a new notification.',
+    url: '/notifications',
   };
 
-  let data = defaultData;
+  let payload = defaultPayload;
+
   if (event.data) {
     try {
-      data = event.data.json();
-    } catch (err) {
-      const text = event.data.text ? event.data.text() : null;
-      data = {
-        ...defaultData,
-        message: text || defaultData.message,
+      const parsed = event.data.json();
+      payload = {
+        ...defaultPayload,
+        ...parsed,
+        body: parsed.body || parsed.message || defaultPayload.body,
+      };
+    } catch (_error) {
+      payload = {
+        ...defaultPayload,
+        body: event.data.text() || defaultPayload.body,
       };
     }
   }
 
-  const options = {
-    body: data.message || defaultData.message,
-    icon: data.icon || '/icon-192x192.png',
-    badge: '/icon-192x192.png',
+  const notificationOptions = {
+    body: payload.body,
+    icon: payload.icon || '/icon-192x192.png',
+    badge: payload.badge || '/icon-192x192.png',
+    tag: payload.tag || `quecode-${Date.now()}`,
+    renotify: payload.renotify ?? true,
+    requireInteraction: payload.requireInteraction ?? false,
     vibrate: [200, 100, 200],
     data: {
-      url: data.url || defaultData.url,
+      ...(payload.data || {}),
+      url: payload.url || payload.data?.url || defaultPayload.url,
     },
-    tag: data.tag || `quecode-notification-${Date.now()}`,
-    renotify: true,
-    requireInteraction: true,
-    silent: false,
   };
 
   event.waitUntil(
-    // Check if any client window is focused
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
-      const isFocused = clients.some(client => client.focused);
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      const hasVisibleClient = clients.some(
+        (client) => client.visibilityState === 'visible' || client.focused,
+      );
 
-      if (isFocused) {
-        // App is open and focused, don't show notification
-        console.log('App is focused, skipping push notification');
+      if (hasVisibleClient) {
         return;
       }
 
-      // App is not focused, show notification
-      return self.registration.showNotification(data.title || defaultData.title, options);
-    })
+      return self.registration.showNotification(payload.title || defaultPayload.title, notificationOptions);
+    }),
   );
 });
 
-// Handle notification click
-self.addEventListener('notificationclick', function(event) {
+self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
-  const url = event.notification.data?.url || '/chat';
+  const targetUrl = new URL(
+    event.notification.data?.url || '/notifications',
+    self.location.origin,
+  ).toString();
 
   event.waitUntil(
-    clients.openWindow(url)
-  );
-});
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      const existingClient = clients[0];
 
-// Handle service worker activation
-self.addEventListener('activate', function(event) {
-  event.waitUntil(
-    self.clients.claim()
+      if (existingClient) {
+        return existingClient.navigate(targetUrl).then(() => existingClient.focus());
+      }
+
+      return self.clients.openWindow(targetUrl);
+    }),
   );
 });

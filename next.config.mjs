@@ -15,9 +15,9 @@ const nextConfig = {
 
 const pwaConfig = withPWA({
     dest: 'public',
-    register: false, // Disabled - using PushAlerts official service worker instead
+    register: false, // Service worker is registered manually from the client
     skipWaiting: true,
-    disable: true, // Disable next-pwa service worker generation entirely - PushAlerts handles notifications
+    disable: true, // Keep next-pwa generation disabled; QC ships a custom worker in public/sw.js
     runtimeCaching: [
         {
             urlPattern: /^https:\/\/fonts\.(?:gstatic|googleapis)\.com\/.*/i,

@@ -4,56 +4,53 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Bell, X } from 'lucide-react';
 import { usePushNotifications } from '@/hooks/use-push-notifications';
+import { useAuthToken } from '@/hooks/use-auth-token';
 
 export default function PushNotificationPrompt() {
   const [showPrompt, setShowPrompt] = useState(false);
-  const [permissionGranted, setPermissionGranted] = useState(false);
-  const { subscriberId } = usePushNotifications();
+  const { getToken } = useAuthToken();
+  const token = getToken();
+  const {
+    isConfigured,
+    isSupported,
+    requiresInstall,
+    permission,
+    isSubscribed,
+    requestPermission,
+  } = usePushNotifications();
 
   useEffect(() => {
-    // Check if notifications are supported
-    if (!('Notification' in window)) return;
-
-    // Check if permission was already granted and stored
-    const storedPermission = localStorage.getItem('notificationPermissionGranted');
-    if (storedPermission === 'true') {
-      setPermissionGranted(true);
+    if (!token || !isConfigured || !isSupported || requiresInstall) {
+      setShowPrompt(false);
       return;
     }
 
-    // Check current permission status
-    if (Notification.permission === 'granted') {
-      setPermissionGranted(true);
-      localStorage.setItem('notificationPermissionGranted', 'true');
+    if (permission === 'granted' && isSubscribed) {
+      setShowPrompt(false);
       return;
     }
 
-    if (Notification.permission === 'denied') {
-      return; // Don't show prompt if denied
+    if (permission === 'denied') {
+      setShowPrompt(false);
+      return;
     }
 
-    // Show prompt if not prompted before and no subscriber ID
     const hasPrompted = localStorage.getItem('pushPrompted');
-    if (!hasPrompted && !subscriberId) {
-      setTimeout(() => setShowPrompt(true), 5000);
+    if (!hasPrompted) {
+      const timer = window.setTimeout(() => setShowPrompt(true), 5000);
+      return () => window.clearTimeout(timer);
+    } else {
+      setShowPrompt(false);
     }
-  }, [subscriberId]);
+  }, [token, isConfigured, isSupported, requiresInstall, permission, isSubscribed]);
 
   const handleEnableNotifications = async () => {
     try {
-      const permission = await Notification.requestPermission();
-      if (permission === 'granted') {
-        setPermissionGranted(true);
-        localStorage.setItem('notificationPermissionGranted', 'true');
-        // Register service worker if not already registered
-        if ('serviceWorker' in navigator) {
-          const registration = await navigator.serviceWorker.register('/sw.js');
-          console.log('Service Worker registered:', registration);
-        }
-      }
+      await requestPermission();
     } catch (error) {
       console.error('Error requesting notification permission:', error);
     }
+
     localStorage.setItem('pushPrompted', 'true');
     setShowPrompt(false);
   };
@@ -63,7 +60,9 @@ export default function PushNotificationPrompt() {
     setShowPrompt(false);
   };
 
-  if (permissionGranted || !showPrompt) return null;
+  if (!token || !isConfigured || !isSupported || requiresInstall || isSubscribed || !showPrompt) {
+    return null;
+  }
 
   return (
     <div className="fixed bottom-4 right-4 z-50 max-w-sm bg-white dark:bg-darkBg-card rounded-lg shadow-xl border border-gray-200 dark:border-darkBorder-light p-4">
@@ -80,7 +79,7 @@ export default function PushNotificationPrompt() {
         <div className="flex-1">
           <h3 className="font-semibold text-sm mb-1">Enable Notifications</h3>
           <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
-            Stay updated with messages, payments, and group activities. Get notified even when the app is closed.
+            Stay updated with messages, payments, and group activities. This enables true push notifications for the installed app.
           </p>
           <div className="flex gap-2">
             <Button

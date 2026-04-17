@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import { usePushNotifications } from '@/hooks/use-push-notifications';
 import ChatArea from '@/components/chat/chat-area';
 import ConversationListLayout from '@/components/chat/conversation-list-layout';
 import Navigation from '@/components/Navigation';
@@ -30,7 +29,6 @@ export default function ChatPageClean() {
   const { getToken } = useAuthToken();
   const token = getToken();
   const { isExpanded } = useSidebar();
-  const { requestPermission } = usePushNotifications();
   const pathname = usePathname();
 
   const {
@@ -104,13 +102,6 @@ export default function ChatPageClean() {
       }
     }
   }, [activeChat, conversations]);
-
-  // Request notification permission on mount
-  useEffect(() => {
-    if (token) {
-      requestPermission();
-    }
-  }, [token, requestPermission]);
 
   // Clear activeChat when navigating away from chat page
   useEffect(() => {
