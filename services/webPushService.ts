@@ -14,6 +14,8 @@ type SerializablePushSubscription = {
 const SERVICE_WORKER_PATH = '/sw.js';
 const FALLBACK_WEB_PUSH_VAPID_PUBLIC_KEY =
   'BBO_3_8IHqqvpVRPElGXyIVK97R-kKj7dDgROrFjwbihKcpY3QG6TnzFdWsBkFkS4gK-CrJ-7wmxAQxu31MDllI';
+const WEB_PUSH_SUBSCRIPTION_VERSION = '2026-04-17-webpush-v2';
+const WEB_PUSH_SUBSCRIPTION_VERSION_KEY = 'qc_webpush_subscription_version';
 const getWebPushPublicKey = () =>
   process.env.NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY ||
   FALLBACK_WEB_PUSH_VAPID_PUBLIC_KEY;
@@ -29,6 +31,53 @@ const urlBase64ToUint8Array = (base64String: string) => {
   }
 
   return outputArray;
+};
+
+const normalizeBase64Url = (value: string) => value.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+
+const uint8ArrayToBase64Url = (value: Uint8Array) => {
+  let binary = '';
+
+  for (let i = 0; i < value.length; i += 1) {
+    binary += String.fromCharCode(value[i]);
+  }
+
+  return normalizeBase64Url(window.btoa(binary));
+};
+
+const getStoredSubscriptionVersion = () => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  return window.localStorage.getItem(WEB_PUSH_SUBSCRIPTION_VERSION_KEY);
+};
+
+const setStoredSubscriptionVersion = () => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.localStorage.setItem(
+    WEB_PUSH_SUBSCRIPTION_VERSION_KEY,
+    WEB_PUSH_SUBSCRIPTION_VERSION,
+  );
+};
+
+const shouldRefreshExistingSubscription = (subscription: PushSubscription, publicKey: string) => {
+  const storedVersion = getStoredSubscriptionVersion();
+
+  if (storedVersion !== WEB_PUSH_SUBSCRIPTION_VERSION) {
+    return true;
+  }
+
+  const applicationServerKey = subscription.options?.applicationServerKey;
+  if (!applicationServerKey) {
+    return false;
+  }
+
+  const subscriptionKey = uint8ArrayToBase64Url(new Uint8Array(applicationServerKey));
+  return subscriptionKey !== normalizeBase64Url(publicKey);
 };
 
 export const isPushConfigured = () =>
@@ -106,6 +155,25 @@ const persistSubscription = async (
   return response.json();
 };
 
+const deletePersistedSubscription = async (token: string, endpoint: string) => {
+  if (!baseUrl) {
+    return;
+  }
+
+  await fetch(`${baseUrl}/push-subscriptions`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ endpoint }),
+  });
+};
+
+type SubscribeToWebPushOptions = {
+  forceRefresh?: boolean;
+};
+
 export const syncExistingWebPushSubscription = async (token?: string | null) => {
   if (
     !token ||
@@ -121,11 +189,20 @@ export const syncExistingWebPushSubscription = async (token?: string | null) => 
     return false;
   }
 
+  if (shouldRefreshExistingSubscription(existingSubscription, getWebPushPublicKey())) {
+    const refreshed = await subscribeToWebPush(token, { forceRefresh: true });
+    return refreshed.success;
+  }
+
   await persistSubscription(token, serializeSubscription(existingSubscription));
+  setStoredSubscriptionVersion();
   return true;
 };
 
-export const subscribeToWebPush = async (token: string) => {
+export const subscribeToWebPush = async (
+  token: string,
+  options: SubscribeToWebPushOptions = {},
+) => {
   if (!isPushSupported()) {
     return { success: false as const, reason: 'unsupported' as const };
   }
@@ -158,6 +235,20 @@ export const subscribeToWebPush = async (token: string) => {
   }
 
   let subscription = await registration.pushManager.getSubscription();
+  if (
+    subscription &&
+    (options.forceRefresh || shouldRefreshExistingSubscription(subscription, publicKey))
+  ) {
+    const oldEndpoint = subscription.endpoint;
+
+    if (oldEndpoint) {
+      await deletePersistedSubscription(token, oldEndpoint).catch(() => undefined);
+    }
+
+    await subscription.unsubscribe().catch(() => false);
+    subscription = null;
+  }
+
   if (!subscription) {
     subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
@@ -167,6 +258,7 @@ export const subscribeToWebPush = async (token: string) => {
 
   const serialized = serializeSubscription(subscription);
   await persistSubscription(token, serialized);
+  setStoredSubscriptionVersion();
 
   return {
     success: true as const,

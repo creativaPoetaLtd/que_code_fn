@@ -104,7 +104,7 @@ export const usePushNotifications = () => {
     }
 
     try {
-      const result = await subscribeToWebPush(token);
+      const result = await subscribeToWebPush(token, { forceRefresh: true });
       await refreshState();
       return result.success;
     } catch (error) {
