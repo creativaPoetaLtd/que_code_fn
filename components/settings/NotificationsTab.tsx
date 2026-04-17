@@ -9,8 +9,11 @@ import { Volume2, VolumeX, Smartphone, BellRing } from "lucide-react";
 import { NotificationSettings } from "@/types/settings.types";
 import { savePrefs, getPrefs } from "@/services/soundService";
 import { notificationService } from "@/services/notificationService";
+import { syncExistingWebPushSubscription } from "@/services/webPushService";
+import { useAuthToken } from "@/hooks/use-auth-token";
 
 export const NotificationsTab: React.FC = () => {
+  const { getToken } = useAuthToken();
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
     // Transaction Notifications
     notifySent: true,
@@ -43,6 +46,17 @@ export const NotificationsTab: React.FC = () => {
     }));
   }, []);
 
+  const syncPushPreferences = () => {
+    const token = getToken();
+    if (!token) {
+      return;
+    }
+
+    void syncExistingWebPushSubscription(token).catch((error) => {
+      console.error("Failed to sync push notification preferences:", error);
+    });
+  };
+
   const updateSetting = (key: keyof NotificationSettings, value: boolean) => {
     setNotificationSettings((prev) => ({ ...prev, [key]: value }));
 
@@ -50,6 +64,7 @@ export const NotificationsTab: React.FC = () => {
     if (key === "soundEnabled") {
       savePrefs({ soundEnabled: value });
       notificationService.syncFromPrefs();
+      syncPushPreferences();
       // Play a preview when enabling so the user hears what to expect
       if (value) {
         import("@/services/soundService").then(({ soundService }) => {
@@ -60,6 +75,7 @@ export const NotificationsTab: React.FC = () => {
     if (key === "vibrationEnabled") {
       savePrefs({ vibrationEnabled: value });
       notificationService.syncFromPrefs();
+      syncPushPreferences();
       // Short vibration preview when enabling
       if (value) {
         import("@/services/soundService").then(({ soundService }) => {
@@ -244,7 +260,7 @@ export const NotificationsTab: React.FC = () => {
             <h3 className="text-base sm:text-lg font-medium dark:text-white">Sound & Vibration</h3>
           </div>
           <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-4">
-            These settings take effect immediately and apply to all incoming message notifications.
+            These settings take effect immediately for in-app alerts and sync to push notifications on supported browsers and devices.
           </p>
 
           <div className="space-y-3">

@@ -38,7 +38,8 @@ self.addEventListener('push', (event) => {
     tag: payload.tag || `quecode-${Date.now()}`,
     renotify: payload.renotify ?? true,
     requireInteraction: payload.requireInteraction ?? false,
-    vibrate: [200, 100, 200],
+    silent: payload.silent ?? false,
+    vibrate: Array.isArray(payload.vibrate) ? payload.vibrate : [200, 100, 200],
     data: {
       ...(payload.data || {}),
       url: payload.url || payload.data?.url || defaultPayload.url,

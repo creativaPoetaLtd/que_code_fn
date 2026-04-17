@@ -1,6 +1,7 @@
 'use client';
 
 import baseUrl from '@/helpers/baseUrl';
+import { getPrefs, type NotifPrefs } from '@/services/soundService';
 
 type SerializablePushSubscription = {
   endpoint: string;
@@ -10,6 +11,8 @@ type SerializablePushSubscription = {
     auth: string;
   };
 };
+
+type PushDeliveryPreferences = Pick<NotifPrefs, 'soundEnabled' | 'vibrationEnabled'>;
 
 const SERVICE_WORKER_PATH = '/sw.js';
 const FALLBACK_WEB_PUSH_VAPID_PUBLIC_KEY =
@@ -62,6 +65,15 @@ const setStoredSubscriptionVersion = () => {
     WEB_PUSH_SUBSCRIPTION_VERSION_KEY,
     WEB_PUSH_SUBSCRIPTION_VERSION,
   );
+};
+
+const getPushDeliveryPreferences = (): PushDeliveryPreferences => {
+  const prefs = getPrefs();
+
+  return {
+    soundEnabled: prefs.soundEnabled,
+    vibrationEnabled: prefs.vibrationEnabled,
+  };
 };
 
 const shouldRefreshExistingSubscription = (subscription: PushSubscription, publicKey: string) => {
@@ -145,6 +157,7 @@ const persistSubscription = async (
     body: JSON.stringify({
       subscription,
       userAgent: navigator.userAgent,
+      preferences: getPushDeliveryPreferences(),
     }),
   });
 
