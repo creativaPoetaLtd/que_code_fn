@@ -12,6 +12,7 @@ import { ThemeProvider } from "@/context/ThemeContext"
 import { QRScannerProvider } from "@/context/QRScannerContext"
 import { notificationService } from "@/services/notificationService"
 import { registerPushServiceWorker } from "@/services/webPushService"
+import BrowserNotificationBadge from "@/components/notifications/BrowserNotificationBadge"
 
 
 const ClientProvider = ({ children }: { children: React.ReactNode }) => {
@@ -27,6 +28,7 @@ const ClientProvider = ({ children }: { children: React.ReactNode }) => {
         <Provider store={store}>
             <ThemeProvider>
                 <NotificationProvider>
+                    <BrowserNotificationBadge />
                     <ChatProvider>
                         <SidebarProvider>
                             <QRScannerProvider>

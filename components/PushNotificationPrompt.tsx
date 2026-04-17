@@ -21,6 +21,11 @@ export default function PushNotificationPrompt() {
     requestPermission,
   } = usePushNotifications();
 
+  const browserNeedsSubscription = permission === 'granted' && !isSubscribed;
+  const helperText = browserNeedsSubscription
+    ? 'Browser permission is already allowed, but this browser still needs a live QC push subscription.'
+    : 'Stay updated with messages, payments, and group activities. This enables true push notifications for the installed app.';
+
   useEffect(() => {
     if (
       dismissed ||
@@ -49,10 +54,18 @@ export default function PushNotificationPrompt() {
         return;
       }
 
-      setErrorMessage('Notifications not enabled yet. Accept the browser permission, then retry.');
+      setErrorMessage(
+        permission === 'granted'
+          ? 'Permission is granted, but QC could not attach a live push subscription yet. Refresh once, use a normal window, then retry.'
+          : 'Notifications not enabled yet. Accept the browser permission, then retry.',
+      );
     } catch (error) {
       console.error('Error requesting notification permission:', error);
-      setErrorMessage('Failed to enable notifications. Please retry.');
+      setErrorMessage(
+        permission === 'granted'
+          ? 'QC still could not register this browser for push notifications. Refresh and retry in a normal browser window.'
+          : 'Failed to enable notifications. Please retry.',
+      );
     }
   };
 
@@ -80,7 +93,7 @@ export default function PushNotificationPrompt() {
         <div className="flex-1">
           <h3 className="font-semibold text-sm mb-1">Enable Notifications</h3>
           <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
-            Stay updated with messages, payments, and group activities. This enables true push notifications for the installed app.
+            {helperText}
           </p>
           {errorMessage ? (
             <p className="text-xs text-red-600 dark:text-red-400 mb-3">{errorMessage}</p>
