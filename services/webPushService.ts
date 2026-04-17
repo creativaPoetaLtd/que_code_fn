@@ -269,6 +269,9 @@ export const subscribeToWebPush = async (
 export const unsubscribeFromWebPush = async (token?: string | null) => {
   const subscription = await getExistingPushSubscription();
   if (!subscription) {
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(WEB_PUSH_SUBSCRIPTION_VERSION_KEY);
+    }
     return true;
   }
 
@@ -282,8 +285,14 @@ export const unsubscribeFromWebPush = async (token?: string | null) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ endpoint }),
-    });
+    }).catch(() => undefined);
   }
 
-  return subscription.unsubscribe();
+  const unsubscribed = await subscription.unsubscribe().catch(() => false);
+
+  if (typeof window !== 'undefined') {
+    window.localStorage.removeItem(WEB_PUSH_SUBSCRIPTION_VERSION_KEY);
+  }
+
+  return unsubscribed;
 };

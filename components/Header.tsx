@@ -14,9 +14,8 @@ import NotificationBell from "./notifications/NotificationBell";
 import { useAuthToken } from "@/hooks/use-auth-token";
 import { Button } from "./ui/button";
 import { useTheme } from "@/context/ThemeContext";
-import { socketService } from "@/services/socketService";
-import { apiSlice } from "@/states/apiSlice";
 import { useDispatch } from "react-redux";
+import { performClientLogout } from "@/utils/logout";
 
 
 interface HeaderProps {
@@ -145,49 +144,17 @@ export const Header = ({ showBackButton = false }: HeaderProps) => {
     const handleLogout = () => {
         setIsDropdownOpen(false);
 
-        try {
-            // 1. Clear authentication tokens
-            removeToken();
-
-            // 2. Clear chat state if available
-            if (chat?.clearChatState) {
-                chat.clearChatState();
-            }
-
-            // 3. Clear notification state if available
-            if (notifications?.clearNotificationState) {
-                notifications.clearNotificationState();
-            }
-
-            // 4. Force disconnect socket
-            socketService.forceDisconnect();
-
-            // 5. Clear Redux RTK Query cache
-            dispatch(apiSlice.util.resetApiState());
-
-            // 6. Clear sessionStorage
-            sessionStorage.clear();
-
-            // 7. Clear localStorage (preserve theme and sidebar)
-            const preservedItems = {
-                theme: localStorage.getItem('theme'),
-                sidebarExpanded: localStorage.getItem('sidebarExpanded'),
-            };
-
-            localStorage.clear();
-
-            if (preservedItems.theme) {
-                localStorage.setItem('theme', preservedItems.theme);
-            }
-            if (preservedItems.sidebarExpanded) {
-                localStorage.setItem('sidebarExpanded', preservedItems.sidebarExpanded);
-            }
-        } catch (error) {
+        void performClientLogout({
+            token: getToken(),
+            removeToken,
+            dispatch,
+            clearChatState: chat?.clearChatState,
+            clearNotificationState: notifications?.clearNotificationState,
+        }).catch((error) => {
             console.error('Error during logout:', error);
-        }
-
-        // 8. Force hard redirect to home (bypasses middleware returnUrl)
-        window.location.replace("/");
+        }).finally(() => {
+            window.location.replace("/");
+        });
     };
 
     const handleNavigation = (path: string) => {
