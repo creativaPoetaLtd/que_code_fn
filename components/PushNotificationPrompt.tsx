@@ -8,6 +8,8 @@ import { useAuthToken } from '@/hooks/use-auth-token';
 
 export default function PushNotificationPrompt() {
   const [showPrompt, setShowPrompt] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { getToken } = useAuthToken();
   const token = getToken();
   const {
@@ -20,43 +22,42 @@ export default function PushNotificationPrompt() {
   } = usePushNotifications();
 
   useEffect(() => {
-    if (!token || !isConfigured || !isSupported || requiresInstall) {
+    if (
+      dismissed ||
+      !token ||
+      !isConfigured ||
+      !isSupported ||
+      requiresInstall ||
+      permission === 'denied' ||
+      isSubscribed
+    ) {
       setShowPrompt(false);
       return;
     }
 
-    if (permission === 'granted' && isSubscribed) {
-      setShowPrompt(false);
-      return;
-    }
-
-    if (permission === 'denied') {
-      setShowPrompt(false);
-      return;
-    }
-
-    const hasPrompted = localStorage.getItem('pushPrompted');
-    if (!hasPrompted) {
-      const timer = window.setTimeout(() => setShowPrompt(true), 5000);
-      return () => window.clearTimeout(timer);
-    } else {
-      setShowPrompt(false);
-    }
-  }, [token, isConfigured, isSupported, requiresInstall, permission, isSubscribed]);
+    const timer = window.setTimeout(() => setShowPrompt(true), 2000);
+    return () => window.clearTimeout(timer);
+  }, [dismissed, token, isConfigured, isSupported, requiresInstall, permission, isSubscribed]);
 
   const handleEnableNotifications = async () => {
+    setErrorMessage(null);
+
     try {
-      await requestPermission();
+      const success = await requestPermission();
+      if (success) {
+        setShowPrompt(false);
+        return;
+      }
+
+      setErrorMessage('Notifications not enabled yet. Accept the browser permission, then retry.');
     } catch (error) {
       console.error('Error requesting notification permission:', error);
+      setErrorMessage('Failed to enable notifications. Please retry.');
     }
-
-    localStorage.setItem('pushPrompted', 'true');
-    setShowPrompt(false);
   };
 
   const handleDismiss = () => {
-    localStorage.setItem('pushPrompted', 'true');
+    setDismissed(true);
     setShowPrompt(false);
   };
 
@@ -81,6 +82,9 @@ export default function PushNotificationPrompt() {
           <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
             Stay updated with messages, payments, and group activities. This enables true push notifications for the installed app.
           </p>
+          {errorMessage ? (
+            <p className="text-xs text-red-600 dark:text-red-400 mb-3">{errorMessage}</p>
+          ) : null}
           <div className="flex gap-2">
             <Button
               onClick={handleEnableNotifications}

@@ -56,11 +56,23 @@ export const usePushNotifications = () => {
     const handleAuthTokenChange = () => {
       void refreshState();
     };
+    const handleFocus = () => {
+      void refreshState();
+    };
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        void refreshState();
+      }
+    };
 
     window.addEventListener('authTokenChanged', handleAuthTokenChange as EventListener);
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       window.removeEventListener('authTokenChanged', handleAuthTokenChange as EventListener);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [refreshState]);
 
@@ -70,9 +82,15 @@ export const usePushNotifications = () => {
       return false;
     }
 
-    const result = await subscribeToWebPush(token);
-    await refreshState();
-    return result.success;
+    try {
+      const result = await subscribeToWebPush(token);
+      await refreshState();
+      return result.success;
+    } catch (error) {
+      console.error('Failed to subscribe to web push:', error);
+      await refreshState();
+      return false;
+    }
   }, [getToken, refreshState]);
 
   const unsubscribe = useCallback(async () => {

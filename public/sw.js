@@ -47,11 +47,37 @@ self.addEventListener('push', (event) => {
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
-      const hasVisibleClient = clients.some(
-        (client) => client.visibilityState === 'visible' || client.focused,
+      const targetUrl = new URL(
+        payload.url || payload.data?.url || defaultPayload.url,
+        self.location.origin,
       );
+      const targetChatId =
+        payload.data?.chatId || targetUrl.searchParams.get('chatId');
 
-      if (hasVisibleClient) {
+      const hasVisibleMatchingChatClient = clients.some((client) => {
+        if (!(client.visibilityState === 'visible' || client.focused)) {
+          return false;
+        }
+
+        try {
+          const clientUrl = new URL(client.url);
+          const isChatClient = clientUrl.pathname.startsWith('/chat');
+
+          if (!isChatClient) {
+            return false;
+          }
+
+          if (!targetChatId) {
+            return true;
+          }
+
+          return clientUrl.searchParams.get('chatId') === String(targetChatId);
+        } catch (_error) {
+          return false;
+        }
+      });
+
+      if (hasVisibleMatchingChatClient) {
         return;
       }
 
