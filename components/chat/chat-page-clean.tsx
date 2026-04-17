@@ -30,6 +30,7 @@ export default function ChatPageClean() {
   const token = getToken();
   const { isExpanded } = useSidebar();
   const pathname = usePathname();
+  const [requestedChatId, setRequestedChatId] = useState<string | null>(null);
 
   const {
     conversations,
@@ -102,6 +103,44 @@ export default function ChatPageClean() {
       }
     }
   }, [activeChat, conversations]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const syncRequestedChatId = () => {
+      const url = new URL(window.location.href);
+      setRequestedChatId(url.searchParams.get('chatId'));
+    };
+
+    syncRequestedChatId();
+    window.addEventListener('popstate', syncRequestedChatId);
+
+    return () => {
+      window.removeEventListener('popstate', syncRequestedChatId);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!requestedChatId || conversations.length === 0) {
+      return;
+    }
+
+    if (selectedChat?.id === requestedChatId && activeChat === requestedChatId) {
+      return;
+    }
+
+    const requestedConversation = conversations.find(
+      (conversation) => conversation.id === requestedChatId,
+    );
+
+    if (!requestedConversation) {
+      return;
+    }
+
+    handleConversationSelect(requestedConversation);
+  }, [requestedChatId, conversations, selectedChat?.id, activeChat]);
 
   // Clear activeChat when navigating away from chat page
   useEffect(() => {

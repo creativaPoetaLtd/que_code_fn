@@ -95,15 +95,28 @@ self.addEventListener('notificationclick', (event) => {
     self.location.origin,
   ).toString();
 
-  event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
-      const existingClient = clients[0];
+  event.waitUntil((async () => {
+    const clients = await self.clients.matchAll({
+      type: 'window',
+      includeUncontrolled: true,
+    });
 
-      if (existingClient) {
-        return existingClient.navigate(targetUrl).then(() => existingClient.focus());
+    const preferredClient =
+      clients.find((client) => client.visibilityState === 'visible' || client.focused) ||
+      clients[0];
+
+    if (preferredClient) {
+      try {
+        const navigatedClient = preferredClient.navigate
+          ? await preferredClient.navigate(targetUrl)
+          : preferredClient;
+        await (navigatedClient || preferredClient).focus();
+        return;
+      } catch (_error) {
+        // Fall back to opening a fresh window when existing client navigation fails.
       }
+    }
 
-      return self.clients.openWindow(targetUrl);
-    }),
-  );
+    await self.clients.openWindow(targetUrl);
+  })());
 });
