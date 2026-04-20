@@ -1,9 +1,15 @@
 import { io, type Socket } from "socket.io-client"
+import {
+    clearAllTokens,
+    getValidToken,
+    refreshAccessToken,
+} from "@/utils/tokenUtils"
 
 class SocketService {
     private socket: Socket | null = null
     private userId: string | null = null
     private connectionCount: number = 0
+    private refreshInProgress = false
 
     connect(userId: string, token?: string) {
         this.connectionCount++
@@ -16,7 +22,7 @@ class SocketService {
         this.userId = userId
         console.log(`Creating new socket connection. Connection count: ${this.connectionCount}`)
 
-        const finalToken = token || localStorage.getItem('token');
+        const finalToken = token || getValidToken();
 
         this.socket = io(process.env.NEXT_PUBLIC_SOCKET_URL, {
             transports: ["websocket", "polling"],
@@ -35,12 +41,25 @@ class SocketService {
             console.log("Disconnected from socket server")
         })
 
-        this.socket.on("connect_error", (error) => {
+        this.socket.on("connect_error", async (error) => {
             console.error("Socket connection error:", error)
-            // If authentication error, clear token and redirect to login
-            if (error.message.includes('Authentication error')) {
-                localStorage.removeItem('token');
-                window.location.href = '/auth/login';
+            if (error.message.includes('Authentication error') && !this.refreshInProgress) {
+                this.refreshInProgress = true
+
+                try {
+                    const refreshedToken = await refreshAccessToken()
+
+                    if (refreshedToken && this.socket) {
+                        this.socket.auth = { token: refreshedToken }
+                        this.socket.connect()
+                        return
+                    }
+
+                    clearAllTokens()
+                    window.location.href = '/auth/login'
+                } finally {
+                    this.refreshInProgress = false
+                }
             }
         })
 
