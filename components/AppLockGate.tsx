@@ -194,7 +194,7 @@ export default function AppLockGate() {
                         Welcome back, {displayName}
                     </h1>
                     <p className="mt-2 text-sm text-white/65">
-                        Enter your account password to continue. Notifications stay active while the app is locked.
+                        Enter your account password to continue.
                     </p>
                 </div>
 
