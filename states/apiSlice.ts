@@ -1,5 +1,9 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-import { getValidToken, handleTokenExpiration } from "@/utils/tokenUtils";
+import {
+    getValidToken,
+    handleTokenExpiration,
+    refreshAccessToken,
+} from "@/utils/tokenUtils";
 
 const baseQueryWithAuth = fetchBaseQuery({
     baseUrl: process.env.NEXT_PUBLIC_API_URL,
@@ -13,10 +17,16 @@ const baseQueryWithAuth = fetchBaseQuery({
 });
 
 const baseQueryWithReauth = async (args: any, api: any, extraOptions: any) => {
-    const result = await baseQueryWithAuth(args, api, extraOptions);
+    let result = await baseQueryWithAuth(args, api, extraOptions);
 
     if (result.error?.status === 401) {
-        handleTokenExpiration();
+        const refreshedToken = await refreshAccessToken();
+
+        if (refreshedToken) {
+            result = await baseQueryWithAuth(args, api, extraOptions);
+        } else {
+            handleTokenExpiration();
+        }
     }
 
     return result;

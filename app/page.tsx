@@ -8,10 +8,12 @@ import TrustSecurityPage from '@/components/landing_page/TrustSecurityPage';
 import Testimonials from '@/components/landing_page/Testimonial';
 import Other from '@/components/landing_page/Other';
 import Footer from '@/components/landing_page/Footer';
+import PWAStandaloneRedirect from '@/components/PWAStandaloneRedirect';
 
 export default function Home() {
   return (
     <div className='w-full' >
+      <PWAStandaloneRedirect />
       <Head>
         <title>QiewCode - Finance With Security And Flexibility</title>
         <meta name="description" content="Finance with security and flexibility platform" />

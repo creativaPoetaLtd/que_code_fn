@@ -3,6 +3,7 @@ import type { NextRequest } from 'next/server';
 
 interface AuthState {
     token: string | null;
+    hasRefreshToken: boolean;
     isAuthenticated: boolean;
     isProtected: boolean;
     isAuthRoute: boolean;
@@ -44,6 +45,11 @@ function getToken(request: NextRequest): string | null {
     if (cookie) return extractTokenFromCookie(cookie.value);
     const authHeader = request.headers.get('authorization');
     return authHeader ? authHeader.replace('Bearer ', '') : null;
+}
+
+function getRefreshToken(request: NextRequest): string | null {
+    const cookie = request.cookies.get('refreshToken');
+    return cookie ? extractTokenFromCookie(cookie.value) : null;
 }
 
 const protectedRoutes = [
@@ -135,6 +141,7 @@ function redirectToReturnUrl(request: NextRequest, returnUrl: string): NextRespo
 
 function getAuthState(request: NextRequest): AuthState {
     const token = getToken(request);
+    const hasRefreshToken = Boolean(getRefreshToken(request));
     const isAuthenticated = token ? !isTokenExpired(token) : false;
     const { pathname } = request.nextUrl;
 
@@ -143,6 +150,7 @@ function getAuthState(request: NextRequest): AuthState {
 
     const state = {
         token,
+        hasRefreshToken,
         isAuthenticated,
         isProtected,
         isAuthRoute: isAuthRoute(pathname),
@@ -178,11 +186,11 @@ export function middleware(request: NextRequest) {
         return NextResponse.next();
     }
 
-    if (state.token && isTokenExpired(state.token)) {
+    if (state.token && isTokenExpired(state.token) && !state.hasRefreshToken) {
         return handleExpiredToken(request);
     }
 
-    if (state.isProtected && !state.isAuthenticated) {
+    if (state.isProtected && !state.isAuthenticated && !state.hasRefreshToken) {
         return redirectToLogin(request);
     }
 

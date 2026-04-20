@@ -3,6 +3,8 @@
 import { socketService } from '@/services/socketService';
 import { unsubscribeFromWebPush } from '@/services/webPushService';
 import { apiSlice } from '@/states/apiSlice';
+import baseUrl from '@/helpers/baseUrl';
+import { getRefreshToken } from '@/utils/tokenUtils';
 
 type LogoutOptions = {
   token?: string | null;
@@ -27,6 +29,17 @@ const clearBrowserNotificationIndicators = () => {
   void badgeNavigator.clearAppBadge?.().catch(() => undefined);
 };
 
+const revokeRefreshSession = async () => {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken || !baseUrl) return;
+
+  await fetch(`${baseUrl}/auth/logout`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken }),
+  });
+};
+
 export const performClientLogout = async ({
   token,
   removeToken,
@@ -40,6 +53,10 @@ export const performClientLogout = async ({
 
   await unsubscribeFromWebPush(token).catch((error) => {
     console.error('Failed to unsubscribe web push during logout:', error);
+  });
+
+  await revokeRefreshSession().catch((error) => {
+    console.error('Failed to revoke refresh session during logout:', error);
   });
 
   clearBrowserNotificationIndicators();

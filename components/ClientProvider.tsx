@@ -13,6 +13,8 @@ import { QRScannerProvider } from "@/context/QRScannerContext"
 import { notificationService } from "@/services/notificationService"
 import { registerPushServiceWorker } from "@/services/webPushService"
 import BrowserNotificationBadge from "@/components/notifications/BrowserNotificationBadge"
+import AuthSessionManager from "@/components/AuthSessionManager"
+import AppLockGate from "@/components/AppLockGate"
 
 
 const ClientProvider = ({ children }: { children: React.ReactNode }) => {
@@ -26,7 +28,9 @@ const ClientProvider = ({ children }: { children: React.ReactNode }) => {
 
     return (
         <Provider store={store}>
+            <AuthSessionManager />
             <ThemeProvider>
+                <AppLockGate />
                 <NotificationProvider>
                     <BrowserNotificationBadge />
                     <ChatProvider>

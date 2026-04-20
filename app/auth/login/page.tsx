@@ -13,6 +13,7 @@ import Input from 'antd/es/input';
 import { useLoginMutation } from '@/states/authentication';
 import { ClipLoader } from 'react-spinners';
 import { useAuthToken } from '@/hooks/use-auth-token';
+import { storeAuthTokens } from '@/utils/tokenUtils';
 
 interface LoginFormInputs {
   email: string;
@@ -136,9 +137,9 @@ const LoginForm: React.FC = () => {
   const onSubmit = async (data: LoginFormInputs) => {
     try {
       const response = await login(data).unwrap();
-      const { token, account } = response;
+      const { token, refreshToken, refreshExpiresAt } = response;
 
-      setToken(token, data.rememberMe ? 30 : 1);
+      storeAuthTokens({ token, refreshToken, refreshExpiresAt });
 
       // Decode token to get user information
       const tokenInfo = decodeToken(token);
@@ -231,7 +232,15 @@ const LoginForm: React.FC = () => {
 
       try {
         if (event.data && event.data.token) {
-          setToken(event.data.token);
+          if (event.data.refreshToken) {
+            storeAuthTokens({
+              token: event.data.token,
+              refreshToken: event.data.refreshToken,
+              refreshExpiresAt: event.data.refreshExpiresAt,
+            });
+          } else {
+            setToken(event.data.token);
+          }
 
           // Decode token to get user information
           const tokenInfo = decodeToken(event.data.token);

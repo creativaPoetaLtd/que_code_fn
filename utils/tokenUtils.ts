@@ -1,4 +1,12 @@
 import { isTokenExpired } from './jwtUtils';
+import baseUrl from '@/helpers/baseUrl';
+
+const ACCESS_TOKEN_KEY = 'token';
+const REFRESH_TOKEN_KEY = 'refreshToken';
+const USER_INFO_KEY = 'authUserInfo';
+const DEFAULT_REFRESH_DAYS = 180;
+
+let refreshPromise: Promise<string | null> | null = null;
 
 export const readCookie = (name: string): string | null => {
     if (typeof document === 'undefined') return null;
@@ -12,13 +20,11 @@ export const parseTokenFromCookie = (cookieValue: string): string | null => {
     try {
         const cookieData = JSON.parse(cookieValue);
         if (cookieData.expires && Date.now() > cookieData.expires) {
-            clearAllTokens();
             return null;
         }
         const token = cookieData.value;
         return token && !isTokenExpired(token) ? token : null;
     } catch {
-        clearAllTokens();
         return null;
     }
 };
@@ -27,6 +33,9 @@ export const parseTokenFromStorage = (raw: string | null): string | null => {
     if (!raw) return null;
     try {
         const data = JSON.parse(raw);
+        if (data.expires && Date.now() > data.expires) {
+            return null;
+        }
         return data.value || data;
     } catch {
         return raw;
@@ -36,11 +45,9 @@ export const parseTokenFromStorage = (raw: string | null): string | null => {
 export const validateToken = (token: string | null, expires?: number): string | null => {
     if (!token) return null;
     if (expires && Date.now() > expires) {
-        clearAllTokens();
         return null;
     }
     if (isTokenExpired(token)) {
-        clearAllTokens();
         return null;
     }
     return token;
@@ -49,7 +56,7 @@ export const validateToken = (token: string | null, expires?: number): string | 
 export const getTokenFromStorage = (): string | null => {
     for (const storage of [sessionStorage, localStorage]) {
         try {
-            const stored = storage.getItem('token');
+            const stored = storage.getItem(ACCESS_TOKEN_KEY);
             if (stored) {
                 const token = parseTokenFromStorage(stored);
                 if (token && !isTokenExpired(token)) return token;
@@ -64,7 +71,7 @@ export const getTokenFromStorage = (): string | null => {
 export const getValidToken = (): string | null => {
     if (typeof window === 'undefined') return null;
 
-    const cookieValue = readCookie('token');
+    const cookieValue = readCookie(ACCESS_TOKEN_KEY);
     if (cookieValue) {
         try {
             const cookieData = JSON.parse(cookieValue);
@@ -77,6 +84,179 @@ export const getValidToken = (): string | null => {
     }
 
     return getTokenFromStorage();
+};
+
+export const getStoredAccessToken = (): string | null => {
+    if (typeof window === 'undefined') return null;
+
+    const cookieValue = readCookie(ACCESS_TOKEN_KEY);
+    if (cookieValue) {
+        try {
+            const cookieData = JSON.parse(cookieValue);
+            return cookieData.value || cookieData;
+        } catch {
+            return parseTokenFromStorage(cookieValue);
+        }
+    }
+
+    return parseTokenFromStorage(localStorage.getItem(ACCESS_TOKEN_KEY));
+};
+
+const setCookie = (name: string, value: string, days: number) => {
+    const expires = new Date();
+    expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
+    const cookieData = {
+        value,
+        expires: expires.getTime(),
+    };
+    const secure = window.location.protocol === 'https:' ? ';Secure' : '';
+
+    document.cookie = `${name}=${JSON.stringify(cookieData)};expires=${expires.toUTCString()};path=/;SameSite=Strict${secure}`;
+};
+
+const getCookieToken = (name: string): string | null => {
+    const cookieValue = readCookie(name);
+    if (!cookieValue) return null;
+
+    try {
+        const cookieData = JSON.parse(cookieValue);
+        if (cookieData.expires && Date.now() > cookieData.expires) {
+            return null;
+        }
+        return cookieData.value || null;
+    } catch {
+        return parseTokenFromStorage(cookieValue);
+    }
+};
+
+export const storeAccessToken = (token: string, days: number = 1) => {
+    if (typeof window === 'undefined') return;
+    const expires = Date.now() + days * 24 * 60 * 60 * 1000;
+    setCookie(ACCESS_TOKEN_KEY, token, days);
+    localStorage.setItem(ACCESS_TOKEN_KEY, JSON.stringify({ value: token, expires }));
+
+    const payload = parseTokenPayload(token);
+    if (payload) {
+        localStorage.setItem(
+            USER_INFO_KEY,
+            JSON.stringify({
+                id: payload.id || payload.userId || payload.sub || null,
+                name: payload.name || null,
+                email: payload.email || null,
+                accountType: payload.accountType || null,
+            }),
+        );
+    }
+
+    window.dispatchEvent(new CustomEvent('authTokenChanged', { detail: { token } }));
+};
+
+export const storeRefreshToken = (
+    refreshToken: string,
+    days: number = DEFAULT_REFRESH_DAYS,
+) => {
+    if (typeof window === 'undefined') return;
+    const expires = Date.now() + days * 24 * 60 * 60 * 1000;
+    setCookie(REFRESH_TOKEN_KEY, refreshToken, days);
+    localStorage.setItem(REFRESH_TOKEN_KEY, JSON.stringify({ value: refreshToken, expires }));
+};
+
+export const storeAuthTokens = ({
+    token,
+    refreshToken,
+    refreshExpiresAt,
+}: {
+    token: string;
+    refreshToken?: string | null;
+    refreshExpiresAt?: string | Date | null;
+}) => {
+    storeAccessToken(token);
+
+    if (refreshToken) {
+        const refreshDays = refreshExpiresAt
+            ? Math.max(
+                1,
+                Math.ceil(
+                    (new Date(refreshExpiresAt).getTime() - Date.now()) /
+                    (24 * 60 * 60 * 1000),
+                ),
+            )
+            : DEFAULT_REFRESH_DAYS;
+        storeRefreshToken(refreshToken, refreshDays);
+    }
+};
+
+export const getRefreshToken = (): string | null => {
+    if (typeof window === 'undefined') return null;
+
+    const cookieToken = getCookieToken(REFRESH_TOKEN_KEY);
+    if (cookieToken) return cookieToken;
+
+    return parseTokenFromStorage(localStorage.getItem(REFRESH_TOKEN_KEY));
+};
+
+export const hasRefreshToken = () => Boolean(getRefreshToken());
+
+export const getStoredUserInfo = (): {
+    id?: string | null;
+    name?: string | null;
+    email?: string | null;
+    accountType?: string | null;
+} | null => {
+    if (typeof window === 'undefined') return null;
+
+    try {
+        const raw = localStorage.getItem(USER_INFO_KEY);
+        return raw ? JSON.parse(raw) : null;
+    } catch {
+        return null;
+    }
+};
+
+export const refreshAccessToken = async (): Promise<string | null> => {
+    if (typeof window === 'undefined') return null;
+
+    if (refreshPromise) {
+        return refreshPromise;
+    }
+
+    refreshPromise = (async () => {
+        const refreshToken = getRefreshToken();
+        if (!refreshToken || !baseUrl) {
+            return null;
+        }
+
+        try {
+            const response = await fetch(`${baseUrl}/auth/refresh`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ refreshToken }),
+            });
+
+            if (!response.ok) {
+                return null;
+            }
+
+            const data = await response.json();
+            if (!data?.token) {
+                return null;
+            }
+
+            storeAuthTokens({
+                token: data.token,
+                refreshToken: data.refreshToken,
+                refreshExpiresAt: data.refreshExpiresAt,
+            });
+
+            return data.token as string;
+        } catch {
+            return null;
+        } finally {
+            refreshPromise = null;
+        }
+    })();
+
+    return refreshPromise;
 };
 
 export const parseTokenPayload = (token: string) => {
@@ -157,13 +337,19 @@ export const clearAllTokens = () => {
 
     domains.forEach(domain => {
         paths.forEach(path => {
-            document.cookie = `token=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=${path}${domain ? `;domain=${domain}` : ''};`;
-            document.cookie = `token_expires=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=${path}${domain ? `;domain=${domain}` : ''};`;
+            document.cookie = `${ACCESS_TOKEN_KEY}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=${path}${domain ? `;domain=${domain}` : ''};`;
+            document.cookie = `${ACCESS_TOKEN_KEY}_expires=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=${path}${domain ? `;domain=${domain}` : ''};`;
+            document.cookie = `${REFRESH_TOKEN_KEY}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=${path}${domain ? `;domain=${domain}` : ''};`;
+            document.cookie = `${REFRESH_TOKEN_KEY}_expires=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=${path}${domain ? `;domain=${domain}` : ''};`;
         });
     });
 
-    sessionStorage.removeItem('token');
-    localStorage.removeItem('token');
+    sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+    sessionStorage.removeItem(REFRESH_TOKEN_KEY);
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+    localStorage.removeItem(USER_INFO_KEY);
+    window.dispatchEvent(new CustomEvent('authTokenChanged', { detail: { token: null } }));
 
 };
 
