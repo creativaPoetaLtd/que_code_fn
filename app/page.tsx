@@ -17,7 +17,7 @@ export default function Home() {
       <Head>
         <title>QiewCode - Finance With Security And Flexibility</title>
         <meta name="description" content="Finance with security and flexibility platform" />
-        <link rel="icon" href="/favicon.png" type="image/png" />
+        <link rel="icon" href="/favicon.png?v=20260421" type="image/png" />
       </Head>
 
       <Navbar />

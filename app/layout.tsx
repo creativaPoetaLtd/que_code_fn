@@ -76,9 +76,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <link rel="icon" href="/favicon.png" type="image/png" />
-        <link rel="shortcut icon" href="/favicon.png" />
-        <link rel="apple-touch-icon" href="/icon-192x192.png" />
+        <link rel="icon" href="/favicon.png?v=20260421" type="image/png" />
+        <link rel="shortcut icon" href="/favicon.ico?v=20260421" />
+        <link rel="apple-touch-icon" href="/icon-192x192.png?v=20260421" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
