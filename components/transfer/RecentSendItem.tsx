@@ -7,7 +7,7 @@ import { formatDistanceToNow } from "date-fns";
 
 export interface RecentSend {
     receiverId: string;
-    receiverType: 'user' | 'organization';
+    receiverType: 'user' | 'organization' | 'wallet';
     receiverName: string;
     receiverPhone: string | null;
     receiverEmail: string | null;

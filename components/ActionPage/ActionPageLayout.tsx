@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Table, Button, Dropdown, Tag, message, Empty, Tabs } from "antd";
+import { Table, Button, Dropdown, Tag, message, Empty, Tabs, Modal, Select, Input, InputNumber } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import type { MenuProps } from "antd";
 import { MoreOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
-import { OrganizationAction } from "@/types/action.types";
-import { deleteAction, getOrganizationActions } from "@/helpers/api";
+import { useSearchParams } from "next/navigation";
+import { OrganizationAction, SubActionSummary } from "@/types/action.types";
+import { deleteAction, getOrganizationActions, getSubActions, transferMoney } from "@/helpers/api";
 import { useUserInfo } from "@/hooks/use-user-info";
 import ActionWizardModal from "./ActionWizardModal";
 
@@ -18,12 +19,26 @@ interface TableAction extends OrganizationAction {
 type FilterTab = 'active' | 'archive';
 
 const ActionPageLayout: React.FC = () => {
+    const searchParams = useSearchParams();
     const { accountType, userId } = useUserInfo();
     const isOrganization = accountType === 'organization';
+    const prefillActionId = searchParams.get('transferActionId');
+    const prefillSubActionId = searchParams.get('transferSubActionId');
     const [actions, setActions] = useState<OrganizationAction[]>([]);
     const [loading, setLoading] = useState(false);
     const [wizardOpen, setWizardOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<FilterTab>('active');
+    const [transferModalOpen, setTransferModalOpen] = useState(false);
+    const [transferSubmitting, setTransferSubmitting] = useState(false);
+    const [transferAction, setTransferAction] = useState<OrganizationAction | null>(null);
+    const [subActionsLoading, setSubActionsLoading] = useState(false);
+    const [subActions, setSubActions] = useState<SubActionSummary[]>([]);
+    const [selectedSubActionId, setSelectedSubActionId] = useState<string>('');
+    const [transferAmount, setTransferAmount] = useState<number | null>(null);
+    const [receiverMode, setReceiverMode] = useState<'organization' | 'wallet'>('organization');
+    const [receiverWalletId, setReceiverWalletId] = useState('');
+    const [transferPin, setTransferPin] = useState('');
+    const [autoTransferHandled, setAutoTransferHandled] = useState(false);
 
     const fetchActions = useCallback(async () => {
         if (!userId) return;
@@ -45,6 +60,141 @@ const ActionPageLayout: React.FC = () => {
             fetchActions();
         }
     }, [isOrganization, userId, fetchActions]);
+
+    const resetTransferState = () => {
+        setTransferModalOpen(false);
+        setTransferSubmitting(false);
+        setTransferAction(null);
+        setSubActionsLoading(false);
+        setSubActions([]);
+        setSelectedSubActionId('');
+        setTransferAmount(null);
+        setReceiverMode('organization');
+        setReceiverWalletId('');
+        setTransferPin('');
+    };
+
+    const openTransferModal = async (action: OrganizationAction, preselectedSubActionId?: string) => {
+        try {
+            setTransferAction(action);
+            setTransferModalOpen(true);
+            setSubActionsLoading(true);
+
+            const response = await getSubActions(action.id);
+            const data = response?.data?.data ?? response?.data ?? [];
+            const normalizedSubActions = Array.isArray(data) ? data : [];
+
+            setSubActions(normalizedSubActions);
+
+            const preselected = preselectedSubActionId
+                ? normalizedSubActions.find((item: SubActionSummary) => item.id === preselectedSubActionId)
+                : undefined;
+            const firstWithBalance = normalizedSubActions.find((item: SubActionSummary) => Number(item.wallet?.balance || 0) > 0);
+            const firstAny = normalizedSubActions[0];
+            const defaultSubAction = preselected || firstWithBalance || firstAny;
+
+            if (defaultSubAction?.id) {
+                setSelectedSubActionId(defaultSubAction.id);
+                setTransferAmount(Number(defaultSubAction.wallet?.balance || 0) > 0 ? Number(defaultSubAction.wallet?.balance || 0) : null);
+            }
+        } catch (err: any) {
+            message.error(err?.response?.data?.message || 'Failed to load sub-actions for transfer');
+            resetTransferState();
+        } finally {
+            setSubActionsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (autoTransferHandled || !prefillActionId || !actions.length) return;
+
+        const actionToOpen = actions.find((item) => item.id === prefillActionId);
+        setAutoTransferHandled(true);
+
+        if (!actionToOpen) {
+            message.error('Action not found for transfer prefill');
+            return;
+        }
+
+        openTransferModal(actionToOpen, prefillSubActionId || undefined);
+
+        if (typeof window !== 'undefined') {
+            window.history.replaceState({}, '', '/action');
+        }
+    }, [actions, autoTransferHandled, prefillActionId, prefillSubActionId]);
+
+    const selectedSubAction = useMemo(
+        () => subActions.find((item) => item.id === selectedSubActionId),
+        [subActions, selectedSubActionId],
+    );
+
+    const selectedSubActionBalance = Number(selectedSubAction?.wallet?.balance || 0);
+
+    const handleTransferSubActionFunds = async () => {
+        if (!userId) {
+            message.error('Organization account not detected');
+            return;
+        }
+
+        if (!selectedSubActionId) {
+            message.error('Please select a sub-action wallet');
+            return;
+        }
+
+        if (!transferAmount || transferAmount <= 0) {
+            message.error('Enter a valid transfer amount');
+            return;
+        }
+
+        if (transferAmount > selectedSubActionBalance) {
+            message.error('Amount exceeds sub-action wallet balance');
+            return;
+        }
+
+        if (receiverMode === 'wallet' && !receiverWalletId.trim()) {
+            message.error('Enter destination wallet ID');
+            return;
+        }
+
+        if (transferPin.trim().length < 4) {
+            message.error('Enter your 4-digit PIN');
+            return;
+        }
+
+        try {
+            setTransferSubmitting(true);
+
+            const payload: any = {
+                senderSubActionId: selectedSubActionId,
+                amount: Number(transferAmount),
+                description: transferAction?.name
+                    ? `Sub-action transfer from ${transferAction.name}`
+                    : 'Sub-action transfer',
+                type: 'transfer',
+                pin: transferPin.trim(),
+            };
+
+            if (receiverMode === 'organization') {
+                payload.receiverOrganizationId = userId;
+            } else {
+                payload.receiverWalletId = receiverWalletId.trim();
+            }
+
+            const result = await transferMoney(payload);
+
+            if (result?.success) {
+                message.success(result?.message || 'Sub-action funds transferred successfully');
+                resetTransferState();
+                fetchActions();
+            } else {
+                message.error(result?.message || 'Transfer failed');
+            }
+        } catch (err: any) {
+            message.error(err?.response?.data?.message || err?.message || 'Transfer failed');
+        } finally {
+            setTransferSubmitting(false);
+        }
+    };
 
     const handleDelete = async (actionId: string) => {
         try {
@@ -180,9 +330,18 @@ const ActionPageLayout: React.FC = () => {
             key: "action",
             align: "center",
             render: (_, record) => (
-                <Dropdown menu={getActionMenu(record)} trigger={["click"]}>
-                    <Button icon={<MoreOutlined />} className="border-none shadow-none hover:bg-gray-100" />
-                </Dropdown>
+                <div className="flex items-center justify-center gap-2">
+                    <Button
+                        size="small"
+                        className="border-[#00B512] text-[#00B512] hover:border-[#009e10] hover:text-[#009e10]"
+                        onClick={() => openTransferModal(record)}
+                    >
+                        Transfer funds
+                    </Button>
+                    <Dropdown menu={getActionMenu(record)} trigger={["click"]}>
+                        <Button icon={<MoreOutlined />} className="border-none shadow-none hover:bg-gray-100" />
+                    </Dropdown>
+                </div>
             ),
         },
     ];
@@ -277,6 +436,88 @@ const ActionPageLayout: React.FC = () => {
                     onCompleted={fetchActions}
                 />
             )}
+
+            <Modal
+                title={transferAction ? `Transfer from ${transferAction.name}` : 'Transfer Sub-Action Funds'}
+                open={transferModalOpen}
+                onCancel={resetTransferState}
+                onOk={handleTransferSubActionFunds}
+                okText="Transfer"
+                confirmLoading={transferSubmitting}
+                okButtonProps={{ className: 'bg-[#00B512] border-none hover:bg-[#009e10]' }}
+                destroyOnClose
+            >
+                <div className="space-y-4 pt-2">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Sub-Action Wallet</label>
+                        <Select
+                            className="w-full"
+                            placeholder="Select sub-action"
+                            loading={subActionsLoading}
+                            value={selectedSubActionId || undefined}
+                            onChange={(value) => {
+                                setSelectedSubActionId(value);
+                                const next = subActions.find((item) => item.id === value);
+                                setTransferAmount(Number(next?.wallet?.balance || 0) > 0 ? Number(next?.wallet?.balance || 0) : null);
+                            }}
+                            options={subActions.map((item) => ({
+                                value: item.id,
+                                label: `${item.name} (${item.wallet?.currency || transferAction?.currency || 'RWF'} ${Number(item.wallet?.balance || 0).toLocaleString()})`,
+                            }))}
+                        />
+                    </div>
+
+                    <div className="text-xs text-gray-500">
+                        Available: {selectedSubAction?.wallet?.currency || transferAction?.currency || 'RWF'} {selectedSubActionBalance.toLocaleString()}
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Amount</label>
+                        <InputNumber
+                            className="w-full"
+                            min={1}
+                            max={selectedSubActionBalance || undefined}
+                            value={transferAmount as number | null}
+                            onChange={(value) => setTransferAmount(typeof value === 'number' ? value : null)}
+                            placeholder="Enter amount"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Destination</label>
+                        <Select
+                            className="w-full"
+                            value={receiverMode}
+                            onChange={(value: 'organization' | 'wallet') => setReceiverMode(value)}
+                            options={[
+                                { value: 'organization', label: 'Organization wallet' },
+                                { value: 'wallet', label: 'Specific wallet ID' },
+                            ]}
+                        />
+                    </div>
+
+                    {receiverMode === 'wallet' && (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Wallet ID</label>
+                            <Input
+                                value={receiverWalletId}
+                                onChange={(event) => setReceiverWalletId(event.target.value)}
+                                placeholder="Enter destination wallet ID"
+                            />
+                        </div>
+                    )}
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">PIN</label>
+                        <Input.Password
+                            value={transferPin}
+                            onChange={(event) => setTransferPin(event.target.value)}
+                            placeholder="Enter 4-digit PIN"
+                            maxLength={6}
+                        />
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 };

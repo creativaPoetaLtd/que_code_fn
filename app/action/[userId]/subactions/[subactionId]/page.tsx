@@ -558,6 +558,13 @@ const SubActionDetailPage = () => {
                                         {isOwner && !isEditing && (
                                             <div className="flex gap-2">
                                                 <button
+                                                    onClick={() => router.push(`/action?transferActionId=${subAction.actionId}&transferSubActionId=${subAction.id}`)}
+                                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#00313A] text-white text-sm font-semibold shadow hover:bg-[#00252e] transition-colors"
+                                                >
+                                                    <DollarSign className="w-4 h-4" />
+                                                    Transfer to Wallet
+                                                </button>
+                                                <button
                                                     onClick={() => setIsEditing(true)}
                                                     className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#D4AF37] text-white text-sm font-semibold shadow hover:bg-[#C9A530] transition-colors"
                                                 >

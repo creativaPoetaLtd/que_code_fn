@@ -10,6 +10,7 @@ import {
   ProfileData, 
   ProfileFormData, 
   FileUploadData,
+  GalleryItem,
   ApiResponse 
 } from "@/types/settings.types";
 
@@ -42,6 +43,19 @@ export const useProfileData = () => {
     showLocationOnWelcome: true,
     showTinOnWelcome: true,
     showLogoOnWelcome: true,
+    showCategoryOnWelcome: true,
+    showSocialLinksOnWelcome: true,
+    showGalleryOnWelcome: true,
+    showOrgStatsOnWelcome: true,
+    showActionsOnWelcome: true,
+    showSendMoneyOnWelcome: true,
+    showContactFormOnWelcome: true,
+    showOtherInfoOnWelcome: true,
+    showFriendRequestOnWelcome: true,
+    instagram: "",
+    facebook: "",
+    twitter: "",
+    linkedin: "",
   });
   
   // File upload data
@@ -52,6 +66,12 @@ export const useProfileData = () => {
     operationalDocumentFile: null,
   });
 
+  // Gallery data
+  const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
+  const [galleryLoading, setGalleryLoading] = useState(false);
+  const [gallerySubmitting, setGallerySubmitting] = useState(false);
+  const [galleryItemLoading, setGalleryItemLoading] = useState<Record<string, boolean>>({});
+
   const userInfo = useUserInfo();
   const { getToken } = useAuthToken();
 
@@ -61,6 +81,183 @@ export const useProfileData = () => {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const validateGalleryImage = (file: File): boolean => {
+    const allowedTypes = [
+      'image/png', 'image/jpeg', 'image/jpg', 'image/gif',
+      'image/webp', 'image/bmp', 'image/tiff', 'image/jfif', 'image/tif'
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: "Invalid file type",
+        description: "Please select a valid image file (PNG, JPG, JPEG, GIF, WebP, BMP, TIFF, JFIF, TIF)",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      toast({
+        title: "File too large",
+        description: `File size (${formatFileSize(file.size)}) exceeds the 10MB limit.`,
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    return true;
+  };
+
+  const resolveGalleryBaseUrl = () => {
+    if (organizationData?.id) {
+      return `${baseUrl}/organizations/${organizationData.id}/gallery`;
+    }
+    if (userInfo.userId) {
+      return `${baseUrl}/profiles/${userInfo.userId}/gallery`;
+    }
+    return null;
+  };
+
+  const fetchGallery = useCallback(async () => {
+    const galleryUrl = resolveGalleryBaseUrl();
+    if (!galleryUrl) return;
+
+    try {
+      setGalleryLoading(true);
+      const authToken = getToken();
+      const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {};
+      const response = await axios.get(galleryUrl, { headers });
+      setGalleryItems(Array.isArray(response.data?.items) ? response.data.items : []);
+    } catch {
+      setGalleryItems([]);
+    } finally {
+      setGalleryLoading(false);
+    }
+  }, [organizationData?.id, userInfo.userId, getToken]);
+
+  const uploadGalleryItem = async (file: File, caption: string): Promise<boolean> => {
+    if (!validateGalleryImage(file)) return false;
+    const galleryUrl = resolveGalleryBaseUrl();
+    if (!galleryUrl) return false;
+
+    try {
+      setGallerySubmitting(true);
+      const authToken = getToken();
+      if (!authToken) {
+        toast({ title: "Authentication required", description: "Please log in again.", variant: "destructive" });
+        return false;
+      }
+
+      const formData = new FormData();
+      formData.append('image', file);
+      if (caption.trim()) {
+        formData.append('caption', caption.trim());
+      }
+
+      await axios.post(galleryUrl, formData, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+
+      toast({ title: "Uploaded", description: "Gallery image uploaded successfully." });
+      await fetchGallery();
+      return true;
+    } catch (err: any) {
+      toast({
+        title: "Upload failed",
+        description: err.response?.data?.message || "Could not upload image.",
+        variant: "destructive",
+      });
+      return false;
+    } finally {
+      setGallerySubmitting(false);
+    }
+  };
+
+  const updateGalleryItem = async (
+    itemId: string,
+    updates: { caption?: string; image?: File }
+  ): Promise<boolean> => {
+    const galleryUrl = resolveGalleryBaseUrl();
+    if (!galleryUrl) return false;
+
+    const hasCaption = typeof updates.caption === 'string';
+    const hasImage = !!updates.image;
+    if (!hasCaption && !hasImage) {
+      toast({ title: "No changes", description: "Provide a new caption and/or image.", variant: "destructive" });
+      return false;
+    }
+
+    if (updates.image && !validateGalleryImage(updates.image)) {
+      return false;
+    }
+
+    try {
+      setGalleryItemLoading(prev => ({ ...prev, [itemId]: true }));
+      const authToken = getToken();
+      if (!authToken) {
+        toast({ title: "Authentication required", description: "Please log in again.", variant: "destructive" });
+        return false;
+      }
+
+      const formData = new FormData();
+      if (hasImage && updates.image) {
+        formData.append('image', updates.image);
+      }
+      if (hasCaption && updates.caption !== undefined) {
+        formData.append('caption', updates.caption);
+      }
+
+      await axios.put(`${galleryUrl}/${itemId}`, formData, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+
+      toast({ title: "Updated", description: "Gallery item updated successfully." });
+      await fetchGallery();
+      return true;
+    } catch (err: any) {
+      toast({
+        title: "Update failed",
+        description: err.response?.data?.message || "Could not update item.",
+        variant: "destructive",
+      });
+      return false;
+    } finally {
+      setGalleryItemLoading(prev => ({ ...prev, [itemId]: false }));
+    }
+  };
+
+  const deleteGalleryItem = async (itemId: string): Promise<boolean> => {
+    const galleryUrl = resolveGalleryBaseUrl();
+    if (!galleryUrl) return false;
+
+    try {
+      setGalleryItemLoading(prev => ({ ...prev, [itemId]: true }));
+      const authToken = getToken();
+      if (!authToken) {
+        toast({ title: "Authentication required", description: "Please log in again.", variant: "destructive" });
+        return false;
+      }
+
+      await axios.delete(`${galleryUrl}/${itemId}`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+
+      toast({ title: "Deleted", description: "Gallery item deleted." });
+      await fetchGallery();
+      return true;
+    } catch (err: any) {
+      toast({
+        title: "Delete failed",
+        description: err.response?.data?.message || "Could not delete item.",
+        variant: "destructive",
+      });
+      return false;
+    } finally {
+      setGalleryItemLoading(prev => ({ ...prev, [itemId]: false }));
+    }
   };
 
   const fetchUserAndProfile = useCallback(async () => {
@@ -143,6 +340,19 @@ export const useProfileData = () => {
           showLocationOnWelcome: profile.showLocationOnWelcome !== undefined ? profile.showLocationOnWelcome : true,
           showTinOnWelcome: profile.showTinOnWelcome !== undefined ? profile.showTinOnWelcome : true,
           showLogoOnWelcome: profile.showLogoOnWelcome !== undefined ? profile.showLogoOnWelcome : true,
+          showCategoryOnWelcome: profile.showCategoryOnWelcome !== undefined ? profile.showCategoryOnWelcome : true,
+          showSocialLinksOnWelcome: profile.showSocialLinksOnWelcome !== undefined ? profile.showSocialLinksOnWelcome : true,
+          showGalleryOnWelcome: profile.showGalleryOnWelcome !== undefined ? profile.showGalleryOnWelcome : true,
+          showOrgStatsOnWelcome: profile.showOrgStatsOnWelcome !== undefined ? profile.showOrgStatsOnWelcome : true,
+          showActionsOnWelcome: profile.showActionsOnWelcome !== undefined ? profile.showActionsOnWelcome : true,
+          showSendMoneyOnWelcome: profile.showSendMoneyOnWelcome !== undefined ? profile.showSendMoneyOnWelcome : true,
+          showContactFormOnWelcome: profile.showContactFormOnWelcome !== undefined ? profile.showContactFormOnWelcome : true,
+          showOtherInfoOnWelcome: profile.showOtherInfoOnWelcome !== undefined ? profile.showOtherInfoOnWelcome : true,
+          showFriendRequestOnWelcome: profile.showFriendRequestOnWelcome !== undefined ? profile.showFriendRequestOnWelcome : true,
+          instagram: profile.socialLinks?.instagram || "",
+          facebook: profile.socialLinks?.facebook || "",
+          twitter: profile.socialLinks?.twitter || "",
+          linkedin: profile.socialLinks?.linkedin || "",
         });
         
         // Update file preview if profile image exists
@@ -151,6 +361,19 @@ export const useProfileData = () => {
             ...prev,
             profileImagePreview: profile.profileImage,
           }));
+        }
+
+        const galleryBaseUrl = effectiveOrganizationId
+          ? `${baseUrl}/organizations/${effectiveOrganizationId}/gallery`
+          : `${baseUrl}/profiles/${effectiveUserId}/gallery`;
+        try {
+          setGalleryLoading(true);
+          const galleryRes = await axios.get(galleryBaseUrl, { headers });
+          setGalleryItems(Array.isArray(galleryRes.data?.items) ? galleryRes.data.items : []);
+        } catch {
+          setGalleryItems([]);
+        } finally {
+          setGalleryLoading(false);
         }
       } catch (profileError) {
         // Profile might not exist yet, which is fine
@@ -358,6 +581,21 @@ export const useProfileData = () => {
         showLocationOnWelcome: profileFormData.showLocationOnWelcome,
         showTinOnWelcome: profileFormData.showTinOnWelcome,
         showLogoOnWelcome: profileFormData.showLogoOnWelcome,
+        showCategoryOnWelcome: profileFormData.showCategoryOnWelcome,
+        showSocialLinksOnWelcome: profileFormData.showSocialLinksOnWelcome,
+        showGalleryOnWelcome: profileFormData.showGalleryOnWelcome,
+        showOrgStatsOnWelcome: profileFormData.showOrgStatsOnWelcome,
+        showActionsOnWelcome: profileFormData.showActionsOnWelcome,
+        showSendMoneyOnWelcome: profileFormData.showSendMoneyOnWelcome,
+        showContactFormOnWelcome: profileFormData.showContactFormOnWelcome,
+        showOtherInfoOnWelcome: profileFormData.showOtherInfoOnWelcome,
+        showFriendRequestOnWelcome: profileFormData.showFriendRequestOnWelcome,
+        socialLinks: {
+          instagram: profileFormData.instagram || undefined,
+          facebook: profileFormData.facebook || undefined,
+          twitter: profileFormData.twitter || undefined,
+          linkedin: profileFormData.linkedin || undefined,
+        },
       };
 
       let response;
@@ -368,7 +606,11 @@ export const useProfileData = () => {
           const formData = new FormData();
           Object.entries(profilePayload).forEach(([key, value]) => {
             if (value !== undefined) {
-              formData.append(key, String(value));
+              if (key === 'socialLinks') {
+                formData.append(key, JSON.stringify(value));
+              } else {
+                formData.append(key, String(value));
+              }
             }
           });
 
@@ -399,7 +641,11 @@ export const useProfileData = () => {
           const formData = new FormData();
           Object.entries(profilePayload).forEach(([key, value]) => {
             if (value !== undefined) {
-              formData.append(key, String(value));
+              if (key === 'socialLinks') {
+                formData.append(key, JSON.stringify(value));
+              } else {
+                formData.append(key, String(value));
+              }
             }
           });
 
@@ -505,6 +751,12 @@ export const useProfileData = () => {
     }
   }, [fetchUserAndProfile]);
 
+  useEffect(() => {
+    if (userInfo.isAuthenticated && userInfo.userId) {
+      fetchGallery();
+    }
+  }, [userInfo.isAuthenticated, userInfo.userId, organizationData?.id, fetchGallery]);
+
   return {
     loading,
     error,
@@ -514,6 +766,10 @@ export const useProfileData = () => {
     profileData,
     profileFormData,
     fileUploadData,
+    galleryItems,
+    galleryLoading,
+    gallerySubmitting,
+    galleryItemLoading,
     updateProfileFormData,
     updateFileUploadData,
     handleImageChange,
@@ -524,6 +780,10 @@ export const useProfileData = () => {
     clearOperationalDocument,
     saveProfile,
     refreshProfile: fetchUserAndProfile,
+    refreshGallery: fetchGallery,
+    uploadGalleryItem,
+    updateGalleryItem,
+    deleteGalleryItem,
     formatFileSize,
   };
 };

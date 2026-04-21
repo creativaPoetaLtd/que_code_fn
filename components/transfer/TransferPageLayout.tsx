@@ -140,6 +140,7 @@ const TransferPageLayout = () => {
         // Store recent send recipient info and navigate to amount page
         sessionStorage.setItem('selectedRecipient', JSON.stringify({
             id: recipient.receiverId,
+            walletId: recipient.receiverType === 'wallet' ? recipient.receiverId : undefined,
             name: recipient.receiverName,
             phone: recipient.receiverPhone || '',
             email: recipient.receiverEmail || '',

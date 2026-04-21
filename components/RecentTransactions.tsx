@@ -89,7 +89,10 @@ export const RecentTransactions: React.FC = () => {
   };
 
   const getTransactionDisplayInfo = (transaction: Transaction) => {
-    const isOutgoing = transaction.senderWallet?.userId === currentUserId;
+    // Determine if it's outgoing based on sender ownership matching current identity
+    const isOutgoing =
+      transaction.senderWallet?.userId === currentUserId ||
+      transaction.senderWallet?.organizationId === currentUserId;
     const transactionAmount = Number(transaction.amount) || 0;
     const transactionFee = Number(transaction.fee) || 0;
     const amount = isOutgoing ? -(transactionAmount + transactionFee) : transactionAmount;

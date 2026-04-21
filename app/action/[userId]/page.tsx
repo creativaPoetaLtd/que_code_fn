@@ -15,7 +15,7 @@ import {
     Scan,
     Check,
 } from 'lucide-react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Navigation from '@/components/Navigation';
 import { Header } from '@/components/Header';
 import baseUrl from '@/helpers/baseUrl';
@@ -115,6 +115,7 @@ const statusClasses: Record<string, string> = {
 
 const ActionsByAccountPage = () => {
     const params = useParams<{ userId: string }>();
+    const router = useRouter();
     const paramUserId = params?.userId;
     const { userId: tokenUserId, accountType: loggedInAccountType } = useUserInfo();
     const { getToken } = useAuthToken();
@@ -1258,8 +1259,20 @@ const ActionsByAccountPage = () => {
                                                             ) : null}
                                                         </div>
                                                     </div>
-                                                    {accountMode === 'organization' && selectedAction?.status === 'published' && (
-                                                        <div className="mt-3 pt-3 border-t border-[#D4AF37]/10 flex justify-end">
+                                                    {accountMode === 'organization' && (
+                                                        <div className="mt-3 pt-3 border-t border-[#D4AF37]/10 flex justify-end gap-3">
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    if (!selectedAction?.id) return;
+                                                                    router.push(`/action?transferActionId=${selectedAction.id}&transferSubActionId=${subAction.id}`);
+                                                                }}
+                                                                className="text-xs font-semibold text-[#00313A] dark:text-white hover:underline"
+                                                            >
+                                                                Transfer to Wallet
+                                                            </button>
+                                                            {selectedAction?.status === 'published' && (
                                                             <button
                                                                 type="button"
                                                                 onClick={(e) => {
@@ -1270,6 +1283,7 @@ const ActionsByAccountPage = () => {
                                                             >
                                                                 Edit
                                                             </button>
+                                                            )}
                                                         </div>
                                                     )}
                                                 </div>

@@ -143,7 +143,10 @@ const TransactionListInner = ({ transactions: propTransactions, toolbarInHeader 
   };
 
   const getTransactionDisplayInfo = (transaction: Transaction) => {
-    const isOutgoing = transaction.senderWallet?.userId === currentUserId;
+    // Determine if it's outgoing based on sender ownership matching current identity
+    const isOutgoing =
+      transaction.senderWallet?.userId === currentUserId ||
+      transaction.senderWallet?.organizationId === currentUserId;
     const transactionAmount = Number(transaction.amount) || 0;
     const transactionFee = Number(transaction.fee) || 0;
     const amount = isOutgoing ? -(transactionAmount + transactionFee) : transactionAmount;
@@ -383,7 +386,8 @@ const TransactionListInner = ({ transactions: propTransactions, toolbarInHeader 
             {filteredTransactions.map((transaction) => {
               const { amount, counterpartyName, counterpartyEmail, counterpartyProfileImage, isOutgoing } = getTransactionDisplayInfo(transaction);
               const isSelected = selectedTransactions.has(transaction.id);
-
+              const sourceLabel = transaction.senderSubActionId ? 'Sub-Action Wallet' : 'Wallet';
+              const destinationLabel = (transaction.resolvedReceiverWalletId || transaction.receiverWalletId) ? 'Wallet' : 'Account';
               return (
                 <tr key={transaction.id} className="border-t border-gray-200 dark:border-darkBorder-light hover:bg-gray-50 dark:hover:bg-darkBg-interactive transition-colors">
                   <td className="py-4 pl-4">
