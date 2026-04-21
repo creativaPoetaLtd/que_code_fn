@@ -34,11 +34,12 @@ const Navbar = () => {
     <nav className="flex fixed top-0 left-0 w-full justify-between items-center h-16 py-4 px-6 lg:px-[16%] bg-[#013f47] text-white z-50">
       <div className="text-2xl font-bold">
         <Image
-          src="/Images/logo.png"
-          alt="Logo"
+          src="/Images/qiewcode-logo.png"
+          alt="QiewCode"
           width={180}
-          height={130}
-          className="cursor-pointer"
+          height={65}
+          priority
+          className="h-10 w-auto cursor-pointer object-contain"
         />
       </div>
 

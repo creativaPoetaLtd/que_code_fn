@@ -73,7 +73,7 @@ export default function PWAInstallPrompt() {
 
                 <div className="flex-1">
                     <h3 className="font-semibold text-gray-900 mb-1">
-                        Install QueCode App
+                        Install QiewCode App
                     </h3>
                     <p className="text-sm text-gray-600 mb-3">
                         Install our app for a better experience with offline access and push notifications.

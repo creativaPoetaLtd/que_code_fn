@@ -176,9 +176,14 @@ export const Header = ({ showBackButton = false }: HeaderProps) => {
                     </button>
                 )}
                 <Link href="/">
-                    <h2 className="text-sm sm:text-md lg:text-2xl font-bold text-[#00313A] dark:text-white leading-tight whitespace-nowrap cursor-pointer hover:opacity-80 transition-opacity">
-                        QiewCode
-                    </h2>
+                    <Image
+                        src="/Images/qiewcode-logo.png"
+                        alt="QiewCode"
+                        width={155}
+                        height={56}
+                        priority
+                        className="h-8 sm:h-9 lg:h-10 w-auto object-contain cursor-pointer transition-opacity hover:opacity-80"
+                    />
                 </Link>
             </div>
 

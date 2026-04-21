@@ -36,26 +36,26 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "QueCode - Chat & Payment App",
+  title: "QiewCode - Chat & Payment App",
   description: "Chat with friends, send money, and manage groups - all in one place",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "QueCode",
+    title: "QiewCode",
   },
   formatDetection: {
     telephone: false,
   },
   openGraph: {
     type: "website",
-    siteName: "QueCode",
-    title: "QueCode - Chat & Payment App",
+    siteName: "QiewCode",
+    title: "QiewCode - Chat & Payment App",
     description: "Chat with friends, send money, and manage groups - all in one place",
   },
   twitter: {
     card: "summary",
-    title: "QueCode - Chat & Payment App",
+    title: "QiewCode - Chat & Payment App",
     description: "Chat with friends, send money, and manage groups - all in one place",
   },
 };
@@ -76,12 +76,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" href="/favicon.png" type="image/png" />
+        <link rel="shortcut icon" href="/favicon.png" />
         <link rel="apple-touch-icon" href="/icon-192x192.png" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="QueCode" />
+        <meta name="apple-mobile-web-app-title" content="QiewCode" />
         
       </head>
       <body

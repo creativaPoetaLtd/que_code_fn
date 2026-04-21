@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
+import Image from "next/image"
 import { useRouter, useParams, usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
@@ -215,7 +216,14 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
                         {isExpanded ? (
                             <>
                                 <div className="flex items-center gap-2">
-                                    <span className={cn("font-bold text-xl", theme === "dark" ? "text-white" : "text-gray-900")}>QiewCode</span>
+                                    <Image
+                                        src="/Images/qiewcode-logo.png"
+                                        alt="QiewCode"
+                                        width={150}
+                                        height={54}
+                                        priority
+                                        className="h-9 w-auto object-contain"
+                                    />
                                 </div>
                                 <Button
                                     variant="ghost"

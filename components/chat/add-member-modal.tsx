@@ -213,7 +213,7 @@ export default function AddMemberModal({
             try {
                 await navigator.share({
                     title: `Join ${groupName}`,
-                    text: `Join our group "${groupName}" on QueCode`,
+                    text: `Join our group "${groupName}" on QiewCode`,
                     url: accessLink,
                 })
             } catch (err) {

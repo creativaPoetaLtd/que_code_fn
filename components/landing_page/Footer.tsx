@@ -7,7 +7,13 @@ const Footer: React.FC = () => {
     <footer className="bg-gray-100 py-8 w-full px-5 md:px-[10%]">
       <div className="mx-auto flex flex-col items-center justify-center text-center gap-6">
         <div className="flex flex-col items-center md:items-start">
-          <Image src="/Images/logo.png" alt="QiewCode Logo" width={200} height={150} />
+          <Image
+            src="/Images/qiewcode-logo.png"
+            alt="QiewCode Logo"
+            width={220}
+            height={80}
+            className="h-12 w-auto object-contain"
+          />
         </div>
 
         <div className="w-full flex flex-col md:flex-row justify-center items-center text-center md:text-left space-y-6 md:space-y-0">

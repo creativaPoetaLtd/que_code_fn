@@ -8,7 +8,7 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('push', (event) => {
   const defaultPayload = {
-    title: 'QueCode',
+    title: 'QiewCode',
     body: 'You have a new notification.',
     url: '/notifications',
   };

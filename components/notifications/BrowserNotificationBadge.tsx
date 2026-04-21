@@ -17,7 +17,7 @@ export default function BrowserNotificationBadge() {
   const { unreadCount } = useNotifications();
   const { getToken } = useAuthToken();
   const token = getToken();
-  const baseTitleRef = useRef<string>('QueCode - Chat & Payment App');
+  const baseTitleRef = useRef<string>('QiewCode - Chat & Payment App');
 
   const { data: pendingContactRequests } = useGetPendingInvitationsUnifiedQuery(
     {
