@@ -109,7 +109,50 @@ export const chatSlice = apiSlice.injectEndpoints({
                     return await response.blob();
                 }
             })
-        })
+        }),
+
+        // ── Support Chat ──────────────────────────────────────────────
+        createOrGetSupportChat: builder.mutation({
+            query: () => ({
+                url: "/support/chat",
+                method: "POST",
+            }),
+            invalidatesTags: ["Chat"]
+        }),
+
+        getSupportChat: builder.query({
+            query: () => "/support/chat",
+            providesTags: ["Chat"]
+        }),
+
+        getSupportChatMessages: builder.query({
+            query: ({ chatId, page = 1, limit = 50 }) =>
+                `/support/chat/${chatId}/messages?page=${page}&limit=${limit}`,
+            providesTags: (result: any, error: any, { chatId }: any) => [
+                { type: "ChatMessage", id: `support-${chatId}` }
+            ]
+        }),
+
+        sendSupportMessage: builder.mutation({
+            query: ({ chatId, content, messageType = "text" }) => ({
+                url: `/support/chat/${chatId}/messages`,
+                method: "POST",
+                body: { content, messageType }
+            }),
+            invalidatesTags: (result: any, error: any, { chatId }: any) => [
+                { type: "ChatMessage", id: `support-${chatId}` }
+            ]
+        }),
+
+        markSupportChatAsRead: builder.mutation({
+            query: ({ chatId }: { chatId: string }) => ({
+                url: `/support/chat/${chatId}/read`,
+                method: "PATCH",
+            }),
+            invalidatesTags: (result: any, error: any, { chatId }: any) => [
+                { type: "ChatMessage", id: `support-${chatId}` }
+            ]
+        }),
     }),
 });
 
@@ -126,5 +169,10 @@ export const {
     useInitializeUserEncryptionMutation,
     useSendMoneyInChatMutation,
     useGetUserWalletBalanceQuery,
-    useDownloadTransactionReceiptMutation
+    useDownloadTransactionReceiptMutation,
+    useCreateOrGetSupportChatMutation,
+    useGetSupportChatQuery,
+    useGetSupportChatMessagesQuery,
+    useSendSupportMessageMutation,
+    useMarkSupportChatAsReadMutation,
 } = chatSlice;

@@ -103,6 +103,7 @@ export function useChatOperations(): UseChatOperationsReturn {
             id: conv.id,
             name: conv.name,
             isGroup: conv.isGroup,
+            type: conv.type,
             groupId: conv.groupId, // Include groupId
             lastMessage: conv.lastMessage?.content ? {
                 content: parseMessageContent(conv.lastMessage.content, conv.lastMessage.messageType),
@@ -125,6 +126,7 @@ export function useChatOperations(): UseChatOperationsReturn {
             id: chat.id,
             name: chat.name,
             isGroup: chat.isGroup,
+            type: chat.type,
             groupId: chat.groupId, // Include groupId
             lastMessage: chat.lastMessage ? {
                 content: parseMessageContent(chat.lastMessage.content, chat.lastMessage.messageType),

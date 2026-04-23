@@ -27,7 +27,8 @@ import {
     MoreHorizontal,
     X,
     HelpCircle,
-    Sun
+    Sun,
+    Headphones
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuthToken } from "@/hooks/use-auth-token"
@@ -110,6 +111,8 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
             setActiveItem('Wallet');
         } else if (pathname.includes('/settings')) {
             setActiveItem('Settings');
+        } else if (pathname.includes('/support')) {
+            setActiveItem('Support');
         } else if (pathname.includes('/home')) {
             setActiveItem('Home');
         }
@@ -289,6 +292,27 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
                         theme === "dark" ? "border-darkBorder-light" : "border-gray-200"
                     )}>
                         <div className="flex flex-col gap-2">
+                            <button
+                                onClick={() => handleClick("Support", "/support")}
+                                className={cn(
+                                    "flex items-center px-3 py-3.5 transition-all rounded-xl duration-200",
+                                    "justify-center",
+                                    activeItem === "Support"
+                                        ? theme === "dark"
+                                            ? "bg-brand-gold text-gray-900 shadow-lg"
+                                            : "bg-brand-green text-white shadow-lg"
+                                        : theme === "dark"
+                                            ? "text-white hover:bg-darkBg-interactive hover:shadow-md"
+                                            : "text-gray-700 hover:bg-gray-100 hover:shadow-md"
+                                )}
+                                aria-label="Support"
+                                title="Support"
+                            >
+                                <span className="inline-flex items-center justify-center">
+                                    <HelpCircle size={24} />
+                                </span>
+                            </button>
+
                             {bottomMenuItems.map((item) => (
                                 <button
                                     key={item.id}

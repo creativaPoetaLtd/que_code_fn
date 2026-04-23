@@ -11,6 +11,19 @@ class SocketService {
     private connectionCount: number = 0
     private refreshInProgress = false
 
+    private getSocketUrl() {
+        if (process.env.NEXT_PUBLIC_SOCKET_URL) {
+            return process.env.NEXT_PUBLIC_SOCKET_URL
+        }
+
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL
+        if (apiUrl) {
+            return apiUrl.replace(/\/api\/v1\/?$/, "")
+        }
+
+        return "http://localhost:5001"
+    }
+
     connect(userId: string, token?: string) {
         this.connectionCount++
 
@@ -24,7 +37,7 @@ class SocketService {
 
         const finalToken = token || getValidToken();
 
-        this.socket = io(process.env.NEXT_PUBLIC_SOCKET_URL, {
+        this.socket = io(this.getSocketUrl(), {
             transports: ["websocket", "polling"],
             autoConnect: true,
             auth: {

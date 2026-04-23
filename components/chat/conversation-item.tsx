@@ -2,7 +2,7 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Users } from 'lucide-react';
+import { Users, Headphones } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Conversation } from '@/types/chat.types';
 import { formatTimestampWithoutSeconds } from '@/utils/timeUtils';
@@ -19,11 +19,14 @@ export default function ConversationItem({
   onClick,
 }: ConversationItemProps) {
   const hasUnread = (conversation.unreadCount || 0) > 0;
+  const isSupport = conversation.type === 'support';
 
   return (
     <div
       className={cn(
         'p-3 sm:p-4 border-b border-gray-100 dark:border-darkBorder-light cursor-pointer hover:bg-gray-50 dark:hover:bg-darkBg-interactive transition-all duration-200',
+        isSupport && !isActive &&
+          'bg-emerald-50/70 dark:bg-emerald-950/20 border-l-4 border-l-emerald-500',
         isActive
           ? 'bg-brand-green/10 dark:bg-brand-gold/10 border-l-4 border-l-brand-green dark:border-l-brand-gold shadow-sm'
           : hasUnread
@@ -34,7 +37,11 @@ export default function ConversationItem({
     >
       <div className='flex items-center gap-2 sm:gap-3'>
         <div className='relative flex-shrink-0'>
-          {conversation.isGroup ? (
+          {isSupport ? (
+            <div className='bg-emerald-600 h-10 w-10 rounded-full flex items-center justify-center text-white'>
+              <Headphones size={18} />
+            </div>
+          ) : conversation.isGroup ? (
             <div className='bg-gray-900 dark:bg-gray-700 h-10 w-10 rounded-full flex items-center justify-center text-white'>
               <Users size={18} />
             </div>
@@ -65,6 +72,11 @@ export default function ConversationItem({
               {conversation.name || 'Unknown Contact'}
             </p>
             <div className='flex items-center gap-2'>
+              {/* {isSupport && (
+                <Badge className='bg-emerald-600 text-white text-[10px] px-2 py-0.5 h-5'>
+                  Support
+                </Badge>
+              )} */}
               {hasUnread && (
                 <Badge className='bg-brand-green dark:bg-brand-gold text-white dark:text-darkBg-main text-xs px-2 py-0.5 min-w-[20px] h-5 flex items-center justify-center'>
                   {conversation.unreadCount}
