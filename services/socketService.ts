@@ -137,28 +137,25 @@ class SocketService {
         }
     }
 
-    sendMessage(chatId: string, content: string, messageType: "text" | "image" | "file" | "money" = "text", transactionId?: string) {
+    sendMessage(
+        chatId: string,
+        content: string,
+        messageType: "text" | "image" | "file" | "money" = "text",
+        transactionId?: string,
+        mentions?: Array<{ userId: string; username: string }>,
+        replyToMessageId?: string
+    ) {
+        const payload = { chatId, content, messageType, transactionId, mentions, replyToMessageId }
         if (this.socket) {
             if (this.socket.connected) {
-                this.socket.emit("send_message", {
-                    chatId,
-                    content,
-                    messageType,
-                    transactionId
-                })
+                this.socket.emit("send_message", payload)
             } else {
                 console.error('Socket exists but is not connected. Attempting to reconnect...');
-                // Try to reconnect and then send
                 this.socket.connect();
                 setTimeout(() => {
                     if (this.socket?.connected) {
                         console.log('Reconnected, sending message');
-                        this.socket.emit("send_message", {
-                            chatId,
-                            content,
-                            messageType,
-                            transactionId
-                        })
+                        this.socket.emit("send_message", payload)
                     } else {
                         console.error('Failed to reconnect socket');
                     }

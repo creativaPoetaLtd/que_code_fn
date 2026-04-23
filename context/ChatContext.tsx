@@ -7,6 +7,7 @@ import { useGetUserChatsQuery, useGetChatMessagesQuery } from "@/states/chatSlic
 import {
     Conversation,
     Message,
+    ReplyPreview,
     TypingUser,
     OnlineUser,
     ChatParticipantStatus
@@ -23,7 +24,14 @@ interface ChatContextType {
     onlineUsers: OnlineUser[];
     participantsStatus: Record<string, ChatParticipantStatus[]>;
     setActiveChat: (chatId: string | null) => void;
-    sendMessage: (chatId: string, content: string, messageType?: "text" | "image" | "file" | "money") => void;
+    sendMessage: (
+        chatId: string,
+        content: string,
+        messageType?: "text" | "image" | "file" | "money",
+        mentions?: Array<{ userId: string; username: string }>,
+        replyToMessageId?: string,
+        replyTo?: ReplyPreview | null
+    ) => void;
     markMessagesAsRead: (chatId: string) => void;
     startTyping: (chatId: string) => void;
     stopTyping: (chatId: string) => void;
@@ -471,15 +479,24 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         }
     }, [activeChat, refetchMessages]);
 
-    const sendMessage = useCallback((chatId: string, content: string, messageType: "text" | "image" | "file" | "money" = "text") => {
+    const sendMessage = useCallback((
+        chatId: string,
+        content: string,
+        messageType: "text" | "image" | "file" | "money" = "text",
+        mentions?: Array<{ userId: string; username: string }>,
+        replyToMessageId?: string,
+        replyTo?: ReplyPreview | null
+    ) => {
         if (isConnected && content.trim()) {
-            socketService.sendMessage(chatId, content.trim(), messageType);
+            socketService.sendMessage(chatId, content.trim(), messageType, undefined, mentions, replyToMessageId);
 
             const tempMessage: Message = {
                 id: `temp_${Date.now()}`,
                 chatId,
                 content: content.trim(),
                 messageType,
+                replyToMessageId: replyToMessageId || null,
+                replyTo: replyTo || null,
                 status: 'sent',
                 createdAt: new Date().toISOString(),
                 sender: {
@@ -487,7 +504,8 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
                     name: 'You',
                     avatar: undefined
                 },
-                isMe: true
+                isMe: true,
+                mentions,
             };
 
             // Add message to messages state

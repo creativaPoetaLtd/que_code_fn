@@ -1,12 +1,13 @@
 "use client"
 
-import { useRef, useEffect } from "react"
+import { useRef, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Send } from "lucide-react"
 import ChatHeader from "./chat-header"
 import MessageItem from "./message-item"
 import MessageInput from "./message-input"
 import type { Conversation, Message, LegacyMessage } from "@/types/chat.types"
+import type { ReplyPreview } from "@/types/chat.types"
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
 
@@ -84,6 +85,7 @@ export default function ChatArea({
     onlineUsers = [],
 }: ChatAreaProps) {
     const messagesEndRef = useRef<HTMLDivElement>(null)
+    const [replyToMessage, setReplyToMessage] = useState<ReplyPreview | null>(null)
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -137,7 +139,10 @@ export default function ChatArea({
                                     <div key={message.id}>
                                         {showSep && <DateSeparator date={msgDate} />}
                                         <div className="mb-4">
-                                            <MessageItem message={message} />
+                                            <MessageItem
+                                                message={message}
+                                                onReply={(reply) => setReplyToMessage(reply)}
+                                            />
                                         </div>
                                     </div>
                                 )
@@ -186,7 +191,11 @@ export default function ChatArea({
 
             {/* Message Input */}
             <div className="flex-shrink-0">
-                <MessageInput />
+                <MessageInput
+                    groupId={conversation.isGroup ? conversation.groupId : undefined}
+                    replyToMessage={replyToMessage}
+                    onCancelReply={() => setReplyToMessage(null)}
+                />
             </div>
         </div>
     )

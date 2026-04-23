@@ -1,82 +1,143 @@
 "use client"
 
-import { useState, useRef, useEffect, useCallback } from "react"
+import { useState, useRef, useEffect, useCallback, useMemo } from "react"
 import dynamic from "next/dynamic"
 import type { EmojiClickData } from "emoji-picker-react"
 import { Button } from "@/components/ui/button"
-import { Send, Paperclip, Smile, ImageIcon } from "lucide-react"
+import { Send, Paperclip, Smile, ImageIcon, X } from "lucide-react"
 import OptionsDropdown from "./options-dropdown"
 import { toast } from "@/hooks/use-toast"
 import { useChat } from "@/context/ChatContext"
 import { useTheme } from "@/context/ThemeContext"
 import MediaUploadModal from "./media-upload-modal"
 import { uploadMediaMessage } from "@/services/mediaService"
+import MentionDropdown, { MentionMember } from "./mention-dropdown"
+import { useSearchGroupMembersQuery } from "@/states/groupSlice"
+import { useAuthToken } from "@/hooks/use-auth-token"
+import type { ReplyPreview } from "@/types/chat.types"
 
 const EmojiPicker = dynamic(() => import("emoji-picker-react"), { ssr: false })
+const ALL_MENTION_USER_ID = "__all__"
+
+function escapeRegExp(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
 
 const MAX_HEIGHT = 160
 
 // CSS variable overrides injected into the emoji picker's host div
 const pickerVars = (isDark: boolean): React.CSSProperties => ({
-    // Background
     "--epr-bg-color":                isDark ? "#0c2418"                  : "#ffffff",
     "--epr-category-label-bg-color": isDark ? "#040f0c"                  : "#f9fafb",
-    // Search
     "--epr-search-input-bg-color":   isDark ? "#0d1e15"                  : "#f3f4f6",
     "--epr-search-input-text-color": isDark ? "#e5e7eb"                  : "#111827",
     "--epr-search-border-color":     isDark ? "rgba(255,255,255,0.07)"   : "#e5e7eb",
-    // Text & icons
     "--epr-text-color":              isDark ? "#d1d5db"                  : "#374151",
     "--epr-category-icon-active-color": isDark ? "#00B512"               : "#00B512",
-    // Hover / highlight (brand-green tint)
     "--epr-hover-color":             isDark ? "rgba(0,181,18,0.12)"      : "#f0fdf4",
     "--epr-focus-bg-color":          isDark ? "rgba(0,181,18,0.08)"      : "#dcfce7",
     "--epr-highlight-color":         "#00B512",
-    // Borders
     "--epr-border-color":            isDark ? "rgba(255,255,255,0.06)"   : "#e5e7eb",
-    // Radius to match the app's rounded-2xl cards
     "--epr-emoji-border-radius":     "10px",
     "--epr-header-padding":          "8px 8px 0",
 } as React.CSSProperties)
 
 interface MessageInputProps {
     onSendMessage?: (message: string) => void
+    /** Pass the group ID when inside a group chat to enable @mentions */
+    groupId?: string
+    replyToMessage?: ReplyPreview | null
+    onCancelReply?: () => void
 }
 
-export default function MessageInput({ onSendMessage = () => { } }: MessageInputProps) {
-    const [messageText, setMessageText]     = useState<string>("")
-    const [showOptions, setShowOptions]     = useState<boolean>(false)
+export default function MessageInput({
+    onSendMessage = () => { },
+    groupId,
+    replyToMessage = null,
+    onCancelReply,
+}: MessageInputProps) {
+    const [messageText, setMessageText]       = useState<string>("")
+    const [showOptions, setShowOptions]       = useState<boolean>(false)
     const [showEmojiPicker, setShowEmojiPicker] = useState<boolean>(false)
-    const [showMediaModal, setShowMediaModal]   = useState<boolean>(false)
-    const [uploading, setUploading]         = useState<boolean>(false)
-    const [uploadProgress, setUploadProgress]   = useState<number>(0)
-    const [cursorPos, setCursorPos]         = useState<number>(0)
+    const [showMediaModal, setShowMediaModal] = useState<boolean>(false)
+    const [uploading, setUploading]           = useState<boolean>(false)
+    const [uploadProgress, setUploadProgress] = useState<number>(0)
+    const [cursorPos, setCursorPos]           = useState<number>(0)
 
-    const wrapperRef     = useRef<HTMLDivElement | null>(null)
-    const dropdownRef    = useRef<HTMLDivElement | null>(null)
-    const emojiPickerRef = useRef<HTMLDivElement | null>(null)
-    const emojiButtonRef = useRef<HTMLButtonElement | null>(null)
-    const textareaRef    = useRef<HTMLTextAreaElement | null>(null)
+    // ── @Mention state ────────────────────────────────────────────────────────
+    /** The current `@query` being typed, or null when not in mention mode */
+    const [mentionQuery, setMentionQuery]     = useState<string | null>(null)
+    /** Start index of the `@` character in messageText */
+    const [mentionStart, setMentionStart]     = useState<number>(-1)
+    const [mentionActiveIdx, setMentionActiveIdx] = useState<number>(0)
+    /**
+     * Registry of all mentions accepted during this composition.
+     * Key: mention label (lower-cased), Value: mention payload.
+     */
+    const [mentionMap, setMentionMap]         = useState<Map<string, { userId: string; username: string }>>(new Map())
+    // Debounced query to avoid firing a request on every keystroke
+    const [debouncedMentionQuery, setDebouncedMentionQuery] = useState<string>("")
 
-    const chat = useChat()
+    const wrapperRef      = useRef<HTMLDivElement | null>(null)
+    const dropdownRef     = useRef<HTMLDivElement | null>(null)
+    const emojiPickerRef  = useRef<HTMLDivElement | null>(null)
+    const emojiButtonRef  = useRef<HTMLButtonElement | null>(null)
+    const textareaRef     = useRef<HTMLTextAreaElement | null>(null)
+
+    const chat   = useChat()
     const { theme } = useTheme()
+    const { getToken } = useAuthToken()
+    const token  = getToken()
     const isDark = theme === "dark"
     const { activeChat, sendMessage: contextSendMessage, startTyping, stopTyping, isConnected, addMessage } = chat
 
-    // ── Auto-resize ───────────────────────────────────────────────────────────
+    // ── Debounce mentionQuery for the RTK search ───────────────────────────────
+    useEffect(() => {
+        const id = setTimeout(() => setDebouncedMentionQuery(mentionQuery ?? ""), 250)
+        return () => clearTimeout(id)
+    }, [mentionQuery])
+
+    const showMentionDropdown = mentionQuery !== null && groupId !== undefined
+
+    const { data: mentionResults, isFetching: mentionLoading } = useSearchGroupMembersQuery(
+        { groupId: groupId!, q: debouncedMentionQuery, token: token! },
+        { skip: !showMentionDropdown || !groupId || !token }
+    )
+
+    const mentionMembers: MentionMember[] = useMemo(() => {
+        const members = mentionResults?.data ?? []
+        const query = (mentionQuery ?? "").trim().toLowerCase()
+
+        const supportsAllMention = query.length === 0 || "all".startsWith(query)
+        if (!supportsAllMention) {
+            return members
+        }
+
+        const allOption: MentionMember = {
+            userId: ALL_MENTION_USER_ID,
+            username: "all",
+            name: "Everyone",
+            avatar: null,
+        }
+
+        return [allOption, ...members]
+    }, [mentionResults, mentionQuery])
+
+    // Reset active index when results change
+    useEffect(() => { setMentionActiveIdx(0) }, [mentionMembers])
+
+    // ── Auto-resize ────────────────────────────────────────────────────────────
     const resizeTextarea = useCallback(() => {
         const el = textareaRef.current
         if (!el) return
         el.style.height = "auto"
         el.style.height = `${Math.min(el.scrollHeight, MAX_HEIGHT)}px`
-        // Use "scroll" (not "auto") to avoid a layout-shifting scrollbar appearing;
-        // the scrollbar itself is hidden via the `hide-scrollbar` CSS class.
         el.style.overflowY = el.scrollHeight > MAX_HEIGHT ? "scroll" : "hidden"
     }, [])
 
     useEffect(() => { resizeTextarea() }, [messageText, resizeTextarea])
 
-    // ── Outside-click: close dropdown + emoji picker ──────────────────────────
+    // ── Outside-click: close dropdown + emoji picker ───────────────────────────
     useEffect(() => {
         const handler = (e: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -88,31 +149,32 @@ export default function MessageInput({ onSendMessage = () => { } }: MessageInput
             ) {
                 setShowEmojiPicker(false)
             }
+            // Close mention dropdown on outside click
+            if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+                setMentionQuery(null)
+            }
         }
         document.addEventListener("mousedown", handler)
         return () => document.removeEventListener("mousedown", handler)
     }, [])
 
-    // ── Toggle emoji picker — dismisses keyboard on mobile ───────────────────
-    const toggleEmojiPicker = () => {
-        const next = !showEmojiPicker
-        setShowEmojiPicker(next)
-        if (next) {
-            // Blur the textarea so the mobile software keyboard is dismissed,
-            // letting the emoji picker occupy that space without overlap.
-            textareaRef.current?.blur()
-        } else {
-            // Restore focus so the user can keep typing after closing the picker.
-            requestAnimationFrame(() => textareaRef.current?.focus())
-        }
-    }
-
-    // ── Save cursor position ──────────────────────────────────────────────────
+    // ── Save cursor position ───────────────────────────────────────────────────
     const saveCursor = () => {
         if (textareaRef.current) setCursorPos(textareaRef.current.selectionStart)
     }
 
-    // ── Insert emoji at cursor ────────────────────────────────────────────────
+    // ── Toggle emoji picker — dismisses keyboard on mobile ────────────────────
+    const toggleEmojiPicker = () => {
+        const next = !showEmojiPicker
+        setShowEmojiPicker(next)
+        if (next) {
+            textareaRef.current?.blur()
+        } else {
+            requestAnimationFrame(() => textareaRef.current?.focus())
+        }
+    }
+
+    // ── Insert emoji at cursor ─────────────────────────────────────────────────
     const handleEmojiClick = (data: EmojiClickData) => {
         const emoji  = data.emoji
         const before = messageText.slice(0, cursorPos)
@@ -129,29 +191,144 @@ export default function MessageInput({ onSendMessage = () => { } }: MessageInput
         })
     }
 
-    // ── Send ──────────────────────────────────────────────────────────────────
+    // ── Detect @mention trigger ────────────────────────────────────────────────
+    const detectMention = useCallback((text: string, pos: number) => {
+        if (!groupId) return
+
+        // Walk backwards from cursor to find the nearest `@`
+        const slice = text.slice(0, pos)
+        const atIdx = slice.lastIndexOf("@")
+
+        if (atIdx === -1) {
+            setMentionQuery(null)
+            return
+        }
+
+        // Ensure the character before `@` is a space / start-of-string (not mid-word)
+        const charBefore = atIdx > 0 ? text[atIdx - 1] : " "
+        if (!/\s/.test(charBefore)) {
+            setMentionQuery(null)
+            return
+        }
+
+        const query = text.slice(atIdx + 1, pos)
+
+        // If there's a space inside the query, the mention has ended
+        if (/\s/.test(query)) {
+            setMentionQuery(null)
+            return
+        }
+
+        setMentionStart(atIdx)
+        setMentionQuery(query)
+    }, [groupId])
+
+    // ── Accept a mention from the dropdown ────────────────────────────────────
+    const acceptMention = useCallback((member: MentionMember) => {
+        if (mentionStart === -1) return
+
+        const mentionLabel = member.userId === ALL_MENTION_USER_ID
+            ? member.username
+            : (member.name || member.username)
+
+        const before  = messageText.slice(0, mentionStart)
+        const after   = messageText.slice(cursorPos)
+        const insert  = `@${mentionLabel} `
+        const newText = before + insert + after
+        const newPos  = mentionStart + insert.length
+
+        setMessageText(newText)
+        setCursorPos(newPos)
+        setMentionQuery(null)
+        setMentionStart(-1)
+
+        // Register this mention in the map so we can send the userId later
+        setMentionMap((prev) => {
+            const next = new Map(prev)
+            next.set(mentionLabel.toLowerCase(), { userId: member.userId, username: mentionLabel })
+            return next
+        })
+
+        requestAnimationFrame(() => {
+            if (textareaRef.current) {
+                textareaRef.current.focus()
+                textareaRef.current.setSelectionRange(newPos, newPos)
+            }
+        })
+    }, [messageText, mentionStart, cursorPos])
+
+    // ── Extract confirmed mentions from the final message text ────────────────
+    const collectMentions = useCallback(
+        (text: string): Array<{ userId: string; username: string }> => {
+            const found: Array<{ userId: string; username: string }> = []
+            const seen  = new Set<string>()
+
+            mentionMap.forEach((mention) => {
+                const label = mention.username
+                const re = new RegExp(
+                    `(^|\\s)@${escapeRegExp(label)}(?=\\s|$|[.,!?])`,
+                    "i"
+                )
+
+                if (re.test(text) && !seen.has(mention.userId)) {
+                    seen.add(mention.userId)
+                    found.push({ userId: mention.userId, username: label })
+                }
+            })
+
+            return found
+        },
+        [mentionMap]
+    )
+
+    // ── Send ───────────────────────────────────────────────────────────────────
     const handleSendMessage = useCallback(() => {
         const text = messageText.trim()
         if (!text) return
+
+        const mentions = collectMentions(text)
+
         if (contextSendMessage && activeChat) {
-            contextSendMessage(activeChat, text)
+            contextSendMessage(
+                activeChat,
+                text,
+                "text",
+                mentions,
+                replyToMessage?.id,
+                replyToMessage || null
+            )
             if (stopTyping) stopTyping(activeChat)
         } else {
             onSendMessage(text)
         }
+
         setMessageText("")
         setShowEmojiPicker(false)
+        setMentionQuery(null)
+        setMentionMap(new Map())
+        if (onCancelReply) onCancelReply()
         if (textareaRef.current) {
-            textareaRef.current.style.height = "auto"
+            textareaRef.current.style.height    = "auto"
             textareaRef.current.style.overflowY = "hidden"
         }
-    }, [messageText, activeChat, contextSendMessage, stopTyping, onSendMessage])
+    }, [
+        messageText,
+        activeChat,
+        contextSendMessage,
+        stopTyping,
+        onSendMessage,
+        collectMentions,
+        replyToMessage,
+        onCancelReply,
+    ])
 
-    // ── Textarea events ───────────────────────────────────────────────────────
+    // ── Textarea events ────────────────────────────────────────────────────────
     const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         const value = e.target.value
+        const pos   = e.target.selectionStart
         setMessageText(value)
-        setCursorPos(e.target.selectionStart)
+        setCursorPos(pos)
+        detectMention(value, pos)
         if (activeChat && startTyping && stopTyping) {
             if (value.trim()) startTyping(activeChat)
             else stopTyping(activeChat)
@@ -159,6 +336,29 @@ export default function MessageInput({ onSendMessage = () => { } }: MessageInput
     }
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        // Handle mention dropdown keyboard navigation first
+        if (showMentionDropdown && mentionMembers.length > 0) {
+            if (e.key === "ArrowDown") {
+                e.preventDefault()
+                setMentionActiveIdx((i) => Math.min(i + 1, mentionMembers.length - 1))
+                return
+            }
+            if (e.key === "ArrowUp") {
+                e.preventDefault()
+                setMentionActiveIdx((i) => Math.max(i - 1, 0))
+                return
+            }
+            if (e.key === "Enter" || e.key === "Tab") {
+                e.preventDefault()
+                acceptMention(mentionMembers[mentionActiveIdx])
+                return
+            }
+            if (e.key === "Escape") {
+                setMentionQuery(null)
+                return
+            }
+        }
+
         if (e.key === "Escape") { setShowEmojiPicker(false); return }
         if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendMessage() }
     }
@@ -200,32 +400,32 @@ export default function MessageInput({ onSendMessage = () => { } }: MessageInput
 
     return (
         <>
-            {/* Outer wrapper is `relative` so the emoji picker can be positioned against it */}
             <div
                 ref={wrapperRef}
                 className="relative bg-white dark:bg-darkBg-card px-3 py-2 sm:px-4 sm:py-3 border-t border-gray-100 dark:border-darkBorder-light"
             >
-                {/* ── Emoji picker popover ────────────────────────────────────────────── */}
+                {/* ── @Mention dropdown ──────────────────────────────────────────────── */}
+                {showMentionDropdown && (
+                    <MentionDropdown
+                        members={mentionMembers}
+                        activeIndex={mentionActiveIdx}
+                        onSelect={acceptMention}
+                        isLoading={mentionLoading && debouncedMentionQuery.length > 0}
+                    />
+                )}
+
+                {/* ── Emoji picker popover ──────────────────────────────────────────── */}
                 {showEmojiPicker && (
                     <div
                         ref={emojiPickerRef}
-                        // Mobile: full-width flush with the input bar
-                        // Desktop (sm+): 300 px, right-aligned
                         className="absolute bottom-full left-0 right-0 sm:left-auto sm:right-0 sm:w-[300px] mb-1 z-50 animate-fadeIn"
-                        style={{
-                            filter: "drop-shadow(0 -4px 24px rgba(0,0,0,0.18))",
-                            // Round only the top corners on mobile (picker is flush at bottom)
-                        }}
+                        style={{ filter: "drop-shadow(0 -4px 24px rgba(0,0,0,0.18))" }}
                     >
-                        {/* Inner wrapper clips the picker and applies border + radius */}
                         <div
                             className={`
                                 overflow-hidden rounded-t-2xl sm:rounded-2xl
                                 border border-b-0 sm:border-b
-                                ${isDark
-                                    ? "border-[rgba(255,255,255,0.07)]"
-                                    : "border-gray-200"
-                                }
+                                ${isDark ? "border-[rgba(255,255,255,0.07)]" : "border-gray-200"}
                             `}
                             style={pickerVars(isDark)}
                         >
@@ -234,7 +434,6 @@ export default function MessageInput({ onSendMessage = () => { } }: MessageInput
                                 theme={isDark ? "dark" as any : "light" as any}
                                 searchPlaceholder="Search emoji…"
                                 skinTonesDisabled
-                                // Full-width on mobile, fixed on desktop
                                 width="100%"
                                 height={340}
                                 previewConfig={{ showPreview: false }}
@@ -244,7 +443,30 @@ export default function MessageInput({ onSendMessage = () => { } }: MessageInput
                     </div>
                 )}
 
-                {/* ── Input row ──────────────────────────────────────────────────────── */}
+                {replyToMessage && (
+                    <div className="mb-2 rounded-lg border border-gray-200 dark:border-darkBorder-light bg-gray-50 dark:bg-darkBg-interactive px-3 py-2 flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                            <p className="text-xs font-semibold text-brand-green dark:text-brand-gold truncate">
+                                Replying to {replyToMessage.senderName}
+                            </p>
+                            <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                                {replyToMessage.content || "(no text)"}
+                            </p>
+                        </div>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={onCancelReply}
+                            className="h-6 w-6 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                            aria-label="Cancel reply"
+                        >
+                            <X size={14} />
+                        </Button>
+                    </div>
+                )}
+
+                {/* ── Input row ─────────────────────────────────────────────────────── */}
                 <div className="flex items-end gap-1 sm:gap-2">
 
                     {/* Attachment */}
@@ -274,7 +496,7 @@ export default function MessageInput({ onSendMessage = () => { } }: MessageInput
                     <div className="relative flex-1">
                         <textarea
                             ref={textareaRef}
-                            placeholder={!isConnected ? "Connecting…" : "Type a message…"}
+                            placeholder={!isConnected ? "Connecting…" : groupId ? "Type a message… use @ to mention" : "Type a message…"}
                             value={messageText}
                             onChange={handleChange}
                             onKeyDown={handleKeyDown}
@@ -285,10 +507,11 @@ export default function MessageInput({ onSendMessage = () => { } }: MessageInput
                             rows={1}
                             aria-label="Message input"
                             aria-multiline="true"
+                            aria-autocomplete={showMentionDropdown ? "list" : "none"}
                             className="w-full resize-none rounded-2xl bg-gray-50 dark:bg-darkBg-interactive border border-gray-200 dark:border-darkBorder-light py-2.5 pl-4 pr-10 text-base leading-6 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-green dark:focus:ring-brand-gold focus:ring-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden hide-scrollbar"
                             style={{ minHeight: "44px" }}
                         />
-                        {/* Emoji trigger — anchored to bottom-right of the textarea */}
+                        {/* Emoji trigger */}
                         <button
                             ref={emojiButtonRef}
                             type="button"
@@ -324,7 +547,7 @@ export default function MessageInput({ onSendMessage = () => { } }: MessageInput
                 {/* Hint shown while typing */}
                 {messageText.length > 0 && (
                     <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1 pl-1 select-none">
-                        Shift+Enter for new line
+                        Shift+Enter for new line{groupId ? " · @ to mention" : ""}
                     </p>
                 )}
             </div>
