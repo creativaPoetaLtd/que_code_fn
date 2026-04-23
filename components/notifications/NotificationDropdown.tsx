@@ -1,7 +1,7 @@
 "use client"
 import type React from "react"
 import { useState, useEffect } from "react"
-import { Bell, Check, Users, UserPlus, MessageCircle, X, RefreshCw, Wifi, WifiOff } from "lucide-react"
+import { Bell, Check, Users, UserPlus, MessageCircle, X, RefreshCw, Wifi, WifiOff, HandCoins } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -12,8 +12,10 @@ import { useRespondToJoinRequestMutation, useRespondToGroupInvitationMutation } 
 import { useAuthToken } from "@/hooks/use-auth-token"
 import { toast } from "@/hooks/use-toast"
 import type { Notification } from "@/types/notification.types"
+import { useRouter } from "next/navigation"
 
 const NotificationDropdown: React.FC = () => {
+    const router = useRouter()
     const { getToken } = useAuthToken()
     const token = getToken() ?? ""
 
@@ -105,6 +107,8 @@ const NotificationDropdown: React.FC = () => {
                 return <X size={16} className="text-red-600" />
             case "group_created":
                 return <Users size={16} className="text-green-600" />
+            case "payment_request_received":
+                return <HandCoins size={16} className="text-green-600" />
             default:
                 return <Bell size={16} className="text-gray-600" />
         }
@@ -186,6 +190,10 @@ const NotificationDropdown: React.FC = () => {
             await handleJoinRequestAction(notificationId, actionUrl)
         } else if (lowerType === "group_invitation") {
             await handleGroupInvitationAction(notificationId, actionUrl)
+        } else if (lowerType === "payment_request_received") {
+            // Simply mark as read and navigate
+            await handleMarkAsRead(notificationId)
+            router.push(actionUrl)
         }
     }
 
@@ -194,7 +202,7 @@ const NotificationDropdown: React.FC = () => {
         return (
             !notification.isRead &&
             notification.data?.actions &&
-            (type === "group_join_request" || type === "group_invitation")
+            (type === "group_join_request" || type === "group_invitation" || type === "payment_request_received")
         )
     }
 
@@ -371,6 +379,7 @@ const NotificationDropdown: React.FC = () => {
                             className="w-full text-sm text-blue-600 hover:text-blue-800"
                             onClick={() => {
                                 setIsOpen(false)
+                                router.push('/contacts?tab=sent')
                             }}
                         >
                             View all notifications

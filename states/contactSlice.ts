@@ -16,6 +16,7 @@ export interface Contact {
     lastName: string;
     email: string;
     phone: string;
+    contactType?: "person" | "company";
     profile?: {
       profileImage: string;
     };
@@ -288,11 +289,11 @@ export const contactSlice = apiSlice.injectEndpoints({
         currentPage: number;
         totalPages: number;
       },
-      { page?: number; limit?: number; token: string }
+      { page?: number; limit?: number; status?: "pending" | "accepted" | "declined" | "expired"; token: string }
     >({
-      query: ({ page = 1, limit = 20, token }) => ({
+      query: ({ page = 1, limit = 20, status, token }) => ({
         url: "/contacts/sent",
-        params: { page, limit },
+        params: { page, limit, status },
         headers: {
           Authorization: `Bearer ${token}`,
         },

@@ -402,6 +402,36 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
             }
         };
 
+        const handlePaymentRequestUpdated = (data: {
+            requestId: string;
+            status: "paid" | "cancelled";
+            transactionId?: string;
+            chatId?: string | null;
+        }) => {
+            // Update every message across all chats that references this requestId
+            setMessages(prev => {
+                const updated = { ...prev };
+                for (const chatId of Object.keys(updated)) {
+                    updated[chatId] = updated[chatId].map(msg => {
+                        if (msg.messageType !== "money") return msg;
+                        try {
+                            const parsed = JSON.parse(msg.content);
+                            if (parsed?.type === "money_request" && parsed.requestId === data.requestId) {
+                                return {
+                                    ...msg,
+                                    content: JSON.stringify({ ...parsed, status: data.status }),
+                                };
+                            }
+                        } catch {
+                            // not JSON, skip
+                        }
+                        return msg;
+                    });
+                }
+                return updated;
+            });
+        };
+
         socketService.onNewMessage(handleNewMessage);
         socketService.onMessageDelivered(handleMessageDelivered);
         socketService.onMessagesRead(handleMessagesRead);
@@ -416,6 +446,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         socketService.onJoinedChat(handleJoinedChat);
         socketService.onError(handleError);
         socketService.onMoneyReceived(handleMoneyReceived);
+        socketService.onPaymentRequestUpdated(handlePaymentRequestUpdated);
 
         return () => {
             socketService.offNewMessage(handleNewMessage);
@@ -431,6 +462,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
             socketService.offJoinedChat(handleJoinedChat);
             socketService.offError(handleError);
             socketService.offMoneyReceived(handleMoneyReceived);
+            socketService.offPaymentRequestUpdated(handlePaymentRequestUpdated);
         };
     }, [isConnected, activeChat, userId, refetchMessages, sortConversations]);
 

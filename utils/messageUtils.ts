@@ -32,6 +32,20 @@ export function parseMessageContent(content: string, messageType: string): strin
             }).format(amount)} to ${groupName}`;
         }
 
+        if (data.type === 'money_request') {
+            const amount = data.amount || 0;
+            const currency = data.currency || 'RWF';
+            const status = data.status || 'pending';
+            const note = data.note ? `: ${data.note}` : '';
+
+            return `Requested ${new Intl.NumberFormat('en-RW', {
+                style: 'currency',
+                currency: currency,
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            }).format(amount)} (${status})${note}`;
+        }
+
         return content;
     } catch (e) {
         return content;
@@ -57,14 +71,14 @@ export function extractMoneyTransferData(content: string): {
     senderName?: string;
     transactionId?: string;
     receiptUrl?: string;
-    type?: 'money_transfer' | 'group_donation';
+    type?: 'money_transfer' | 'group_donation' | 'money_request';
     groupId?: string;
     groupName?: string;
 } | null {
     try {
         const data = JSON.parse(content);
 
-        if (data.type === 'money_transfer' || data.type === 'group_donation') {
+        if (data.type === 'money_transfer' || data.type === 'group_donation' || data.type === 'money_request') {
             return {
                 amount: data.amount || 0,
                 currency: data.currency || 'RWF',

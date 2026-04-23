@@ -1,6 +1,7 @@
 import React from "react";
 import { Transaction } from "@/types/dashboard";
-import { X, CheckCircle, Clock, AlertCircle } from "lucide-react";
+import { X, CheckCircle, Clock, AlertCircle, Share2, Download, RefreshCcw, MessageCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { UserAvatar } from "@/components/UserAvatar";
 import { format } from "date-fns";
 
@@ -15,6 +16,7 @@ export const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = (
     currentUserId,
     onClose,
 }) => {
+    const router = useRouter();
     if (!transaction) return null;
 
     const isOutgoing = transaction.senderWallet?.userId === currentUserId;
@@ -165,11 +167,71 @@ export const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = (
                     </div>
                 </div>
 
-                {/* Footer Action */}
-                <div className="px-6 pb-6">
+                {/* Footer Actions */}
+                <div className="px-6 pb-6 space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                        <button
+                            onClick={() => {
+                                const counterpartyId = isOutgoing ? transaction.receiverWallet?.userId : transaction.senderWallet?.userId;
+                                const recipientData = {
+                                    id: counterpartyId,
+                                    name: counterpartyName,
+                                    phone: '',
+                                    avatar: counterpartyProfileImage || '',
+                                    type: isToOrganization ? 'organization' : 'user'
+                                };
+                                sessionStorage.setItem('selectedRecipient', JSON.stringify(recipientData));
+                                sessionStorage.setItem('initialAmount', transaction.amount.toString());
+                                router.push('/home/transfer/amount');
+                                onClose();
+                            }}
+                            className="flex items-center justify-center gap-2 py-2.5 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-xl font-medium hover:bg-blue-100 dark:hover:bg-blue-500/20 transition-colors"
+                        >
+                            <RefreshCcw size={18} />
+                            Resend
+                        </button>
+                        <button
+                            onClick={() => {
+                                const counterpartyId = isOutgoing ? transaction.receiverWallet?.userId : transaction.senderWallet?.userId;
+                                router.push(`/chat?userId=${counterpartyId}`);
+                                onClose();
+                            }}
+                            className="flex items-center justify-center gap-2 py-2.5 bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400 rounded-xl font-medium hover:bg-green-100 dark:hover:bg-green-500/20 transition-colors"
+                        >
+                            <MessageCircle size={18} />
+                            Chat
+                        </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <button
+                            onClick={() => {
+                                if (navigator.share) {
+                                    navigator.share({
+                                        title: 'Transaction Receipt',
+                                        text: `Transaction of RWF ${amount.toLocaleString()} ${isOutgoing ? 'to' : 'from'} ${counterpartyName}`,
+                                        url: window.location.href
+                                    }).catch(console.error);
+                                } else {
+                                    navigator.clipboard.writeText(`Transaction: RWF ${amount.toLocaleString()} | Ref: ${transaction.referenceId}`);
+                                    alert('Transaction details copied to clipboard');
+                                }
+                            }}
+                            className="flex items-center justify-center gap-2 py-2.5 bg-gray-50 dark:bg-darkBg-interactive text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-100 dark:hover:bg-darkBg-card transition-colors"
+                        >
+                            <Share2 size={18} />
+                            Share
+                        </button>
+                        <button
+                            onClick={() => window.print()}
+                            className="flex items-center justify-center gap-2 py-2.5 bg-gray-50 dark:bg-darkBg-interactive text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-100 dark:hover:bg-darkBg-card transition-colors"
+                        >
+                            <Download size={18} />
+                            Export
+                        </button>
+                    </div>
                     <button
                         onClick={onClose}
-                        className="w-full py-3.5 bg-brand-green dark:bg-brand-gold text-white dark:text-[#00313A] rounded-xl font-medium hover:opacity-90 transition-opacity"
+                        className="w-full py-3.5 mt-2 bg-brand-green dark:bg-brand-gold text-white dark:text-[#00313A] rounded-xl font-medium hover:opacity-90 transition-opacity"
                     >
                         Close
                     </button>

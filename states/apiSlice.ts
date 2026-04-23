@@ -17,19 +17,30 @@ const baseQueryWithAuth = fetchBaseQuery({
 });
 
 const baseQueryWithReauth = async (args: any, api: any, extraOptions: any) => {
-    let result = await baseQueryWithAuth(args, api, extraOptions);
+  const requestUrl = typeof args === "string" ? args : args?.url || "";
+  const isAuthEndpoint = requestUrl.startsWith("/auth/");
 
-    if (result.error?.status === 401) {
-        const refreshedToken = await refreshAccessToken();
+  let result = await baseQueryWithAuth(args, api, extraOptions);
 
-        if (refreshedToken) {
-            result = await baseQueryWithAuth(args, api, extraOptions);
-        } else {
-            handleTokenExpiration();
-        }
+  if (result.error?.status === 401) {
+    if (isAuthEndpoint) {
+      return result;
     }
 
-    return result;
+    const refreshedToken = await refreshAccessToken();
+
+    if (refreshedToken) {
+      result = await baseQueryWithAuth(args, api, extraOptions);
+
+      if (result.error?.status === 401) {
+        handleTokenExpiration();
+      }
+    } else {
+      handleTokenExpiration();
+    }
+  }
+
+  return result;
 };
 
 export const apiSlice = createApi({

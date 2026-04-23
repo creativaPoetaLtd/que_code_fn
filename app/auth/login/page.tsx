@@ -211,17 +211,8 @@ const LoginForm: React.FC = () => {
         throw new Error('Invalid token received');
       }
 
-      // Determine account type for appropriate messaging
-      const accountType = tokenInfo.accountType || 'user';
-
-      notification.success({
-        message: 'Login Successful',
-        description: `Welcome back, ${tokenInfo.name}!`,
-        placement: 'topRight',
-      });
-
       // Redirect based on account type
-      redirectAfterLogin(tokenInfo.id, accountType);
+      redirectAfterLogin(tokenInfo.id, tokenInfo.accountType);
     } catch (error) {
       const err = error as APIError;
       const status = err?.status;
@@ -233,10 +224,10 @@ const LoginForm: React.FC = () => {
           description: 'Account not found. Please check your email.',
           placement: 'topRight',
         });
-      } else if (status === 401) {
+      } else if (status === 400 || status === 401 || status === 403) {
         notification.error({
           message: 'Invalid Credentials',
-          description: 'Incorrect password. Please try again.',
+          description: 'Incorrect email or password. Please try again.',
           placement: 'topRight',
         });
       } else {
@@ -247,6 +238,12 @@ const LoginForm: React.FC = () => {
         });
       }
     }
+  };
+
+  const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    void handleSubmit(onSubmit)(e);
   };
 
   const handleGoogleLogin = () => {
@@ -309,12 +306,6 @@ const LoginForm: React.FC = () => {
           // Decode token to get user information
           const tokenInfo = decodeToken(event.data.token);
           if (tokenInfo) {
-            notification.success({
-              message: 'Login Successful',
-              description: `Welcome back, ${tokenInfo.name}!`,
-              placement: 'topRight',
-            });
-
             // Redirect based on account type
             redirectAfterLogin(tokenInfo.id, tokenInfo.accountType);
           } else {
@@ -361,7 +352,7 @@ const LoginForm: React.FC = () => {
       <p className="mt-2 text-gray-600">
         Today is a new day. {`It's`} your day. You shape it.
       </p>
-      <form className="mt-6" method='POST' onSubmit={handleSubmit(onSubmit)}>
+      <form className="mt-6" noValidate onSubmit={handleFormSubmit}>
         <div className="mb-4">
           <label className="block text-sm font-medium mb-2">Email</label>
           <Controller

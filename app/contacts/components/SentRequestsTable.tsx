@@ -1,8 +1,8 @@
-import { useState } from "react";
 import { ContactInvitation } from "@/states/contactSlice";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
+import { useRouter } from "next/navigation";
 
 interface SentRequestsTableProps {
     requests: ContactInvitation[];
@@ -10,11 +10,12 @@ interface SentRequestsTableProps {
 }
 
 export function SentRequestsTable({ requests, isLoading }: SentRequestsTableProps) {
+    const router = useRouter();
 
     if (isLoading) {
         return (
             <div className="p-8 text-center text-gray-500">
-                Loading sent requests...
+                Loading pending requests...
             </div>
         );
     }
@@ -27,8 +28,8 @@ export function SentRequestsTable({ requests, isLoading }: SentRequestsTableProp
                         <span className="text-xl">Outbox</span>
                     </div>
                 </div>
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white">No sent requests</h3>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">You have no sent contact requests.</p>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">No pending requests</h3>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">You have no outgoing requests waiting for response.</p>
             </div>
         );
     }
@@ -58,11 +59,17 @@ export function SentRequestsTable({ requests, isLoading }: SentRequestsTableProp
                             <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="flex items-center">
                                     <div className="flex-shrink-0 h-10 w-10">
-                                        <UserAvatar
-                                            profileImage={request.invitee?.profile?.profileImage}
-                                            firstName={request.invitee?.firstName ?? ''}
-                                            lastName={request.invitee?.lastName ?? ''}
-                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => request.invitee?.id && router.push(`/welcome/${request.invitee.id}`)}
+                                            aria-label={`Open ${request.invitee?.firstName ?? 'user'} profile`}
+                                        >
+                                            <UserAvatar
+                                                profileImage={request.invitee?.profile?.profileImage}
+                                                firstName={request.invitee?.firstName ?? ''}
+                                                lastName={request.invitee?.lastName ?? ''}
+                                            />
+                                        </button>
                                     </div>
                                     <div className="ml-4">
                                         <div className="text-sm font-medium text-gray-900 dark:text-white">

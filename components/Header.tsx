@@ -277,7 +277,7 @@ export const Header = ({ showBackButton = false }: HeaderProps) => {
                                 </li>
                                 <li className="border-t border-gray-100 dark:border-darkBorder-light">
                                     <button
-                                        onClick={() => handleNavigation('/logout')}
+                                        onClick={handleLogout}
                                         className="block w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-darkBg-overlay transition-colors text-red-500"
                                     >
                                         Logout

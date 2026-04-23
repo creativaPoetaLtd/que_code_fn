@@ -11,6 +11,7 @@ import Navigation from "./Navigation";
 import { useAuthToken } from '@/hooks/use-auth-token';
 import { useSidebar } from '@/context/SidebarContext';
 import { cn } from '@/lib/utils';
+import { BackButton } from "./shared/BackButton";
 
 export const HomePageLayout = () => {
     const params = useParams();
@@ -202,7 +203,11 @@ export const HomePageLayout = () => {
             )}>
                 <div className="flex-1 overflow-y-auto pb-28 sm:pb-24 lg:pb-8">
                     {/* Header */}
-                    <Header />
+                    <div className="mb-4">
+                        <Header />
+                    </div>
+
+
 
                     {/* Welcome Section */}
                     <WelcomeSection userId={userId} />

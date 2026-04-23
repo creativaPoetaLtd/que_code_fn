@@ -6,14 +6,17 @@ import { useAuthToken } from '@/hooks/use-auth-token';
 import { useGetUserChatsQuery } from '@/states/chatSlice';
 import { MessageCircle, Send } from 'lucide-react';
 import { UserAvatar } from '@/components/UserAvatar';
+import { parseMessageContent } from '@/utils/messageUtils';
 
 interface ChatMessage {
     id: string;
+    userId?: string;
     name: string;
     lastMessage?: {
         content: string;
         createdAt: string;
         sender: string;
+        messageType?: string;
     };
     avatar?: string;
 }
@@ -32,11 +35,16 @@ export const RecentMessages: React.FC = () => {
         if (chatsData?.data) {
             const formattedChats = chatsData.data.slice(0, 5).map((chat: any) => ({
                 id: chat.id,
+                userId: chat.otherUser?.id,
                 name: chat.name || 'Unknown Chat',
                 lastMessage: chat.lastMessage ? {
-                    content: chat.lastMessage.content || '',
+                    content: parseMessageContent(
+                        chat.lastMessage.content || '',
+                        chat.lastMessage.messageType || 'text'
+                    ),
                     createdAt: chat.lastMessage.createdAt,
-                    sender: chat.lastMessage.sender || 'Unknown'
+                    sender: chat.lastMessage.sender || 'Unknown',
+                    messageType: chat.lastMessage.messageType || 'text'
                 } : undefined,
                 avatar: chat.avatar
             }));
@@ -152,6 +160,7 @@ export const RecentMessages: React.FC = () => {
                     >
                         <div className="flex items-start gap-2.5">
                             <UserAvatar
+                                userId={chat.userId}
                                 profileImage={chat.avatar}
                                 firstName={chat.name.split(' ')[0]}
                                 lastName={chat.name.split(' ')[1] || ''}

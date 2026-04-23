@@ -173,3 +173,34 @@ export interface TransferResponse {
     status: string;
   };
 }
+
+export interface PaymentRequest {
+  id: string;
+  senderId: string;
+  recipientId: string;
+  amount: number;
+  currency: string;
+  note: string;
+  status: 'pending' | 'paid' | 'cancelled' | 'expired';
+  allowEditAmount: boolean;
+  createdAt: string;
+  updatedAt: string;
+  sender?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    profile?: {
+      avatar?: string;
+    };
+  };
+  recipient?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    profile?: {
+      avatar?: string;
+    };
+  };
+}

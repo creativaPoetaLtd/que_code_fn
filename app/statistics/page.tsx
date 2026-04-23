@@ -11,6 +11,7 @@ import RecentTransactions from '@/components/RecentTransactions'
 import React from 'react'
 import { useSidebar } from '@/context/SidebarContext'
 import { cn } from '@/lib/utils'
+import { BackButton } from '@/components/shared/BackButton'
 
 const page = () => {
     const { isExpanded } = useSidebar();
@@ -27,6 +28,8 @@ const page = () => {
                 <div className="flex-1 overflow-y-auto pb-24 lg:pb-8">
                     {/* Header */}
                     <Header />
+
+                    <BackButton className="mt-4 mb-2" />
 
                     {/* Content */}
                     <Dashboard />

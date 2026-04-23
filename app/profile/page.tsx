@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { BackButton } from "@/components/shared/BackButton"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -104,6 +105,7 @@ export default function ProfilePage() {
 
     return (
         <div className="container max-w-6xl mx-auto py-6 px-4 sm:px-6 lg:py-10 mobile-bottom-padding">
+            <BackButton className="mb-6" />
             <div className="flex flex-col md:flex-row gap-6">
                 {/* Profile Sidebar */}
                 <div className="md:w-1/3">

@@ -7,7 +7,9 @@ import Input from "../ui/Input-ant"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
-import { UserPlus, Search, User, Mail, Phone, QrCode, Link, Loader2, CheckCircle, Camera, Scan } from "lucide-react"
+import { UserPlus, Search, User, Mail, Phone, QrCode, Link, Loader2, CheckCircle, Camera, Scan, Copy } from "lucide-react"
+import { QRCode } from "antd"
+import { getUserIdFromToken } from "@/utils/jwtUtils"
 import { toast } from "@/hooks/use-toast"
 import QRCodeScanner from "./qr-code-scanner"
 import { useSendContactInvitationByPublicIdMutation } from "@/states/contactSlice"
@@ -201,6 +203,17 @@ export default function AddContactModal({ isOpen, onClose }: AddContactModalProp
         handleInviteByPublicId(publicId)
     }
 
+    const currentUserId = token ? getUserIdFromToken(token) : null
+    const myProfileLink = currentUserId ? `${window.location.origin}/welcome/${currentUserId}` : ""
+
+    const copyToClipboard = () => {
+        navigator.clipboard.writeText(myProfileLink)
+        toast({
+            title: "Link Copied",
+            description: "Your profile link has been copied to clipboard",
+        })
+    }
+
     return (
       <>
         <Dialog open={isOpen} onOpenChange={open => !open && handleClose()}>
@@ -213,11 +226,18 @@ export default function AddContactModal({ isOpen, onClose }: AddContactModalProp
                 <DialogTitle className="text-gray-900 dark:text-white text-xl font-semibold">Add Contact</DialogTitle>
               </div>
               <DialogDescription className="text-gray-600 dark:text-gray-400 text-sm">
-                Add a new contact using their profile link or public ID
+                Add a new contact or share your own profile details
               </DialogDescription>
             </DialogHeader>
 
-            <div className='py-4'>
+            <Tabs defaultValue="add" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="add">Add Contact</TabsTrigger>
+                <TabsTrigger value="share">My QR / Link</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="add">
+                <div className='py-4'>
               {/* Profile Link Input Section */}
               <div className='mb-6'>
                 <label className='block text-sm font-medium text-gray-700 mb-2'>
@@ -271,7 +291,43 @@ export default function AddContactModal({ isOpen, onClose }: AddContactModalProp
                   Scan QR Code
                 </Button>
               </div>
-            </div>
+              </div>
+              </TabsContent>
+
+              <TabsContent value="share">
+                <div className="py-6 flex flex-col items-center justify-center space-y-6">
+                  <div className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 dark:border-darkBorder-light">
+                    <QRCode 
+                        value={myProfileLink} 
+                        size={200}
+                        color="#00313A"
+                        bordered={false}
+                    />
+                  </div>
+                  
+                  <div className="w-full space-y-2">
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider text-center">Your Profile Link</p>
+                    <div className="flex items-center gap-2 bg-gray-50 dark:bg-darkBg-card p-3 rounded-xl border border-gray-200 dark:border-darkBorder-light">
+                      <p className="text-sm text-gray-600 dark:text-gray-300 truncate flex-1 font-mono">
+                        {myProfileLink}
+                      </p>
+                      <Button 
+                        size="icon" 
+                        variant="ghost" 
+                        onClick={copyToClipboard}
+                        className="h-8 w-8 text-brand-green dark:text-brand-gold"
+                      >
+                        <Copy size={16} />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-center text-gray-500 dark:text-gray-400">
+                    Let others scan this QR code or use the link to add you as a contact instantly.
+                  </p>
+                </div>
+              </TabsContent>
+            </Tabs>
             <DialogFooter>
               <Button
                 variant='outline'

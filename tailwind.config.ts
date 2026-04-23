@@ -132,6 +132,11 @@ const config: Config = {
 					from: { opacity: "0", transform: "translateY(20px)" },
 					to: { opacity: "1", transform: "translateY(0)" },
 				},
+				scanLine: {
+					"0%": { transform: "translateY(-100px)" },
+					"50%": { transform: "translateY(100px)" },
+					"100%": { transform: "translateY(-100px)" },
+				},
 			},
 			animation: {
 				"accordion-down": "accordion-down 0.2s ease-out",
@@ -143,6 +148,7 @@ const config: Config = {
 				"sparkle": "sparkle 1.5s ease-in-out infinite",
 				"float": "float 3s ease-in-out infinite",
 				"slideUp": "slideUp 0.5s ease-out forwards",
+				"scan-line": "scanLine 2s ease-in-out infinite",
 			},
 		},
 	},

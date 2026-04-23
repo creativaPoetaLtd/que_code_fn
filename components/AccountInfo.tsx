@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
-import { Copy, CreditCard, Send, Share2, User, Download, Square, Plus, Check } from 'lucide-react';
+import { Copy, CreditCard, Send, Share2, User, Download, Square, Plus, Check, QrCode } from 'lucide-react';
 import baseUrl from '@/helpers/baseUrl';
 import { getUserBalance, getEntityBalance } from '@/helpers/api';
 import { useAuthToken } from '@/hooks/use-auth-token';
@@ -264,14 +264,20 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
                         <span className="text-[10px] sm:text-sm font-normal text-gray-700 dark:text-gray-300">Send</span>
                     </button>
 
-                    <button className="flex flex-col items-center justify-center gap-1 sm:gap-2 p-2 sm:p-4 rounded-2xl border-2 border-gray-200 dark:border-darkBorder-light hover:border-brand-green dark:hover:border-brand-gold hover:bg-brand-green/5 dark:hover:bg-brand-gold/5 transition-colors group">
+                    <button 
+                        onClick={() => router.push('/home/request')}
+                        className="flex flex-col items-center justify-center gap-1 sm:gap-2 p-2 sm:p-4 rounded-2xl border-2 border-gray-200 dark:border-darkBorder-light hover:border-brand-green dark:hover:border-brand-gold hover:bg-brand-green/5 dark:hover:bg-brand-gold/5 transition-colors group"
+                    >
                         <Download size={24} className="text-green-500 dark:text-brand-gold group-hover:text-brand-green dark:group-hover:text-brand-gold" />
                         <span className="text-[10px] sm:text-sm font-normal text-gray-700 dark:text-gray-300">Request</span>
                     </button>
 
-                    <button className="flex flex-col items-center justify-center gap-1 sm:gap-2 p-2 sm:p-4 rounded-2xl border-2 border-gray-200 dark:border-darkBorder-light hover:border-brand-green dark:hover:border-brand-gold hover:bg-brand-green/5 dark:hover:bg-brand-gold/5 transition-colors group">
-                        <CreditCard size={24} className="text-green-500 dark:text-brand-gold group-hover:text-brand-green dark:group-hover:text-brand-gold" />
-                        <span className="text-[10px] sm:text-sm font-normal text-gray-700 dark:text-gray-300">Pay</span>
+                    <button
+                        onClick={() => router.push('/home/scan')}
+                        className="flex flex-col items-center justify-center gap-1 sm:gap-2 p-2 sm:p-4 rounded-2xl border-2 border-gray-200 dark:border-darkBorder-light hover:border-brand-green dark:hover:border-brand-gold hover:bg-brand-green/5 dark:hover:bg-brand-gold/5 transition-colors group"
+                    >
+                        <QrCode size={24} className="text-green-500 dark:text-brand-gold group-hover:text-brand-green dark:group-hover:text-brand-gold" />
+                        <span className="text-[10px] sm:text-sm font-normal text-gray-700 dark:text-gray-300">Scan QR</span>
                     </button>
 
                     <button className="flex flex-col items-center justify-center gap-1 sm:gap-2 p-2 sm:p-4 rounded-2xl border-2 border-gray-200 dark:border-darkBorder-light hover:border-brand-green dark:hover:border-brand-gold hover:bg-brand-green/5 dark:hover:bg-brand-gold/5 transition-colors group">
@@ -280,6 +286,7 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
                     </button>
                 </div>
             </div>
+            
         </div>
     );
 };

@@ -268,6 +268,21 @@ export const getWalletRestrictions = (walletId: string) =>
 export const getTransactionDetails = (transactionId: string) =>
   apiGet(`/transactions/${transactionId}`);
 
+export const getPaymentRequestById = (id: string) =>
+  apiGet(`/transactions/request/${id}`);
+
+export const getPaymentRequestQR = (id: string) =>
+  apiGet(`/transactions/request/${id}/qr`);
+
+export const declinePaymentRequest = (id: string, chatId?: string) =>
+  axios.patch(`${baseUrl}/transactions/request/${id}/decline`, { chatId }, { headers: getAuthHeaders() });
+
+export const acceptPaymentRequest = (id: string, pin: string, chatId?: string, customAmount?: number) =>
+  axios.patch(`${baseUrl}/transactions/request/${id}/accept`, { pin, chatId, customAmount }, { headers: getAuthHeaders() });
+
+export const getPaymentRequests = (type: 'sent' | 'received' = 'received') =>
+  apiGet(`/transactions/requests?type=${type}`);
+
 export const getRecentSends = async (limit: number = 15) => {
   const params = new URLSearchParams({ limit: limit.toString() });
   const res = await axios.get(`${baseUrl}/transactions/recent-sends?${params.toString()}`, {

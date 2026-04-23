@@ -29,7 +29,7 @@ import {
     X,
     HelpCircle,
     Sun,
-    Headphones
+    HandCoins
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuthToken } from "@/hooks/use-auth-token"
@@ -116,6 +116,8 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
             setActiveItem('Support');
         } else if (pathname.includes('/home')) {
             setActiveItem('Home');
+        } else if (pathname.includes('/home/requests')) {
+            setActiveItem('Requests');
         }
     }, [pathname]);
 
@@ -137,6 +139,7 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
         { id: "Merchants", icon: <Store size={24} />, label: "Merchants", path: userId ? `/merchants/${userId}` : '/merchants' },
         { id: "History", icon: <Clock size={24} />, label: "History", path: "/transactions" },
         { id: "Wallet", icon: <Wallet size={24} />, label: "Wallet", path: userId ? `/wallet/${userId}` : '/wallet' },
+        { id: "Requests", icon: <HandCoins size={24} />, label: "Requests", path: "/home/requests" },
         { id: "Settings", icon: <Settings size={24} />, label: "Settings", path: `/settings` },
         { id: "Help", icon: <HelpCircle size={24} />, label: "Help", path: `/help` },
     ]
@@ -149,6 +152,7 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
         { id: "Contacts", icon: <Users size={24} />, label: "Contacts", path: '/contacts' },
         { id: "Merchants", icon: <Store size={24} />, label: "Merchants", path: userId ? `/merchants/${userId}` : '/merchants' },
         { id: "History", icon: <Clock size={24} />, label: "History", path: "/transactions" },
+        { id: "Requests", icon: <HandCoins size={24} />, label: "Requests", path: "/home/requests" },
         { id: "Wallet", icon: <Wallet size={24} />, label: "Wallet", path: userId ? `/wallet/${userId}` : '/wallet' },
     ]
 

@@ -506,6 +506,33 @@ class SocketService {
         }
     }
 
+    // Listen for payment request status updates (accepted or declined)
+    onPaymentRequestUpdated(callback: (data: {
+        requestId: string;
+        status: "paid" | "cancelled";
+        transactionId?: string;
+        referenceId?: string;
+        amount: number;
+        currency: string;
+        chatId?: string | null;
+        payerName?: string;
+        requesterName?: string;
+    }) => void) {
+        if (this.socket) {
+            this.socket.on("payment_request_updated", callback)
+        }
+    }
+
+    offPaymentRequestUpdated(callback?: (data: any) => void) {
+        if (this.socket) {
+            if (callback) {
+                this.socket.off("payment_request_updated", callback)
+            } else {
+                this.socket.off("payment_request_updated")
+            }
+        }
+    }
+
     // Listen for group donation events
     onGroupDonation(callback: (data: any) => void) {
         if (this.socket) {

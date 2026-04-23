@@ -1,6 +1,8 @@
+"use client"
 import React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
 
 interface UserAvatarProps {
     profileImage?: string | null;
@@ -12,6 +14,8 @@ interface UserAvatarProps {
     width?: number;
     height?: number;
     userType?: 'user' | 'organization'; // Add userType prop
+    userId?: string;
+    disableClick?: boolean;
 }
 
 export const UserAvatar: React.FC<UserAvatarProps> = ({
@@ -21,7 +25,10 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
     className,
     fallbackClassName,
     userType,
+    userId,
+    disableClick = false,
 }) => {
+    const router = useRouter();
     const initials = `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase();
 
     // Determine border color based on userType
@@ -32,7 +39,15 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
             : '';
 
     return (
-        <Avatar className={cn(borderClass, className)}>
+        <Avatar 
+            className={cn(borderClass, className, userId && !disableClick && 'cursor-pointer hover:opacity-80 transition-opacity')}
+            onClick={(e) => {
+                if (userId && !disableClick) {
+                    e.stopPropagation();
+                    router.push(`/profile/${userId}`);
+                }
+            }}
+        >
             <AvatarImage src={profileImage || undefined} alt={`${firstName} ${lastName}`} />
             <AvatarFallback className={fallbackClassName}>{initials || '??'}</AvatarFallback>
         </Avatar>

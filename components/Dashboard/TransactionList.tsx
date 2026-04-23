@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
-import { Search, Download } from 'lucide-react';
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Search, Download, RefreshCcw, MessageCircle } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Transaction } from '@/types/dashboard';
 import { UserAvatar } from '@/components/UserAvatar';
 import * as XLSX from 'xlsx';
@@ -11,13 +11,18 @@ import { getUserIdFromToken, isTokenExpired } from '@/utils/jwtUtils';
 import { useGetAcceptedContactsQuery } from '@/states/contactSlice';
 import { Combobox } from '@/components/ui/combobox';
 import { X } from 'lucide-react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 interface TransactionListProps {
   transactions?: Transaction[];
+  toolbarInHeader?: boolean;
 }
 
-export const TransactionList = ({ transactions: propTransactions }: TransactionListProps) => {
+export const TransactionList = ({ transactions: propTransactions, toolbarInHeader = false }: TransactionListProps) => {
   const { getToken } = useAuthToken();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [transactions, setTransactions] = useState<Transaction[]>(propTransactions || []);
   const [loading, setLoading] = useState(!propTransactions);
   const [error, setError] = useState<string | null>(null);
@@ -29,6 +34,14 @@ export const TransactionList = ({ transactions: propTransactions }: TransactionL
   const [endDate, setEndDate] = useState<string | undefined>(undefined);
   const [selectedTransactions, setSelectedTransactions] = useState<Set<string>>(new Set());
   const [selectAll, setSelectAll] = useState(false);
+  const [openTransactionId, setOpenTransactionId] = useState<string | null>(null);
+  const [autoOpenedTransactionId, setAutoOpenedTransactionId] = useState<string | null>(null);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 1,
+  });
 
   // Filter states
   const [selectedContactId, setSelectedContactId] = useState<string | undefined>(undefined);
@@ -59,6 +72,10 @@ export const TransactionList = ({ transactions: propTransactions }: TransactionL
   }, [searchTerm]);
 
   useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, startDate, endDate, selectedContactId]);
+
+  useEffect(() => {
     if (!propTransactions) {
       fetchTransactions();
     }
@@ -77,19 +94,52 @@ export const TransactionList = ({ transactions: propTransactions }: TransactionL
       setCurrentUserId(userId);
       const response = await getTransactionHistory(userId, {
         page,
-        limit: 10,
+        limit: pagination.limit,
         search: debouncedSearch || undefined,
         startDate,
         endDate,
         contactId: selectedContactId // Pass the selected contact ID
       });
       setTransactions(response.data.transactions || []);
+      const apiPagination = response?.data?.pagination;
+      if (apiPagination) {
+        setPagination({
+          page: Number(apiPagination.page) || page,
+          limit: Number(apiPagination.limit) || 10,
+          total: Number(apiPagination.total) || 0,
+          totalPages: Math.max(1, Number(apiPagination.totalPages) || 1),
+        });
+      }
     } catch (err) {
       console.error('TransactionList - fetch error:', err);
       setError('Could not fetch transactions');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleResend = (transaction: Transaction) => {
+    const { isOutgoing, counterpartyName, counterpartyProfileImage } = getTransactionDisplayInfo(transaction);
+    const counterpartyId = isOutgoing ? transaction.receiverWallet?.userId : transaction.senderWallet?.userId;
+    const recipientType = (isOutgoing ? transaction.receiverWallet?.organization : transaction.senderWallet?.organization) ? 'organization' : 'user';
+
+    const recipientData = {
+      id: counterpartyId,
+      name: counterpartyName,
+      phone: '',
+      avatar: counterpartyProfileImage || '',
+      type: recipientType
+    };
+
+    sessionStorage.setItem('selectedRecipient', JSON.stringify(recipientData));
+    sessionStorage.setItem('initialAmount', transaction.amount.toString());
+    router.push('/home/transfer/amount');
+  };
+
+  const handleChat = (transaction: Transaction) => {
+    const { isOutgoing } = getTransactionDisplayInfo(transaction);
+    const counterpartyId = isOutgoing ? transaction.receiverWallet?.userId : transaction.senderWallet?.userId;
+    router.push(`/chat?userId=${counterpartyId}`);
   };
 
   const getTransactionDisplayInfo = (transaction: Transaction) => {
@@ -124,13 +174,20 @@ export const TransactionList = ({ transactions: propTransactions }: TransactionL
     return { amount, counterpartyName, counterpartyEmail, counterpartyProfileImage, isOutgoing };
   };
 
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map((part) => part.charAt(0).toUpperCase())
-      .join('')
-      .slice(0, 2);
-  };
+  useEffect(() => {
+    if (page > pagination.totalPages) {
+      setPage(pagination.totalPages);
+    }
+  }, [page, pagination.totalPages]);
+
+  useEffect(() => {
+    setSelectedTransactions((prev) => {
+      if (prev.size === 0) return prev;
+      const visibleIds = new Set(transactions.map((t) => t.id));
+      const next = new Set(Array.from(prev).filter((id) => visibleIds.has(id)));
+      return next;
+    });
+  }, [transactions]);
 
   const handleSelectAll = (checked: boolean) => {
     setSelectAll(checked);
@@ -153,21 +210,43 @@ export const TransactionList = ({ transactions: propTransactions }: TransactionL
     setSelectAll(newSelected.size === filteredTransactions.length && filteredTransactions.length > 0);
   };
 
-  const filteredTransactions = transactions.filter(transaction => {
-    const { counterpartyName, isOutgoing } = getTransactionDisplayInfo(transaction);
+  const filteredTransactions = transactions;
+  const selectedTransaction = filteredTransactions.find((tx) => tx.id === openTransactionId) || null;
+  const selectedTransactionDisplay = selectedTransaction ? getTransactionDisplayInfo(selectedTransaction) : null;
 
-    // Check contact filter
-    if (selectedContactId) {
-      let matchesContact = false;
-      if (isOutgoing && transaction.receiverWallet?.user?.id === selectedContactId) matchesContact = true;
-      if (!isOutgoing && transaction.senderWallet?.user?.id === selectedContactId) matchesContact = true;
-
-      if (!matchesContact) return false;
+  useEffect(() => {
+    const transactionIdFromQuery = searchParams.get('transactionId');
+    if (!transactionIdFromQuery || autoOpenedTransactionId === transactionIdFromQuery) {
+      return;
     }
 
-    return counterpartyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      transaction.status.toLowerCase().includes(searchTerm.toLowerCase());
-  });
+    const matchedTransaction = filteredTransactions.find((transaction) => transaction.id === transactionIdFromQuery);
+    if (!matchedTransaction) {
+      return;
+    }
+
+    setOpenTransactionId(transactionIdFromQuery);
+    setAutoOpenedTransactionId(transactionIdFromQuery);
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('transactionId');
+    const nextUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
+    router.replace(nextUrl, { scroll: false });
+  }, [searchParams, filteredTransactions, autoOpenedTransactionId, pathname, router]);
+
+  const getVisiblePages = () => {
+    const totalPages = pagination.totalPages;
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, index) => index + 1);
+    }
+
+    if (page <= 4) return [1, 2, 3, 4, 5, -1, totalPages];
+    if (page >= totalPages - 3) {
+      return [1, -1, totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+    }
+
+    return [1, -1, page - 1, page, page + 1, -1, totalPages];
+  };
 
   // Export displayed transactions to Excel
   const exportToExcel = () => {
@@ -199,11 +278,8 @@ export const TransactionList = ({ transactions: propTransactions }: TransactionL
     XLSX.writeFile(wb, 'transactions.xlsx');
   };
 
-  return (
-    <Card className="p-4 md:p-6 bg-white dark:bg-darkBg-card border border-gray-200 dark:border-darkBorder-light">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-        <h2 className="text-xl font-semibold mb-4 md:mb-0 text-gray-900 dark:text-white">Transactions</h2>
-        <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
+  const toolbarContent = (
+    <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
           <div className="relative flex-grow md:flex-grow-0">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 h-4 w-4" />
             <input
@@ -239,6 +315,15 @@ export const TransactionList = ({ transactions: propTransactions }: TransactionL
             </div>
           </div>
 
+          {/* CSV export */}
+          <button
+            onClick={exportToExcel}
+            className="flex items-center px-3 py-2 bg-[#00B512] dark:bg-[#D4AF37] text-white dark:text-[#00313A] rounded-md text-sm transition-colors"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export Excel
+          </button>
+
           {/* Date range filter */}
           <div className="flex flex-wrap items-center gap-2">
             <input
@@ -254,17 +339,25 @@ export const TransactionList = ({ transactions: propTransactions }: TransactionL
               onChange={(e) => setEndDate(e.target.value || undefined)}
               className="border border-gray-300 dark:border-darkBorder-light rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            {/* CSV export */}
-            <button
-              onClick={exportToExcel}
-              className="flex items-center px-3 py-2 bg-[#00B512] dark:bg-[#D4AF37] text-white dark:text-[#00313A] rounded-md text-sm transition-colors"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Export Excel
-            </button>
           </div>
+    </div>
+  );
+
+  return (
+    <>
+      {toolbarInHeader && (
+        <div className="mb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          {toolbarContent}
         </div>
-      </div>
+      )}
+
+      <Card className="p-4 md:p-6 bg-white dark:bg-darkBg-card border border-gray-200 dark:border-darkBorder-light">
+      {!toolbarInHeader && (
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+          <h2 className="text-xl font-semibold mb-4 md:mb-0 text-gray-900 dark:text-white">Transactions</h2>
+          {toolbarContent}
+        </div>
+      )}
       <div className="hidden md:block overflow-x-auto">
         <table className="w-full">
           <thead>
@@ -305,6 +398,7 @@ export const TransactionList = ({ transactions: propTransactions }: TransactionL
                   <td className="py-4 px-4">
                     <div className="flex items-center gap-3">
                       <UserAvatar
+                        userId={(isOutgoing ? transaction.receiverWallet?.userId : transaction.senderWallet?.userId) ?? undefined}
                         profileImage={counterpartyProfileImage}
                         firstName={counterpartyName.split(' ')[0]}
                         lastName={counterpartyName.split(' ')[1] || ''}
@@ -337,63 +431,26 @@ export const TransactionList = ({ transactions: propTransactions }: TransactionL
                     })}
                   </td>
                   <td className="py-4 px-4">
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <button className="px-4 py-1 bg-white dark:bg-transparent border border-gray-300 dark:border-white text-gray-700 dark:text-white text-sm font-medium rounded hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
-                          View
-                        </button>
-                      </DialogTrigger>
-                      <DialogContent className="bg-white dark:bg-darkBg-card border dark:border-darkBorder-light">
-                        <DialogHeader>
-                          <DialogTitle className="text-gray-900 dark:text-white">Transaction Details</DialogTitle>
-                          {/* Prominent amount display */}
-                          <p className={`mt-2 text-2xl font-semibold ${amount < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                            {amount < 0 ? '-' : '+'}RWF {Math.abs(amount).toLocaleString()}
-                          </p>
-                        </DialogHeader>
-                        <DialogDescription className="dark:text-gray-300">
-                          <dl className="divide-y divide-gray-200 dark:divide-darkBorder-light text-sm">
-                            <div className="py-2 flex justify-between">
-                              <dt className="font-bold text-gray-700 dark:text-gray-300">Reference ID</dt>
-                              <dd className="text-gray-900 dark:text-gray-100">{transaction.referenceId}</dd>
-                            </div>
-                            <div className="py-2 flex justify-between">
-                              <dt className="font-bold text-gray-700 dark:text-gray-300">Date & Time</dt>
-                              <dd className="text-gray-900 dark:text-gray-100">{new Date(transaction.createdAt).toLocaleString()}</dd>
-                            </div>
-                            <div className="py-2 flex justify-between">
-                              <dt className="font-bold text-gray-700 dark:text-gray-300">Type</dt>
-                              <dd className="text-gray-900 dark:text-gray-100">{isOutgoing ? 'Payment Sent' : 'Payment Received'}</dd>
-                            </div>
-                            <div className="py-2 flex justify-between">
-                              <dt className="font-bold text-gray-700 dark:text-gray-300">{isOutgoing ? 'Sent to' : 'Received from'}</dt>
-                              <dd className="text-gray-900 dark:text-gray-100">{counterpartyName}</dd>
-                            </div>
-                            <div className="py-2 flex justify-between">
-                              <dt className="font-bold text-gray-700 dark:text-gray-300">Amount</dt>
-                              <dd className="text-gray-900 dark:text-gray-100">RWF {Number(transaction.amount).toLocaleString()}</dd>
-                            </div>
-                            <div className="py-2 flex justify-between">
-                              <dt className="font-bold text-gray-700 dark:text-gray-300">Fee</dt>
-                              <dd className="text-gray-900 dark:text-gray-100">RWF {Number(transaction.fee).toLocaleString()}</dd>
-                            </div>
-                            {transaction.description && (
-                              <div className="py-2 flex justify-between">
-                                <dt className="font-bold text-gray-700 dark:text-gray-300">Description</dt>
-                                <dd className="text-gray-900 dark:text-gray-100">{transaction.description}</dd>
-                              </div>
-                            )}
-                            <div className="py-2 flex justify-between">
-                              <dt className="font-bold text-gray-700 dark:text-gray-300">Status</dt>
-                              <dd className="text-gray-900 dark:text-gray-100">{transaction.status}</dd>
-                            </div>
-                          </dl>
-                        </DialogDescription>
-                        <DialogFooter>
-                          <DialogClose className="px-4 py-2 bg-[#00B512] dark:bg-[#D4AF37] text-white dark:text-[#00313A] transition-colors">Close</DialogClose>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
+                    <button
+                      onClick={() => setOpenTransactionId(transaction.id)}
+                      className="px-4 py-1 bg-white dark:bg-transparent border border-gray-300 dark:border-white text-gray-700 dark:text-white text-sm font-medium rounded hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                    >
+                      View
+                    </button>
+                    <button
+                      onClick={() => handleResend(transaction)}
+                      title="Resend"
+                      className="p-1 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors"
+                    >
+                      <RefreshCcw className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleChat(transaction)}
+                      title="Chat"
+                      className="p-1 text-gray-500 hover:text-green-600 dark:text-gray-400 dark:hover:text-green-400 transition-colors"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                    </button>
                   </td>
                 </tr>
               );
@@ -432,7 +489,8 @@ export const TransactionList = ({ transactions: propTransactions }: TransactionL
                     onChange={(e) => handleSelectTransaction(transaction.id, e.target.checked)}
                     className="w-4 h-4 shrink-0 rounded border-gray-300 dark:border-darkBorder-light dark:bg-darkBg-input"
                   />
-                  <UserAvatar
+                    <UserAvatar
+                      userId={(isOutgoing ? transaction.receiverWallet?.userId : transaction.senderWallet?.userId) ?? undefined}
                     profileImage={counterpartyProfileImage}
                     firstName={counterpartyName.split(' ')[0]}
                     lastName={counterpartyName.split(' ')[1] || ''}
@@ -463,62 +521,26 @@ export const TransactionList = ({ transactions: propTransactions }: TransactionL
                     })}
                   </span>
                 </div>
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <button className="px-3 py-1 shrink-0 bg-white dark:bg-transparent border border-gray-300 dark:border-white text-gray-700 dark:text-white text-xs font-medium rounded hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
-                      View
-                    </button>
-                  </DialogTrigger>
-                  <DialogContent className="bg-white dark:bg-darkBg-card border dark:border-darkBorder-light">
-                    <DialogHeader>
-                      <DialogTitle className="text-gray-900 dark:text-white">Transaction Details</DialogTitle>
-                      <p className={`mt-2 text-2xl font-semibold ${amount < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                        {amount < 0 ? '-' : '+'}RWF {Math.abs(amount).toLocaleString()}
-                      </p>
-                    </DialogHeader>
-                    <DialogDescription className="dark:text-gray-300">
-                      <dl className="divide-y divide-gray-200 dark:divide-darkBorder-light text-sm">
-                        <div className="py-2 flex justify-between gap-2">
-                          <dt className="font-bold text-gray-700 dark:text-gray-300 shrink-0">Reference ID</dt>
-                          <dd className="text-gray-900 dark:text-gray-100 text-right break-all">{transaction.referenceId}</dd>
-                        </div>
-                        <div className="py-2 flex justify-between gap-2">
-                          <dt className="font-bold text-gray-700 dark:text-gray-300 shrink-0">Date & Time</dt>
-                          <dd className="text-gray-900 dark:text-gray-100 text-right">{new Date(transaction.createdAt).toLocaleString()}</dd>
-                        </div>
-                        <div className="py-2 flex justify-between gap-2">
-                          <dt className="font-bold text-gray-700 dark:text-gray-300 shrink-0">Type</dt>
-                          <dd className="text-gray-900 dark:text-gray-100">{isOutgoing ? 'Payment Sent' : 'Payment Received'}</dd>
-                        </div>
-                        <div className="py-2 flex justify-between gap-2">
-                          <dt className="font-bold text-gray-700 dark:text-gray-300 shrink-0">{isOutgoing ? 'Sent to' : 'Received from'}</dt>
-                          <dd className="text-gray-900 dark:text-gray-100 text-right">{counterpartyName}</dd>
-                        </div>
-                        <div className="py-2 flex justify-between gap-2">
-                          <dt className="font-bold text-gray-700 dark:text-gray-300 shrink-0">Amount</dt>
-                          <dd className="text-gray-900 dark:text-gray-100">RWF {Number(transaction.amount).toLocaleString()}</dd>
-                        </div>
-                        <div className="py-2 flex justify-between gap-2">
-                          <dt className="font-bold text-gray-700 dark:text-gray-300 shrink-0">Fee</dt>
-                          <dd className="text-gray-900 dark:text-gray-100">RWF {Number(transaction.fee).toLocaleString()}</dd>
-                        </div>
-                        {transaction.description && (
-                          <div className="py-2 flex justify-between gap-2">
-                            <dt className="font-bold text-gray-700 dark:text-gray-300 shrink-0">Description</dt>
-                            <dd className="text-gray-900 dark:text-gray-100 text-right">{transaction.description}</dd>
-                          </div>
-                        )}
-                        <div className="py-2 flex justify-between gap-2">
-                          <dt className="font-bold text-gray-700 dark:text-gray-300 shrink-0">Status</dt>
-                          <dd className="text-gray-900 dark:text-gray-100">{transaction.status}</dd>
-                        </div>
-                      </dl>
-                    </DialogDescription>
-                    <DialogFooter>
-                      <DialogClose className="px-4 py-2 bg-[#00B512] dark:bg-[#D4AF37] text-white dark:text-[#00313A] transition-colors">Close</DialogClose>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
+                <button
+                  onClick={() => setOpenTransactionId(transaction.id)}
+                  className="px-3 py-1 shrink-0 bg-white dark:bg-transparent border border-gray-300 dark:border-white text-gray-700 dark:text-white text-xs font-medium rounded hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                >
+                  View
+                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleResend(transaction)}
+                    className="p-2 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-full"
+                  >
+                    <RefreshCcw className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => handleChat(transaction)}
+                    className="p-2 bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400 rounded-full"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
           );
@@ -530,43 +552,105 @@ export const TransactionList = ({ transactions: propTransactions }: TransactionL
         )}
       </div>
 
+      <Dialog open={!!selectedTransaction} onOpenChange={(isOpen) => !isOpen && setOpenTransactionId(null)}>
+        {selectedTransaction && selectedTransactionDisplay && (
+          <DialogContent className="bg-white dark:bg-darkBg-card border dark:border-darkBorder-light">
+            <DialogHeader>
+              <DialogTitle className="text-gray-900 dark:text-white">Transaction Details</DialogTitle>
+              <p className={`mt-2 text-2xl font-semibold ${selectedTransactionDisplay.amount < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                {selectedTransactionDisplay.amount < 0 ? '-' : '+'}RWF {Math.abs(selectedTransactionDisplay.amount).toLocaleString()}
+              </p>
+            </DialogHeader>
+            <DialogDescription className="dark:text-gray-300">
+              <dl className="divide-y divide-gray-200 dark:divide-darkBorder-light text-sm">
+                <div className="py-2 flex justify-between gap-2">
+                  <dt className="font-bold text-gray-700 dark:text-gray-300 shrink-0">Reference ID</dt>
+                  <dd className="text-gray-900 dark:text-gray-100 text-right break-all">{selectedTransaction.referenceId}</dd>
+                </div>
+                <div className="py-2 flex justify-between gap-2">
+                  <dt className="font-bold text-gray-700 dark:text-gray-300 shrink-0">Date & Time</dt>
+                  <dd className="text-gray-900 dark:text-gray-100 text-right">{new Date(selectedTransaction.createdAt).toLocaleString()}</dd>
+                </div>
+                <div className="py-2 flex justify-between gap-2">
+                  <dt className="font-bold text-gray-700 dark:text-gray-300 shrink-0">Type</dt>
+                  <dd className="text-gray-900 dark:text-gray-100">{selectedTransactionDisplay.isOutgoing ? 'Payment Sent' : 'Payment Received'}</dd>
+                </div>
+                <div className="py-2 flex justify-between gap-2">
+                  <dt className="font-bold text-gray-700 dark:text-gray-300 shrink-0">{selectedTransactionDisplay.isOutgoing ? 'Sent to' : 'Received from'}</dt>
+                  <dd className="text-gray-900 dark:text-gray-100 text-right">{selectedTransactionDisplay.counterpartyName}</dd>
+                </div>
+                <div className="py-2 flex justify-between gap-2">
+                  <dt className="font-bold text-gray-700 dark:text-gray-300 shrink-0">Amount</dt>
+                  <dd className="text-gray-900 dark:text-gray-100">RWF {Number(selectedTransaction.amount).toLocaleString()}</dd>
+                </div>
+                <div className="py-2 flex justify-between gap-2">
+                  <dt className="font-bold text-gray-700 dark:text-gray-300 shrink-0">Fee</dt>
+                  <dd className="text-gray-900 dark:text-gray-100">RWF {Number(selectedTransaction.fee).toLocaleString()}</dd>
+                </div>
+                {selectedTransaction.description && (
+                  <div className="py-2 flex justify-between gap-2">
+                    <dt className="font-bold text-gray-700 dark:text-gray-300 shrink-0">Description</dt>
+                    <dd className="text-gray-900 dark:text-gray-100 text-right">{selectedTransaction.description}</dd>
+                  </div>
+                )}
+                <div className="py-2 flex justify-between gap-2">
+                  <dt className="font-bold text-gray-700 dark:text-gray-300 shrink-0">Status</dt>
+                  <dd className="text-gray-900 dark:text-gray-100">{selectedTransaction.status}</dd>
+                </div>
+              </dl>
+            </DialogDescription>
+            <DialogFooter>
+              <DialogClose className="px-4 py-2 bg-[#00B512] dark:bg-[#D4AF37] text-white dark:text-[#00313A] transition-colors">Close</DialogClose>
+            </DialogFooter>
+          </DialogContent>
+        )}
+      </Dialog>
+
       {/* Pagination controls */}
-      <div className="flex flex-wrap justify-between items-center mt-6 gap-3">
+      <div className="flex flex-wrap justify-between items-center mt-6 gap-3 pb-32 md:pb-10">
         <div className="text-sm text-gray-600 dark:text-gray-400">
-          {filteredTransactions.length > 0 ? `Showing page ${page}` : 'No results'}
+          {pagination.total > 0
+            ? `Page ${page} of ${pagination.totalPages} • ${pagination.total} total`
+            : 'No results'}
         </div>
         <div className="flex items-center space-x-2">
           <button
-            onClick={() => setPage(page - 1)}
+            onClick={() => setPage((currentPage) => Math.max(1, currentPage - 1))}
             disabled={page === 1}
             className="px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-darkBorder-light rounded hover:bg-gray-50 dark:hover:bg-darkBg-interactive disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             Previous
           </button>
           <div className="flex items-center space-x-1">
-            {[1, 2, 3].map((pageNum) => (
-              <button
-                key={pageNum}
-                onClick={() => setPage(pageNum)}
-                className={`px-3 py-2 rounded transition-colors ${page === pageNum
-                  ? 'bg-blue-600 dark:bg-blue-700 text-white'
-                  : 'border border-gray-300 dark:border-darkBorder-light text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-darkBg-interactive'
-                  }`}
-              >
-                {pageNum}
-              </button>
-            ))}
-            {transactions.length >= 40 && <span className="text-gray-500 dark:text-gray-400">...</span>}
+            {getVisiblePages().map((pageNum, index) => {
+              if (pageNum === -1) {
+                return <span key={`ellipsis-${index}`} className="px-2 text-gray-500 dark:text-gray-400">...</span>;
+              }
+
+              return (
+                <button
+                  key={pageNum}
+                  onClick={() => setPage(pageNum)}
+                  className={`px-3 py-2 rounded transition-colors ${page === pageNum
+                    ? 'bg-blue-600 dark:bg-blue-700 text-white'
+                    : 'border border-gray-300 dark:border-darkBorder-light text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-darkBg-interactive'
+                    }`}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
           </div>
           <button
-            onClick={() => setPage(page + 1)}
-            disabled={transactions.length < 10}
+            onClick={() => setPage((currentPage) => Math.min(pagination.totalPages, currentPage + 1))}
+            disabled={page >= pagination.totalPages}
             className="px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-darkBorder-light rounded hover:bg-gray-50 dark:hover:bg-darkBg-interactive disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             Next
           </button>
         </div>
       </div>
-    </Card>
+      </Card>
+    </>
   );
 };

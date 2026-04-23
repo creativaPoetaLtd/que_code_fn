@@ -6,7 +6,7 @@ import { useAuthToken } from "@/hooks/use-auth-token";
 import { useGetContactsEnhancedQuery } from "@/states/contactSlice";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Plus } from "lucide-react";
+import { Search, Plus, MoreHorizontal } from "lucide-react";
 import { FavoritesRow } from "./components/FavoritesRow";
 import { ContactsTable } from "./components/ContactsTable";
 import { PendingRequestsTable } from "./components/PendingRequestsTable";
@@ -18,18 +18,28 @@ import Navigation from '@/components/Navigation';
 import { Header } from '@/components/Header';
 import { useSidebar } from '@/context/SidebarContext';
 import { cn } from '@/lib/utils';
+import { BackButton } from "@/components/shared/BackButton";
 import { useEffect } from "react";
+import { useSearchParams } from "next/navigation";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function ContactsPage() {
     const authHook = useAuthToken();
     const token = authHook.getToken();
     const { isExpanded } = useSidebar();
+    const searchParams = useSearchParams();
 
     const [searchQuery, setSearchQuery] = useState("");
+    const [isSearchExpanded, setIsSearchExpanded] = useState(false);
     const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
     const [isAddContactOpen, setIsAddContactOpen] = useState(false);
 
-    const [activeTab, setActiveTab] = useState<'contacts' | 'pending' | 'sent'>('contacts');
+    const [activeTab, setActiveTab] = useState<'normal' | 'companies' | 'persons' | 'pending' | 'sent'>('normal');
 
     const { data: contactsData, isLoading, refetch } = useGetContactsEnhancedQuery(
         { token: token || "", status: "active" },
@@ -42,13 +52,20 @@ export default function ContactsPage() {
     );
 
     const { data: sentData, isLoading: isLoadingSent } = useGetSentInvitationsUnifiedQuery(
-        { token: token || "", page: 1, limit: 50 },
+        { token: token || "", page: 1, limit: 50, status: 'pending' },
         { skip: !token }
     );
 
     const contacts = contactsData?.contacts || [];
-    const pendingRequests = pendingData?.invitations || [];
-    const sentRequests = sentData?.invitations || [];
+    const incomingRequests = pendingData?.invitations || [];
+    const outgoingPendingRequests = sentData?.invitations || [];
+
+    useEffect(() => {
+        const tab = searchParams.get('tab');
+        if (tab === 'pending' || tab === 'sent' || tab === 'normal' || tab === 'companies' || tab === 'persons') {
+            setActiveTab(tab);
+        }
+    }, [searchParams]);
 
     useEffect(() => {
         if (selectedContact) {
@@ -66,6 +83,30 @@ export default function ContactsPage() {
         const query = searchQuery.toLowerCase();
         return fullName.includes(query) || email.includes(query);
     });
+
+    const isCompanyContact = (contact: Contact) => {
+        if (contact.otherUser.contactType) {
+            return contact.otherUser.contactType === 'company';
+        }
+
+        const searchable = [
+            ...(contact.tags || []),
+            contact.otherUser.firstName,
+            contact.otherUser.lastName,
+            contact.otherUser.email,
+        ].join(' ').toLowerCase();
+
+        return /company|business|organization|org|ltd|inc|llc/.test(searchable);
+    };
+
+    const companyContacts = filteredContacts.filter(isCompanyContact);
+    const personContacts = filteredContacts.filter((contact) => !isCompanyContact(contact));
+
+    const activeContacts = activeTab === 'companies'
+        ? companyContacts
+        : activeTab === 'persons'
+            ? personContacts
+            : filteredContacts;
 
     const favorites = contacts.filter((c) => c.isFavorite);
 
@@ -89,18 +130,52 @@ export default function ContactsPage() {
                         {/* Page Header */}
                         <div className="flex items-center justify-between mb-6">
                             <div>
+                                <BackButton className="mb-4" />
                                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Contacts</h1>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">Manage your network and relationships</p>
                             </div>
-                            <div className="flex items-center gap-4">
-                                <div className="relative w-64 hidden sm:block">
-                                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
-                                    <Input
-                                        placeholder="Search contacts..."
-                                        className="pl-9 bg-white dark:bg-darkBg-card border-gray-200 dark:border-darkBorder-light focus:bg-white transition-colors"
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                    />
+                            <div className="flex items-center gap-2 sm:gap-4">
+                                <div className={cn(
+                                    "flex items-center transition-all duration-300 overflow-hidden",
+                                    isSearchExpanded ? "w-44 sm:w-64" : "w-10"
+                                )}>
+                                    {isSearchExpanded ? (
+                                        <div className="relative w-full">
+                                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+                                            <Input
+                                                autoFocus
+                                                placeholder="Search contacts..."
+                                                className="pl-9 pr-8 bg-white dark:bg-darkBg-card border-gray-200 dark:border-darkBorder-light focus:bg-white transition-colors"
+                                                value={searchQuery}
+                                                onChange={(e) => setSearchQuery(e.target.value)}
+                                                onBlur={() => {
+                                                    if (!searchQuery.trim()) setIsSearchExpanded(false);
+                                                }}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setSearchQuery("");
+                                                    setIsSearchExpanded(false);
+                                                }}
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                                aria-label="Close search"
+                                            >
+                                                <MoreHorizontal className="h-4 w-4 rotate-90" />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="icon"
+                                            onClick={() => setIsSearchExpanded(true)}
+                                            className="bg-white dark:bg-darkBg-card border-gray-200 dark:border-darkBorder-light"
+                                            aria-label="Open search"
+                                        >
+                                            <Search className="h-4 w-4 text-gray-500" />
+                                        </Button>
+                                    )}
                                 </div>
                                 <Button
                                     onClick={() => setIsAddContactOpen(true)}
@@ -112,73 +187,84 @@ export default function ContactsPage() {
                             </div>
                         </div>
 
-                        {/* Mobile Search - Visible only on small screens */}
-                        <div className="relative w-full mb-4 sm:hidden">
-                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
-                            <Input
-                                placeholder="Search contacts..."
-                                className="pl-9 bg-white dark:bg-darkBg-card border-gray-200 dark:border-darkBorder-light focus:bg-white transition-colors"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
-                        </div>
-
                         {/* Tabs Navigation */}
                         <div className="flex border-b border-gray-200 dark:border-darkBorder-light mb-6 overflow-x-auto scrollbar-hide">
                             <button
-                                onClick={() => setActiveTab('contacts')}
+                                onClick={() => setActiveTab('normal')}
                                 className={cn(
                                     "px-4 py-3 text-sm font-medium transition-all relative whitespace-nowrap",
-                                    activeTab === 'contacts'
+                                    activeTab === 'normal'
                                         ? "text-blue-600 dark:text-blue-400"
                                         : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
                                 )}
                             >
-                                All Contacts ({filteredContacts.length})
-                                {activeTab === 'contacts' && (
+                                All ({filteredContacts.length})
+                                {activeTab === 'normal' && (
                                     <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400" />
                                 )}
                             </button>
                             <button
-                                onClick={() => setActiveTab('pending')}
+                                onClick={() => setActiveTab('companies')}
                                 className={cn(
-                                    "px-4 py-3 text-sm font-medium transition-all relative whitespace-nowrap flex items-center gap-2",
-                                    activeTab === 'pending'
+                                    "px-4 py-3 text-sm font-medium transition-all relative whitespace-nowrap",
+                                    activeTab === 'companies'
                                         ? "text-blue-600 dark:text-blue-400"
                                         : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
                                 )}
                             >
-                                Pending Requests
-                                {pendingRequests.length > 0 && (
-                                    <span className="bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400 py-0.5 px-2 rounded-full text-xs">
-                                        {pendingRequests.length}
-                                    </span>
-                                )}
-                                {activeTab === 'pending' && (
+                                Businesses ({companyContacts.length})
+                                {activeTab === 'companies' && (
                                     <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400" />
                                 )}
                             </button>
                             <button
-                                onClick={() => setActiveTab('sent')}
+                                onClick={() => setActiveTab('persons')}
                                 className={cn(
                                     "px-4 py-3 text-sm font-medium transition-all relative whitespace-nowrap",
-                                    activeTab === 'sent'
+                                    activeTab === 'persons'
                                         ? "text-blue-600 dark:text-blue-400"
                                         : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
                                 )}
                             >
-                                Sent Requests ({sentRequests.length})
-                                {activeTab === 'sent' && (
+                                People ({personContacts.length})
+                                {activeTab === 'persons' && (
                                     <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400" />
                                 )}
                             </button>
+
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <button
+                                        className={cn(
+                                            "px-4 py-3 text-sm font-medium transition-all relative whitespace-nowrap flex items-center gap-1",
+                                            (activeTab === 'pending' || activeTab === 'sent')
+                                                ? "text-blue-600 dark:text-blue-400"
+                                                : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                                        )}
+                                    >
+                                        <MoreHorizontal className="h-4 w-4" />
+                                        Requests
+                                        {(activeTab === 'pending' || activeTab === 'sent') && (
+                                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400" />
+                                        )}
+                                    </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="start" className="w-48">
+                                    <DropdownMenuItem onClick={() => setActiveTab('pending')}>
+                                        Sent ({outgoingPendingRequests.length})
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setActiveTab('sent')}>
+                                        Received ({incomingRequests.length})
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                         </div>
 
                         <div className="flex-1 overflow-y-auto space-y-8 pr-2">
-                            {activeTab === 'contacts' && (
+                            {(activeTab === 'normal' || activeTab === 'companies' || activeTab === 'persons') && (
                                 <>
                                     {/* Favorites Section */}
-                                    {favorites.length > 0 && (
+                                    {activeTab === 'normal' && favorites.length > 0 && (
                                         <section>
                                             <div className="flex items-center justify-between mb-4">
                                                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Favorites</h2>
@@ -191,7 +277,7 @@ export default function ContactsPage() {
                                     <section>
                                         <div className="bg-white dark:bg-darkBg-card rounded-xl shadow-sm border border-gray-200 dark:border-darkBorder-light overflow-hidden">
                                             <ContactsTable
-                                                contacts={filteredContacts}
+                                                contacts={activeContacts}
                                                 isLoading={isLoading}
                                                 onSelect={setSelectedContact}
                                             />
@@ -203,9 +289,9 @@ export default function ContactsPage() {
                             {activeTab === 'pending' && (
                                 <section>
                                     <div className="bg-white dark:bg-darkBg-card rounded-xl shadow-sm border border-gray-200 dark:border-darkBorder-light overflow-hidden">
-                                        <PendingRequestsTable
-                                            requests={pendingRequests}
-                                            isLoading={isLoadingPending}
+                                        <SentRequestsTable
+                                            requests={outgoingPendingRequests}
+                                            isLoading={isLoadingSent}
                                         />
                                     </div>
                                 </section>
@@ -214,9 +300,9 @@ export default function ContactsPage() {
                             {activeTab === 'sent' && (
                                 <section>
                                     <div className="bg-white dark:bg-darkBg-card rounded-xl shadow-sm border border-gray-200 dark:border-darkBorder-light overflow-hidden">
-                                        <SentRequestsTable
-                                            requests={sentRequests}
-                                            isLoading={isLoadingSent}
+                                        <PendingRequestsTable
+                                            requests={incomingRequests}
+                                            isLoading={isLoadingPending}
                                         />
                                     </div>
                                 </section>
