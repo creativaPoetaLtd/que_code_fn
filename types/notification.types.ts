@@ -242,6 +242,7 @@ export interface NotificationContextType {
   addNotification?: (notification: Notification) => void;
   clearNotifications?: () => void;
   removeNotification?: (id: string) => void;
+  dismissNotificationsByIds?: (ids: string[]) => void;
   removeContactRequestNotification?: (userId: string) => void;
   isConnected?: boolean;
   clearNotificationState?: () => void;

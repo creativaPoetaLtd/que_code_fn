@@ -15,6 +15,7 @@ import { registerPushServiceWorker } from "@/services/webPushService"
 import BrowserNotificationBadge from "@/components/notifications/BrowserNotificationBadge"
 import AuthSessionManager from "@/components/AuthSessionManager"
 import AppLockGate from "@/components/AppLockGate"
+import ChatNotificationSync from "@/components/ChatNotificationSync"
 
 const APP_LOCK_ENABLED = process.env.NEXT_PUBLIC_ENABLE_APP_LOCK === "true"
 const APP_LOCK_STORAGE_KEYS = ["qc:appLocked", "qc:lastActivityAt"]
@@ -40,6 +41,7 @@ const ClientProvider = ({ children }: { children: React.ReactNode }) => {
                 <NotificationProvider>
                     <BrowserNotificationBadge />
                     <ChatProvider>
+                        <ChatNotificationSync />
                         <SidebarProvider>
                             <QRScannerProvider>
                                 {children}

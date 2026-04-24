@@ -120,3 +120,32 @@ self.addEventListener('notificationclick', (event) => {
     await self.clients.openWindow(targetUrl);
   })());
 });
+
+self.addEventListener('message', (event) => {
+  const payload = event.data;
+
+  if (!payload || payload.type !== 'QC_CLOSE_NOTIFICATIONS') {
+    return;
+  }
+
+  const filters = payload.filters || {};
+
+  event.waitUntil((async () => {
+    const notifications = await self.registration.getNotifications();
+
+    notifications.forEach((notification) => {
+      const notificationData = notification.data || {};
+      const matchesChat =
+        !filters.chatId || String(notificationData.chatId) === String(filters.chatId);
+      const matchesMessage =
+        !filters.messageId || String(notificationData.messageId) === String(filters.messageId);
+      const matchesNotification =
+        !filters.notificationId ||
+        String(notificationData.notificationId) === String(filters.notificationId);
+
+      if (matchesChat && matchesMessage && matchesNotification) {
+        notification.close();
+      }
+    });
+  })());
+});

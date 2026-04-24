@@ -132,6 +132,34 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         })
     }, [])
 
+    const dismissNotificationsByIds = useCallback((notificationIds: string[]) => {
+        if (!notificationIds.length) {
+            return
+        }
+
+        const notificationIdSet = new Set(notificationIds)
+
+        setNotifications((prev) => {
+            let removedUnreadCount = 0
+
+            const remainingNotifications = prev.filter((notification) => {
+                const shouldRemove = notificationIdSet.has(notification.id)
+
+                if (shouldRemove && !notification.isRead) {
+                    removedUnreadCount += 1
+                }
+
+                return !shouldRemove
+            })
+
+            if (removedUnreadCount > 0) {
+                setUnreadCount((prevCount) => Math.max(0, prevCount - removedUnreadCount))
+            }
+
+            return remainingNotifications
+        })
+    }, [])
+
     const removeContactRequestNotification = useCallback((userId: string) => {
         setNotifications((prev) => {
             const updatedNotifications = prev.filter(n => {
@@ -406,6 +434,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         markAsRead,
         clearNotifications,
         removeNotification,
+        dismissNotificationsByIds,
         removeContactRequestNotification,
         isConnected,
         clearNotificationState,
