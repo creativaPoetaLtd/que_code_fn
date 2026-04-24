@@ -1,6 +1,6 @@
 export type MessageType = "text" | "image" | "file" | "money" | "audio" | "video" | "document";
 export type MessageStatus = "sent" | "delivered" | "read";
-export type ChatType = "dm" | "group";
+export type ChatType = "dm" | "group" | "support";
 
 export interface User {
   id: string;
@@ -37,6 +37,7 @@ export interface Conversation {
   id: string;
   name?: string; // Make optional to match Chat interface
   isGroup: boolean;
+  type?: ChatType;
   groupId?: string; // The actual group ID for group chats
   lastMessage?: LastMessage | null;
   timestamp?: string;
@@ -53,6 +54,7 @@ export interface Chat {
   id: string;
   name?: string; // Optional since DM chats might not have names
   isGroup: boolean;
+  type?: ChatType;
   groupId?: string; // The actual group ID for group chats
   avatar?: string;
   participants: Participant[];

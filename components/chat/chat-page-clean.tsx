@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import ChatArea from '@/components/chat/chat-area';
 import ConversationListLayout from '@/components/chat/conversation-list-layout';
 import Navigation from '@/components/Navigation';
@@ -26,6 +26,7 @@ import GroupSettingsModal from '@/components/chat/group-settings-modal';
 import { Header } from '@/components/Header';
 
 export default function ChatPageClean() {
+  const router = useRouter();
   const { getToken } = useAuthToken();
   const token = getToken();
   const { isExpanded } = useSidebar();

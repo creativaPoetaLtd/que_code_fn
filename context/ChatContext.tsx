@@ -9,7 +9,8 @@ import {
     Message,
     TypingUser,
     OnlineUser,
-    ChatParticipantStatus
+    ChatParticipantStatus,
+    Participant
 } from "@/types/chat.types";
 import { toast } from "@/hooks/use-toast";
 import { notificationService } from "@/services/notificationService";
@@ -46,7 +47,7 @@ interface ChatProviderProps {
     children: ReactNode;
 }
 
-export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
+export const ChatProvider = ({ children }: ChatProviderProps) => {
     const { getToken, getUserId } = useAuthToken();
     // Use state to track token and userId changes dynamically
     const [userId, setUserId] = useState<string | null>(null);
@@ -59,6 +60,24 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
     const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
     const [participantsStatus, setParticipantsStatus] = useState<Record<string, ChatParticipantStatus[]>>({});
+
+    const isSupportConversation = useCallback((conv: Conversation) => {
+        if ((conv as any).type === 'support') return true;
+        // Fallback for old payloads that do not include `type` yet.
+        return !conv.isGroup && (conv.name || '').toLowerCase().includes('support');
+    }, []);
+
+    const sortConversations = useCallback((a: Conversation, b: Conversation) => {
+        const aSupport = isSupportConversation(a);
+        const bSupport = isSupportConversation(b);
+
+        // Pin support/admin chats to the top.
+        if (aSupport !== bSupport) return aSupport ? -1 : 1;
+
+        const aTime = a.lastMessage?.createdAt || a.timestamp || '0';
+        const bTime = b.lastMessage?.createdAt || b.timestamp || '0';
+        return new Date(bTime).getTime() - new Date(aTime).getTime();
+    }, [isSupportConversation]);
 
     // Monitor token and userId changes
     useEffect(() => {
@@ -154,9 +173,9 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
             const enhancedMessage = { ...message, isMe: String(message.sender.id) === String(userId || "") };
 
             // Check if message already exists to prevent duplicates
-            setMessages(prev => {
+            setMessages((prev: Record<string, Message[]>) => {
                 const existingMessages = prev[message.chatId] || [];
-                const messageExists = existingMessages.some(msg =>
+                const messageExists = existingMessages.some((msg: Message) =>
                     msg.id === message.id || // Same ID
                     (msg.id.startsWith('temp_') && // Replace temp message
                         msg.chatId === message.chatId &&
@@ -169,7 +188,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
                     // Replace temp message with real one, or ignore duplicate
                     return {
                         ...prev,
-                        [message.chatId]: existingMessages.map(msg =>
+                        [message.chatId]: existingMessages.map((msg: Message) =>
                             (msg.id.startsWith('temp_') &&
                                 msg.chatId === message.chatId &&
                                 msg.content === message.content &&
@@ -188,8 +207,8 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
             });
 
             // Update conversation with new message and unread count
-            setConversations(prev => {
-                const conversationExists = prev.some(conv => conv.id === message.chatId);
+            setConversations((prev: Conversation[]) => {
+                const conversationExists = prev.some((conv: Conversation) => conv.id === message.chatId);
 
                 if (!conversationExists) {
                     // Refresh conversations if chat not in list
@@ -197,7 +216,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
                     return prev;
                 }
 
-                const updatedConversations = prev.map(conv => {
+                const updatedConversations = prev.map((conv: Conversation) => {
                     if (conv.id !== message.chatId) return conv;
 
                     // Determine if we should increment unread count
@@ -220,12 +239,8 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
                     };
                 });
 
-                // Sort by most recent message
-                return updatedConversations.sort((a, b) => {
-                    const aTime = a.lastMessage?.createdAt || a.timestamp || '0';
-                    const bTime = b.lastMessage?.createdAt || b.timestamp || '0';
-                    return new Date(bTime).getTime() - new Date(aTime).getTime();
-                });
+                // Sort by pinned support first, then most recent message
+                return updatedConversations.sort(sortConversations);
             });
 
             // Send notification using centralized service
@@ -239,9 +254,9 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         };
 
         const handleMessageDelivered = (data: { chatId: string; messageId: string; deliveredAt: Date }) => {
-            setMessages(prev => ({
+            setMessages((prev: Record<string, Message[]>) => ({
                 ...prev,
-                [data.chatId]: prev[data.chatId]?.map(msg =>
+                [data.chatId]: prev[data.chatId]?.map((msg: Message) =>
                     msg.id === data.messageId
                         ? { ...msg, status: 'delivered', deliveredAt: data.deliveredAt }
                         : msg
@@ -251,9 +266,9 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
         const handleMessagesRead = (data: { chatId: string; readBy: string; readAt: Date }) => {
             // Update message statuses
-            setMessages(prev => ({
+            setMessages((prev: Record<string, Message[]>) => ({
                 ...prev,
-                [data.chatId]: prev[data.chatId]?.map(msg =>
+                [data.chatId]: prev[data.chatId]?.map((msg: Message) =>
                     msg.status === 'delivered' && msg.sender.id !== userId
                         ? { ...msg, status: 'read', readAt: data.readAt }
                         : msg
@@ -263,7 +278,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
             // Reset unread count ONLY if the current user is the one who read the messages
             // This means: if I read messages in a chat, MY unread count for that chat goes to 0
             if (data.readBy === userId) {
-                setConversations(prev => prev.map(conv =>
+                setConversations((prev: Conversation[]) => prev.map((conv: Conversation) =>
                     conv.id === data.chatId
                         ? { ...conv, unreadCount: 0 } // ...conv already preserves all fields
                         : conv
@@ -274,8 +289,8 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         const handleUserTyping = (data: TypingUser) => {
             if (data.userId === userId) return;
 
-            setTypingUsers(prev => {
-                const filtered = prev.filter(u => u.userId !== data.userId || u.chatId !== data.chatId);
+            setTypingUsers((prev: TypingUser[]) => {
+                const filtered = prev.filter((u: TypingUser) => u.userId !== data.userId || u.chatId !== data.chatId);
                 return data.isTyping ? [...filtered, data] : filtered;
             });
         };
@@ -283,34 +298,34 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         const handleOnlineUsers = (users: OnlineUser[]) => {
             setOnlineUsers(users);
 
-            setConversations(prev => prev.map(conv => {
-                const onlineCount = users.filter(u => conv.participants.some(p => p.userId === u.userId)).length;
+            setConversations((prev: Conversation[]) => prev.map((conv: Conversation) => {
+                const onlineCount = users.filter((u: OnlineUser) => conv.participants.some((p: Participant) => p.userId === u.userId)).length;
                 return {
                     ...conv, // Preserve all fields including groupId
                     isOnline: conv.isGroup
                         ? onlineCount > 0
-                        : users.some(u => conv.participants.some(p => p.userId === u.userId && p.userId !== userId))
+                        : users.some((u: OnlineUser) => conv.participants.some((p: Participant) => p.userId === u.userId && p.userId !== userId))
                 };
             }));
         };
 
         const handleUserStatusChanged = (data: { userId: string; isOnline: boolean; lastSeen?: Date }) => {
-            setOnlineUsers(prev => {
+            setOnlineUsers((prev: OnlineUser[]) => {
                 const updatedUsers = data.isOnline
-                    ? [...prev.filter(u => u.userId !== data.userId), {
+                    ? [...prev.filter((u: OnlineUser) => u.userId !== data.userId), {
                         userId: data.userId,
                         socketId: '',
                         lastSeen: data.lastSeen || new Date()
                     }]
-                    : prev.filter(u => u.userId !== data.userId);
+                    : prev.filter((u: OnlineUser) => u.userId !== data.userId);
 
-                setConversations(convs => convs.map(conv => {
-                    const onlineCount = updatedUsers.filter(u => conv.participants.some(p => p.userId === u.userId)).length;
+                setConversations((convs: Conversation[]) => convs.map((conv: Conversation) => {
+                    const onlineCount = updatedUsers.filter((u: OnlineUser) => conv.participants.some((p: Participant) => p.userId === u.userId)).length;
                     return {
                         ...conv, // Preserve all fields including groupId
                         isOnline: conv.isGroup
                             ? onlineCount > 0
-                            : updatedUsers.some(u => conv.participants.some(p => p.userId === u.userId && p.userId !== userId))
+                            : updatedUsers.some((u: OnlineUser) => conv.participants.some((p: Participant) => p.userId === u.userId && p.userId !== userId))
                     };
                 }));
 
@@ -319,8 +334,8 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         };
 
         const handleChatDeleted = (data: { chatId: string; deletedBy: string }) => {
-            setConversations(prev => prev.filter(conv => conv.id !== data.chatId));
-            setMessages(prev => {
+            setConversations((prev: Conversation[]) => prev.filter((conv: Conversation) => conv.id !== data.chatId));
+            setMessages((prev: Record<string, Message[]>) => {
                 const newMessages = { ...prev };
                 delete newMessages[data.chatId];
                 return newMessages;
@@ -347,7 +362,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         };
 
         const handleChatParticipantsStatus = (data: { chatId: string; participants: ChatParticipantStatus[] }) => {
-            setParticipantsStatus(prev => ({
+            setParticipantsStatus((prev: Record<string, ChatParticipantStatus[]>) => ({
                 ...prev,
                 [data.chatId]: data.participants
             }));
@@ -409,7 +424,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
             socketService.offError(handleError);
             socketService.offMoneyReceived(handleMoneyReceived);
         };
-    }, [isConnected, activeChat, userId, refetchMessages]);
+    }, [isConnected, activeChat, userId, refetchMessages, sortConversations]);
 
     useEffect(() => {
         if (activeChat && isConnected) {
@@ -420,7 +435,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
             notificationService.setActiveChat(activeChat);
 
             // Reset unread count for active chat
-            setConversations(prev => prev.map(conv =>
+            setConversations((prev: Conversation[]) => prev.map((conv: Conversation) =>
                 conv.id === activeChat
                     ? { ...conv, unreadCount: 0 } // ...conv already preserves all fields
                     : conv
@@ -437,15 +452,11 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
     useEffect(() => {
         if (chatsData?.data) {
-            // Sort conversations by most recent message
-            const sortedConversations = [...chatsData.data].sort((a, b) => {
-                const aTime = a.lastMessage?.createdAt || a.timestamp || '0';
-                const bTime = b.lastMessage?.createdAt || b.timestamp || '0';
-                return new Date(bTime).getTime() - new Date(aTime).getTime();
-            });
+            // Sort conversations by pinned support first, then most recent message
+            const sortedConversations = [...chatsData.data].sort(sortConversations);
             setConversations(sortedConversations);
         }
-    }, [chatsData]);
+    }, [chatsData, sortConversations]);
 
     useEffect(() => {
         if (messagesData?.data?.messages && activeChat) {
@@ -454,7 +465,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
                 isMe: String(msg.sender.id) === String(userId || "")
             }));
 
-            setMessages(prev => ({
+            setMessages((prev: Record<string, Message[]>) => ({
                 ...prev,
                 [activeChat]: messagesWithIsMe
             }));
@@ -491,14 +502,14 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
             };
 
             // Add message to messages state
-            setMessages(prev => ({
+            setMessages((prev: Record<string, Message[]>) => ({
                 ...prev,
                 [chatId]: [...(prev[chatId] || []), tempMessage]
             }));
 
             // Update conversation's lastMessage immediately
-            setConversations(prev => {
-                const updatedConversations = prev.map(conv =>
+            setConversations((prev: Conversation[]) => {
+                const updatedConversations = prev.map((conv: Conversation) =>
                     conv.id === chatId
                         ? {
                             ...conv, // Preserve all fields including groupId
@@ -513,15 +524,11 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
                         : conv
                 );
 
-                // Sort by most recent message
-                return updatedConversations.sort((a, b) => {
-                    const aTime = a.lastMessage?.createdAt || a.timestamp || '0';
-                    const bTime = b.lastMessage?.createdAt || b.timestamp || '0';
-                    return new Date(bTime).getTime() - new Date(aTime).getTime();
-                });
+                // Sort by pinned support first, then most recent message
+                return updatedConversations.sort(sortConversations);
             });
         }
-    }, [isConnected, userId]);
+    }, [isConnected, userId, sortConversations]);
 
     const markMessagesAsRead = useCallback((chatId: string) => {
         if (isConnected) {
@@ -572,9 +579,9 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     }, []);
 
     const addMessage = useCallback((message: Message) => {
-        setMessages(prev => {
+        setMessages((prev: Record<string, Message[]>) => {
             const existingMessages = prev[message.chatId] || [];
-            const messageExists = existingMessages.some(msg => msg.id === message.id);
+            const messageExists = existingMessages.some((msg: Message) => msg.id === message.id);
 
             if (messageExists) {
                 return prev; // Don't add duplicate
@@ -588,9 +595,9 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     }, [userId]);
 
     const updateMessageReadStatus = useCallback((chatId: string, messageId: string, readBy: any) => {
-        setMessages(prev => ({
+        setMessages((prev: Record<string, Message[]>) => ({
             ...prev,
-            [chatId]: prev[chatId]?.map(msg =>
+            [chatId]: prev[chatId]?.map((msg: Message) =>
                 msg.id === messageId
                     ? { ...msg, readBy: [...(msg.readBy || []), readBy] }
                     : msg
