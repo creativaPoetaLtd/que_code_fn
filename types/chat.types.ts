@@ -88,11 +88,25 @@ export interface MediaData {
     height?: number;
 }
 
+export interface MentionData {
+    userId:   string;
+    username: string;
+}
+
+export interface ReplyPreview {
+  id: string;
+  content: string;
+  messageType: MessageType;
+  senderName: string;
+}
+
 export interface Message extends MediaData {
     id: string;
     chatId: string;
     content: string;
     messageType: MessageType;
+  replyToMessageId?: string | null;
+  replyTo?: ReplyPreview | null;
     status: MessageStatus;
     deliveredAt?: Date;
     readAt?: Date;
@@ -100,6 +114,7 @@ export interface Message extends MediaData {
     sender: MessageSender;
     readBy?: ReadReceipt[];
     isMe?: boolean;
+    mentions?: MentionData[];
 }
 
 export interface LegacyMessage {

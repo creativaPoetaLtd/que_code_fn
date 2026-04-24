@@ -282,6 +282,19 @@ export const groupSlice = apiSlice.injectEndpoints({
             }),
             invalidatesTags: ["GroupJoinRequest", "Group", "GroupMember"],
         }),
+
+        // @mention autocomplete — search active members by partial name/username
+        searchGroupMembers: builder.query<
+            { data: Array<{ userId: string; username: string; name: string; avatar: string | null }> },
+            { groupId: string; q: string; token: string }
+        >({
+            query: ({ groupId, q, token }) => ({
+                url:     `/groups/${groupId}/members/search?q=${encodeURIComponent(q)}&limit=10`,
+                headers: { Authorization: `Bearer ${token}` },
+            }),
+            // Cache per groupId+query for 30 seconds — members list rarely changes mid-session
+            keepUnusedDataFor: 30,
+        }),
     }),
     overrideExisting: false,
 })
@@ -306,4 +319,5 @@ export const {
     useGetPendingJoinRequestsQuery,
     useRespondToJoinRequestEnhancedMutation,
     useBulkRespondToJoinRequestsMutation,
+    useSearchGroupMembersQuery,
 } = groupSlice
