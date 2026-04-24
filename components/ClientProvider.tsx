@@ -16,10 +16,16 @@ import BrowserNotificationBadge from "@/components/notifications/BrowserNotifica
 import AuthSessionManager from "@/components/AuthSessionManager"
 import AppLockGate from "@/components/AppLockGate"
 
+const APP_LOCK_ENABLED = process.env.NEXT_PUBLIC_ENABLE_APP_LOCK === "true"
+const APP_LOCK_STORAGE_KEYS = ["qc:appLocked", "qc:lastActivityAt"]
 
 const ClientProvider = ({ children }: { children: React.ReactNode }) => {
     useEffect(() => {
         notificationService.syncFromPrefs()
+
+        if (!APP_LOCK_ENABLED && typeof window !== "undefined") {
+            APP_LOCK_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key))
+        }
 
         void registerPushServiceWorker().catch((error) => {
             console.error('Service Worker registration failed:', error)
@@ -30,7 +36,7 @@ const ClientProvider = ({ children }: { children: React.ReactNode }) => {
         <Provider store={store}>
             <AuthSessionManager />
             <ThemeProvider>
-                <AppLockGate />
+                {APP_LOCK_ENABLED ? <AppLockGate /> : null}
                 <NotificationProvider>
                     <BrowserNotificationBadge />
                     <ChatProvider>

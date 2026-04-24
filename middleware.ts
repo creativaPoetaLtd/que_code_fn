@@ -199,7 +199,7 @@ export function middleware(request: NextRequest) {
     }
 
     // Redirect authenticated users from landing page or /home to the user dashboard
-    if ((pathname === '/' || pathname === '/home') && state.isAuthenticated && state.token) {
+    if ((pathname === '/' || pathname === '/home' || pathname === '/qc') && state.isAuthenticated && state.token) {
         const payload = decodeTokenPayload(state.token);
         const userId = payload?.userId || payload?.id || payload?.sub;
         if (userId) {
@@ -229,5 +229,6 @@ export const config = {
         '/login',
         '/register',
         '/signup',
+        '/qc',
     ],
 };

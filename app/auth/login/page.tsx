@@ -13,7 +13,8 @@ import Input from 'antd/es/input';
 import { useLoginMutation } from '@/states/authentication';
 import { ClipLoader } from 'react-spinners';
 import { useAuthToken } from '@/hooks/use-auth-token';
-import { storeAuthTokens } from '@/utils/tokenUtils';
+import { refreshAccessToken, storeAuthTokens } from '@/utils/tokenUtils';
+import { markSiteVisited } from '@/utils/appEntry';
 
 interface LoginFormInputs {
   email: string;
@@ -93,13 +94,36 @@ const LoginForm: React.FC = () => {
     },
   });
 
-  // Check if user is already logged in
   useEffect(() => {
-    const tokenInfo = getTokenInfo();
-    if (tokenInfo) {
-      // User is already logged in with valid token
-      redirectAfterLogin(tokenInfo.id, tokenInfo.accountType);
-    }
+    markSiteVisited();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const resumeSession = async () => {
+      const tokenInfo = getTokenInfo();
+      if (tokenInfo) {
+        redirectAfterLogin(tokenInfo.id, tokenInfo.accountType);
+        return;
+      }
+
+      const refreshedToken = await refreshAccessToken();
+      if (cancelled || !refreshedToken) {
+        return;
+      }
+
+      const refreshedTokenInfo = decodeToken(refreshedToken);
+      if (refreshedTokenInfo) {
+        redirectAfterLogin(refreshedTokenInfo.id, refreshedTokenInfo.accountType);
+      }
+    };
+
+    void resumeSession();
+
+    return () => {
+      cancelled = true;
+    };
   }, [router, returnUrl]);
 
   const redirectAfterLogin = (userId: string, accountType?: string) => {
