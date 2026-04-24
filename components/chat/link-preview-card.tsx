@@ -79,7 +79,6 @@ export default function LinkPreviewCard({ url, isMe }: LinkPreviewCardProps) {
             {/* Thumbnail */}
             {data.image && (
                 <div className="w-full h-32 overflow-hidden bg-gray-100 dark:bg-darkBg-card">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                         src={data.image}
                         alt={data.title ?? data.domain}
@@ -100,7 +99,6 @@ export default function LinkPreviewCard({ url, isMe }: LinkPreviewCardProps) {
                     }`}
                 >
                     {data.favicon ? (
-                        // eslint-disable-next-line @next/next/no-img-element
                         <img
                             src={data.favicon}
                             alt=""
