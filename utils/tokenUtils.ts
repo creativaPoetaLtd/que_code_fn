@@ -8,6 +8,11 @@ const DEFAULT_REFRESH_DAYS = 180;
 
 let refreshPromise: Promise<string | null> | null = null;
 
+const wait = (ms: number) =>
+    new Promise<void>((resolve) => {
+        window.setTimeout(resolve, ms);
+    });
+
 export const readCookie = (name: string): string | null => {
     if (typeof document === 'undefined') return null;
     const match = document.cookie
@@ -257,6 +262,37 @@ export const refreshAccessToken = async (): Promise<string | null> => {
     })();
 
     return refreshPromise;
+};
+
+export const restorePersistentSession = async ({
+    attempts = 3,
+    retryDelayMs = 1500,
+}: {
+    attempts?: number;
+    retryDelayMs?: number;
+} = {}): Promise<string | null> => {
+    if (typeof window === 'undefined' || !getRefreshToken()) {
+        return null;
+    }
+
+    const validToken = getValidToken();
+    if (validToken) {
+        return validToken;
+    }
+
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+        const refreshedToken = await refreshAccessToken();
+        if (refreshedToken) {
+            return refreshedToken;
+        }
+
+        if (attempt < attempts - 1) {
+            const multiplier = navigator.onLine === false ? 2 : 1;
+            await wait(retryDelayMs * multiplier * (attempt + 1));
+        }
+    }
+
+    return null;
 };
 
 export const parseTokenPayload = (token: string) => {

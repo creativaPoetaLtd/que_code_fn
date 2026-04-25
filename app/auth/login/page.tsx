@@ -13,7 +13,11 @@ import Input from 'antd/es/input';
 import { useLoginMutation } from '@/states/authentication';
 import { ClipLoader } from 'react-spinners';
 import { useAuthToken } from '@/hooks/use-auth-token';
-import { refreshAccessToken, storeAuthTokens } from '@/utils/tokenUtils';
+import {
+  getRefreshToken,
+  restorePersistentSession,
+  storeAuthTokens,
+} from '@/utils/tokenUtils';
 import { markSiteVisited } from '@/utils/appEntry';
 
 interface LoginFormInputs {
@@ -80,6 +84,7 @@ const LoginForm: React.FC = () => {
   const [login, { isLoading }] = useLoginMutation();
   const { setToken, getToken } = useAuthToken();
   const { getTokenInfo, decodeToken } = useTokenInfo();
+  const [isRestoringSession, setIsRestoringSession] = React.useState(false);
 
   const {
     control,
@@ -108,21 +113,56 @@ const LoginForm: React.FC = () => {
         return;
       }
 
-      const refreshedToken = await refreshAccessToken();
+      if (!getRefreshToken()) {
+        setIsRestoringSession(false);
+        return;
+      }
+
+      setIsRestoringSession(true);
+
+      const refreshedToken = await restorePersistentSession({
+        attempts: 5,
+        retryDelayMs: 1500,
+      });
       if (cancelled || !refreshedToken) {
+        setIsRestoringSession(false);
         return;
       }
 
       const refreshedTokenInfo = decodeToken(refreshedToken);
       if (refreshedTokenInfo) {
         redirectAfterLogin(refreshedTokenInfo.id, refreshedTokenInfo.accountType);
+        return;
       }
+
+      setIsRestoringSession(false);
     };
 
     void resumeSession();
 
+    const handleResume = () => {
+      if (document.hidden || !getRefreshToken()) {
+        return;
+      }
+
+      void resumeSession();
+    };
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        void resumeSession();
+      }
+    };
+
+    window.addEventListener('online', handleResume);
+    window.addEventListener('focus', handleResume);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       cancelled = true;
+      window.removeEventListener('online', handleResume);
+      window.removeEventListener('focus', handleResume);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [router, returnUrl]);
 
@@ -297,6 +337,21 @@ const LoginForm: React.FC = () => {
     window.addEventListener('message', handleTokenMessage);
     return () => window.removeEventListener('message', handleTokenMessage);
   }, [router, returnUrl]);
+
+  if (isRestoringSession) {
+    return (
+      <div className="flex flex-col justify-center items-center lg:w-1/2 w-full md:px-32 px-6 text-center">
+        <p className="text-sm uppercase tracking-[0.3em] text-[#00B512]">QiewCode</p>
+        <h1 className="mt-4 text-3xl font-bold">Restoring your session...</h1>
+        <p className="mt-3 text-gray-600">
+          We’re reconnecting your account so the app can open directly on your workspace.
+        </p>
+        <div className="mt-8">
+          <ClipLoader color="#00B512" size={36} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col justify-center lg:w-1/2 w-full md:px-32 px-4">

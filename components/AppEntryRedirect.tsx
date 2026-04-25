@@ -2,7 +2,11 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getValidToken, refreshAccessToken } from "@/utils/tokenUtils";
+import {
+    getRefreshToken,
+    getValidToken,
+    restorePersistentSession,
+} from "@/utils/tokenUtils";
 import {
     getHomePathFromToken,
     hasVisitedSite,
@@ -19,7 +23,14 @@ export default function AppEntryRedirect() {
         const resolveEntry = async () => {
             const standalone = isStandaloneMode();
             const knownBrowser = hasVisitedSite();
-            const token = getValidToken() || (await refreshAccessToken());
+            const token =
+                getValidToken() ||
+                (getRefreshToken()
+                    ? await restorePersistentSession({
+                          attempts: standalone ? 6 : 3,
+                          retryDelayMs: 1500,
+                      })
+                    : null);
 
             if (cancelled) return;
 
