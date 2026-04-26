@@ -57,6 +57,14 @@ export interface OrganizationAction {
     buyerFields?: string[];
     createdAt?: string;
     updatedAt?: string;
+    subActions?: SubActionSummary[];
+    totalSubActionBalance?: number;
+}
+
+export interface SubActionWallet {
+    id: string;
+    balance: number;
+    currency: string;
 }
 
 export interface SubActionSummary {
@@ -73,4 +81,6 @@ export interface SubActionSummary {
     dedicatedQrCodeData?: string | null;
     createdAt?: string;
     updatedAt?: string;
+    wallet?: SubActionWallet;
+    parentActionType?: string;
 }

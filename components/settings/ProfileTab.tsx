@@ -1,14 +1,26 @@
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { User, Shield, Lock, Upload, CheckCircle, AlertCircle } from 'lucide-react';
+import { User, Shield, Lock, Upload, CheckCircle, AlertCircle, Loader2, Pencil, Trash2, ImagePlus } from 'lucide-react';
 import Input from "@/components/ui/Input-ant";
 import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useProfileData } from "@/hooks/use-profile-data";
 import { LoadingSpinner, ErrorMessage, SuccessMessage, VerificationCard } from "./shared";
+
+const VisibilityToggle: React.FC<{
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  label: string;
+}> = ({ checked, onChange, label }) => (
+  <label className="flex items-center gap-2 text-sm dark:text-gray-300">
+    <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} />
+    {label}
+  </label>
+);
 
 export const ProfileTab: React.FC = () => {
   const {
@@ -19,6 +31,10 @@ export const ProfileTab: React.FC = () => {
     organizationData,
     profileFormData,
     fileUploadData,
+    galleryItems,
+    galleryLoading,
+    gallerySubmitting,
+    galleryItemLoading,
     updateProfileFormData,
     handleImageChange,
     handleLogoChange,
@@ -28,8 +44,17 @@ export const ProfileTab: React.FC = () => {
     clearOperationalDocument,
     saveProfile,
     refreshProfile,
+    uploadGalleryItem,
+    updateGalleryItem,
+    deleteGalleryItem,
     formatFileSize,
   } = useProfileData();
+
+  const [newGalleryCaption, setNewGalleryCaption] = useState("");
+  const [newGalleryFile, setNewGalleryFile] = useState<File | null>(null);
+  const [editCaptions, setEditCaptions] = useState<Record<string, string>>({});
+  const [replaceFiles, setReplaceFiles] = useState<Record<string, File | null>>({});
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,6 +70,58 @@ export const ProfileTab: React.FC = () => {
       handler(file);
     }
   };
+
+  const handleGalleryUpload = async () => {
+    if (!newGalleryFile) return;
+    const ok = await uploadGalleryItem(newGalleryFile, newGalleryCaption);
+    if (ok) {
+      setNewGalleryFile(null);
+      setNewGalleryCaption("");
+      const input = document.getElementById('gallery-upload') as HTMLInputElement | null;
+      if (input) input.value = '';
+    }
+  };
+
+  const handleGalleryDelete = async (itemId: string) => {
+    await deleteGalleryItem(itemId);
+  };
+
+  const handleGalleryUpdate = async (itemId: string) => {
+    const captionValue = editCaptions[itemId];
+    const imageFile = replaceFiles[itemId] || undefined;
+
+    const updates: { caption?: string; image?: File } = {};
+    if (captionValue !== undefined) {
+      updates.caption = captionValue;
+    }
+    if (imageFile) {
+      updates.image = imageFile;
+    }
+
+    const ok = await updateGalleryItem(itemId, updates);
+    if (ok) {
+      setReplaceFiles(prev => ({ ...prev, [itemId]: null }));
+    }
+  };
+
+  const handleOpenPreview = (itemId: string) => {
+    const index = galleryItems.findIndex(item => item.id === itemId);
+    if (index >= 0) {
+      setPreviewIndex(index);
+    }
+  };
+
+  const handlePreviewPrevious = () => {
+    if (previewIndex === null || galleryItems.length === 0) return;
+    setPreviewIndex((previewIndex - 1 + galleryItems.length) % galleryItems.length);
+  };
+
+  const handlePreviewNext = () => {
+    if (previewIndex === null || galleryItems.length === 0) return;
+    setPreviewIndex((previewIndex + 1) % galleryItems.length);
+  };
+
+  const selectedPreviewItem = previewIndex !== null ? galleryItems[previewIndex] : null;
 
   if (loading) {
     return <LoadingSpinner text="Loading profile information..." />;
@@ -278,14 +355,11 @@ export const ProfileTab: React.FC = () => {
                         {profileFormData.profileType === 'organization' ? 'Organization' : 'Individual'}
                       </div>
                     </div>
-                    <label className="flex items-center gap-2 text-sm dark:text-gray-300">
-                      <input 
-                        type="checkbox" 
-                        checked={profileFormData.showProfileTypeOnWelcome} 
-                        onChange={e => updateProfileFormData({ showProfileTypeOnWelcome: e.target.checked })} 
-                      />
-                      Show on welcome page
-                    </label>
+                    <VisibilityToggle
+                      checked={profileFormData.showProfileTypeOnWelcome}
+                      onChange={checked => updateProfileFormData({ showProfileTypeOnWelcome: checked })}
+                      label="Show on welcome page"
+                    />
                   </div>
                 </div>
 
@@ -330,14 +404,11 @@ export const ProfileTab: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex justify-end mt-2">
-                    <label className="flex items-center gap-2 text-sm dark:text-gray-300">
-                      <input 
-                        type="checkbox" 
-                        checked={profileFormData.showLocationOnWelcome} 
-                        onChange={e => updateProfileFormData({ showLocationOnWelcome: e.target.checked })} 
-                      />
-                      Show location on welcome page
-                    </label>
+                    <VisibilityToggle
+                      checked={profileFormData.showLocationOnWelcome}
+                      onChange={checked => updateProfileFormData({ showLocationOnWelcome: checked })}
+                      label="Show location on welcome page"
+                    />
                   </div>
                 </div>
 
@@ -351,14 +422,11 @@ export const ProfileTab: React.FC = () => {
                       placeholder="Tax identification number" 
                       className="flex-1 mr-4 dark:bg-darkBg-main dark:text-white dark:border-darkBorder-light"
                     />
-                    <label className="flex items-center gap-2 text-sm dark:text-gray-300">
-                      <input 
-                        type="checkbox" 
-                        checked={profileFormData.showTinOnWelcome} 
-                        onChange={e => updateProfileFormData({ showTinOnWelcome: e.target.checked })} 
-                      />
-                      Show on welcome page
-                    </label>
+                    <VisibilityToggle
+                      checked={profileFormData.showTinOnWelcome}
+                      onChange={checked => updateProfileFormData({ showTinOnWelcome: checked })}
+                      label="Show on welcome page"
+                    />
                   </div>
                 </div>
 
@@ -373,14 +441,65 @@ export const ProfileTab: React.FC = () => {
                       placeholder="Enter your status message" 
                       className="flex-1 mr-4 dark:bg-darkBg-main dark:text-white dark:border-darkBorder-light"
                     />
-                    <label className="flex items-center gap-2 text-sm dark:text-gray-300">
-                      <input 
-                        type="checkbox" 
-                        checked={profileFormData.showStatusMessageOnWelcome} 
-                        onChange={e => updateProfileFormData({ showStatusMessageOnWelcome: e.target.checked })} 
+                    <VisibilityToggle
+                      checked={profileFormData.showStatusMessageOnWelcome}
+                      onChange={checked => updateProfileFormData({ showStatusMessageOnWelcome: checked })}
+                      label="Show on welcome page"
+                    />
+                  </div>
+                </div>
+
+                {/* Social Media Links */}
+                <div className="space-y-2">
+                  <Label className="dark:text-gray-300">Social Media Links</Label>
+                  <div className="flex justify-end">
+                    <VisibilityToggle
+                      checked={profileFormData.showSocialLinksOnWelcome}
+                      onChange={checked => updateProfileFormData({ showSocialLinksOnWelcome: checked })}
+                      label="Show on welcome page"
+                    />
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="instagram" className="dark:text-gray-300">Instagram</Label>
+                      <Input
+                        id="instagram"
+                        value={profileFormData.instagram}
+                        onChange={e => updateProfileFormData({ instagram: e.target.value })}
+                        placeholder="https://instagram.com/your-handle"
+                        className="dark:bg-darkBg-main dark:text-white dark:border-darkBorder-light"
                       />
-                      Show on welcome page
-                    </label>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="facebook" className="dark:text-gray-300">Facebook</Label>
+                      <Input
+                        id="facebook"
+                        value={profileFormData.facebook}
+                        onChange={e => updateProfileFormData({ facebook: e.target.value })}
+                        placeholder="https://facebook.com/your-page"
+                        className="dark:bg-darkBg-main dark:text-white dark:border-darkBorder-light"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="twitter" className="dark:text-gray-300">Twitter / X</Label>
+                      <Input
+                        id="twitter"
+                        value={profileFormData.twitter}
+                        onChange={e => updateProfileFormData({ twitter: e.target.value })}
+                        placeholder="https://x.com/your-handle"
+                        className="dark:bg-darkBg-main dark:text-white dark:border-darkBorder-light"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="linkedin" className="dark:text-gray-300">LinkedIn</Label>
+                      <Input
+                        id="linkedin"
+                        value={profileFormData.linkedin}
+                        onChange={e => updateProfileFormData({ linkedin: e.target.value })}
+                        placeholder="https://linkedin.com/in/your-profile"
+                        className="dark:bg-darkBg-main dark:text-white dark:border-darkBorder-light"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -393,14 +512,11 @@ export const ProfileTab: React.FC = () => {
                         Profile image upload section
                       </div>
                     </div>
-                    <label className="flex items-center gap-2 text-sm dark:text-gray-300">
-                      <input 
-                        type="checkbox" 
-                        checked={profileFormData.showProfileImageOnWelcome} 
-                        onChange={e => updateProfileFormData({ showProfileImageOnWelcome: e.target.checked })} 
-                      />
-                      Show on welcome page
-                    </label>
+                    <VisibilityToggle
+                      checked={profileFormData.showProfileImageOnWelcome}
+                      onChange={checked => updateProfileFormData({ showProfileImageOnWelcome: checked })}
+                      label="Show on welcome page"
+                    />
                   </div>
                 </div>
 
@@ -413,14 +529,25 @@ export const ProfileTab: React.FC = () => {
                         Logo upload section
                       </div>
                     </div>
-                    <label className="flex items-center gap-2 text-sm dark:text-gray-300">
-                      <input 
-                        type="checkbox" 
-                        checked={profileFormData.showLogoOnWelcome} 
-                        onChange={e => updateProfileFormData({ showLogoOnWelcome: e.target.checked })} 
-                      />
-                      Show on welcome page
-                    </label>
+                    <VisibilityToggle
+                      checked={profileFormData.showLogoOnWelcome}
+                      onChange={checked => updateProfileFormData({ showLogoOnWelcome: checked })}
+                      label="Show on welcome page"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="dark:text-gray-300">Welcome Page Sections</Label>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <VisibilityToggle checked={profileFormData.showCategoryOnWelcome} onChange={checked => updateProfileFormData({ showCategoryOnWelcome: checked })} label="Show category" />
+                    <VisibilityToggle checked={profileFormData.showGalleryOnWelcome} onChange={checked => updateProfileFormData({ showGalleryOnWelcome: checked })} label="Show gallery" />
+                    <VisibilityToggle checked={profileFormData.showOrgStatsOnWelcome} onChange={checked => updateProfileFormData({ showOrgStatsOnWelcome: checked })} label="Show organization stats" />
+                    <VisibilityToggle checked={profileFormData.showActionsOnWelcome} onChange={checked => updateProfileFormData({ showActionsOnWelcome: checked })} label="Show actions section" />
+                    <VisibilityToggle checked={profileFormData.showSendMoneyOnWelcome} onChange={checked => updateProfileFormData({ showSendMoneyOnWelcome: checked })} label="Show send money card" />
+                    <VisibilityToggle checked={profileFormData.showContactFormOnWelcome} onChange={checked => updateProfileFormData({ showContactFormOnWelcome: checked })} label="Show contact form" />
+                    <VisibilityToggle checked={profileFormData.showOtherInfoOnWelcome} onChange={checked => updateProfileFormData({ showOtherInfoOnWelcome: checked })} label="Show other info card" />
+                    <VisibilityToggle checked={profileFormData.showFriendRequestOnWelcome} onChange={checked => updateProfileFormData({ showFriendRequestOnWelcome: checked })} label="Show friendship card" />
                   </div>
                 </div>
               </div>
@@ -583,6 +710,126 @@ export const ProfileTab: React.FC = () => {
                 </div>
               </div>
 
+              <Separator className="dark:bg-darkBorder-light" />
+
+              {/* Gallery Management Section */}
+              <div className="w-full space-y-4">
+                <Label className="text-sm font-medium dark:text-gray-300">Welcome Page Gallery</Label>
+                <div className="p-4 rounded-lg border border-gray-200 dark:border-darkBorder-light bg-gray-50 dark:bg-darkBg-main space-y-4">
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <div className="md:col-span-2 space-y-2">
+                      <Label htmlFor="gallery-caption" className="text-xs text-gray-600 dark:text-gray-400">Caption (optional)</Label>
+                      <Input
+                        id="gallery-caption"
+                        value={newGalleryCaption}
+                        onChange={e => setNewGalleryCaption(e.target.value)}
+                        placeholder="Add a caption for this image"
+                        className="dark:bg-darkBg-card dark:text-white dark:border-darkBorder-light"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="gallery-upload" className="text-xs text-gray-600 dark:text-gray-400">Image</Label>
+                      <input
+                        id="gallery-upload"
+                        type="file"
+                        accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,image/bmp,image/tiff,image/jfif,image/tif"
+                        className="w-full text-sm file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 dark:file:bg-indigo-900/30 dark:file:text-indigo-400"
+                        onChange={e => setNewGalleryFile(e.target.files?.[0] || null)}
+                      />
+                    </div>
+                  </div>
+
+                  <Button
+                    type="button"
+                    onClick={handleGalleryUpload}
+                    disabled={!newGalleryFile || gallerySubmitting}
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
+                  >
+                    {gallerySubmitting ? (
+                      <span className="flex items-center gap-2"><Loader2 size={16} className="animate-spin" />Uploading...</span>
+                    ) : (
+                      <span className="flex items-center gap-2"><ImagePlus size={16} />Upload to gallery</span>
+                    )}
+                  </Button>
+                </div>
+
+                {galleryLoading ? (
+                  <div className="flex items-center justify-center py-8 text-gray-500 dark:text-gray-400">
+                    <Loader2 className="w-5 h-5 animate-spin mr-2" /> Loading gallery...
+                  </div>
+                ) : galleryItems.length === 0 ? (
+                  <div className="text-sm text-gray-500 dark:text-gray-400 italic border border-dashed border-gray-300 dark:border-darkBorder-light rounded-lg p-4 text-center">
+                    No gallery images yet. Upload your first image above.
+                  </div>
+                ) : (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {galleryItems.map(item => {
+                      const busy = !!galleryItemLoading[item.id];
+                      const captionValue = editCaptions[item.id] ?? item.caption ?? "";
+                      return (
+                        <div key={item.id} className="rounded-xl overflow-hidden border border-gray-200 dark:border-darkBorder-light bg-white dark:bg-darkBg-main">
+                          <div
+                            className="aspect-[4/3] bg-gray-100 dark:bg-darkBg-card cursor-zoom-in"
+                            onClick={() => handleOpenPreview(item.id)}
+                            title="Open preview"
+                          >
+                            <img src={item.imageUrl} alt={item.caption || 'Gallery item'} className="w-full h-full object-cover" />
+                          </div>
+                          <div className="p-3 space-y-3">
+                            <div className="space-y-1">
+                              <Label htmlFor={`caption-${item.id}`} className="text-xs text-gray-600 dark:text-gray-400">Caption</Label>
+                              <Input
+                                id={`caption-${item.id}`}
+                                value={captionValue}
+                                onChange={e => setEditCaptions(prev => ({ ...prev, [item.id]: e.target.value }))}
+                                className="dark:bg-darkBg-card dark:text-white dark:border-darkBorder-light"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <Label htmlFor={`replace-${item.id}`} className="text-xs text-gray-600 dark:text-gray-400">Replace image (optional)</Label>
+                              <input
+                                id={`replace-${item.id}`}
+                                type="file"
+                                accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,image/bmp,image/tiff,image/jfif,image/tif"
+                                className="w-full text-xs file:mr-3 file:py-1.5 file:px-2 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-blue-900/30 dark:file:text-blue-400"
+                                onChange={e => setReplaceFiles(prev => ({ ...prev, [item.id]: e.target.files?.[0] || null }))}
+                              />
+                            </div>
+
+                            <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                              <span>{new Date(item.createdAt).toLocaleString()}</span>
+                            </div>
+
+                            <div className="flex gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="flex-1 dark:border-darkBorder-light dark:text-gray-300"
+                                onClick={() => handleGalleryUpdate(item.id)}
+                                disabled={busy}
+                              >
+                                {busy ? <Loader2 size={14} className="animate-spin" /> : <Pencil size={14} className="mr-1" />}
+                                Save
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900/40 dark:text-red-400 dark:hover:bg-red-900/20"
+                                onClick={() => handleGalleryDelete(item.id)}
+                                disabled={busy}
+                              >
+                                {busy ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               {/* File Requirements Info */}
               <div className="w-full p-4 bg-gray-50 dark:bg-darkBg-main border border-gray-200 dark:border-darkBorder-light rounded-lg">
                 <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">File Requirements</h4>
@@ -590,6 +837,7 @@ export const ProfileTab: React.FC = () => {
                   <li>• Supported formats: PNG, JPG, JPEG, GIF, WebP, BMP, TIFF, JFIF, TIF</li>
                   <li>• Documents can also be PDF format</li>
                   <li>• Maximum file size: 5MB per file</li>
+                  <li>• Gallery images can be up to 10MB</li>
                   <li>• Images will be automatically optimized</li>
                   <li>• For best results, use square images for profile pictures</li>
                 </ul>
@@ -640,6 +888,51 @@ export const ProfileTab: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Gallery Lightbox */}
+      <Dialog open={previewIndex !== null} onOpenChange={(open) => !open && setPreviewIndex(null)}>
+        <DialogContent className="max-w-4xl p-0 overflow-hidden bg-black border-none">
+          {selectedPreviewItem && (
+            <div className="relative">
+              <DialogHeader className="absolute top-0 left-0 right-0 z-10 p-4 bg-gradient-to-b from-black/70 to-transparent">
+                <DialogTitle className="text-white text-sm font-medium">
+                  {selectedPreviewItem.caption || 'Gallery image'}
+                </DialogTitle>
+                <p className="text-white/70 text-xs">
+                  {new Date(selectedPreviewItem.createdAt).toLocaleString()} • {previewIndex! + 1} / {galleryItems.length}
+                </p>
+              </DialogHeader>
+
+              <img
+                src={selectedPreviewItem.imageUrl}
+                alt={selectedPreviewItem.caption || 'Gallery preview'}
+                className="w-full max-h-[80vh] object-contain bg-black"
+              />
+
+              {galleryItems.length > 1 && (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handlePreviewPrevious}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/40 border-white/20 text-white hover:bg-black/60"
+                  >
+                    Prev
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handlePreviewNext}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/40 border-white/20 text-white hover:bg-black/60"
+                  >
+                    Next
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -42,6 +42,21 @@ export interface ProfileData {
   showLocationOnWelcome: boolean;
   showTinOnWelcome: boolean;
   showLogoOnWelcome: boolean;
+  showCategoryOnWelcome: boolean;
+  showSocialLinksOnWelcome: boolean;
+  showGalleryOnWelcome: boolean;
+  showOrgStatsOnWelcome: boolean;
+  showActionsOnWelcome: boolean;
+  showSendMoneyOnWelcome: boolean;
+  showContactFormOnWelcome: boolean;
+  showOtherInfoOnWelcome: boolean;
+  showFriendRequestOnWelcome: boolean;
+  socialLinks?: {
+    instagram?: string;
+    facebook?: string;
+    twitter?: string;
+    linkedin?: string;
+  };
 }
 
 export interface ProfileFormData {
@@ -59,6 +74,19 @@ export interface ProfileFormData {
   showLocationOnWelcome: boolean;
   showTinOnWelcome: boolean;
   showLogoOnWelcome: boolean;
+  showCategoryOnWelcome: boolean;
+  showSocialLinksOnWelcome: boolean;
+  showGalleryOnWelcome: boolean;
+  showOrgStatsOnWelcome: boolean;
+  showActionsOnWelcome: boolean;
+  showSendMoneyOnWelcome: boolean;
+  showContactFormOnWelcome: boolean;
+  showOtherInfoOnWelcome: boolean;
+  showFriendRequestOnWelcome: boolean;
+  instagram: string;
+  facebook: string;
+  twitter: string;
+  linkedin: string;
 }
 
 export interface FileUploadData {
@@ -66,6 +94,13 @@ export interface FileUploadData {
   profileImagePreview: string | null;
   logoFile: File | null;
   operationalDocumentFile: File | null;
+}
+
+export interface GalleryItem {
+  id: string;
+  imageUrl: string;
+  caption: string;
+  createdAt: string;
 }
 
 export interface PinStatus {

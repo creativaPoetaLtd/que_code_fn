@@ -5,8 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useSidebar } from "@/context/SidebarContext";
 import { useAuthToken } from "@/hooks/use-auth-token";
 import {
-    getEntityBalance,
     checkUserPinStatus,
+    getEntityBalance,
     getTransactionCategories,
     getUserWallet,
     getWalletRestrictions,
@@ -34,8 +34,36 @@ interface Recipient {
     name: string;
     phone: string;
     avatar: string;
-    type?: "user" | "organization";
+    type?: 'user' | 'organization' | 'wallet';
+    walletId?: string;
 }
+
+interface SelectedSender {
+    id: string;
+    type: 'user' | 'organization' | 'subAction';
+}
+
+const getSelectedSenderFromSession = (): SelectedSender | null => {
+    const raw = sessionStorage.getItem('selectedTransferSender');
+    if (!raw) return null;
+
+    try {
+        const parsed = JSON.parse(raw) as SelectedSender;
+        if (!parsed?.id || !parsed?.type) return null;
+        if (!['user', 'organization', 'subAction'].includes(parsed.type)) return null;
+        return parsed;
+    } catch {
+        return null;
+    }
+};
+
+const getApiErrorMessage = (err: any): string => {
+    return (
+        err?.response?.data?.message ||
+        err?.message ||
+        "An error occurred during transfer"
+    );
+};
 
 interface RequestMeta {
     note: string | null;
@@ -209,15 +237,29 @@ const AmountPageInner = () => {
         try {
             const token = getToken();
             const senderId = getUserIdFromToken(token || "");
+            const selectedSender = getSelectedSenderFromSession();
 
             let senderUserId: string | undefined;
             let senderOrganizationId: string | undefined;
+            let senderSubActionId: string | undefined;
 
-            try {
-                await getUserWallet(senderId!);
-                senderUserId = senderId || undefined;
-            } catch {
-                senderOrganizationId = senderId || undefined;
+            if (selectedSender?.type === 'subAction') {
+                senderSubActionId = selectedSender.id;
+            } else if (selectedSender?.type === 'organization') {
+                senderOrganizationId = selectedSender.id;
+            } else if (selectedSender?.type === 'user') {
+                senderUserId = selectedSender.id;
+            } else {
+                if (!senderId) {
+                    throw new Error("Unable to identify sender");
+                }
+
+                try {
+                    await getUserWallet(senderId);
+                    senderUserId = senderId;
+                } catch {
+                    senderOrganizationId = senderId;
+                }
             }
 
             const params: any = {
@@ -232,10 +274,13 @@ const AmountPageInner = () => {
                 applyConstraints: isOrganization ? false : applyConstraints,
                 senderUserId,
                 senderOrganizationId,
+                senderSubActionId,
                 paymentRequestId: requestId || undefined,
             };
 
-            if (isOrganization) {
+            if (recipient?.type === 'wallet' || recipient?.walletId) {
+                params.receiverWalletId = recipient?.walletId || recipient?.id;
+            } else if (isOrganization) {
                 params.receiverOrganizationId = recipient?.id;
             } else {
                 params.receiverUserId = recipient?.id;
@@ -250,7 +295,7 @@ const AmountPageInner = () => {
                 setError(result.message || "Transfer failed");
             }
         } catch (err: any) {
-            setError(err.message || "An error occurred during transfer");
+            setError(getApiErrorMessage(err));
         } finally {
             setLoading(false);
         }

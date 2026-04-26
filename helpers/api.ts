@@ -87,8 +87,10 @@ const activeTransfers = new Set<string>();
 export const transferMoney = async (params: {
   senderUserId?: string;
   senderOrganizationId?: string;
+  senderSubActionId?: string;
   receiverUserId?: string;
   receiverOrganizationId?: string;
+  receiverWalletId?: string;
   amount: number;
   description?: string;
   categoryId?: string;
@@ -114,9 +116,24 @@ export const transferMoney = async (params: {
 };
 
 const validateTransferParams = (params: any) => {
-  const { senderUserId, senderOrganizationId, receiverUserId, receiverOrganizationId } = params;
-  const senderCount = (senderUserId ? 1 : 0) + (senderOrganizationId ? 1 : 0);
-  const receiverCount = (receiverUserId ? 1 : 0) + (receiverOrganizationId ? 1 : 0);
+  const {
+    senderUserId,
+    senderOrganizationId,
+    senderSubActionId,
+    receiverUserId,
+    receiverOrganizationId,
+    receiverWalletId
+  } = params;
+
+  const senderCount =
+    (senderUserId ? 1 : 0) +
+    (senderOrganizationId ? 1 : 0) +
+    (senderSubActionId ? 1 : 0);
+
+  const receiverCount =
+    (receiverUserId ? 1 : 0) +
+    (receiverOrganizationId ? 1 : 0) +
+    (receiverWalletId ? 1 : 0);
 
   if (senderCount !== 1 || receiverCount !== 1) {
     throw new Error('Exactly one sender and one receiver must be provided');
@@ -124,9 +141,18 @@ const validateTransferParams = (params: any) => {
 };
 
 const createTransferKey = (params: any) => {
-  const { senderUserId, senderOrganizationId, receiverUserId, receiverOrganizationId, amount } = params;
-  const senderId = senderUserId || senderOrganizationId;
-  const receiverId = receiverUserId || receiverOrganizationId;
+  const {
+    senderUserId,
+    senderOrganizationId,
+    senderSubActionId,
+    receiverUserId,
+    receiverOrganizationId,
+    receiverWalletId,
+    amount
+  } = params;
+
+  const senderId = senderUserId || senderOrganizationId || senderSubActionId;
+  const receiverId = receiverUserId || receiverOrganizationId || receiverWalletId;
   return `${senderId}-${receiverId}-${amount}`;
 };
 

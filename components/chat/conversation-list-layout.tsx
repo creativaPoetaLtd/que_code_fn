@@ -11,10 +11,13 @@ import EmptyState from './empty-state';
 import StartChatModal from './start-chart-modal';
 import JoinGroupByLinkModal from './join-group-by-link-modal';
 import CreateGroupModalUpdated from './create-group-modal';
-import type { Conversation } from '@/types/chat.types';
+import OutsideMessagesTab from './outside-messages-tab';
+import type { Conversation, OutsideMessage } from '@/types/chat.types';
 import { Send, Link } from 'lucide-react'
 import { useAuthToken } from '@/hooks/use-auth-token'
 import { useGetGroupsQuery } from '@/states/groupSlice';
+
+type ChatTabType = 'chats' | 'outside-messages';
 
 interface ConversationListLayoutProps {
   conversations: Conversation[];
@@ -27,6 +30,8 @@ interface ConversationListLayoutProps {
   onStartNewChat?: (contact: any) => void;
   onJoinGroup?: (group: any) => void;
   isLoading?: boolean;
+  selectedOutsideMessageId?: string | null;
+  onSelectOutsideMessage?: (msg: OutsideMessage) => void;
 }
 
 export default function ConversationListLayout({
@@ -40,6 +45,8 @@ export default function ConversationListLayout({
   onStartNewChat,
   onJoinGroup,
   isLoading = false,
+  selectedOutsideMessageId,
+  onSelectOutsideMessage,
 }: ConversationListLayoutProps) {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
@@ -49,6 +56,7 @@ export default function ConversationListLayout({
     useState<boolean>(false);
   const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] =
     useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<ChatTabType>('chats');
 
   const { getToken } = useAuthToken();
   const token = getToken();
@@ -105,7 +113,33 @@ export default function ConversationListLayout({
         />
       </div>
 
-      {/* Search and Filters */}
+      {/* Tab Navigation */}
+      <div className='flex-shrink-0 border-b border-gray-100 dark:border-darkBorder-light flex'>
+        <button
+          onClick={() => setActiveTab('chats')}
+          className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'chats'
+              ? 'text-brand-green dark:text-brand-gold border-brand-green dark:border-brand-gold'
+              : 'text-gray-600 dark:text-gray-400 border-transparent hover:text-gray-900 dark:hover:text-gray-300'
+          }`}
+        >
+          Chats
+        </button>
+        <button
+          onClick={() => setActiveTab('outside-messages')}
+          className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'outside-messages'
+              ? 'text-brand-green dark:text-brand-gold border-brand-green dark:border-brand-gold'
+              : 'text-gray-600 dark:text-gray-400 border-transparent hover:text-gray-900 dark:hover:text-gray-300'
+          }`}
+        >
+          Outside Messages
+        </button>
+      </div>
+
+      {/* Chats Tab Content */}
+      {activeTab === 'chats' && (
+        <>
       <div className='p-4 space-y-3 border-b border-gray-100'>
         <SearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} />
         <ConversationFilters
@@ -268,6 +302,16 @@ export default function ConversationListLayout({
             />
           )}
       </div>
+        </>
+      )}
+
+      {/* Outside Messages Tab Content */}
+      {activeTab === 'outside-messages' && (
+        <OutsideMessagesTab
+          selectedMessageId={selectedOutsideMessageId}
+          onSelectMessage={onSelectOutsideMessage ?? (() => {})}
+        />
+      )}
 
       {/* Modals */}
       <StartChatModal

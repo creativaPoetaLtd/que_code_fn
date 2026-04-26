@@ -53,6 +53,11 @@ interface SubAction {
     createdAt?: string;
     updatedAt?: string;
     parentActionType?: string;
+    wallet?: {
+        id: string;
+        balance: number;
+        currency: string;
+    };
 }
 
 interface OrganizationAction {
@@ -105,6 +110,14 @@ const SubActionDetailPage = () => {
     const [isPurchasing, setIsPurchasing] = useState(false);
     const [purchaseError, setPurchaseError] = useState<string | null>(null);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [purchaseResult, setPurchaseResult] = useState<{
+        referenceId: string;
+        description: string;
+        buyerBalanceAfter: number;
+        buyerCurrency: string;
+        qrCodeData?: string;
+    } | null>(null);
+    const [isPurchaseSuccessOpen, setIsPurchaseSuccessOpen] = useState(false);
 
     const isOwner = userId === tokenUserId && accountType === 'organization';
 
@@ -336,18 +349,13 @@ const SubActionDetailPage = () => {
                 requestBody.amount = parseFloat(customAmount);
             }
 
-            await axios.post(
+            const purchaseResponse = await axios.post(
                 `${baseUrl}/actions/${parentAction.id}/purchase`,
                 requestBody,
                 { headers }
             );
 
-            // Show success toast
-            toast({
-                title: "Purchase Successful!",
-                description: "Check your email for details.",
-                variant: "default",
-            });
+            const resultData = purchaseResponse.data?.data;
 
             // Close modal and reset form
             setIsPurchaseOpen(false);
@@ -355,10 +363,27 @@ const SubActionDetailPage = () => {
             setCustomAmount('');
             setBuyerData({});
 
-            // Navigate to home after a short delay to show the toast
-            setTimeout(() => {
-                router.push('/home');
-            }, 1000);
+            if (resultData?.transaction) {
+                // Show enriched success dialog
+                setPurchaseResult({
+                    referenceId: resultData.transaction.referenceId || '',
+                    description: resultData.transaction.description || '',
+                    buyerBalanceAfter: resultData.wallets?.buyer?.balanceAfter ?? 0,
+                    buyerCurrency: resultData.wallets?.buyer?.currency || 'RWF',
+                    qrCodeData: resultData.qrObject?.qrCodeData,
+                });
+                setIsPurchaseSuccessOpen(true);
+            } else {
+                // Fallback toast
+                toast({
+                    title: 'Purchase Successful!',
+                    description: 'Check your email for details.',
+                    variant: 'default',
+                });
+                setTimeout(() => {
+                    router.push('/home');
+                }, 1000);
+            }
         } catch (err: any) {
             const errorMessage =
                 err?.response?.data?.message || err?.message || 'Failed to complete purchase';
@@ -532,6 +557,13 @@ const SubActionDetailPage = () => {
 
                                         {isOwner && !isEditing && (
                                             <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => router.push(`/action?transferActionId=${subAction.actionId}&transferSubActionId=${subAction.id}`)}
+                                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#00313A] text-white text-sm font-semibold shadow hover:bg-[#00252e] transition-colors"
+                                                >
+                                                    <DollarSign className="w-4 h-4" />
+                                                    Transfer to Wallet
+                                                </button>
                                                 <button
                                                     onClick={() => setIsEditing(true)}
                                                     className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#D4AF37] text-white text-sm font-semibold shadow hover:bg-[#C9A530] transition-colors"
@@ -848,6 +880,21 @@ const SubActionDetailPage = () => {
                                                 </div>
                                             )}
 
+                                            {/* Wallet Balance Card - visible only to the owning organisation */}
+                                            {!isEditing && isOwner && subAction.wallet && (
+                                                <div className="bg-gradient-to-br from-[#FFF9E6] via-[#FFFBF0] to-[#FFFEF8] dark:from-darkBg-interactive dark:to-darkBg-card rounded-2xl border-2 border-[#D4AF37]/20 p-5 shadow-md">
+                                                    <div className="flex items-center gap-2 mb-3">
+                                                        <DollarSign className="w-5 h-5 text-[#D4AF37]" />
+                                                        <span className="text-sm font-bold text-[#D4AF37] uppercase tracking-wide">
+                                                            Wallet Balance
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-2xl font-bold text-[#00313A] dark:text-white">
+                                                        {subAction.wallet.currency} {subAction.wallet.balance.toLocaleString()}
+                                                    </p>
+                                                </div>
+                                            )}
+
                                             {/* Description */}
                                             <div className="bg-white dark:bg-darkBg-card rounded-2xl border-2 border-[#D4AF37]/10 p-5 shadow-md">
                                                 <div className="flex items-center gap-2 mb-3">
@@ -991,6 +1038,69 @@ const SubActionDetailPage = () => {
                     <Navigation />
                 </div>
             )}
+
+            {/* Purchase Success Dialog */}
+            <Dialog open={isPurchaseSuccessOpen} onOpenChange={(open) => {
+                setIsPurchaseSuccessOpen(open);
+                if (!open) router.push('/home');
+            }}>
+                <DialogContent className="bg-white dark:bg-darkBg-card border border-gray-200 dark:border-darkBorder-light rounded-3xl max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="text-2xl font-bold text-[#00313A] dark:text-white flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gradient-to-br from-[#D4AF37] to-[#E5C158] rounded-full flex items-center justify-center shadow-md">
+                                <CheckCircle2 className="w-6 h-6 text-white" />
+                            </div>
+                            Purchase Successful!
+                        </DialogTitle>
+                    </DialogHeader>
+                    {purchaseResult && (
+                        <div className="space-y-5 py-4">
+                            {/* Reference ID */}
+                            <div className="bg-[#FFF9E6] dark:bg-darkBg-interactive rounded-xl p-4 border border-[#D4AF37]/20">
+                                <p className="text-xs font-semibold text-[#D4AF37] uppercase tracking-wide mb-1">Receipt / Reference</p>
+                                <p className="text-base font-bold text-[#00313A] dark:text-white font-mono">{purchaseResult.referenceId}</p>
+                            </div>
+
+                            {/* Description */}
+                            {purchaseResult.description && (
+                                <div className="bg-gray-50 dark:bg-darkBg-interactive rounded-xl p-4 border border-gray-200 dark:border-darkBorder-light">
+                                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Purchase Summary</p>
+                                    <p className="text-sm text-[#00313A] dark:text-white">{purchaseResult.description}</p>
+                                </div>
+                            )}
+
+                            {/* Updated Wallet Balance */}
+                            <div className="bg-gradient-to-br from-[#FFF9E6] to-[#FFFEF8] dark:from-darkBg-interactive dark:to-darkBg-card rounded-xl p-4 border-2 border-[#D4AF37]/20">
+                                <p className="text-xs font-semibold text-[#D4AF37] uppercase tracking-wide mb-1">Your New Wallet Balance</p>
+                                <p className="text-2xl font-bold text-[#00313A] dark:text-white">
+                                    {purchaseResult.buyerCurrency} {purchaseResult.buyerBalanceAfter.toLocaleString()}
+                                </p>
+                            </div>
+
+                            {/* QR Code */}
+                            {purchaseResult.qrCodeData && (
+                                <div className="flex flex-col items-center gap-3 bg-white dark:bg-darkBg-main rounded-xl p-4 border-2 border-[#D4AF37]/20">
+                                    <p className="text-xs font-semibold text-[#D4AF37] uppercase tracking-wide">Your Ticket QR Code</p>
+                                    <img
+                                        src={purchaseResult.qrCodeData}
+                                        alt="Ticket QR Code"
+                                        className="w-40 h-40 rounded-lg"
+                                    />
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 text-center">Show this at the entry gate</p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    <DialogFooter className="flex gap-2 justify-end">
+                        <button
+                            onClick={() => { setIsPurchaseSuccessOpen(false); router.push('/home'); }}
+                            className="px-5 py-2 rounded-full bg-[#D4AF37] text-white font-semibold hover:bg-[#C9A530] transition-colors"
+                        >
+                            Go to My Tickets
+                        </button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };

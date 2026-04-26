@@ -68,8 +68,10 @@ export interface Transaction {
   // Legacy fields for backward compatibility
   senderId?: string;
   receiverId?: string;
+  senderSubActionId?: string;
   senderWalletId?: string;
   receiverWalletId?: string;
+  resolvedReceiverWalletId?: string;
   processedAt?: string;
   name?: string;
   date?: string;
@@ -141,8 +143,10 @@ export interface TransactionCategory {
 export interface TransferRequest {
   senderUserId?: string;
   senderOrganizationId?: string;
+  senderSubActionId?: string;
   receiverUserId?: string;
   receiverOrganizationId?: string;
+  receiverWalletId?: string;
   amount: number;
   description?: string;
   categoryId?: string;
@@ -163,8 +167,11 @@ export interface TransferResponse {
     senderBalance: number;
     senderUserId: string | null;
     senderOrganizationId: string | null;
+    senderSubActionId: string | null;
     receiverUserId: string | null;
     receiverOrganizationId: string | null;
+    receiverWalletId: string | null;
+    resolvedReceiverWalletId: string | null;
     description: string;
     categoryId: string | null;
     spendConstraintType: string;

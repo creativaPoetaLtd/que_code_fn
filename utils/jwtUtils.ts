@@ -20,13 +20,6 @@ export const decodeJWT = (token: string): JWTPayload | null => {
         // Parse JSON
         const parsedPayload: JWTPayload = JSON.parse(decodedPayload)
 
-        // Check if token is expired
-        const currentTime = Math.floor(Date.now() / 1000)
-        if (parsedPayload.exp && parsedPayload.exp < currentTime) {
-            console.warn("JWT token is expired")
-            return null
-        }
-
         return parsedPayload
     } catch (error) {
         console.error("Error decoding JWT:", error)

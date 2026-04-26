@@ -43,6 +43,8 @@ const SuccessPage = () => {
     const data = transferResult.data;
     const amount = data.amount || 0;
     const transactionId = data.transactionId || "N/A";
+    const sourceLabel = data.senderSubActionId ? 'Sub-Action Wallet' : 'Wallet';
+    const destinationLabel = (data.receiverWalletId || data.resolvedReceiverWalletId) ? 'Wallet' : 'Account';
     const date = new Date().toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
@@ -111,6 +113,21 @@ const SuccessPage = () => {
                                         <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-1 uppercase tracking-wider">Date</p>
                                         <p className="text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">
                                             {date}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-8 mt-4">
+                                    <div>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-1 uppercase tracking-wider">Source</p>
+                                        <p className="text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">
+                                            {sourceLabel}
+                                        </p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-1 uppercase tracking-wider">Destination</p>
+                                        <p className="text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">
+                                            {destinationLabel}
                                         </p>
                                     </div>
                                 </div>
