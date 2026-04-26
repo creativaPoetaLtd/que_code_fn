@@ -1196,17 +1196,20 @@ const WelcomeProfilePage: React.FC = () => {
   };
 
   const [contactSubmitting, setContactSubmitting] = useState(false);
+  const [friendMessageLoading, setFriendMessageLoading] = useState(false);
 
   const handleContactSubmit = async () => {
     if (!contactForm.name || !contactForm.email || !contactForm.message) return;
     try {
       setContactSubmitting(true);
-      const token = getToken();
-      const messageText = `From: ${contactForm.name} <${contactForm.email}>\n\n${contactForm.message}`;
       await axios.post(
-        `${baseUrl}/contact-invitations`,
-        { inviteeId: userId, message: messageText },
-        token ? { headers: { Authorization: `Bearer ${token}` } } : {}
+        `${baseUrl}/outside-messages`,
+        {
+          receiverId: userId,
+          senderName: contactForm.name,
+          senderContact: contactForm.email,
+          message: contactForm.message,
+        }
       );
       toast({ title: 'Message sent!', description: `Your message has been sent to ${user.name}.` });
       setContactForm({ name: '', email: '', message: '' });
@@ -1214,6 +1217,56 @@ const WelcomeProfilePage: React.FC = () => {
       toast({ title: 'Failed to send message', description: err.response?.data?.message || 'Please try again.', variant: 'destructive' });
     } finally {
       setContactSubmitting(false);
+    }
+  };
+
+  const handleSendMessageToFriend = async () => {
+    if (!isLoggedIn) {
+      router.push('/auth/login');
+      return;
+    }
+
+    if (relationshipStatus !== 'active') {
+      toast({
+        title: 'Friendship required',
+        description: 'You can send direct messages after becoming friends.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      setFriendMessageLoading(true);
+      const token = getToken();
+      if (!token) {
+        toast({
+          title: 'Authentication required',
+          description: 'Please log in again to continue.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const response = await axios.post(
+        `${baseUrl}/chats/dm`,
+        { participantId: userId },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      const chatId = response?.data?.data?.chatId;
+      if (chatId) {
+        sessionStorage.setItem('pendingChatId', chatId);
+      }
+
+      router.push('/chat');
+    } catch (err: any) {
+      toast({
+        title: 'Unable to open chat',
+        description: err.response?.data?.message || 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setFriendMessageLoading(false);
     }
   };
 
@@ -1332,6 +1385,9 @@ const WelcomeProfilePage: React.FC = () => {
   const shouldShowContactForm = user.showContactFormOnWelcome !== false;
   const shouldShowOtherInfo = user.showOtherInfoOnWelcome !== false;
   const shouldShowSocialLinks = user.showSocialLinksOnWelcome !== false;
+  const shouldShowOutsideContactForm = !isLoggedIn && shouldShowContactForm;
+  const shouldShowFriendMessageButton =
+    isLoggedIn && !isOrg && shouldShowContactForm && relationshipStatus === 'active';
   const shouldShowFriendshipRequest =
     !isOrg &&
     isHydrated &&
@@ -1459,7 +1515,17 @@ const WelcomeProfilePage: React.FC = () => {
                     </Dialog>
                   )}
 
-                  {!isOrg && isLoggedIn && (
+                  {!isOrg && isLoggedIn && relationshipStatus === 'active' && (
+                    <button
+                      onClick={handleSendMessageToFriend}
+                      title="Send message"
+                      className="w-12 h-12 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 flex items-center justify-center transition-colors"
+                    >
+                      <MessageSquare className="w-5 h-5 text-white" />
+                    </button>
+                  )}
+
+                  {!isOrg && isLoggedIn && relationshipStatus !== 'active' && (
                     <button onClick={handleAddFriend} title="Add Friend" className="w-12 h-12 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 flex items-center justify-center transition-colors">
                       <UserPlus className="w-5 h-5 text-white" />
                     </button>
@@ -1729,13 +1795,13 @@ const WelcomeProfilePage: React.FC = () => {
               )}
 
               {/* Private contact form */}
-              {shouldShowContactForm && (
+              {shouldShowOutsideContactForm && (
               <div className={`rounded-2xl p-6 border border-white/5 ${isOrg ? 'bg-[#0f172a]' : 'bg-[#132213]'}`}>
                 <h3 className="text-white font-bold text-xl mb-1">Private contact form</h3>
                 <p className="text-white/40 text-sm mb-6">
                   {isOrg
                     ? 'Need more information, a partnership or a direct question? Use this form to contact the business securely.'
-                    : 'If we are not connected yet, you can still send a message through this form.'}
+                    : 'If you are not logged in yet, you can send an outside message through this form.'}
                 </p>
                 <div className="space-y-4">
                   <div>
@@ -1777,6 +1843,22 @@ const WelcomeProfilePage: React.FC = () => {
                   </div>
                 </div>
               </div>
+              )}
+
+              {shouldShowFriendMessageButton && (
+                <div className={`rounded-2xl p-6 border border-white/5 ${isOrg ? 'bg-[#0f172a]' : 'bg-[#132213]'}`}>
+                  <h3 className="text-white font-bold text-xl mb-1">Direct messages</h3>
+                  <p className="text-white/40 text-sm mb-6">
+                    You are friends. Continue this conversation in your messages tab.
+                  </p>
+                  <button
+                    onClick={handleSendMessageToFriend}
+                    disabled={friendMessageLoading}
+                    className={`w-full py-4 rounded-2xl font-bold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isOrg ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-[#4ade80] hover:bg-[#22c55e] text-black'}`}
+                  >
+                    {friendMessageLoading ? 'Opening chat...' : 'Send message'}
+                  </button>
+                </div>
               )}
             </div>
 

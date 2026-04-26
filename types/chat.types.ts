@@ -179,3 +179,19 @@ export interface DeleteChatData {
 export interface InitializeEncryptionData {
   password?: string;
 }
+
+export interface OutsideMessage {
+  id: string;
+  receiverId: string;
+  senderName: string;
+  senderContact: string; // email or phone
+  message: string;
+  status: 'unread' | 'read';
+  createdAt: string;
+  readAt?: string;
+  source?: 'welcome-form' | 'external'; // where the message came from
+  meta?: {
+    ip?: string;
+    userAgent?: string;
+  };
+}

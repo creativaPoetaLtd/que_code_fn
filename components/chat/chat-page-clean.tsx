@@ -151,6 +151,15 @@ export default function ChatPageClean() {
     }
   }, [pathname, setActiveChat]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const pendingChatId = sessionStorage.getItem('pendingChatId');
+    if (!pendingChatId) return;
+
+    setActiveChat(pendingChatId);
+    sessionStorage.removeItem('pendingChatId');
+  }, [setActiveChat]);
+
   const handleConversationSelect = (conversation: any) => {
     setSelectedChat({
       id: conversation.id,
