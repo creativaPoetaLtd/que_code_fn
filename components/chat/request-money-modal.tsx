@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import Input from "../ui/Input-ant"
 import { Button } from "@/components/ui/button"
 import { DollarSign, Loader2, Pencil, Lock, QrCode } from "lucide-react"
-import type { Conversation } from "@/types"
+import type { Conversation } from "@/types/chat.types"
 import { toast } from "@/hooks/use-toast"
 import { useAuthToken } from "@/hooks/use-auth-token"
 import { getCurrentUserId } from "@/utils/tokenUtils"
