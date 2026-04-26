@@ -12,7 +12,7 @@ import StartChatModal from './start-chart-modal';
 import JoinGroupByLinkModal from './join-group-by-link-modal';
 import CreateGroupModalUpdated from './create-group-modal';
 import OutsideMessagesTab from './outside-messages-tab';
-import type { Conversation } from '@/types/chat.types';
+import type { Conversation, OutsideMessage } from '@/types/chat.types';
 import { Send, Link } from 'lucide-react'
 import { useAuthToken } from '@/hooks/use-auth-token'
 import { useGetGroupsQuery } from '@/states/groupSlice';
@@ -30,6 +30,8 @@ interface ConversationListLayoutProps {
   onStartNewChat?: (contact: any) => void;
   onJoinGroup?: (group: any) => void;
   isLoading?: boolean;
+  selectedOutsideMessageId?: string | null;
+  onSelectOutsideMessage?: (msg: OutsideMessage) => void;
 }
 
 export default function ConversationListLayout({
@@ -43,6 +45,8 @@ export default function ConversationListLayout({
   onStartNewChat,
   onJoinGroup,
   isLoading = false,
+  selectedOutsideMessageId,
+  onSelectOutsideMessage,
 }: ConversationListLayoutProps) {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
@@ -303,7 +307,10 @@ export default function ConversationListLayout({
 
       {/* Outside Messages Tab Content */}
       {activeTab === 'outside-messages' && (
-        <OutsideMessagesTab />
+        <OutsideMessagesTab
+          selectedMessageId={selectedOutsideMessageId}
+          onSelectMessage={onSelectOutsideMessage ?? (() => {})}
+        />
       )}
 
       {/* Modals */}

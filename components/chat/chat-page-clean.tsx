@@ -8,7 +8,8 @@ import Navigation from '@/components/Navigation';
 import { useChatOperations } from '@/hooks/use-chat-operations';
 import { useChatModals } from '@/hooks/use-chat-modals';
 import { useAuthToken } from '@/hooks/use-auth-token';
-import type { Conversation } from '@/types/chat.types';
+import type { Conversation, OutsideMessage } from '@/types/chat.types';
+import OutsideMessageDetail from '@/components/chat/outside-message-detail';
 import { useSidebar } from '@/context/SidebarContext';
 import { cn } from '@/lib/utils';
 import { useDeleteGroupMutation } from '@/states/groupSlice';
@@ -71,6 +72,7 @@ export default function ChatPageClean() {
   const [showMobileConversationList, setShowMobileConversationList] =
     useState(true);
   const [selectedChat, setSelectedChat] = useState<Conversation | null>(null);
+  const [selectedOutsideMessage, setSelectedOutsideMessage] = useState<OutsideMessage | null>(null);
   const [isGroupSettingsModalOpen, setIsGroupSettingsModalOpen] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState<{ isOpen: boolean; groupId: string | null }>({
     isOpen: false,
@@ -160,7 +162,14 @@ export default function ChatPageClean() {
     sessionStorage.removeItem('pendingChatId');
   }, [setActiveChat]);
 
+  const handleSelectOutsideMessage = (msg: OutsideMessage) => {
+    setSelectedOutsideMessage(msg);
+    setSelectedChat(null);
+    setShowMobileConversationList(false);
+  };
+
   const handleConversationSelect = (conversation: any) => {
+    setSelectedOutsideMessage(null);
     setSelectedChat({
       id: conversation.id,
       name:
@@ -274,6 +283,8 @@ export default function ChatPageClean() {
             onStartNewChat={handleStartNewChat}
             onJoinGroup={handleJoinGroup}
             isLoading={isLoading}
+            selectedOutsideMessageId={selectedOutsideMessage?.id}
+            onSelectOutsideMessage={handleSelectOutsideMessage}
           />
 
           {selectedChat ? (
@@ -290,6 +301,19 @@ export default function ChatPageClean() {
               onDeleteGroup={handleDeleteGroup}
               typingUsers={typingUsers}
               onlineUsers={onlineUsers}
+            />
+          ) : selectedOutsideMessage ? (
+            <OutsideMessageDetail
+              message={selectedOutsideMessage}
+              showOnMobile={!showMobileConversationList}
+              onBackClick={() => {
+                setShowMobileConversationList(true);
+                setSelectedOutsideMessage(null);
+              }}
+              onDelete={(id) => {
+                setSelectedOutsideMessage(null);
+                setShowMobileConversationList(true);
+              }}
             />
           ) : (
             <div className='flex-1 flex items-center justify-center bg-gray-50 dark:bg-darkBg-card'>
