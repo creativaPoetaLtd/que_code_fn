@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useSidebar } from "@/context/SidebarContext";
 import { useAuthToken } from "@/hooks/use-auth-token";
 import {
+    checkUserPinStatus,
     getEntityBalance,
     getTransactionCategories,
     getUserWallet,
