@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from "react";
+import React, { Suspense, useState } from "react";
 import { useAuthToken } from "@/hooks/use-auth-token";
 import { useGetContactsEnhancedQuery } from "@/states/contactSlice";
 import { Input } from "@/components/ui/input";
@@ -28,7 +28,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export default function ContactsPage() {
+function ContactsPageInner() {
     const authHook = useAuthToken();
     const token = authHook.getToken();
     const { isExpanded } = useSidebar();
@@ -331,4 +331,8 @@ export default function ContactsPage() {
             />
         </div>
     );
+}
+
+export default function ContactsPage() {
+    return <Suspense><ContactsPageInner /></Suspense>;
 }

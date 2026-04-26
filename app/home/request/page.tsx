@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import axios from "axios";
 import { Loader2, Search, Users, DollarSign, QrCode } from "lucide-react";
@@ -26,7 +26,7 @@ interface RecipientOption {
   avatar: string;
 }
 
-export default function RequestMoneyPage() {
+function RequestMoneyPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isExpanded } = useSidebar();
@@ -366,4 +366,8 @@ export default function RequestMoneyPage() {
       )}
     </div>
   );
+}
+
+export default function RequestMoneyPage() {
+  return <Suspense><RequestMoneyPageInner /></Suspense>;
 }

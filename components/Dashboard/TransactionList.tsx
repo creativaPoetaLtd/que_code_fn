@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Search, Download, RefreshCcw, MessageCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
@@ -18,7 +18,7 @@ interface TransactionListProps {
   toolbarInHeader?: boolean;
 }
 
-export const TransactionList = ({ transactions: propTransactions, toolbarInHeader = false }: TransactionListProps) => {
+const TransactionListInner = ({ transactions: propTransactions, toolbarInHeader = false }: TransactionListProps) => {
   const { getToken } = useAuthToken();
   const router = useRouter();
   const pathname = usePathname();
@@ -654,3 +654,9 @@ export const TransactionList = ({ transactions: propTransactions, toolbarInHeade
     </>
   );
 };
+
+export const TransactionList = (props: TransactionListProps) => (
+  <Suspense fallback={null}>
+    <TransactionListInner {...props} />
+  </Suspense>
+);

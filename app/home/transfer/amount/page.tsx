@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSidebar } from "@/context/SidebarContext";
 import { useAuthToken } from "@/hooks/use-auth-token";
@@ -43,7 +43,7 @@ interface RequestMeta {
     currency: string;
 }
 
-const AmountPage = () => {
+const AmountPageInner = () => {
     const router = useRouter();
     const { isExpanded } = useSidebar();
     const { getToken } = useAuthToken();
@@ -463,4 +463,6 @@ const AmountPage = () => {
     );
 };
 
-export default AmountPage;
+export default function AmountPage() {
+    return <Suspense><AmountPageInner /></Suspense>;
+}
