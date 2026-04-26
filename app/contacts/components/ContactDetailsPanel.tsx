@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Contact, useToggleContactFavoriteMutation } from "@/states/contactSlice";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { X, Send, DollarSign, Archive, MoreVertical, Star, ArrowUpRight, ArrowDownLeft, Plus, Edit } from "lucide-react";
+import { X, Send, Archive, Star, ArrowUpRight, ArrowDownLeft, Edit, MessageCircle, User, DollarSign } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { getContactTransactionStats, getTransactionHistory } from "@/helpers/api";
@@ -20,6 +20,7 @@ interface ContactDetailsPanelProps {
 }
 
 export function ContactDetailsPanel({ contact, isOpen, onClose }: ContactDetailsPanelProps) {
+    const panelRef = useRef<HTMLDivElement | null>(null);
     const { userId } = useUserInfo();
     const authHook = useAuthToken();
     const token = authHook.getToken();
@@ -55,9 +56,25 @@ export function ContactDetailsPanel({ contact, isOpen, onClose }: ContactDetails
         }
     }, [contact, userId, isOpen]);
 
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const handleOutsideClick = (event: MouseEvent) => {
+            const target = event.target as Node | null;
+            if (panelRef.current && target && !panelRef.current.contains(target)) {
+                onClose();
+            }
+        };
+
+        document.addEventListener("mousedown", handleOutsideClick);
+        return () => {
+            document.removeEventListener("mousedown", handleOutsideClick);
+        };
+    }, [isOpen, onClose]);
+
     if (!contact) return null;
 
-    const handlePay = () => {
+    const handleSend = () => {
         // Save recipient to session storage as expected by the transfer flow
         const recipient = {
             id: contact.otherUser.id,
@@ -68,6 +85,19 @@ export function ContactDetailsPanel({ contact, isOpen, onClose }: ContactDetails
         };
         sessionStorage.setItem('selectedRecipient', JSON.stringify(recipient));
         router.push('/home/transfer/amount');
+    };
+
+    const handleMessage = () => {
+        router.push('/chat');
+    };
+
+    const handleViewProfile = () => {
+        router.push(`/profile/${contact.otherUser.id}`);
+    };
+
+    const handleOpenTransaction = (transactionId: string) => {
+        onClose();
+        router.push(`/transactions?transactionId=${transactionId}`);
     };
 
     const handleToggleFavorite = async () => {
@@ -89,9 +119,18 @@ export function ContactDetailsPanel({ contact, isOpen, onClose }: ContactDetails
 
     return (
         <>
+            {isOpen && (
+                <button
+                    type="button"
+                    aria-label="Close contact details"
+                    className="fixed inset-0 z-[100] bg-black/30"
+                    onClick={onClose}
+                />
+            )}
             <div
+                ref={panelRef}
                 className={cn(
-                    "fixed inset-y-0 right-0 w-96 bg-white dark:bg-darkBg-card shadow-2xl transform transition-transform duration-300 ease-in-out z-50 border-l border-gray-200 dark:border-darkBorder-light",
+                    "fixed inset-y-0 right-0 w-96 max-w-[95vw] bg-white dark:bg-darkBg-card shadow-2xl transform transition-transform duration-300 ease-in-out z-[110] border-l border-gray-200 dark:border-darkBorder-light",
                     isOpen ? "translate-x-0" : "translate-x-full"
                 )}
             >
@@ -108,12 +147,18 @@ export function ContactDetailsPanel({ contact, isOpen, onClose }: ContactDetails
                     <div className="flex-1 overflow-y-auto p-6 bg-white dark:bg-darkBg-card">
                         <div className="flex flex-col items-center text-center mb-8">
                             <div className="relative mb-4">
-                                <UserAvatar
-                                    profileImage={contact.otherUser.profile?.profileImage}
-                                    firstName={contact.otherUser.firstName}
-                                    lastName={contact.otherUser.lastName}
-                                    className="h-24 w-24 ring-4 ring-gray-50 dark:ring-darkBg-main bg-white dark:bg-darkBg-secondary"
-                                />
+                                <button
+                                    type="button"
+                                    onClick={handleViewProfile}
+                                    aria-label={`Open ${contact.otherUser.firstName} ${contact.otherUser.lastName} profile`}
+                                >
+                                    <UserAvatar
+                                        profileImage={contact.otherUser.profile?.profileImage}
+                                        firstName={contact.otherUser.firstName}
+                                        lastName={contact.otherUser.lastName}
+                                        className="h-24 w-24 ring-4 ring-gray-50 dark:ring-darkBg-main bg-white dark:bg-darkBg-secondary"
+                                    />
+                                </button>
                                 <button
                                     onClick={handleToggleFavorite}
                                     className="absolute bottom-0 right-0 bg-white dark:bg-darkBg-card rounded-full p-1.5 shadow-sm border border-gray-100 dark:border-darkBorder-light hover:bg-gray-50 dark:hover:bg-darkBg-hover transition-colors"
@@ -126,7 +171,6 @@ export function ContactDetailsPanel({ contact, isOpen, onClose }: ContactDetails
                             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
                                 {contact.otherUser.firstName} {contact.otherUser.lastName}
                             </h3>
-                            <p className="text-gray-500 dark:text-gray-400 mb-4">{contact.otherUser.email}</p>
 
                             <div className="flex flex-wrap justify-center items-center gap-2 mb-6">
                                 <Badge variant={contact.status === 'active' ? 'default' : 'destructive'} className="uppercase tracking-wider text-[10px]">
@@ -148,13 +192,33 @@ export function ContactDetailsPanel({ contact, isOpen, onClose }: ContactDetails
                                 </Button>
                             </div>
 
-                            <div className="grid grid-cols-1 gap-3 w-full mb-8">
+                            <div className="grid grid-cols-3 gap-2 w-full mb-8">
                                 <Button
-                                    onClick={handlePay}
-                                    className="w-full bg-brand-green dark:bg-brand-gold hover:bg-brand-green/90 dark:hover:bg-brand-gold/90 text-white dark:text-darkBg-main gap-2 shadow-sm"
+                                    onClick={() => {
+                                        // Open request money flow
+                                        // We need to implement opening the modal here
+                                        toast({ title: "Request initiated", description: "Opening request flow..." });
+                                    }}
+                                    variant="outline"
+                                    className="w-full bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-100 dark:hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 border-none gap-1 px-2"
+                                >
+                                    <DollarSign className="h-4 w-4" />
+                                    Request
+                                </Button>
+                                <Button
+                                    onClick={handleSend}
+                                    className="w-full bg-brand-green dark:bg-brand-gold hover:bg-brand-green/90 dark:hover:bg-brand-gold/90 text-white dark:text-darkBg-main gap-1 shadow-sm px-2"
                                 >
                                     <Send className="h-4 w-4" />
-                                    Pay
+                                    Send
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={handleViewProfile}
+                                    className="w-full gap-1 px-2"
+                                >
+                                    <User className="h-4 w-4" />
+                                    Profile
                                 </Button>
                             </div>
                         </div>
@@ -164,11 +228,7 @@ export function ContactDetailsPanel({ contact, isOpen, onClose }: ContactDetails
                                 <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Information</h4>
                                 <div className="space-y-3">
                                     <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-darkBorder-light">
-                                        <span className="text-sm text-gray-600 dark:text-gray-400">Phone</span>
-                                        <span className="text-sm font-medium text-gray-900 dark:text-white">{contact.otherUser.phone}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-darkBorder-light">
-                                        <span className="text-sm text-gray-600 dark:text-gray-400">Joined</span>
+                                        <span className="text-sm text-gray-600 dark:text-gray-400">Friends since</span>
                                         <span className="text-sm font-medium text-gray-900 dark:text-white">
                                             {format(new Date(contact.createdAt), 'MMM d, yyyy')}
                                         </span>
@@ -183,13 +243,13 @@ export function ContactDetailsPanel({ contact, isOpen, onClose }: ContactDetails
                                     <div className="flex items-center justify-between mb-2">
                                         <span className="text-sm text-gray-600 dark:text-gray-400">Total Sent</span>
                                         <span className="font-semibold text-gray-900 dark:text-white font-mono">
-                                            ${stats.totalSent.toFixed(2)}
+                                            RWF {stats.totalSent.toLocaleString()}
                                         </span>
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <span className="text-sm text-gray-600 dark:text-gray-400">Total Received</span>
                                         <span className="font-semibold text-gray-900 dark:text-white font-mono">
-                                            ${stats.totalReceived.toFixed(2)}
+                                            RWF {stats.totalReceived.toLocaleString()}
                                         </span>
                                     </div>
                                 </div>
@@ -201,7 +261,12 @@ export function ContactDetailsPanel({ contact, isOpen, onClose }: ContactDetails
                                 <div className="space-y-3">
                                     {transactions.length > 0 ? (
                                         transactions.map((txn: any) => (
-                                            <div key={txn.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-darkBg-main rounded-lg border border-gray-100 dark:border-darkBorder-light">
+                                            <button
+                                                type="button"
+                                                key={txn.id}
+                                                onClick={() => handleOpenTransaction(txn.id)}
+                                                className="w-full text-left flex items-center justify-between p-3 bg-gray-50 dark:bg-darkBg-main rounded-lg border border-gray-100 dark:border-darkBorder-light hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors"
+                                            >
                                                 <div className="flex items-center gap-3">
                                                     <div className={cn(
                                                         "p-2 rounded-full",
@@ -226,9 +291,9 @@ export function ContactDetailsPanel({ contact, isOpen, onClose }: ContactDetails
                                                         ? "text-gray-900 dark:text-white"
                                                         : "text-brand-green dark:text-brand-gold"
                                                 )}>
-                                                    {txn.senderWallet?.userId === userId ? '-' : '+'}${parseFloat(txn.amount).toFixed(2)}
+                                                    {txn.senderWallet?.userId === userId ? '-' : '+'}RWF {parseFloat(txn.amount).toLocaleString()}
                                                 </span>
-                                            </div>
+                                            </button>
                                         ))
                                     ) : (
                                         <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">

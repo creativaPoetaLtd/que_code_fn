@@ -3,7 +3,7 @@ import { Contact, useToggleContactFavoriteMutation } from "@/states/contactSlice
 import { UserAvatar } from "@/components/UserAvatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Star, MessageSquare, DollarSign } from "lucide-react";
+import { MoreHorizontal, Star } from "lucide-react";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -16,6 +16,7 @@ import { format } from "date-fns";
 import { useAuthToken } from "@/hooks/use-auth-token";
 import { useToast } from "@/hooks/use-toast";
 import { ManageTagsDialog } from "./ManageTagsDialog";
+import { useRouter } from "next/navigation";
 
 interface ContactsTableProps {
     contacts: Contact[];
@@ -24,6 +25,7 @@ interface ContactsTableProps {
 }
 
 export function ContactsTable({ contacts, isLoading, onSelect }: ContactsTableProps) {
+    const router = useRouter();
     const authHook = useAuthToken();
     const token = authHook.getToken();
     const { toast } = useToast();
@@ -31,6 +33,11 @@ export function ContactsTable({ contacts, isLoading, onSelect }: ContactsTablePr
     const [managingTagsContactId, setManagingTagsContactId] = useState<string | null>(null);
 
     const managingTagsContact = contacts.find(c => c.id === managingTagsContactId) || null;
+
+    const handleOpenProfile = (e: React.MouseEvent, userId: string) => {
+        e.stopPropagation();
+        router.push(`/profile/${userId}`);
+    };
 
     const handleToggleFavorite = async (contact: Contact, e: React.MouseEvent) => {
         e.stopPropagation();
@@ -74,8 +81,8 @@ export function ContactsTable({ contacts, isLoading, onSelect }: ContactsTablePr
 
     return (
         <>
-            <div className="w-full overflow-x-auto scrollbar-hide">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-darkBorder-light">
+            <div className="hidden md:block w-full overflow-x-hidden">
+                <table className="w-full divide-y divide-gray-200 dark:divide-darkBorder-light">
                     <thead className="bg-gray-50 dark:bg-darkBg-card border-b border-gray-200 dark:border-darkBorder-light">
                         <tr>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -86,9 +93,6 @@ export function ContactsTable({ contacts, isLoading, onSelect }: ContactsTablePr
                             </th>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                 Status
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                Joined
                             </th>
                             <th scope="col" className="relative px-6 py-3">
                                 <span className="sr-only">Actions</span>
@@ -105,18 +109,21 @@ export function ContactsTable({ contacts, isLoading, onSelect }: ContactsTablePr
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="flex items-center">
                                         <div className="flex-shrink-0 h-10 w-10">
-                                            <UserAvatar
-                                                profileImage={contact.otherUser.profile?.profileImage}
-                                                firstName={contact.otherUser.firstName}
-                                                lastName={contact.otherUser.lastName}
-                                            />
+                                                <UserAvatar
+                                                    profileImage={contact.otherUser.profile?.profileImage}
+                                                    firstName={contact.otherUser.firstName}
+                                                    lastName={contact.otherUser.lastName}
+                                                    userId={contact.otherUser.id}
+                                                />
                                         </div>
                                         <div className="ml-4">
                                             <div className="text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2">
                                                 {contact.otherUser.firstName} {contact.otherUser.lastName}
                                                 {contact.isFavorite && <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" />}
                                             </div>
-                                            <div className="text-sm text-gray-500 dark:text-gray-400">{contact.otherUser.email}</div>
+                                            <div className="text-sm text-gray-500 dark:text-gray-400">
+                                                Friends since {format(new Date(contact.createdAt), 'MMM d, yyyy')}
+                                            </div>
                                         </div>
                                     </div>
                                 </td>
@@ -139,17 +146,8 @@ export function ContactsTable({ contacts, isLoading, onSelect }: ContactsTablePr
                                         {contact.status}
                                     </span>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                    {format(new Date(contact.createdAt), 'MMM d, yyyy')}
-                                </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400">
-                                            <MessageSquare className="h-4 w-4" />
-                                        </Button>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-green-600 dark:hover:text-green-400">
-                                            <DollarSign className="h-4 w-4" />
-                                        </Button>
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
                                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
@@ -158,7 +156,11 @@ export function ContactsTable({ contacts, isLoading, onSelect }: ContactsTablePr
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
                                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                <DropdownMenuItem>View Profile</DropdownMenuItem>
+                                                <DropdownMenuItem onClick={(e) => handleOpenProfile(e, contact.otherUser.id)}>
+                                                    View Profile
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem>Send Message</DropdownMenuItem>
+                                                <DropdownMenuItem>Send Money</DropdownMenuItem>
                                                 <DropdownMenuItem onSelect={() => setManagingTagsContactId(contact.id)}>
                                                     Edit Tags
                                                 </DropdownMenuItem>
@@ -175,6 +177,79 @@ export function ContactsTable({ contacts, isLoading, onSelect }: ContactsTablePr
                         ))}
                     </tbody>
                 </table>
+            </div>
+
+            <div className="md:hidden space-y-3 p-3">
+                {contacts.map((contact) => (
+                    <div
+                        key={contact.id}
+                        onClick={() => onSelect(contact)}
+                        className="rounded-lg border border-gray-200 dark:border-darkBorder-light p-4 bg-white dark:bg-darkBg-card"
+                    >
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                                <UserAvatar
+                                    profileImage={contact.otherUser.profile?.profileImage}
+                                    firstName={contact.otherUser.firstName}
+                                    lastName={contact.otherUser.lastName}
+                                    userId={contact.otherUser.id}
+                                />
+                                <div className="min-w-0">
+                                    <div className="text-sm font-medium text-gray-900 dark:text-white truncate flex items-center gap-2">
+                                        {contact.otherUser.firstName} {contact.otherUser.lastName}
+                                        {contact.isFavorite && <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" />}
+                                    </div>
+                                    <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                        Friends since {format(new Date(contact.createdAt), 'MMM d, yyyy')}
+                                    </div>
+                                </div>
+                            </div>
+                            <div onClick={(e) => e.stopPropagation()}>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                                            <MoreHorizontal className="h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                        <DropdownMenuItem onClick={(e) => handleOpenProfile(e, contact.otherUser.id)}>
+                                            View Profile
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem>Send Message</DropdownMenuItem>
+                                        <DropdownMenuItem>Send Money</DropdownMenuItem>
+                                        <DropdownMenuItem onSelect={() => setManagingTagsContactId(contact.id)}>
+                                            Edit Tags
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onSelect={(e) => handleToggleFavorite(contact, e as any)}>
+                                            {contact.isFavorite ? "Remove from Favorites" : "Add to Favorites"}
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem className="text-red-600 dark:text-red-400">Block Contact</DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+                        </div>
+
+                        <div className="mt-3 flex items-center justify-between">
+                            <div className="flex flex-wrap gap-1">
+                                {contact.tags && contact.tags.length > 0 ? (
+                                    contact.tags.map(tag => (
+                                        <Badge key={tag} variant="secondary" className="text-xs bg-gray-100 dark:bg-darkBg-secondary text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-darkBg-hover">
+                                            {tag}
+                                        </Badge>
+                                    ))
+                                ) : (
+                                    <span className="text-xs text-gray-400 italic">No tags</span>
+                                )}
+                            </div>
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${contact.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                                }`}>
+                                {contact.status}
+                            </span>
+                        </div>
+                    </div>
+                ))}
             </div>
 
             {managingTagsContact && (

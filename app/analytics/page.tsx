@@ -11,6 +11,7 @@ import KeyInsights from '../../components/analytics/KeyInsights'
 import { DateRange } from '@/types/analytics.types'
 import { useSidebar } from '@/context/SidebarContext'
 import { cn } from '@/lib/utils'
+import { BackButton } from '@/components/shared/BackButton'
 
 type ViewType = 'daily' | 'weekly' | 'monthly' | 'yearly'
 
@@ -67,6 +68,7 @@ const AnalyticsPage = () => {
                     <div className="space-y-6">
                         {/* Page Title & Filters */}
                         <div className="mb-8">
+                            <BackButton className="mb-4" />
                             <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-1">Finances</h1>
                             <p className="text-gray-600 dark:text-gray-300 mb-6">Track your spending patterns and financial insights.</p>
                             <FiltersBar

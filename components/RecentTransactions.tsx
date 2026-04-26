@@ -5,7 +5,7 @@ import { Transaction } from '@/types/dashboard';
 import { useRouter } from 'next/navigation';
 import { useAuthToken } from '@/hooks/use-auth-token';
 import { getUserIdFromToken, isTokenExpired } from '@/utils/jwtUtils';
-import { CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { CheckCircle, Clock, AlertCircle, RefreshCcw } from 'lucide-react';
 import { UserAvatar } from '@/components/UserAvatar';
 import { TransactionDetailsModal } from '@/components/TransactionDetailsModal';
 
@@ -237,6 +237,7 @@ export const RecentTransactions: React.FC = () => {
             >
               <div className="flex items-center gap-3">
                 <UserAvatar
+                  userId={(isOutgoing ? transaction.receiverWallet?.userId : transaction.senderWallet?.userId) ?? undefined}
                   profileImage={counterpartyProfileImage}
                   firstName={counterpartyName.split(' ')[0]}
                   lastName={counterpartyName.split(' ')[1] || ''}
@@ -255,10 +256,29 @@ export const RecentTransactions: React.FC = () => {
                   </div>
 
                   {/* Second line: Amount */}
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-between gap-2">
                     <span className={`text-sm font-medium ${isOutgoing ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                       {isOutgoing ? '-' : '+'} RWF {isNaN(Math.abs(amount)) ? '0' : Math.abs(amount).toLocaleString()}
                     </span>
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            const recipientData = {
+                                id: isOutgoing ? transaction.receiverWallet?.userId : transaction.senderWallet?.userId,
+                                name: counterpartyName,
+                                phone: '',
+                                avatar: counterpartyProfileImage || '',
+                                type: isToOrganization ? 'organization' : 'user'
+                            };
+                            sessionStorage.setItem('selectedRecipient', JSON.stringify(recipientData));
+                            sessionStorage.setItem('initialAmount', transaction.amount.toString());
+                            router.push('/home/transfer/amount');
+                        }}
+                        title="Send again"
+                        className="p-1.5 rounded-full bg-gray-50 dark:bg-darkBg-interactive text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                        <RefreshCcw size={14} />
+                    </button>
                   </div>
                 </div>
               </div>

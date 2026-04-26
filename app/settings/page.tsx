@@ -12,6 +12,7 @@ import { PaymentTab } from "@/components/settings/PaymentTab"
 import { PrivacyTab } from "@/components/settings/PrivacyTab"
 import { useSidebar } from "@/context/SidebarContext"
 import { cn } from "@/lib/utils"
+import { BackButton } from "@/components/shared/BackButton"
 
 export default function SettingsPage() {
     const { isExpanded } = useSidebar();
@@ -24,6 +25,7 @@ export default function SettingsPage() {
                     isExpanded ? "lg:ml-64" : "lg:ml-20"
                 )}>
                     <div className="container max-w-6xl mx-auto py-4 sm:py-6 lg:py-10 px-3 sm:px-4 lg:px-6 mobile-bottom-padding">
+                        <BackButton className="mb-6" />
                         <div className="flex flex-col gap-1 sm:gap-2 mb-6 sm:mb-8">
                             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white">Settings</h1>
                             <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400">Manage your profile settings and preferences</p>

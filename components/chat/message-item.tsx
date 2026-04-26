@@ -61,12 +61,14 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
     let moneyTransferData = null;
     let isOldMoneyMessage = false;
 
-    // Parse money transfer data
+    // Parse money transfer/request data
     if (isMoneyMessage && messageContent) {
         try {
             const parsed = JSON.parse(messageContent);
-            // Verify it's the new format with required fields (money_transfer or group_donation)
-            if ((parsed.type === 'money_transfer' || parsed.type === 'group_donation') && parsed.transactionId && parsed.amount) {
+            const isTransferLike = (parsed.type === 'money_transfer' || parsed.type === 'group_donation') && parsed.transactionId && parsed.amount;
+            const isRequestLike = parsed.type === 'money_request' && parsed.requestId && parsed.amount;
+
+            if (isTransferLike || isRequestLike) {
                 moneyTransferData = parsed;
             } else {
                 // Old format - just has note text
@@ -173,7 +175,7 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
     if (isMoneyMessage && moneyTransferData) {
         return (
             <div className={cn("mb-4", isMe ? "ml-auto" : "mr-auto")}>
-                <MoneyMessageCard data={moneyTransferData} isMe={isMe} />
+                <MoneyMessageCard data={moneyTransferData} isMe={isMe} chatId={!isLegacy ? message.chatId : undefined} />
             </div>
         );
     }

@@ -24,6 +24,7 @@ import ContactRequestModal from '@/components/chat/contact-request';
 import AddMemberModal from '@/components/chat/add-member-modal';
 import GroupSettingsModal from '@/components/chat/group-settings-modal';
 import { Header } from '@/components/Header';
+import { BackButton } from '@/components/shared/BackButton';
 
 export default function ChatPageClean() {
   const router = useRouter();
@@ -238,6 +239,9 @@ export default function ChatPageClean() {
         {/* Fixed Header */}
         <div className='flex-shrink-0 z-20 bg-white dark:bg-darkBg-card border-b border-gray-100 dark:border-darkBorder-light'>
           <Header />
+          <div className="px-4 py-2 border-t border-gray-100 dark:border-darkBorder-light">
+            <BackButton />
+          </div>
         </div>
 
         {!isConnected && (

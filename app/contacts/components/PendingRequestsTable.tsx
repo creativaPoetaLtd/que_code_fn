@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { ContactInvitation, useRespondToInvitationEnhancedMutation } from "@/states/contactSlice";
 import { UserAvatar } from "@/components/UserAvatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "date-fns";
 import { useAuthToken } from "@/hooks/use-auth-token";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Check, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface PendingRequestsTableProps {
     requests: ContactInvitation[];
@@ -14,6 +14,7 @@ interface PendingRequestsTableProps {
 }
 
 export function PendingRequestsTable({ requests, isLoading }: PendingRequestsTableProps) {
+    const router = useRouter();
     const authHook = useAuthToken();
     const token = authHook.getToken();
     const { toast } = useToast();
@@ -47,7 +48,7 @@ export function PendingRequestsTable({ requests, isLoading }: PendingRequestsTab
     if (isLoading) {
         return (
             <div className="p-8 text-center text-gray-500">
-                Loading pending requests...
+                Loading sent requests...
             </div>
         );
     }
@@ -60,8 +61,8 @@ export function PendingRequestsTable({ requests, isLoading }: PendingRequestsTab
                         <span className="text-xl">Inbox</span>
                     </div>
                 </div>
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white">No pending requests</h3>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">You have no pending contact requests to respond to.</p>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">No sent requests</h3>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">No one has sent you a pending request yet.</p>
             </div>
         );
     }
@@ -91,11 +92,17 @@ export function PendingRequestsTable({ requests, isLoading }: PendingRequestsTab
                             <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="flex items-center">
                                     <div className="flex-shrink-0 h-10 w-10">
-                                        <UserAvatar
-                                            profileImage={request.inviter?.profile?.profileImage}
-                                            firstName={request.inviter?.firstName ?? ''}
-                                            lastName={request.inviter?.lastName ?? ''}
-                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => request.inviter?.id && router.push(`/welcome/${request.inviter.id}`)}
+                                            aria-label={`Open ${request.inviter?.firstName ?? 'user'} profile`}
+                                        >
+                                            <UserAvatar
+                                                profileImage={request.inviter?.profile?.profileImage}
+                                                firstName={request.inviter?.firstName ?? ''}
+                                                lastName={request.inviter?.lastName ?? ''}
+                                            />
+                                        </button>
                                     </div>
                                     <div className="ml-4">
                                         <div className="text-sm font-medium text-gray-900 dark:text-white">

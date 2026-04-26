@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Send } from "lucide-react"
+import { Send, HandCoins } from "lucide-react"
 import ChatHeader from "./chat-header"
 import MessageItem from "./message-item"
 import MessageInput from "./message-input"
@@ -120,6 +120,14 @@ export default function ChatArea({
                 >
                     <Send size={14} className="mr-1.5 hidden sm:inline" />
                     Send Money
+                </Button>
+                <Button
+                    onClick={onRequestMoney}
+                    variant="outline"
+                    className="text-xs sm:text-sm py-2 px-4 rounded-lg shadow-sm transition-all duration-200 flex-1 sm:flex-none"
+                >
+                    <HandCoins size={14} className="mr-1.5 hidden sm:inline" />
+                    Request Money
                 </Button>
             </div>
 

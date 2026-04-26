@@ -6,10 +6,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
-import { Bell, Users, UserPlus, Check, X, Clock, AlertCircle, Info, Loader2, MessageCircle, Image, Video, Music, File, DollarSign, UserMinus, UserCheck, UserX, ShieldCheck, ShieldAlert, Settings, Trash2 } from "lucide-react"
+import { Bell, Users, UserPlus, Check, X, Clock, AlertCircle, Info, Loader2, MessageCircle, Image, Video, Music, File, DollarSign, UserMinus, UserCheck, UserX, ShieldCheck, ShieldAlert, Settings, Trash2, HandCoins } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useNotifications } from "@/context/NotificationContext"
 import { useAuthToken } from "@/hooks/use-auth-token"
@@ -111,6 +110,9 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
             case 'GROUP_UPDATED':
             case 'group_updated':
                 return <Settings className="h-4 w-4 text-blue-500" />
+            case 'PAYMENT_REQUEST_RECEIVED':
+            case 'payment_request_received':
+                return <HandCoins className="h-4 w-4 text-green-500" />
                 
             // Contact notifications
             case 'CONTACT_REQUEST_RECEIVED':
@@ -181,6 +183,8 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
                 return 'destructive'
             case 'group_invitation':
             case 'group_join_request':
+            case 'payment_request_received':
+            case 'PAYMENT_REQUEST_RECEIVED':
                 return 'outline'
             default:
                 return 'secondary'
@@ -323,7 +327,12 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
             case 'invitations':
                 return notifications.filter(n => n.type === 'group_invitation' || n.type === 'GROUP_INVITATION')
             case 'requests':
-                return notifications.filter(n => n.type === 'group_join_request' || n.type === 'GROUP_JOIN_REQUEST')
+                return notifications.filter(n =>
+                    n.type === 'group_join_request' ||
+                    n.type === 'GROUP_JOIN_REQUEST' ||
+                    n.type === 'payment_request_received' ||
+                    n.type === 'PAYMENT_REQUEST_RECEIVED'
+                )
             case 'contacts':
                 return notifications.filter(n => 
                     n.type.toUpperCase().startsWith('CONTACT_') ||
@@ -391,7 +400,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
                         onClick={() => setSelectedTab('requests')}
                         className={`flex-shrink-0 min-w-[70px] sm:flex-1 text-xs sm:text-sm px-2 sm:px-4 h-9 sm:h-10 ${selectedTab !== 'requests' ? 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-darkBg-interactive' : ''}`}
                     >
-                        <span className="hidden sm:inline">Join Requests</span>
+                        <span className="hidden sm:inline">Requests</span>
                         <span className="sm:hidden">Requests</span>
                         {pendingRequestsList.length > 0 && (
                             <Badge variant="secondary" className="ml-1 text-xs px-1 py-0">
@@ -431,7 +440,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
                 </div>
 
                 {/* Content */}
-                <ScrollArea className="flex-1 max-h-[calc(85vh-180px)] sm:max-h-[400px]">
+                <div className="flex-1 overflow-y-auto max-h-[calc(85vh-180px)] sm:max-h-[400px] overscroll-contain">
                     <div className="space-y-3 sm:space-y-4 p-3 sm:p-4 md:p-6">
                         {/* Show pending contact requests in contacts tab */}
                         {selectedTab === 'contacts' && pendingContactRequestsList.length > 0 && (
@@ -664,18 +673,27 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
                                         </p>
 
                                         {/* Action buttons for actionable notifications */}
-                                        {notification.data?.actions && notification.data.actions.length > 0 &&
-                                            (notification.type === 'CONTACT_REQUEST_RECEIVED' || notification.type === 'contact_request') && (
+                                        {notification.data?.actions && notification.data.actions.length > 0 && (
+                                            (notification.type === 'CONTACT_REQUEST_RECEIVED' || notification.type === 'contact_request' || 
+                                             notification.type === 'PAYMENT_REQUEST_RECEIVED' || notification.type === 'payment_request_received') ? (
                                                 <div className="flex gap-1.5 sm:gap-2 mt-2">
                                                     {notification.data.actions.map((action: any, index: number) => (
                                                         <Button
                                                             key={index}
                                                             size="sm"
-                                                            variant={action.type === 'accept' ? 'default' : 'outline'}
-                                                            className={`h-7 sm:h-8 text-xs px-2 sm:px-3 ${action.type !== 'accept' ? 'dark:text-gray-300 dark:border-gray-600 dark:hover:bg-darkBg-card' : ''}`}
+                                                            variant={action.type === 'accept' || action.type === 'pay' ? 'default' : 'outline'}
+                                                            className={`h-7 sm:h-8 text-xs px-2 sm:px-3 ${
+                                                                (action.type !== 'accept' && action.type !== 'pay') 
+                                                                    ? 'dark:text-gray-300 dark:border-gray-600 dark:hover:bg-darkBg-card' 
+                                                                    : ''
+                                                            }`}
                                                             onClick={(e) => {
                                                                 e.stopPropagation()
-                                                                if (notification.data?.userId) {
+                                                                if (notification.type === 'PAYMENT_REQUEST_RECEIVED' || notification.type === 'payment_request_received') {
+                                                                    markAsRead(notification.id)
+                                                                    router.push(action.url)
+                                                                    onClose()
+                                                                } else if (notification.data?.userId) {
                                                                     // Extract token from URL if available
                                                                     const urlMatch = action.url.match(/invitation\/([^?]+)/)
                                                                     if (urlMatch) {
@@ -686,20 +704,21 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
                                                             }}
                                                             disabled={isRespondingToContact}
                                                         >
-                                                            {isRespondingToContact ? (
+                                                            {isRespondingToContact && (action.type === 'accept' || action.type === 'decline') ? (
                                                                 <Loader2 className="h-3 w-3 animate-spin mr-1" />
                                                             ) : null}
                                                             {action.label}
                                                         </Button>
                                                     ))}
                                                 </div>
-                                            )}
+                                            ) : null
+                                        )}
                                     </div>
                                 </div>
                             ))
                         )}
                     </div>
-                </ScrollArea>
+                </div>
             </DialogContent>
         </Dialog>
     )

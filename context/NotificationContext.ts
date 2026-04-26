@@ -7,6 +7,7 @@ import { useAuthToken } from "@/hooks/use-auth-token"
 import { getUserIdFromToken, isTokenExpired } from "@/utils/jwtUtils"
 import { toast } from "@/hooks/use-toast"
 import type { Notification, NotificationContextType } from "@/types/notification.types"
+import baseUrl from "@/helpers/baseUrl"
 import { notificationService } from "@/services/notificationService"
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined)
@@ -71,6 +72,42 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
             window.removeEventListener('authTokenChanged', handleAuthTokenChange as EventListener)
         }
     }, [getToken, currentUserId])
+
+    // Hydrate notifications from backend so bell/list persists across reloads
+    useEffect(() => {
+        const fetchNotifications = async () => {
+            if (!authToken || isTokenExpired(authToken)) return
+
+            try {
+                const res = await fetch(`${baseUrl}/notifications?page=1&limit=50`, {
+                    headers: {
+                        Authorization: `Bearer ${authToken}`,
+                    },
+                })
+
+                if (!res.ok) return
+
+                const payload = await res.json()
+                const incoming: Notification[] = (payload?.notifications || []).map((n: any) => ({
+                    id: n.id,
+                    type: n.type,
+                    title: n.title || n.data?.title || "Notification",
+                    message: n.message || n.data?.message || "",
+                    data: n.data,
+                    isRead: Boolean(n.isRead),
+                    createdAt: n.createdAt || new Date().toISOString(),
+                    updatedAt: n.updatedAt || n.createdAt || new Date().toISOString(),
+                }))
+
+                setNotifications(incoming)
+                setUnreadCount(Number(payload?.unreadCount || 0))
+            } catch (error) {
+                console.error("Failed to hydrate notifications:", error)
+            }
+        }
+
+        fetchNotifications()
+    }, [authToken])
 
     const addNotification = useCallback((notification: Notification) => {
         setNotifications((prev) => {
