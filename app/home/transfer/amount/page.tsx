@@ -25,6 +25,7 @@ import TransferSummaryCard from "@/components/transfer/TransferSummaryCard";
 import StepIndicator from "@/components/transfer/StepIndicator";
 import RequestLoadingSkeleton from "@/components/transfer/RequestLoadingSkeleton";
 import { PinSetupModal } from "@/components/PinSetupModal";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Loader2, AlertCircle, ScanLine } from "lucide-react";
 import { isTokenExpired, getUserIdFromToken } from "@/utils/jwtUtils";
 
@@ -90,7 +91,7 @@ const AmountPageInner = () => {
             if (token) {
                 try {
                     const response: any = await checkUserPinStatus();
-                    const pinStatus = response?.hasPinSet || false;
+                    const pinStatus = response?.data?.data?.hasPinSet || false;
                     setHasPinSet(pinStatus);
                     if (!pinStatus) setShowPinSetup(true);
                 } catch {
@@ -343,16 +344,36 @@ const AmountPageInner = () => {
                         {/* Step indicator */}
                         <StepIndicator currentStep={step} />
 
-                        {/* QR context banner (only for QR flow) */}
+                        {/* QR context: full banner for fixed amount, compact row for editable */}
                         {isQRFlow && step === 1 && (
-                            <RequestContextBanner
-                                requesterName={recipient.name}
-                                requesterAvatar={recipient.avatar}
-                                amount={requestMeta.amount}
-                                currency={requestMeta.currency}
-                                note={requestMeta.note}
-                                allowEditAmount={requestMeta.allowEditAmount}
-                            />
+                            requestMeta.allowEditAmount ? (
+                                <div className="flex items-center gap-3 mb-5 px-1">
+                                    <Avatar className="w-9 h-9 border-2 border-white dark:border-darkBg-card shadow-sm flex-shrink-0">
+                                        <AvatarImage src={recipient.avatar} alt={recipient.name} />
+                                        <AvatarFallback className="bg-brand-green dark:bg-brand-gold text-white dark:text-darkBg-main text-xs font-bold">
+                                            {recipient.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <div className="min-w-0">
+                                        <p className="text-sm text-gray-700 dark:text-gray-300">
+                                            <span className="font-semibold text-gray-900 dark:text-white">{recipient.name}</span>
+                                            {" "}is requesting payment
+                                        </p>
+                                        {requestMeta.note && (
+                                            <p className="text-xs text-gray-400 dark:text-gray-500 truncate italic">"{requestMeta.note}"</p>
+                                        )}
+                                    </div>
+                                </div>
+                            ) : (
+                                <RequestContextBanner
+                                    requesterName={recipient.name}
+                                    requesterAvatar={recipient.avatar}
+                                    amount={requestMeta.amount}
+                                    currency={requestMeta.currency}
+                                    note={requestMeta.note}
+                                    allowEditAmount={false}
+                                />
+                            )
                         )}
 
                         {/* Standard recipient header (non-QR flow, or step 2) */}
@@ -369,14 +390,29 @@ const AmountPageInner = () => {
 
                         {step === 1 ? (
                             <div className="animate-fadeIn">
-                                <AmountInput
-                                    amount={amount}
-                                    setAmount={setAmount}
-                                    balance={currentBalance}
-                                    readOnly={!allowEditAmount}
-                                />
+                                {/* Fixed-amount request: banner already shows the amount — just show balance */}
+                                {isQRFlow && !allowEditAmount ? (
+                                    <div className="bg-white dark:bg-darkBg-card rounded-2xl border border-gray-100 dark:border-darkBorder-light px-6 py-4 mb-6 flex items-center justify-between">
+                                        <span className="text-sm text-gray-500 dark:text-gray-400">Your balance</span>
+                                        <span className={cn(
+                                            "font-bold text-sm",
+                                            currentBalance !== null && parseFloat(amount) > currentBalance
+                                                ? "text-red-500 dark:text-red-400"
+                                                : "text-gray-900 dark:text-white"
+                                        )}>
+                                            {balanceLoading ? "—" : `RWF ${currentBalance?.toLocaleString() ?? "—"}`}
+                                        </span>
+                                    </div>
+                                ) : (
+                                    <AmountInput
+                                        amount={amount}
+                                        setAmount={setAmount}
+                                        balance={currentBalance}
+                                        readOnly={false}
+                                    />
+                                )}
 
-                                {/* Category selector — hidden for simple QR flows */}
+                                {/* Category selector — hidden for request flows */}
                                 {!isQRFlow && (
                                     <CategorySelector
                                         categories={categories}
@@ -405,10 +441,10 @@ const AmountPageInner = () => {
 
                                 {isQRFlow && (
                                     <button
-                                        onClick={() => router.push("/home/scan")}
+                                        onClick={() => router.push("/home/requests")}
                                         className="w-full mt-3 text-sm font-medium text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors text-center"
                                     >
-                                        Cancel — go back to scanner
+                                        Cancel
                                     </button>
                                 )}
                             </div>
