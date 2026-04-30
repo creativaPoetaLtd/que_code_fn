@@ -533,6 +533,35 @@ class SocketService {
         }
     }
 
+    // Reaction methods
+    addReaction(chatId: string, messageId: string, emoji: string) {
+        if (this.socket) {
+            this.socket.emit("add_reaction", { chatId, messageId, emoji })
+        }
+    }
+
+    removeReaction(chatId: string, messageId: string) {
+        if (this.socket) {
+            this.socket.emit("remove_reaction", { chatId, messageId })
+        }
+    }
+
+    onReactionUpdated(callback: (data: { chatId: string; messageId: string; reactions: Array<{ userId: string; emoji: string }> }) => void) {
+        if (this.socket) {
+            this.socket.on("reaction_updated", callback)
+        }
+    }
+
+    offReactionUpdated(callback?: (data: any) => void) {
+        if (this.socket) {
+            if (callback) {
+                this.socket.off("reaction_updated", callback)
+            } else {
+                this.socket.off("reaction_updated")
+            }
+        }
+    }
+
     // Listen for group donation events
     onGroupDonation(callback: (data: any) => void) {
         if (this.socket) {
