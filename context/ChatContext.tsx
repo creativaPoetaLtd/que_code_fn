@@ -11,7 +11,8 @@ import {
     TypingUser,
     OnlineUser,
     ChatParticipantStatus,
-    Participant
+    Participant,
+    ReactionRow,
 } from "@/types/chat.types";
 import { toast } from "@/hooks/use-toast";
 import { notificationService } from "@/services/notificationService";
@@ -47,6 +48,8 @@ interface ChatContextType {
     refreshConversations: () => void;
     refreshMessages: (chatId: string) => void;
     clearChatState: () => void;
+    addReaction: (chatId: string, messageId: string, emoji: string) => void;
+    removeReaction: (chatId: string, messageId: string) => void;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -432,6 +435,21 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
             });
         };
 
+        const handleReactionUpdated = (data: {
+            chatId: string;
+            messageId: string;
+            reactions: ReactionRow[];
+        }) => {
+            setMessages((prev: Record<string, Message[]>) => ({
+                ...prev,
+                [data.chatId]: (prev[data.chatId] || []).map((msg: Message) =>
+                    msg.id === data.messageId
+                        ? { ...msg, reactions: data.reactions }
+                        : msg
+                ),
+            }));
+        };
+
         socketService.onNewMessage(handleNewMessage);
         socketService.onMessageDelivered(handleMessageDelivered);
         socketService.onMessagesRead(handleMessagesRead);
@@ -447,6 +465,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         socketService.onError(handleError);
         socketService.onMoneyReceived(handleMoneyReceived);
         socketService.onPaymentRequestUpdated(handlePaymentRequestUpdated);
+        socketService.onReactionUpdated(handleReactionUpdated);
 
         return () => {
             socketService.offNewMessage(handleNewMessage);
@@ -463,6 +482,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
             socketService.offError(handleError);
             socketService.offMoneyReceived(handleMoneyReceived);
             socketService.offPaymentRequestUpdated(handlePaymentRequestUpdated);
+            socketService.offReactionUpdated(handleReactionUpdated);
         };
     }, [isConnected, activeChat, userId, refetchMessages, sortConversations]);
 
@@ -540,6 +560,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
                 messageType,
                 replyToMessageId: replyToMessageId || null,
                 replyTo: replyTo || null,
+                reactions: [],
                 status: 'sent',
                 createdAt: new Date().toISOString(),
                 sender: {
@@ -655,6 +676,18 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         }));
     }, []);
 
+    const addReaction = useCallback((chatId: string, messageId: string, emoji: string) => {
+        if (isConnected) {
+            socketService.addReaction(chatId, messageId, emoji);
+        }
+    }, [isConnected]);
+
+    const removeReaction = useCallback((chatId: string, messageId: string) => {
+        if (isConnected) {
+            socketService.removeReaction(chatId, messageId);
+        }
+    }, [isConnected]);
+
     const clearChatState = useCallback(() => {
         // Disconnect socket properly
         socketService.disconnect();
@@ -694,7 +727,9 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         markMessageRead,
         addMessage,
         updateMessageReadStatus,
-        clearChatState
+        clearChatState,
+        addReaction,
+        removeReaction,
     };
 
     return (
