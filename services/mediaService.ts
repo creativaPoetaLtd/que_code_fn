@@ -104,8 +104,46 @@ export const uploadMediaMessage = async (
 };
 
 /**
- * Validate file before upload
+ * Upload media file to support chat
  */
+export const uploadSupportMediaMessage = async (
+  chatId: string,
+  file: File,
+  caption?: string,
+  onProgress?: (progress: MediaUploadProgress) => void
+): Promise<MediaUploadResult> => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (caption) {
+      formData.append('caption', caption);
+    }
+
+    const response = await apiClient.post(`/support/chat/${chatId}/media`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      onUploadProgress: (progressEvent) => {
+        if (onProgress && progressEvent.total) {
+          const percentage = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          onProgress({
+            loaded: progressEvent.loaded,
+            total: progressEvent.total,
+            percentage,
+          });
+        }
+      },
+    });
+
+    return response.data;
+  } catch (error: any) {
+    console.error('Error uploading support media:', error);
+    return {
+      success: false,
+      message: error.response?.data?.message || 'Failed to upload media',
+    };
+  }
+};
 export const validateMediaFile = (file: File): { valid: boolean; error?: string } => {
   // File size limits (in bytes)
   const MAX_SIZES = {
