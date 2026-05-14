@@ -26,6 +26,7 @@ import {
   MapPin,
   Image as ImageIcon,
   MessageSquare,
+  Pencil,
 } from 'lucide-react';
 import axios from 'axios';
 import baseUrl from '@/helpers/baseUrl';
@@ -45,6 +46,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { ProfileTab } from '@/components/settings/ProfileTab';
+import { ActionModal } from '@/components/action-modals/ActionModal';
 
 interface UserData {
   name?: string;
@@ -155,6 +158,7 @@ interface Action {
     onScanValid: string | null;
   };
   customFields: Record<string, any>;
+  metadata?: Record<string, any>;
   status: string;
   dedicatedQrCode: string | null;
   createdAt: string;
@@ -201,9 +205,12 @@ const WelcomeProfilePage: React.FC = () => {
   const { getToken } = useAuthToken();
   const isLoggedIn = isAuthenticated;
   const isLoggedInAsOrganization = accountType === 'organization';
+  const isOwner = isLoggedIn && currentUserId === userId;
 
   // Add a state to track if hydration is complete
   const [isHydrated, setIsHydrated] = useState(false);
+  const [isEditPanelOpen, setIsEditPanelOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Friendship / contact status
   type RelationshipStatus = 'none' | 'active' | 'blocked' | 'pending_invitation';
@@ -505,7 +512,7 @@ const WelcomeProfilePage: React.FC = () => {
     };
 
     fetchUser();
-  }, [userId, getToken]);
+  }, [userId, getToken, refreshKey]);
 
   // Fetch gallery (users and organizations)
   useEffect(() => {
@@ -834,6 +841,73 @@ const WelcomeProfilePage: React.FC = () => {
     }
   };
 
+  // Direct purchase: bypasses purchaseData state, used by vote/booking modals
+  const handleDirectPurchase = async (
+    subAction: SubAction,
+    data: { quantity: number; buyerData: Record<string, string>; customAmount?: number }
+  ) => {
+    if (!selectedAction) return;
+
+    try {
+      setPurchasing(prev => ({ ...prev, [subAction.id]: true }));
+      setPurchaseError(prev => ({ ...prev, [subAction.id]: '' }));
+
+      const token = getToken();
+      if (!token) {
+        setPurchaseError(prev => ({ ...prev, [subAction.id]: 'Please login to continue' }));
+        setPurchasing(prev => ({ ...prev, [subAction.id]: false }));
+        return;
+      }
+
+      if (!currentUserId) {
+        setPurchaseError(prev => ({ ...prev, [subAction.id]: 'User ID not found. Please login again.' }));
+        setPurchasing(prev => ({ ...prev, [subAction.id]: false }));
+        return;
+      }
+
+      const purchaseUrl = `${baseUrl}/actions/${selectedAction.id}/purchase`;
+      const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+      const requestBody: any = {
+        subActionId: subAction.id,
+        quantity: data.quantity,
+        buyerId: currentUserId,
+        buyerData: data.buyerData,
+      };
+
+      if (selectedAction?.pricing?.mode === 'pay_what_you_want') {
+        requestBody.amount = data.customAmount || 0;
+      }
+
+      const response = await axios.post(purchaseUrl, requestBody, { headers });
+
+      if (response.data) {
+        const resultData = response.data?.data;
+        setPurchaseError(prev => { const n = { ...prev }; delete n[subAction.id]; return n; });
+
+        if (resultData?.transaction) {
+          setPurchaseResult({
+            referenceId: resultData.transaction.referenceId || '',
+            description: resultData.transaction.description || '',
+            buyerBalanceAfter: resultData.wallets?.buyer?.balanceAfter ?? 0,
+            buyerCurrency: resultData.wallets?.buyer?.currency || 'RWF',
+            qrCodeData: resultData.qrObject?.qrCodeData,
+          });
+          setIsPurchaseSuccessOpen(true);
+        } else {
+          toast({ title: 'Success!', description: `Operation completed for ${subAction.name}.` });
+        }
+
+        if (selectedAction) await fetchSubActions(selectedAction.id);
+      }
+    } catch (error: any) {
+      const errorMessage =
+        error.response?.data?.message || error.message || 'Operation failed. Please try again.';
+      setPurchaseError(prev => ({ ...prev, [subAction.id]: errorMessage }));
+    } finally {
+      setPurchasing(prev => ({ ...prev, [subAction.id]: false }));
+    }
+  };
+
   const updatePurchaseQuantity = (subActionId: string, quantity: number) => {
     const numQuantity = parseInt(quantity.toString());
     if (isNaN(numQuantity) || numQuantity < 0) {
@@ -888,16 +962,16 @@ const WelcomeProfilePage: React.FC = () => {
     const config = fieldConfig[field] || { label: field, type: 'text', placeholder: `Enter ${field}` };
 
     return (
-      <div key={field} className="space-y-2">
-        <label className="text-xs font-semibold text-[#00313A] mb-1 flex items-center gap-1">
+      <div key={field} className="space-y-1.5">
+        <label className="text-xs font-semibold text-[#4a6278] flex items-center gap-1">
           {config.label}
-          {isRequired && <span className="text-red-500">*</span>}
+          {isRequired && <span className="text-red-400">*</span>}
         </label>
         {field === 'notes' ? (
           <textarea
             value={value || ''}
             onChange={(e) => updateBuyerData(subActionId, field, e.target.value)}
-            className="w-full h-20 rounded-lg border-2 border-[#00313A]/10 focus:border-[#D4AF37] text-sm p-2 focus:outline-none text-black"
+            className="w-full h-20 rounded-lg bg-[#0d1525] border border-[#1e2d40] focus:border-[#3b82f6] text-sm p-3 outline-none text-[#f0f4f8] placeholder:text-[#4a6278] resize-none transition-colors"
             placeholder={config.placeholder}
           />
         ) : (
@@ -905,7 +979,7 @@ const WelcomeProfilePage: React.FC = () => {
             type={config.type}
             value={value || ''}
             onChange={(e) => updateBuyerData(subActionId, field, e.target.value)}
-            className="h-9 rounded-lg border-2 border-[#00313A]/10 focus:border-[#D4AF37] text-sm text-black"
+            className="h-9 rounded-lg bg-[#0d1525] border-[#1e2d40] focus:border-[#3b82f6] text-sm text-[#f0f4f8] placeholder:text-[#4a6278]"
             placeholder={config.placeholder}
           />
         )}
@@ -914,7 +988,7 @@ const WelcomeProfilePage: React.FC = () => {
   };
 
   const renderActionCard = (action: Action) => {
-    const baseButtonClass = "bg-white/80 hover:bg-white rounded-xl border-2 border-[#D4AF37]/10 hover:border-[#D4AF37]/30 shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-[1.02] text-left group cursor-pointer";
+    const baseButtonClass = "bg-white/5 hover:bg-white/10 rounded-xl border border-white/5 hover:border-blue-500/30 transition-all duration-200 text-left group cursor-pointer";
 
     // List Layout (Default)
     if (action.displayLayout === 'list' || !action.displayLayout) {
@@ -927,37 +1001,37 @@ const WelcomeProfilePage: React.FC = () => {
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 bg-gradient-to-br from-[#D4AF37] to-[#E5C158] rounded-lg flex items-center justify-center shadow-sm">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-400 rounded-lg flex items-center justify-center shadow-sm">
                   <Ticket className="w-5 h-5 text-white" />
                 </div>
-                <h4 className="text-base font-bold text-[#00313A] group-hover:text-[#D4AF37] transition-colors">
+                <h4 className="text-base font-bold text-white group-hover:text-blue-400 transition-colors">
                   {action.name}
                 </h4>
               </div>
               
               {action.shortDescription && (
-                <p className="text-sm text-[#00313A]/70 mb-3 line-clamp-2">
+                <p className="text-sm text-white/60 mb-3 line-clamp-2">
                   {action.shortDescription}
                 </p>
               )}
 
-              <div className="flex flex-wrap items-center gap-4 text-xs text-[#00313A]/60">
+              <div className="flex flex-wrap items-center gap-4 text-xs text-white/50">
                 {action.availability.startsAt && (
                   <div className="flex items-center gap-1">
-                    <Calendar className="w-3 h-3 text-[#D4AF37]" />
+                    <Calendar className="w-3 h-3 text-blue-400" />
                     <span>{formatDate(action.availability.startsAt)}</span>
                   </div>
                 )}
                 {action.pricing.mode && (
                   <div className="flex items-center gap-1">
-                    <DollarSign className="w-3 h-3 text-[#D4AF37]" />
+                    <DollarSign className="w-3 h-3 text-blue-400" />
                     <span className="capitalize">{action.pricing.mode} Pricing</span>
                   </div>
                 )}
                 {action.status && (
                   <div className={`px-2 py-1 rounded-full text-xs font-semibold ${
                     action.status === 'published' 
-                      ? 'bg-[#D4AF37]/10 text-[#D4AF37]' 
+                      ? 'bg-blue-500/10 text-blue-400' 
                       : 'bg-gray-100 text-gray-600'
                   }`}>
                     {action.status}
@@ -965,7 +1039,7 @@ const WelcomeProfilePage: React.FC = () => {
                 )}
               </div>
             </div>
-            <ChevronRight className="w-5 h-5 text-[#D4AF37] opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+            <ChevronRight className="w-5 h-5 text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
           </div>
         </button>
       );
@@ -1001,7 +1075,7 @@ const WelcomeProfilePage: React.FC = () => {
 
             <div className="flex flex-wrap items-center gap-2 text-xs">
               {action.pricing.mode && (
-                <div className="flex items-center gap-1 bg-[#D4AF37]/80 backdrop-blur-sm px-3 py-1 rounded-full text-white font-semibold">
+                <div className="flex items-center gap-1 bg-blue-500/80 backdrop-blur-sm px-3 py-1 rounded-full text-white font-semibold">
                   <DollarSign className="w-3 h-3" />
                   <span className="capitalize">{action.pricing.mode}</span>
                 </div>
@@ -1009,8 +1083,8 @@ const WelcomeProfilePage: React.FC = () => {
               {action.status && (
                 <div className={`px-3 py-1 rounded-full text-xs font-semibold backdrop-blur-sm ${
                   action.status === 'published' 
-                    ? 'bg-[#D4AF37]/80 text-white' 
-                    : 'bg-gray-400/80 text-white'
+                    ? 'bg-blue-500/80 text-white'
+                    : 'bg-gray-500/80 text-white'
                 }`}>
                   {action.status}
                 </div>
@@ -1040,7 +1114,7 @@ const WelcomeProfilePage: React.FC = () => {
           {/* Content */}
           <div className="relative flex-1 flex flex-col justify-end p-6 z-10">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-[#D4AF37] to-[#E5C158] rounded-lg flex items-center justify-center shadow-lg backdrop-blur-sm">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-400 rounded-lg flex items-center justify-center shadow-lg backdrop-blur-sm">
                 <Ticket className="w-6 h-6 text-white" />
               </div>
               <h4 className="text-2xl font-bold text-white group-hover:text-[#E5C158] transition-colors">
@@ -1056,7 +1130,7 @@ const WelcomeProfilePage: React.FC = () => {
 
             <div className="flex flex-wrap items-center gap-3">
               {action.pricing.mode && (
-                <div className="flex items-center gap-2 bg-[#D4AF37]/90 backdrop-blur-sm px-4 py-2 rounded-full text-white font-bold shadow-lg">
+                <div className="flex items-center gap-2 bg-blue-500 backdrop-blur-sm px-4 py-2 rounded-full text-white font-bold shadow-lg">
                   <DollarSign className="w-4 h-4" />
                   <span className="capitalize">{action.pricing.mode} Pricing</span>
                 </div>
@@ -1070,7 +1144,7 @@ const WelcomeProfilePage: React.FC = () => {
               {action.status && (
                 <div className={`px-4 py-2 rounded-full text-sm font-bold backdrop-blur-sm shadow-lg ${
                   action.status === 'published' 
-                    ? 'bg-[#D4AF37]/90 text-white' 
+                    ? 'bg-blue-500 text-white' 
                     : 'bg-gray-500/80 text-white'
                 }`}>
                   {action.status}
@@ -1092,21 +1166,21 @@ const WelcomeProfilePage: React.FC = () => {
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 flex-1 min-w-0">
-              <div className="w-8 h-8 bg-gradient-to-br from-[#D4AF37] to-[#E5C158] rounded-lg flex items-center justify-center shadow-sm flex-shrink-0">
+              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-400 rounded-lg flex items-center justify-center shadow-sm flex-shrink-0">
                 <Ticket className="w-4 h-4 text-white" />
               </div>
               <div className="min-w-0">
-                <h4 className="text-sm font-bold text-[#00313A] group-hover:text-[#D4AF37] transition-colors truncate">
+                <h4 className="text-sm font-bold text-white group-hover:text-blue-400 transition-colors truncate">
                   {action.name}
                 </h4>
                 {action.pricing.mode && (
-                  <p className="text-xs text-[#00313A]/60 capitalize">
+                  <p className="text-xs text-white/50 capitalize">
                     {action.pricing.mode} • {action.status || 'active'}
                   </p>
                 )}
               </div>
             </div>
-            <ChevronRight className="w-4 h-4 text-[#D4AF37] flex-shrink-0" />
+            <ChevronRight className="w-4 h-4 text-blue-400 flex-shrink-0" />
           </div>
         </button>
       );
@@ -1136,25 +1210,25 @@ const WelcomeProfilePage: React.FC = () => {
           )}
           
           <div className="flex-1 flex flex-col">
-            <h4 className="text-sm font-bold text-[#00313A] group-hover:text-[#D4AF37] transition-colors mb-2 line-clamp-2">
+            <h4 className="text-sm font-bold text-white group-hover:text-blue-400 transition-colors mb-2 line-clamp-2">
               {action.name}
             </h4>
             
             {action.shortDescription && (
-              <p className="text-xs text-[#00313A]/70 mb-3 line-clamp-2 flex-1">
+              <p className="text-xs text-white/60 mb-3 line-clamp-2 flex-1">
                 {action.shortDescription}
               </p>
             )}
 
             <div className="flex items-center justify-between mt-auto">
-              <div className="text-xs text-[#00313A]/60 flex items-center gap-1">
+              <div className="text-xs text-white/50 flex items-center gap-1">
                 {action.pricing.mode && (
                   <span className="capitalize">{action.pricing.mode}</span>
                 )}
               </div>
               <div className={`px-2 py-1 rounded-full text-xs font-semibold ${
                 action.status === 'published' 
-                  ? 'bg-[#D4AF37]/10 text-[#D4AF37]' 
+                  ? 'bg-blue-500/10 text-blue-400' 
                   : 'bg-gray-100 text-gray-600'
               }`}>
                 {action.status}
@@ -1398,7 +1472,7 @@ const WelcomeProfilePage: React.FC = () => {
     return (
       <>
         {isHydrated && isLoggedIn && <Header />}
-        <div className="min-h-screen bg-[#0d1a0d] flex items-center justify-center">
+        <div className="min-h-screen bg-[#080d1a] flex items-center justify-center">
           <Loader2 className="w-10 h-10 text-white/30 animate-spin" />
         </div>
       </>
@@ -1408,21 +1482,30 @@ const WelcomeProfilePage: React.FC = () => {
   return (
     <>
       {isHydrated && isLoggedIn && <Header />}
-      <div className={`min-h-screen ${isOrg ? 'bg-[#0a0f1e]' : 'bg-[#0d1a0d]'}`}>
+      <div className="min-h-screen bg-[#080d1a]">
         <div className="max-w-5xl mx-auto px-4 py-8 space-y-5">
 
           {/* Profile header card */}
-          <div className={`rounded-2xl p-6 md:p-8 ${isOrg ? 'bg-[#0f172a]' : 'bg-[#132213]'}`}>
+          <div className="rounded-2xl p-6 md:p-8 bg-[#0d1527]">
 
             {/* Top bar */}
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-2 border border-white/20 rounded-full px-4 py-2">
-                <div className={`w-2 h-2 rounded-full ${isOrg ? 'bg-blue-400' : 'bg-[#4ade80]'}`} />
+                <div className="w-2 h-2 rounded-full bg-blue-400" />
                 <span className="text-xs font-bold text-white tracking-widest uppercase">
                   {isOrg ? 'QC PRO PROFILE' : 'QC PROFILE'}
                 </span>
               </div>
               <div className="flex gap-2">
+                {isOwner && (
+                  <button
+                    onClick={() => setIsEditPanelOpen(true)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/40 text-blue-400 text-xs font-semibold transition-colors"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    Edit Profile
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     const url = `${window.location.origin}/welcome/${userId}`;
@@ -1447,7 +1530,7 @@ const WelcomeProfilePage: React.FC = () => {
             <div className="flex flex-col sm:flex-row gap-7 items-start">
               {shouldShowProfileMedia && (
                 <div className="relative flex-shrink-0">
-                  <div className={`w-36 h-36 rounded-full overflow-hidden border-4 bg-white/10 ${isOrg ? 'border-blue-500/40' : 'border-[#4ade80]/40'}`}>
+                  <div className="w-36 h-36 rounded-full overflow-hidden border-4 bg-white/10 border-blue-500/40">
                     {getDisplayImage() ? (
                       <img src={getDisplayImage()} alt={user.name} className="w-full h-full object-cover" />
                     ) : (
@@ -1508,7 +1591,7 @@ const WelcomeProfilePage: React.FC = () => {
                         <form className="space-y-4" onSubmit={e => { e.preventDefault(); handleSubmit(); }}>
                           <CustomInput type="number" placeholder="Enter amount" value={amount} onChange={e => setAmount(e.target.value)} className="h-12 rounded-xl" />
                           <DialogFooter>
-                            <CustomButton type="submit" disabled={!amount} className={`w-full h-12 rounded-xl font-bold border-none ${isOrg ? 'bg-blue-500 text-white' : 'bg-[#4ade80] text-black'}`}>Next</CustomButton>
+                            <CustomButton type="submit" disabled={!amount} className="w-full h-12 rounded-xl font-bold border-none bg-blue-500 text-white">Next</CustomButton>
                           </DialogFooter>
                         </form>
                       </DialogContent>
@@ -1633,11 +1716,11 @@ const WelcomeProfilePage: React.FC = () => {
               </div>
 
               {actionsLoading ? (
-                <div className="rounded-2xl bg-[#0f172a] flex items-center justify-center py-20 border border-white/5">
+                <div className="rounded-2xl bg-[#0d1527] flex items-center justify-center py-20 border border-white/5">
                   <Loader2 className="w-8 h-8 text-white/30 animate-spin" />
                 </div>
               ) : actions.length === 0 ? (
-                <div className="rounded-2xl bg-[#0f172a] py-16 text-center border border-white/5">
+                <div className="rounded-2xl bg-[#0d1527] py-16 text-center border border-white/5">
                   <Ticket className="w-10 h-10 text-white/20 mx-auto mb-3" />
                   <p className="text-white/30 font-medium">No actions available at the moment</p>
                 </div>
@@ -1649,16 +1732,16 @@ const WelcomeProfilePage: React.FC = () => {
                     style={{ minHeight: 340 }}
                     onClick={() => handleActionClick(actions[0])}
                   >
-                    <div className="md:w-1/2 relative bg-[#0f172a] min-h-48">
+                    <div className="md:w-1/2 relative bg-[#0d1527] min-h-48">
                       {actions[0].coverImage ? (
                         <img src={actions[0].coverImage} alt={actions[0].name} className="absolute inset-0 w-full h-full object-cover" />
                       ) : (
-                        <div className="absolute inset-0 bg-gradient-to-br from-blue-950 to-[#0a0f1e] flex items-center justify-center">
+                        <div className="absolute inset-0 bg-gradient-to-br from-blue-950 to-[#080d1a] flex items-center justify-center">
                           <Ticket className="w-16 h-16 text-blue-800" />
                         </div>
                       )}
                     </div>
-                    <div className="md:w-1/2 bg-[#0f172a] p-7 flex flex-col justify-center">
+                    <div className="md:w-1/2 bg-[#0d1527] p-7 flex flex-col justify-center">
                       <div className="flex flex-wrap gap-2 mb-4">
                         <span className="border border-white/20 rounded-full px-3 py-1 text-xs text-white/70">Featured action</span>
                         {actions[0].status === 'published' && (
@@ -1711,7 +1794,7 @@ const WelcomeProfilePage: React.FC = () => {
                           {action.coverImage ? (
                             <img src={action.coverImage} alt={action.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                           ) : (
-                            <div className="absolute inset-0 bg-gradient-to-br from-[#1e2a3a] to-[#0f172a]" />
+                            <div className="absolute inset-0 bg-gradient-to-br from-[#131e35] to-[#0d1527]" />
                           )}
                           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                           <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
@@ -1755,7 +1838,7 @@ const WelcomeProfilePage: React.FC = () => {
 
               {/* Send me */}
               {shouldShowSendMoney && (
-              <div className={`rounded-2xl p-6 border border-white/5 ${isOrg ? 'bg-[#0f172a]' : 'bg-[#132213]'}`}>
+              <div className="rounded-2xl p-6 border border-white/5 bg-[#0d1527]">
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <h3 className="text-white font-bold text-xl">Send me</h3>
@@ -1769,14 +1852,14 @@ const WelcomeProfilePage: React.FC = () => {
                 {isLoggedIn ? (
                   <button
                     onClick={handleSendMoney}
-                    className={`w-full py-4 rounded-2xl font-bold text-sm transition-colors ${isOrg ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-[#4ade80] hover:bg-[#22c55e] text-black'}`}
+                    className="w-full py-4 rounded-2xl font-bold text-sm transition-colors bg-blue-500 hover:bg-blue-600 text-white"
                   >
                     Send me
                   </button>
                 ) : (
                   <Dialog>
                     <DialogTrigger asChild>
-                      <button className={`w-full py-4 rounded-2xl font-bold text-sm transition-colors ${isOrg ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-[#4ade80] hover:bg-[#22c55e] text-black'}`}>
+                      <button className="w-full py-4 rounded-2xl font-bold text-sm transition-colors bg-blue-500 hover:bg-blue-600 text-white">
                         Send me
                       </button>
                     </DialogTrigger>
@@ -1785,7 +1868,7 @@ const WelcomeProfilePage: React.FC = () => {
                       <form className="space-y-4" onSubmit={e => { e.preventDefault(); handleSubmit(); }}>
                         <CustomInput type="number" placeholder="Enter amount" value={amount} onChange={e => setAmount(e.target.value)} className="h-12 rounded-xl" />
                         <DialogFooter>
-                          <CustomButton type="submit" disabled={!amount} className={`w-full h-12 rounded-xl font-bold border-none ${isOrg ? 'bg-blue-500 text-white' : 'bg-[#4ade80] text-black'}`}>Next</CustomButton>
+                          <CustomButton type="submit" disabled={!amount} className="w-full h-12 rounded-xl font-bold border-none bg-blue-500 text-white">Next</CustomButton>
                         </DialogFooter>
                       </form>
                     </DialogContent>
@@ -1796,7 +1879,7 @@ const WelcomeProfilePage: React.FC = () => {
 
               {/* Private contact form */}
               {shouldShowOutsideContactForm && (
-              <div className={`rounded-2xl p-6 border border-white/5 ${isOrg ? 'bg-[#0f172a]' : 'bg-[#132213]'}`}>
+              <div className="rounded-2xl p-6 border border-white/5 bg-[#0d1527]">
                 <h3 className="text-white font-bold text-xl mb-1">Private contact form</h3>
                 <p className="text-white/40 text-sm mb-6">
                   {isOrg
@@ -1836,7 +1919,7 @@ const WelcomeProfilePage: React.FC = () => {
                     <button
                       onClick={handleContactSubmit}
                       disabled={!contactForm.name || !contactForm.email || !contactForm.message || contactSubmitting}
-                      className={`px-8 py-3 rounded-2xl font-bold text-sm disabled:opacity-40 transition-colors ${isOrg ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-[#4ade80] hover:bg-[#22c55e] text-black'}`}
+                      className={`px-8 py-3 rounded-2xl font-bold text-sm disabled:opacity-40 transition-colors bg-blue-500 hover:bg-blue-600 text-white`}
                     >
                       {contactSubmitting ? 'Sending...' : 'Send message'}
                     </button>
@@ -1846,7 +1929,7 @@ const WelcomeProfilePage: React.FC = () => {
               )}
 
               {shouldShowFriendMessageButton && (
-                <div className={`rounded-2xl p-6 border border-white/5 ${isOrg ? 'bg-[#0f172a]' : 'bg-[#132213]'}`}>
+                <div className="rounded-2xl p-6 border border-white/5 bg-[#0d1527]">
                   <h3 className="text-white font-bold text-xl mb-1">Direct messages</h3>
                   <p className="text-white/40 text-sm mb-6">
                     You are friends. Continue this conversation in your messages tab.
@@ -1854,7 +1937,7 @@ const WelcomeProfilePage: React.FC = () => {
                   <button
                     onClick={handleSendMessageToFriend}
                     disabled={friendMessageLoading}
-                    className={`w-full py-4 rounded-2xl font-bold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isOrg ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-[#4ade80] hover:bg-[#22c55e] text-black'}`}
+                    className={`w-full py-4 rounded-2xl font-bold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-blue-500 hover:bg-blue-600 text-white`}
                   >
                     {friendMessageLoading ? 'Opening chat...' : 'Send message'}
                   </button>
@@ -1867,7 +1950,7 @@ const WelcomeProfilePage: React.FC = () => {
 
               {/* Other infos */}
               {shouldShowOtherInfo && (
-              <div className={`rounded-2xl p-6 border border-white/5 ${isOrg ? 'bg-[#0f172a]' : 'bg-[#132213]'}`}>
+              <div className="rounded-2xl p-6 border border-white/5 bg-[#0d1527]">
                 <h3 className="text-white font-bold text-xl mb-1">Other infos</h3>
                 <p className="text-white/40 text-sm mb-5">
                   {isOrg ? 'Public details and social links for this professional account.' : 'More ways to stay connected.'}
@@ -1924,12 +2007,12 @@ const WelcomeProfilePage: React.FC = () => {
 
               {/* Friendship request — only when not already friends */}
               {shouldShowFriendshipRequest && (
-                <div className="rounded-2xl p-6 border border-white/5 bg-[#132213]">
+                <div className="rounded-2xl p-6 border border-white/5 bg-[#0d1527]">
                   <h3 className="text-white font-bold text-xl mb-3">Friendship request</h3>
                   <div className="mb-3">
                     <div className="inline-flex items-center gap-2 border border-white/20 rounded-full px-3 py-1.5">
                       <div className={`w-2 h-2 rounded-full ${
-                        relationshipStatus === 'active' ? 'bg-[#4ade80]' :
+                        relationshipStatus === 'active' ? 'bg-blue-400' :
                         relationshipStatus === 'pending_invitation' ? 'bg-yellow-400' :
                         'bg-white/30'
                       }`} />
@@ -1965,7 +2048,7 @@ const WelcomeProfilePage: React.FC = () => {
 
           {/* Join QC footer — non-logged-in */}
           {isHydrated && !isLoggedIn && (
-            <div className={`rounded-2xl p-6 border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 ${isOrg ? 'bg-[#0f172a]' : 'bg-[#132213]'}`}>
+            <div className="rounded-2xl p-6 border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 bg-[#0d1527]">
               <div>
                 <h3 className="text-white font-bold text-xl mb-1">Join QC</h3>
                 <p className="text-white/40 text-sm">Create an account or log in to access the full QC experience.</p>
@@ -1975,7 +2058,7 @@ const WelcomeProfilePage: React.FC = () => {
                 <button onClick={handleSignupClick} className="px-6 py-2.5 border border-white/25 rounded-full text-white text-sm hover:bg-white/10 transition-colors">
                   Create account
                 </button>
-                <button onClick={handleLoginClick} className={`px-6 py-2.5 rounded-full font-bold text-sm transition-colors ${isOrg ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-[#4ade80] hover:bg-[#22c55e] text-black'}`}>
+                <button onClick={handleLoginClick} className={`px-6 py-2.5 rounded-full font-bold text-sm transition-colors bg-blue-500 hover:bg-blue-600 text-white`}>
                   Log in
                 </button>
               </div>
@@ -1991,299 +2074,33 @@ const WelcomeProfilePage: React.FC = () => {
         )}
       </div>
 
-      {/* Sub-Actions Modal */}
-      <Dialog open={isSubActionsModalOpen} onOpenChange={setIsSubActionsModalOpen}>
-        <DialogContent className='max-w-2xl max-h-[90vh] overflow-y-auto bg-[#0f172a] border border-white/10 p-0 gap-0'>
+      {/* Type-specific action modal */}
+      {selectedAction && (
+        <ActionModal
+          action={selectedAction}
+          subActions={subActions}
+          subActionsLoading={subActionsLoading}
+          isOpen={isSubActionsModalOpen}
+          onClose={() => setIsSubActionsModalOpen(false)}
+          purchaseData={purchaseData}
+          purchasing={purchasing}
+          purchaseError={purchaseError}
+          onPurchase={handlePurchase}
+          onDirectPurchase={handleDirectPurchase}
+          onUpdateQuantity={updatePurchaseQuantity}
+          onUpdateBuyerData={updateBuyerData}
+          renderBuyerField={renderBuyerField}
+          formatDate={formatDate}
+          formatPrice={formatPrice}
+          currentUserId={currentUserId}
+          userId={userId as string}
+          isLoggedInAsOrganization={isLoggedInAsOrganization}
+        />
+      )}
 
-          {/* Header with cover image */}
-          {selectedAction?.coverImage ? (
-            <div className="relative h-40 w-full overflow-hidden rounded-t-2xl flex-shrink-0">
-              <img src={selectedAction.coverImage} alt={selectedAction.name} className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a] via-[#0f172a]/60 to-transparent" />
-              <div className="absolute bottom-0 left-0 right-0 p-5">
-                <div className="flex flex-wrap gap-2 mb-2">
-                  <span className="border border-white/20 rounded-full px-3 py-0.5 text-xs text-white/70 capitalize">{selectedAction.type || 'action'}</span>
-                  {selectedAction.status === 'published' && <span className="border border-white/20 rounded-full px-3 py-0.5 text-xs text-white/70">Published</span>}
-                </div>
-                <h2 className="text-2xl font-black text-white leading-tight">{selectedAction?.name || 'Action Details'}</h2>
-              </div>
-              <button onClick={() => setIsSubActionsModalOpen(false)} className="absolute top-4 right-4 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center text-white/70 hover:text-white hover:bg-black/70 transition-colors text-lg leading-none">×</button>
-            </div>
-          ) : (
-            <div className="flex items-center justify-between p-5 border-b border-white/5">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-500/20 border border-blue-500/30 flex items-center justify-center">
-                  <Ticket className="w-5 h-5 text-blue-400" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-black text-white">{selectedAction?.name || 'Action Details'}</h2>
-                  {selectedAction?.type && <p className="text-white/40 text-xs capitalize">{selectedAction.type}</p>}
-                </div>
-              </div>
-              <button onClick={() => setIsSubActionsModalOpen(false)} className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors text-lg leading-none">×</button>
-            </div>
-          )}
-
-          {selectedAction && (
-            <div className="p-5 space-y-5">
-
-              {/* Action meta row */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {selectedAction.availability.startsAt && (
-                  <div className="bg-white/5 rounded-xl p-3">
-                    <p className="text-white/40 text-xs mb-1">Starts</p>
-                    <p className="text-white text-xs font-semibold">{formatDate(selectedAction.availability.startsAt)}</p>
-                  </div>
-                )}
-                {selectedAction.availability.endsAt && (
-                  <div className="bg-white/5 rounded-xl p-3">
-                    <p className="text-white/40 text-xs mb-1">Ends</p>
-                    <p className="text-white text-xs font-semibold">{formatDate(selectedAction.availability.endsAt)}</p>
-                  </div>
-                )}
-                {selectedAction.pricing.mode && (
-                  <div className="bg-white/5 rounded-xl p-3">
-                    <p className="text-white/40 text-xs mb-1">Pricing</p>
-                    <p className="text-white text-xs font-semibold capitalize">{selectedAction.pricing.mode.replace(/_/g, ' ')}</p>
-                  </div>
-                )}
-                {selectedAction.currency && (
-                  <div className="bg-white/5 rounded-xl p-3">
-                    <p className="text-white/40 text-xs mb-1">Currency</p>
-                    <p className="text-white text-xs font-semibold">{selectedAction.currency}</p>
-                  </div>
-                )}
-              </div>
-
-              {selectedAction.description && (
-                <p className="text-white/50 text-sm leading-relaxed">{selectedAction.description}</p>
-              )}
-
-              {/* Sub-Actions */}
-              <div>
-                <h3 className="text-white font-bold text-base mb-3">Available options</h3>
-
-                {subActionsLoading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-7 h-7 text-white/30 animate-spin" />
-                  </div>
-                ) : subActions.filter(s => s.isActive).length === 0 ? (
-                  <div className="text-center py-10 bg-white/5 rounded-2xl border border-white/5">
-                    <Ticket className="w-10 h-10 text-white/15 mx-auto mb-3" />
-                    <p className="text-white/30 font-medium text-sm">No options available for this action</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {subActions
-                      .filter(s => s.isActive)
-                      .sort((a, b) => a.sortOrder - b.sortOrder)
-                      .map(subAction => (
-                        <div key={subAction.id} className="rounded-2xl overflow-hidden border border-white/5 bg-white/5">
-
-                          {/* Cover image */}
-                          {subAction.coverImage && (
-                            <div className="relative h-36 w-full">
-                              <img src={subAction.coverImage} alt={subAction.name} className="w-full h-full object-cover" />
-                              <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a]/80 to-transparent" />
-                            </div>
-                          )}
-
-                          <div className="p-5">
-                            {/* Title + price row */}
-                            <div className="flex items-start justify-between gap-3 mb-3">
-                              <div>
-                                <h4 className="text-white font-bold text-base">{subAction.name}</h4>
-                                {subAction.description && (
-                                  <p className="text-white/40 text-sm mt-1">{subAction.description}</p>
-                                )}
-                              </div>
-                              <div className="text-right flex-shrink-0">
-                                {selectedAction?.pricing?.mode !== 'pay_what_you_want' && (
-                                  <p className="text-blue-400 font-black text-lg">{formatPrice(subAction.price, selectedAction.currency)}</p>
-                                )}
-                                {subAction.stock !== null && (
-                                  <span className="text-white/30 text-xs">{subAction.stock} left</span>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Wallet info for org viewing own sub-action */}
-                            {subAction.wallet && currentUserId === userId && isLoggedInAsOrganization && (
-                              <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl px-3 py-2 mb-3 text-xs text-blue-300 font-semibold">
-                                Wallet: {subAction.wallet.currency} {subAction.wallet.balance.toLocaleString()}
-                              </div>
-                            )}
-
-                            {/* Metadata */}
-                            {subAction.metadata && Object.keys(subAction.metadata).length > 0 && (
-                              <div className="space-y-2 mb-3">
-                                {subAction.metadata.benefits && Array.isArray(subAction.metadata.benefits) && (
-                                  <div className="bg-white/5 rounded-xl p-3">
-                                    <p className="text-white/40 text-xs font-semibold mb-2">Benefits</p>
-                                    <ul className="space-y-1">
-                                      {subAction.metadata.benefits.map((benefit: string, i: number) => (
-                                        <li key={i} className="text-white/60 text-xs flex items-start gap-2">
-                                          <span className="text-blue-400 mt-0.5">•</span>{benefit}
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                )}
-                                {subAction.metadata.seatType && (
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-white/30 text-xs">Seat type:</span>
-                                    <span className="text-white/60 text-xs capitalize">{subAction.metadata.seatType}</span>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-
-                            {/* QR Code */}
-                            {subAction.dedicatedQrCodeData && (
-                              <div className="bg-white/5 rounded-xl p-4 mb-3 flex items-center gap-4">
-                                <div className="bg-white rounded-lg p-2">
-                                  <img src={subAction.dedicatedQrCodeData} alt="QR Code" className="w-20 h-20" />
-                                </div>
-                                <div>
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <QrCode className="w-4 h-4 text-blue-400" />
-                                    <span className="text-white text-sm font-semibold">Your QR Code</span>
-                                  </div>
-                                  <p className="text-white/40 text-xs">Show this at the entry gate</p>
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Purchase form */}
-                            <div className="pt-4 border-t border-white/5 space-y-4">
-
-                              {/* Pay what you want */}
-                              {selectedAction?.pricing?.mode === 'pay_what_you_want' && (
-                                <div>
-                                  <label className="text-white/60 text-xs font-semibold mb-1.5 block">Amount ({selectedAction.currency})</label>
-                                  <CustomInput
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={purchaseData[subAction.id]?.customAmount || ''}
-                                    onChange={e => {
-                                      const value = e.target.value ? parseFloat(e.target.value) : 0;
-                                      if (!isNaN(value) && value >= 0) {
-                                        setPurchaseData(prev => ({
-                                          ...prev,
-                                          [subAction.id]: {
-                                            quantity: prev[subAction.id]?.quantity || 1,
-                                            buyerData: prev[subAction.id]?.buyerData || {},
-                                            customAmount: value
-                                          }
-                                        }));
-                                      }
-                                    }}
-                                    className="h-10 rounded-xl bg-white/5 border-white/10 text-white placeholder:text-white/20"
-                                    placeholder="Enter amount"
-                                  />
-                                </div>
-                              )}
-
-                              {/* Quantity */}
-                              <div>
-                                <label className="text-white/60 text-xs font-semibold mb-1.5 flex items-center gap-2">
-                                  Quantity
-                                  {(() => {
-                                    const quota = selectedAction.availability.userQuota;
-                                    const stock = subAction.stock !== null ? subAction.stock : null;
-                                    const max = quota && stock !== null ? Math.min(quota, stock) : quota || stock;
-                                    return max ? <span className="text-white/30 font-normal">(max {max})</span> : null;
-                                  })()}
-                                </label>
-                                <div className="flex items-center gap-3">
-                                  <CustomInput
-                                    type="number"
-                                    min="1"
-                                    max={(() => {
-                                      const quota = selectedAction.availability.userQuota;
-                                      const stock = subAction.stock !== null ? subAction.stock : null;
-                                      return quota && stock !== null ? Math.min(quota, stock) : quota || stock || undefined;
-                                    })()}
-                                    value={purchaseData[subAction.id]?.quantity || ''}
-                                    onChange={e => {
-                                      const value = parseInt(e.target.value);
-                                      const quota = selectedAction.availability.userQuota;
-                                      const stock = subAction.stock !== null ? subAction.stock : null;
-                                      const max = quota && stock !== null ? Math.min(quota, stock) : quota || stock || null;
-                                      if (!isNaN(value) && value >= 0) {
-                                        updatePurchaseQuantity(subAction.id, max !== null && value > max ? max : value);
-                                      } else if (e.target.value === '') {
-                                        updatePurchaseQuantity(subAction.id, 0);
-                                      }
-                                    }}
-                                    className="w-24 h-10 rounded-xl bg-white/5 border-white/10 text-white text-center placeholder:text-white/20"
-                                    placeholder="0"
-                                  />
-                                  <span className="text-white/40 text-sm">
-                                    ×{' '}
-                                    {selectedAction?.pricing?.mode === 'pay_what_you_want'
-                                      ? formatPrice((purchaseData[subAction.id]?.customAmount || 0).toString(), selectedAction.currency)
-                                      : formatPrice(subAction.price, selectedAction.currency)}
-                                    {' '}={' '}
-                                    <span className="text-white font-bold">
-                                      {purchaseData[subAction.id]?.quantity
-                                        ? formatPrice(((selectedAction?.pricing?.mode === 'pay_what_you_want' ? (purchaseData[subAction.id]?.customAmount || 0) : parseFloat(subAction.price)) * purchaseData[subAction.id].quantity).toString(), selectedAction.currency)
-                                        : formatPrice('0', selectedAction.currency)}
-                                    </span>
-                                  </span>
-                                </div>
-                              </div>
-
-                              {/* Buyer fields */}
-                              {purchaseData[subAction.id]?.quantity > 0 && (
-                                <div className="bg-white/5 rounded-xl p-4 space-y-3">
-                                  <p className="text-white/40 text-xs font-semibold">Buyer information</p>
-                                  {(selectedAction?.buyerFields?.length > 0
-                                    ? selectedAction.buyerFields
-                                    : ['fullName', 'email', 'phone']
-                                  ).map(field =>
-                                    renderBuyerField(field, subAction.id, purchaseData[subAction.id]?.buyerData?.[field] || '', field !== 'notes')
-                                  )}
-                                </div>
-                              )}
-
-                              {/* Error */}
-                              {purchaseError[subAction.id] && (
-                                <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-3 py-2 rounded-xl text-xs">
-                                  {purchaseError[subAction.id]}
-                                </div>
-                              )}
-
-                              {/* CTA */}
-                              <button
-                                onClick={() => handlePurchase(subAction)}
-                                disabled={!purchaseData[subAction.id]?.quantity || purchaseData[subAction.id].quantity <= 0 || purchasing[subAction.id]}
-                                className="w-full py-3 rounded-xl bg-blue-500 hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-sm transition-colors flex items-center justify-center gap-2"
-                              >
-                                {purchasing[subAction.id] ? (
-                                  <><Loader2 className="w-4 h-4 animate-spin" />Processing...</>
-                                ) : (
-                                  <><CreditCard className="w-4 h-4" />
-                                  {selectedAction.type === 'booking' ? 'Book Now' :
-                                   selectedAction.type === 'vote' ? 'Vote' :
-                                   selectedAction.type === 'donation' ? 'Donate' :
-                                   selectedAction.type === 'subscription' ? 'Subscribe' :
-                                   selectedAction.type === 'payment' || selectedAction.type === 'transport' ? 'Pay' :
-                                   'Purchase'}</>
-                                )}
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+      {false && <Dialog open={false} onOpenChange={() => {}}><DialogContent>
         </DialogContent>
-      </Dialog>
+      </Dialog>}
 
       {/* Purchase Success Dialog */}
       <Dialog open={isPurchaseSuccessOpen} onOpenChange={setIsPurchaseSuccessOpen}>
@@ -2300,7 +2117,7 @@ const WelcomeProfilePage: React.FC = () => {
             <div className='space-y-5 py-4'>
               {/* Reference ID */}
               <div className='bg-[#FFF9E6] dark:bg-darkBg-interactive rounded-xl p-4 border border-[#D4AF37]/20'>
-                <p className='text-xs font-semibold text-[#D4AF37] uppercase tracking-wide mb-1'>Receipt / Reference</p>
+                <p className='text-xs font-semibold text-blue-400 uppercase tracking-wide mb-1'>Receipt / Reference</p>
                 <p className='text-base font-bold text-[#00313A] dark:text-white font-mono'>{purchaseResult.referenceId}</p>
               </div>
 
@@ -2314,7 +2131,7 @@ const WelcomeProfilePage: React.FC = () => {
 
               {/* Updated Wallet Balance */}
               <div className='bg-gradient-to-br from-[#FFF9E6] to-[#FFFEF8] dark:from-darkBg-interactive dark:to-darkBg-card rounded-xl p-4 border-2 border-[#D4AF37]/20'>
-                <p className='text-xs font-semibold text-[#D4AF37] uppercase tracking-wide mb-1'>Your New Wallet Balance</p>
+                <p className='text-xs font-semibold text-blue-400 uppercase tracking-wide mb-1'>Your New Wallet Balance</p>
                 <p className='text-2xl font-bold text-[#00313A] dark:text-white'>
                   {purchaseResult.buyerCurrency} {purchaseResult.buyerBalanceAfter.toLocaleString()}
                 </p>
@@ -2323,7 +2140,7 @@ const WelcomeProfilePage: React.FC = () => {
               {/* Post Purchase Message */}
               {selectedAction?.fulfillment?.postPurchaseMessage && (
                 <div className='bg-gradient-to-br from-[#FFF9E6] to-[#FFFEF8] dark:bg-darkBg-interactive rounded-xl p-4 border-2 border-[#D4AF37]/20'>
-                  <p className='text-xs font-semibold text-[#D4AF37] uppercase tracking-wide mb-1'>Message from Organizer</p>
+                  <p className='text-xs font-semibold text-blue-400 uppercase tracking-wide mb-1'>Message from Organizer</p>
                   <p className='text-sm font-bold text-[#00313A] leading-relaxed'>{selectedAction.fulfillment.postPurchaseMessage}</p>
                 </div>
               )}
@@ -2331,7 +2148,7 @@ const WelcomeProfilePage: React.FC = () => {
               {/* QR Code */}
               {purchaseResult.qrCodeData && (
                 <div className='flex flex-col items-center gap-3 bg-white dark:bg-darkBg-main rounded-xl p-4 border-2 border-[#D4AF37]/20'>
-                  <p className='text-xs font-semibold text-[#D4AF37] uppercase tracking-wide'>Your Ticket QR Code</p>
+                  <p className='text-xs font-semibold text-blue-400 uppercase tracking-wide'>Your Ticket QR Code</p>
                   <img
                     src={purchaseResult.qrCodeData}
                     alt='Ticket QR Code'
@@ -2346,7 +2163,7 @@ const WelcomeProfilePage: React.FC = () => {
             <CustomButton
               variant='outline'
               onClick={() => setIsPurchaseSuccessOpen(false)}
-              className='border-2 border-[#D4AF37] text-[#D4AF37] rounded-xl font-bold hover:bg-[#D4AF37] hover:text-white'
+              className='border-2 border-[#D4AF37] text-blue-400 rounded-xl font-bold hover:bg-[#D4AF37] hover:text-white'
             >
               Close
             </CustomButton>
@@ -2453,6 +2270,23 @@ const WelcomeProfilePage: React.FC = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Owner Edit Profile Panel */}
+      {isOwner && (
+        <Dialog open={isEditPanelOpen} onOpenChange={(open) => {
+          setIsEditPanelOpen(open);
+          if (!open) setRefreshKey(k => k + 1);
+        }}>
+          <DialogContent className="max-w-5xl w-full h-[90vh] flex flex-col p-0 gap-0 bg-white dark:bg-darkBg-card">
+            <DialogHeader className="flex-shrink-0 px-6 py-4 border-b border-gray-200 dark:border-darkBorder-light">
+              <DialogTitle className="text-lg font-semibold">Edit Profile</DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 overflow-y-auto p-6">
+              <ProfileTab />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 };
