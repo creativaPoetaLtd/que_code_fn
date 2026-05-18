@@ -126,21 +126,32 @@ export default function MediaMessageContent({
     if (mediaType === 'document' && mediaUrl) {
         return (
             <div className="space-y-2">
-                <a
-                    href={mediaUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors max-w-sm"
-                >
-                    <div className="text-3xl">{getFileIcon(fileName || '')}</div>
-                    <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{fileName || 'Document'}</p>
+                <div className="flex items-center gap-3 p-3 bg-gray-100 dark:bg-white/10 rounded-lg max-w-sm">
+                    <a
+                        href={mediaUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-3xl flex-shrink-0"
+                    >{getFileIcon(fileName || '')}</a>
+                    <a
+                        href={mediaUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 min-w-0 hover:opacity-80 transition-opacity"
+                    >
+                        <p className="text-sm font-medium truncate text-gray-900 dark:text-white">{fileName || 'Document'}</p>
                         {fileSize && (
-                            <p className="text-xs opacity-70">{formatFileSize(fileSize)}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-300">{formatFileSize(fileSize)}</p>
                         )}
-                    </div>
-                    <Download className="h-5 w-5 flex-shrink-0" />
-                </a>
+                    </a>
+                    <button
+                        onClick={() => handleDownload(mediaUrl, fileName || 'document')}
+                        className="flex-shrink-0 p-1 rounded hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
+                        title="Download"
+                    >
+                        <Download className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+                    </button>
+                </div>
                 {content && content !== `Sent a ${mediaType}` && (
                     <p className="text-sm">{content}</p>
                 )}
@@ -152,21 +163,22 @@ export default function MediaMessageContent({
     if (mediaUrl) {
         return (
             <div className="space-y-2">
-                <a
-                    href={mediaUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors max-w-sm"
-                >
-                    <div className="text-3xl">📎</div>
-                    <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{fileName || 'File'}</p>
+                <div className="flex items-center gap-3 p-3 bg-gray-100 dark:bg-white/10 rounded-lg max-w-sm">
+                    <a href={mediaUrl} target="_blank" rel="noopener noreferrer" className="text-3xl flex-shrink-0">📎</a>
+                    <a href={mediaUrl} target="_blank" rel="noopener noreferrer" className="flex-1 min-w-0 hover:opacity-80 transition-opacity">
+                        <p className="text-sm font-medium truncate text-gray-900 dark:text-white">{fileName || 'File'}</p>
                         {fileSize && (
-                            <p className="text-xs opacity-70">{formatFileSize(fileSize)}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-300">{formatFileSize(fileSize)}</p>
                         )}
-                    </div>
-                    <Download className="h-5 w-5 flex-shrink-0" />
-                </a>
+                    </a>
+                    <button
+                        onClick={() => handleDownload(mediaUrl, fileName || 'file')}
+                        className="flex-shrink-0 p-1 rounded hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
+                        title="Download"
+                    >
+                        <Download className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+                    </button>
+                </div>
                 {content && (
                     <p className="text-sm">{content}</p>
                 )}

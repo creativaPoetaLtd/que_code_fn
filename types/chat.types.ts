@@ -100,6 +100,18 @@ export interface ReplyPreview {
   senderName: string;
 }
 
+export interface ReactionRow {
+  userId: string;
+  emoji: string;
+}
+
+export interface Reaction {
+  emoji: string;
+  count: number;
+  userIds: string[];
+  hasReacted: boolean;
+}
+
 export interface Message extends MediaData {
     id: string;
     chatId: string;
@@ -115,6 +127,7 @@ export interface Message extends MediaData {
     readBy?: ReadReceipt[];
     isMe?: boolean;
     mentions?: MentionData[];
+    reactions?: ReactionRow[];
 }
 
 export interface LegacyMessage {

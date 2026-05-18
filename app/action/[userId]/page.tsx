@@ -225,7 +225,10 @@ function ContributionCard({ contribution: initial, currentUserId }: { contributi
     }, [c.id]);
 
     const handleContributeSuccess = (amount: number) => {
-        setC((p) => ({ ...p, collectedAmount: Number(p.collectedAmount) + amount, contributorCount: p.contributorCount + 1, myPayment: { id: 'new', amount, createdAt: new Date().toISOString() } }));
+        // Only mark as paid locally — collectedAmount/contributorCount come from
+        // the socket event the backend emits right after the DB commit, so don't
+        // add here or you'd double-count when both updates land.
+        setC((p) => ({ ...p, myPayment: { id: 'new', amount, createdAt: new Date().toISOString() } }));
     };
 
     const handleClose = async () => {

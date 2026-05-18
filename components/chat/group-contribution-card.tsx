@@ -226,8 +226,10 @@ export function GroupContributionCard({ data, isMe, chatId }: Props) {
       );
       toast({ description: "Contribution successful!" });
       setHasPaid(true);
-      setLocalCollected((prev) => prev + amount);
-      setLocalCount((prev) => prev + 1);
+      // Don't touch localCollected/localCount here — the socket event the
+      // backend emits immediately after the DB commit will set both with the
+      // authoritative server values. Updating here too causes a double-count
+      // when the socket arrives before this callback finishes.
       setStep("idle");
       setPin("");
       setCustomAmount("");

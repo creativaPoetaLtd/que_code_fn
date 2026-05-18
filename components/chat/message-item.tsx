@@ -1,15 +1,18 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
-import type { Message, LegacyMessage, ReplyPreview } from "@/types/chat.types"
-import { useMemo, useRef, useState } from "react"
+import type { Message, LegacyMessage, ReplyPreview, Reaction } from "@/types/chat.types"
+import { useMemo, useRef, useState, useCallback } from "react"
 import MediaMessageContent from "./media-message-content"
 import { MoneyMessageCard } from "./money-message-card"
 import { GroupContributionCard } from "./group-contribution-card"
 import MessageText from "./message-text"
 import LinkPreviewCard from "./link-preview-card"
 import { extractUrls } from "@/utils/url-utils"
-import { Reply } from "lucide-react"
+import { Reply, Smile } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import ReactionPicker from "./reaction-picker"
+import { useChat } from "@/context/ChatContext"
+import { useAuthToken } from "@/hooks/use-auth-token"
 
 interface MessageItemProps {
     message: Message | LegacyMessage
@@ -108,24 +111,63 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
     });
 
     const replyTo = !isLegacy ? (message as Message).replyTo : null;
+    const rawReactions = !isLegacy ? (message as Message).reactions ?? [] : [];
     const [swipeOffset, setSwipeOffset] = useState(0)
     const [isSwiping, setIsSwiping] = useState(false)
+    const [showReactionPicker, setShowReactionPicker] = useState(false)
     const startXRef = useRef(0)
     const startYRef = useRef(0)
     const horizontalLockRef = useRef(false)
     const gestureActiveRef = useRef(false)
 
+    const { addReaction, removeReaction, activeChat } = useChat()
+    const { getUserId } = useAuthToken()
+    const currentUserId = getUserId()
+
+    // Aggregate raw reaction rows into display format
+    const aggregatedReactions: Reaction[] = useMemo(() => {
+        const map = new Map<string, { count: number; userIds: string[] }>()
+        for (const row of rawReactions) {
+            const entry = map.get(row.emoji) ?? { count: 0, userIds: [] }
+            entry.count++
+            entry.userIds.push(row.userId)
+            map.set(row.emoji, entry)
+        }
+        return Array.from(map.entries()).map(([emoji, { count, userIds }]) => ({
+            emoji,
+            count,
+            userIds,
+            hasReacted: false, // will be determined by parent via context userId — see below
+        }))
+    }, [rawReactions])
+
+    const handleReactionSelect = useCallback((emoji: string) => {
+        if (!activeChat || isLegacy) return
+        const msg = message as Message
+        // If the user already has this exact emoji, remove it; otherwise add/replace
+        const existing = currentUserId ? rawReactions.find(r => r.userId === currentUserId) : undefined
+        if (existing?.emoji === emoji) {
+            removeReaction(activeChat, msg.id)
+        } else {
+            addReaction(activeChat, msg.id, emoji)
+        }
+    }, [activeChat, isLegacy, message, rawReactions, currentUserId, addReaction, removeReaction])
+
     const handleReply = () => {
         if (isLegacy || !onReply) return;
+        const msg = message as Message;
+        // Don't allow replying to optimistic (temp) messages – the real ID isn't persisted yet
+        if (msg.id.startsWith('temp_')) return;
         onReply({
-            id: message.id,
+            id: msg.id,
             content: messageContent,
-            messageType: message.messageType,
+            messageType: msg.messageType,
             senderName: senderDisplayName,
         });
     };
 
-    const canSwipeReply = !isLegacy && !!onReply
+    const isTempMessage = !isLegacy && (message as Message).id.startsWith('temp_')
+    const canSwipeReply = !isLegacy && !!onReply && !isTempMessage
 
     const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
         if (!canSwipeReply) return
@@ -297,23 +339,90 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
                     {timestamp}
                 </p>
 
-                {!isLegacy && onReply && (
-                    <div className="mt-1 flex justify-end">
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleReply}
-                            className={cn(
-                                "h-6 px-2 text-[11px]",
-                                isMe
-                                    ? "text-white/90 hover:text-white hover:bg-white/15"
-                                    : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                {(!isLegacy && (onReply || true)) && !isTempMessage && (
+                    <div className="mt-1 flex items-center justify-end gap-1">
+                        {/* Reaction trigger */}
+                        <div className="relative">
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setShowReactionPicker((v) => !v)}
+                                className={cn(
+                                    "h-6 w-6 p-0",
+                                    isMe
+                                        ? "text-white/70 hover:text-white hover:bg-white/15"
+                                        : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+                                )}
+                                aria-label="Add reaction"
+                            >
+                                <Smile size={12} />
+                            </Button>
+                            {showReactionPicker && (
+                                <ReactionPicker
+                                    isMe={isMe}
+                                    onSelect={handleReactionSelect}
+                                    onClose={() => setShowReactionPicker(false)}
+                                />
                             )}
-                        >
-                            <Reply size={12} className="mr-1" />
-                            Reply
-                        </Button>
+                        </div>
+
+                        {onReply && (
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleReply}
+                                className={cn(
+                                    "h-6 px-2 text-[11px]",
+                                    isMe
+                                        ? "text-white/90 hover:text-white hover:bg-white/15"
+                                        : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                                )}
+                            >
+                                <Reply size={12} className="mr-1" />
+                                Reply
+                            </Button>
+                        )}
+                    </div>
+                )}
+
+                {/* Aggregated reaction bubbles */}
+                {aggregatedReactions.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                        {aggregatedReactions.map(({ emoji, count, userIds }) => {
+                            const iReacted = !isLegacy && !!currentUserId && rawReactions.some(
+                                r => r.emoji === emoji && r.userId === currentUserId
+                            )
+                            return (
+                                <button
+                                    key={emoji}
+                                    type="button"
+                                    onClick={() => {
+                                        if (!activeChat || isLegacy) return
+                                        const msg = message as Message
+                                        if (iReacted) {
+                                            removeReaction(activeChat, msg.id)
+                                        } else {
+                                            addReaction(activeChat, msg.id, emoji)
+                                        }
+                                    }}
+                                    className={cn(
+                                        "inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs border transition-colors",
+                                        iReacted
+                                            ? "bg-brand-green/15 border-brand-green dark:bg-brand-gold/15 dark:border-brand-gold"
+                                            : "bg-white dark:bg-darkBg-interactive border-gray-200 dark:border-darkBorder-light hover:bg-gray-50 dark:hover:bg-darkBg-card"
+                                    )}
+                                    title={`${count} reaction${count !== 1 ? "s" : ""}`}
+                                >
+                                    <span>{emoji}</span>
+                                    <span className={cn(
+                                        "font-medium",
+                                        iReacted ? "text-brand-green dark:text-brand-gold" : "text-gray-600 dark:text-gray-400"
+                                    )}>{count}</span>
+                                </button>
+                            )
+                        })}
                     </div>
                 )}
 
