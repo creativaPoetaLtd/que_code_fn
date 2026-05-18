@@ -87,6 +87,13 @@ export function ContactDetailsPanel({ contact, isOpen, onClose }: ContactDetails
         router.push('/home/transfer/amount');
     };
 
+    const handleRequest = () => {
+        const recipientId = encodeURIComponent(contact.otherUser.id);
+        const recipientName = encodeURIComponent(`${contact.otherUser.firstName} ${contact.otherUser.lastName}`.trim());
+        const recipientAvatar = encodeURIComponent(contact.otherUser.profile?.profileImage || "");
+        router.push(`/home/request?recipientId=${recipientId}&recipientName=${recipientName}&recipientAvatar=${recipientAvatar}`);
+    };
+
     const handleMessage = () => {
         router.push('/chat');
     };
@@ -177,7 +184,7 @@ export function ContactDetailsPanel({ contact, isOpen, onClose }: ContactDetails
                                     {contact.status}
                                 </Badge>
                                 {contact.tags?.map(tag => (
-                                    <Badge key={tag} variant="secondary" className="bg-gray-100 dark:bg-darkBg-secondary text-gray-600 dark:text-gray-300">
+                                    <Badge key={tag} variant="secondary" className="bg-gray-100 dark:bg-darkBg-interactive text-gray-600 dark:text-gray-200 border border-transparent dark:border-darkBorder-light/60">
                                         {tag}
                                     </Badge>
                                 ))}
@@ -194,11 +201,7 @@ export function ContactDetailsPanel({ contact, isOpen, onClose }: ContactDetails
 
                             <div className="grid grid-cols-3 gap-2 w-full mb-8">
                                 <Button
-                                    onClick={() => {
-                                        // Open request money flow
-                                        // We need to implement opening the modal here
-                                        toast({ title: "Request initiated", description: "Opening request flow..." });
-                                    }}
+                                    onClick={handleRequest}
                                     variant="outline"
                                     className="w-full bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-100 dark:hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 border-none gap-1 px-2"
                                 >
@@ -306,8 +309,8 @@ export function ContactDetailsPanel({ contact, isOpen, onClose }: ContactDetails
                     </div>
 
                     {/* Footer Actions */}
-                    <div className="p-4 border-t border-gray-100 dark:border-darkBorder-light bg-gray-50 dark:bg-darkBg-secondary">
-                        <Button variant="ghost" className="w-full text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 hover:text-red-700 justify-start px-4">
+                    <div className="p-4 border-t border-gray-100 dark:border-darkBorder-light bg-gray-50 dark:bg-darkBg-card">
+                        <Button variant="ghost" className="w-full text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-700 dark:hover:text-red-300 justify-start px-4">
                             <Archive className="h-4 w-4 mr-3" />
                             Archive / Block Contact
                         </Button>

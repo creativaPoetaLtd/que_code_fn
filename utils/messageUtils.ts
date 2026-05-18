@@ -46,6 +46,19 @@ export function parseMessageContent(content: string, messageType: string): strin
             }).format(amount)} (${status})${note}`;
         }
 
+        if (data.type === 'group_contribution') {
+            const amount = data.goalAmount || 0;
+            const currency = data.currency || 'RWF';
+            const title = data.title || 'contribution';
+
+            return `Contribution request: "${title}" — goal ${new Intl.NumberFormat('en-RW', {
+                style: 'currency',
+                currency,
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0,
+            }).format(amount)}`;
+        }
+
         return content;
     } catch (e) {
         return content;

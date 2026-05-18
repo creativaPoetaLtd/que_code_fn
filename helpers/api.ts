@@ -393,3 +393,41 @@ export const getOrganizationActions = (organizationId: string, params?: { status
 export const getActionById = (actionId: string) => apiGet(`/actions/${actionId}`);
 
 export const getSubActions = (actionId: string) => apiGet(`/actions/${actionId}/sub-actions`);
+
+export const getGroupById = (groupId: string) =>
+  axios.get(`${baseUrl}/groups/${groupId}`, { headers: getAuthHeaders() });
+
+// Group contributions
+export const createGroupContribution = (
+  groupId: string,
+  payload: {
+    title: string;
+    note?: string;
+    goalAmount: number;
+    type: "fixed" | "flexible";
+    amountPerMember?: number;
+    minimumAmount?: number;
+    deadline?: string;
+    visibilityMode: "all" | "admin_only";
+  }
+) =>
+  axios.post(`${baseUrl}/groups/${groupId}/contributions`, payload, {
+    headers: getAuthHeaders(),
+  });
+
+export const getMyGroupContributions = () => apiGet("/contributions/mine");
+
+export const getGroupContributions = (groupId: string) =>
+  apiGet(`/groups/${groupId}/contributions`);
+
+export const getGroupContribution = (groupId: string, contributionId: string) =>
+  apiGet(`/groups/${groupId}/contributions/${contributionId}`);
+
+export const contributeToGroup = (groupId: string, contributionId: string, amount: number, pin: string) =>
+  axios.post(`${baseUrl}/groups/${groupId}/contributions/${contributionId}/pay`, { amount, pin }, { headers: getAuthHeaders() });
+
+export const closeGroupContribution = (groupId: string, contributionId: string) =>
+  axios.patch(`${baseUrl}/groups/${groupId}/contributions/${contributionId}/close`, {}, { headers: getAuthHeaders() });
+
+export const extendGroupContributionDeadline = (groupId: string, contributionId: string, deadline: string) =>
+  axios.patch(`${baseUrl}/groups/${groupId}/contributions/${contributionId}/extend`, { deadline }, { headers: getAuthHeaders() });

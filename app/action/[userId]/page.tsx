@@ -14,6 +14,14 @@ import {
     Ticket,
     Scan,
     Check,
+    Target,
+    Users,
+    CheckCircle,
+    Ban,
+    CalendarClock,
+    ChevronRight,
+    Lock,
+    ArrowRight,
 } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import Navigation from '@/components/Navigation';
@@ -24,10 +32,16 @@ import { useUserInfo } from '@/hooks/use-user-info';
 import { useSidebar } from '@/context/SidebarContext';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import jsPDF from 'jspdf';
 import ActionWizardModal from '@/components/ActionPage/ActionWizardModal';
 import QRObjectValidator from '@/components/ActionPage/QRObjectValidator';
-import { createSubAction, updateSubAction } from '@/helpers/api';
+import { createSubAction, updateSubAction, getMyGroupContributions, contributeToGroup, closeGroupContribution, extendGroupContributionDeadline } from '@/helpers/api';
+import socketService from '@/services/socketService';
+import { getCurrentUserId } from '@/utils/tokenUtils';
+import { formatDistanceToNow } from 'date-fns';
 
 interface QrObject {
     id: string;
@@ -94,6 +108,267 @@ interface SubAction {
 
 type AccountMode = 'individual' | 'organization' | null;
 
+// ─── Group Contribution types & components ────────────────────────────────────
+
+interface ContributionPayment {
+    id: string; payerId: string; amount: number; createdAt: string;
+    payer: { id: string; firstName: string; lastName: string };
+}
+interface MyContribution {
+    id: string; groupId: string; groupName: string; createdBy: string; isAdmin: boolean;
+    title: string; note?: string; goalAmount: number; collectedAmount: number;
+    contributorCount: number; type: 'fixed' | 'flexible'; amountPerMember?: number;
+    minimumAmount?: number; deadline?: string; status: 'active' | 'completed' | 'closed' | 'expired';
+    visibilityMode: 'all' | 'admin_only'; currency: string; createdAt: string;
+    payments?: ContributionPayment[];
+    myPayment?: { id: string; amount: number; createdAt: string } | null;
+    creator?: { id: string; firstName: string; lastName: string };
+}
+
+const fmtRwf = (n: number, cur = 'RWF') =>
+    new Intl.NumberFormat('en-RW', { style: 'currency', currency: cur, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
+
+function ContributeFlow({ contribution, onSuccess }: { contribution: MyContribution; onSuccess: (amount: number) => void }) {
+    type Step = 'idle' | 'enter_amount' | 'enter_pin' | 'loading';
+    const [step, setStep] = useState<Step>('idle');
+    const [amount, setAmount] = useState('');
+    const [pin, setPin] = useState('');
+
+    const fixedAmount = Number(contribution.amountPerMember);
+
+    const handlePay = async () => {
+        const payAmount = contribution.type === 'fixed' ? fixedAmount : Number(amount);
+        if (!pin || pin.length !== 4) {
+            alert('Enter your 4-digit PIN');
+            return;
+        }
+        setStep('loading');
+        try {
+            await contributeToGroup(contribution.groupId, contribution.id, payAmount, pin);
+            onSuccess(payAmount);
+            setStep('idle'); setPin(''); setAmount('');
+        } catch (err: any) {
+            alert(err?.response?.data?.message || 'Contribution failed');
+            setStep(contribution.type === 'fixed' ? 'enter_pin' : 'enter_amount');
+        }
+    };
+
+    const cancel = () => { setStep('idle'); setPin(''); setAmount(''); };
+
+    if (step === 'idle') return (
+        <Button size="sm" className="h-8 text-xs bg-[#00B512] hover:bg-[#009a0f] text-white"
+            onClick={() => contribution.type === 'fixed' ? setStep('enter_pin') : setStep('enter_amount')}>
+            Contribute{contribution.type === 'fixed' && contribution.amountPerMember ? ` ${fmtRwf(fixedAmount, contribution.currency)}` : ''}
+            <ArrowRight size={12} className="ml-1" />
+        </Button>
+    );
+
+    if (step === 'enter_amount') return (
+        <div className="flex items-center gap-2 flex-wrap">
+            <Input type="number" placeholder={`Amount${contribution.minimumAmount ? ` (min ${fmtRwf(Number(contribution.minimumAmount), contribution.currency)})` : ''}`}
+                value={amount} onChange={(e) => setAmount(e.target.value)} className="h-8 text-xs w-36" autoFocus />
+            <Button size="sm" variant="outline" className="h-8 text-xs" onClick={cancel}>Cancel</Button>
+            <Button size="sm" className="h-8 text-xs bg-[#00B512] hover:bg-[#009a0f] text-white" onClick={() => {
+                if (!amount || Number(amount) <= 0) return;
+                setStep('enter_pin');
+            }}>Next</Button>
+        </div>
+    );
+
+    if (step === 'enter_pin') return (
+        <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1 text-xs text-gray-500"><Lock size={11} /><span>PIN</span></div>
+            <Input type="password" inputMode="numeric" maxLength={4} placeholder="••••"
+                value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                className="h-8 text-xs w-20 tracking-widest" autoFocus />
+            <Button size="sm" variant="outline" className="h-8 text-xs" onClick={cancel}>Cancel</Button>
+            <Button size="sm" className="h-8 text-xs bg-[#00B512] hover:bg-[#009a0f] text-white" onClick={handlePay}>Pay</Button>
+        </div>
+    );
+
+    return <div className="flex items-center gap-2 text-xs text-gray-500"><Loader2 size={13} className="animate-spin" /> Processing…</div>;
+}
+
+function ContributionCard({ contribution: initial, currentUserId }: { contribution: MyContribution; currentUserId: string }) {
+    const [c, setC] = useState(initial);
+    const [expanded, setExpanded] = useState(false);
+    const [extendOpen, setExtendOpen] = useState(false);
+    const [newDeadline, setNewDeadline] = useState('');
+
+    const goal = Number(c.goalAmount);
+    const collected = Number(c.collectedAmount);
+    const progress = goal > 0 ? Math.min((collected / goal) * 100, 100) : 0;
+    const isActive = c.status === 'active';
+    const hasPaid = !!c.myPayment;
+    const canContribute = isActive && !hasPaid;
+    const isDeadlinePast = c.deadline && new Date(c.deadline) < new Date();
+
+    useEffect(() => {
+        const handleUpdate = (ev: any) => {
+            if (ev.contributionId !== c.id) return;
+            setC((p) => ({ ...p, collectedAmount: Number(ev.collectedAmount), contributorCount: ev.contributorCount, status: ev.status }));
+        };
+        const handleCompleted = (ev: any) => {
+            if (ev.contributionId === c.id) setC((p) => ({ ...p, status: 'completed', collectedAmount: Number(ev.collectedAmount) }));
+        };
+        const handleClosed = (ev: any) => {
+            if (ev.contributionId === c.id) setC((p) => ({ ...p, status: ev.status || 'closed' }));
+        };
+        socketService.onGroupContributionUpdated(handleUpdate);
+        socketService.onGroupContributionCompleted(handleCompleted);
+        socketService.onGroupContributionClosed(handleClosed);
+        return () => {
+            socketService.offGroupContributionUpdated(handleUpdate);
+            socketService.offGroupContributionCompleted(handleCompleted);
+            socketService.offGroupContributionClosed(handleClosed);
+        };
+    }, [c.id]);
+
+    const handleContributeSuccess = (amount: number) => {
+        setC((p) => ({ ...p, collectedAmount: Number(p.collectedAmount) + amount, contributorCount: p.contributorCount + 1, myPayment: { id: 'new', amount, createdAt: new Date().toISOString() } }));
+    };
+
+    const handleClose = async () => {
+        if (!confirm('Close this campaign? Members won\'t be able to contribute after this.')) return;
+        try {
+            await closeGroupContribution(c.groupId, c.id);
+            setC((p) => ({ ...p, status: 'closed' }));
+        } catch (err: any) { alert(err?.response?.data?.message || 'Failed to close campaign'); }
+    };
+
+    const handleExtend = async () => {
+        if (!newDeadline) return;
+        try {
+            await extendGroupContributionDeadline(c.groupId, c.id, new Date(newDeadline).toISOString());
+            setExtendOpen(false); setNewDeadline('');
+        } catch (err: any) { alert(err?.response?.data?.message || 'Failed to extend deadline'); }
+    };
+
+    const statusLabel = c.status === 'completed' ? 'Goal Reached' : c.status === 'active' ? 'Active' : c.status === 'expired' ? 'Expired' : 'Closed';
+    const statusClass = c.status === 'completed'
+        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+        : c.status === 'active'
+        ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+        : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400';
+
+    const showPayments = expanded && c.payments && c.payments.length > 0 && (c.isAdmin || c.visibilityMode === 'all');
+
+    return (
+        <div className="bg-white dark:bg-darkBg-card rounded-3xl border border-emerald-50 dark:border-darkBorder-light shadow-lg shadow-emerald-100/40 dark:shadow-none p-6">
+            <div className="flex items-start justify-between gap-3 mb-4">
+                <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-full ${c.status === 'completed' ? 'bg-green-100 dark:bg-green-900/30' : c.status === 'active' ? 'bg-[#00B512]/10' : 'bg-gray-100 dark:bg-gray-800'}`}>
+                        <Target size={16} className={c.status === 'completed' ? 'text-green-600' : c.status === 'active' ? 'text-[#00B512]' : 'text-gray-400'} />
+                    </div>
+                    <div>
+                        <p className="font-bold text-[#00313A] dark:text-white leading-tight">{c.title}</p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                            {c.groupName} · {formatDistanceToNow(new Date(c.createdAt), { addSuffix: true })}
+                        </p>
+                    </div>
+                </div>
+                <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full flex-shrink-0 ${statusClass}`}>
+                    {c.status === 'completed' ? <CheckCircle size={11} /> : c.status === 'active' ? <Clock size={11} /> : <Ban size={11} />}
+                    {statusLabel}
+                </span>
+            </div>
+
+            {c.note && <p className="text-sm text-gray-500 dark:text-gray-400 mb-3 -mt-2">{c.note}</p>}
+
+            <div className="space-y-1.5 mb-3">
+                <div className="flex justify-between text-sm">
+                    <span className="text-gray-500 dark:text-gray-400">{fmtRwf(collected, c.currency)} collected</span>
+                    <span className="font-semibold text-[#00313A] dark:text-white">{fmtRwf(goal, c.currency)} goal</span>
+                </div>
+                <Progress value={progress} className="h-2" />
+                <div className="flex justify-between text-xs text-gray-400 dark:text-gray-500">
+                    <span>{Math.round(progress)}% of goal</span>
+                    <span className="flex items-center gap-1"><Users size={11} />{c.contributorCount} contributor{c.contributorCount !== 1 ? 's' : ''}</span>
+                </div>
+            </div>
+
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-400 mb-3">
+                {c.type === 'fixed' && c.amountPerMember
+                    ? <span>Fixed: <span className="font-semibold text-[#00313A] dark:text-white">{fmtRwf(Number(c.amountPerMember), c.currency)}/member</span></span>
+                    : <span>Flexible{c.minimumAmount ? ` (min ${fmtRwf(Number(c.minimumAmount), c.currency)})` : ''}</span>
+                }
+                {c.deadline && (
+                    <span className={`flex items-center gap-1 ${isDeadlinePast && isActive ? 'text-red-500' : ''}`}>
+                        <CalendarClock size={11} />
+                        {isDeadlinePast ? 'Deadline passed ' : 'Due '}
+                        {new Date(c.deadline).toLocaleDateString('en-RW', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </span>
+                )}
+            </div>
+
+            {hasPaid && (
+                <div className="inline-flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 rounded-full px-3 py-1 mb-3">
+                    <CheckCircle size={12} /> You contributed {fmtRwf(Number(c.myPayment!.amount), c.currency)}
+                </div>
+            )}
+
+            <div className="flex items-center gap-2 flex-wrap">
+                {canContribute && <ContributeFlow contribution={c} onSuccess={handleContributeSuccess} />}
+
+                {c.payments && c.payments.length > 0 && (c.isAdmin || c.visibilityMode === 'all') && (
+                    <Button variant="ghost" size="sm" className="h-8 text-xs text-gray-500 px-2"
+                        onClick={() => setExpanded((v) => !v)}>
+                        <ChevronRight size={13} className={cn('mr-1 transition-transform', expanded && 'rotate-90')} />
+                        {expanded ? 'Hide' : 'Show'} contributors ({c.payments.length})
+                    </Button>
+                )}
+
+                {c.isAdmin && (isActive || c.status === 'expired') && (
+                    <div className="flex gap-2 ml-auto">
+                        {isActive && (
+                            <Button variant="outline" size="sm" className="h-7 text-[11px] border-red-200 text-red-500 hover:bg-red-50" onClick={handleClose}>
+                                Close
+                            </Button>
+                        )}
+                        <Button variant="outline" size="sm" className="h-7 text-[11px] text-[#00B512] border-[#00B512]/30 hover:bg-[#00B512]/5"
+                            onClick={() => setExtendOpen((v) => !v)}>
+                            Extend
+                        </Button>
+                    </div>
+                )}
+            </div>
+
+            {extendOpen && (
+                <div className="mt-3 flex items-center gap-2 flex-wrap">
+                    <Input type="date" min={new Date().toISOString().split('T')[0]} value={newDeadline}
+                        onChange={(e) => setNewDeadline(e.target.value)} className="h-8 text-xs w-44" />
+                    <Button size="sm" className="h-8 text-xs bg-[#00B512] hover:bg-[#009a0f] text-white" onClick={handleExtend}>Save</Button>
+                    <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => { setExtendOpen(false); setNewDeadline(''); }}>Cancel</Button>
+                </div>
+            )}
+
+            {showPayments && (
+                <div className="mt-4 pt-4 border-t border-gray-100 dark:border-darkBorder-light space-y-2">
+                    {c.payments!.map((p) => (
+                        <div key={p.id} className="flex items-center justify-between text-sm">
+                            <div className="flex items-center gap-2">
+                                <div className="h-7 w-7 rounded-full bg-[#00B512]/10 flex items-center justify-center text-[10px] font-bold text-[#00B512]">
+                                    {p.payer.firstName[0]}{p.payer.lastName[0]}
+                                </div>
+                                <span className="text-[#00313A] dark:text-white">
+                                    {p.payer.firstName} {p.payer.lastName}
+                                    {p.payerId === currentUserId && <span className="ml-1 text-xs text-gray-400">(you)</span>}
+                                </span>
+                            </div>
+                            <div className="text-right">
+                                <span className="font-semibold text-[#00313A] dark:text-white">{fmtRwf(Number(p.amount), c.currency)}</span>
+                                <p className="text-[10px] text-gray-400">{formatDistanceToNow(new Date(p.createdAt), { addSuffix: true })}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ─── end contribution components ──────────────────────────────────────────────
+
 const formatDate = (value?: string | null) => {
     if (!value) return 'N/A';
     const parsed = new Date(value);
@@ -151,6 +426,20 @@ const ActionsByAccountPage = () => {
     const [purchasedActionsFilter, setPurchasedActionsFilter] = useState<'all' | 'archive'>('all');
     const [editingSubActionId, setEditingSubActionId] = useState<string | null>(null);
     const [markingAsUsed, setMarkingAsUsed] = useState<Record<string, boolean>>({});
+
+    // Group contributions tab
+    const [individualTab, setIndividualTab] = useState<'actions' | 'contributions'>('actions');
+    const [filterGroupId, setFilterGroupId] = useState<string | null>(null);
+    const [myContributions, setMyContributions] = useState<MyContribution[]>([]);
+    const [contributionsLoading, setContributionsLoading] = useState(false);
+    const currentUserId = React.useMemo(() => getCurrentUserId(), []);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('tab') === 'contributions') setIndividualTab('contributions');
+        setFilterGroupId(params.get('group'));
+    }, []);
 
     useEffect(() => {
         if (paramUserId && paramUserId !== 'undefined') {
@@ -263,6 +552,24 @@ const ActionsByAccountPage = () => {
             fetchData(effectiveUserId);
         }
     }, [effectiveUserId, fetchData]);
+
+    const fetchMyContributions = useCallback(async () => {
+        setContributionsLoading(true);
+        try {
+            const res = await getMyGroupContributions();
+            setMyContributions(res?.data?.data || res?.data || []);
+        } catch {
+            // silently fail — contributions section shows empty state
+        } finally {
+            setContributionsLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (accountMode === 'individual' && individualTab === 'contributions') {
+            fetchMyContributions();
+        }
+    }, [accountMode, individualTab, fetchMyContributions]);
 
     const pageTitle = useMemo(() => {
         if (isLoggedInAsOrganization && isViewingAnotherUser && accountMode === 'individual') {
@@ -720,7 +1027,7 @@ const ActionsByAccountPage = () => {
                     {filteredPurchasedActions.map((item) => (
                         <div
                             key={item.id}
-                            className="bg-white/95 dark:bg-darkBg-card backdrop-blur rounded-3xl border border-emerald-50 dark:border-darkBorder-light shadow-lg shadow-emerald-100/40 dark:shadow-none p-6 relative overflow-hidden"
+                            className="bg-white dark:bg-darkBg-card rounded-3xl border border-emerald-50 dark:border-darkBorder-light shadow-lg shadow-emerald-100/40 dark:shadow-none p-6 relative overflow-hidden"
                         >
                         <div className="flex items-start justify-between gap-4">
                             <div>
@@ -959,7 +1266,7 @@ const ActionsByAccountPage = () => {
                             type="button"
                             key={action.id}
                             onClick={() => handleOrganizationActionClick(action)}
-                            className="text-left bg-white/95 dark:bg-darkBg-card rounded-3xl border border-[#00B512]/10 dark:border-darkBorder-light shadow-lg shadow-emerald-50/60 dark:shadow-none p-6 hover:shadow-emerald-200 dark:hover:bg-darkBg-interactive transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[#00B512]/40"
+                            className="text-left bg-white dark:bg-darkBg-card rounded-3xl border border-[#00B512]/10 dark:border-darkBorder-light shadow-lg shadow-emerald-50/60 dark:shadow-none p-6 hover:shadow-emerald-200 dark:hover:bg-darkBg-interactive transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[#00B512]/40"
                         >
                             <div className="flex items-start justify-between gap-4">
                                 <div>
@@ -1093,7 +1400,95 @@ const ActionsByAccountPage = () => {
             return renderOrganizationActions();
         }
 
-        return renderPurchasedActions();
+        // Individual: show tabs for My Actions and Group Contributions
+        const visibleContributions = filterGroupId
+            ? myContributions.filter((c) => c.groupId === filterGroupId)
+            : myContributions;
+        const activeContributions = visibleContributions.filter((c) => c.status === 'active');
+        const historyContributions = visibleContributions.filter((c) => c.status !== 'active');
+
+        return (
+            <div className="space-y-4">
+                {/* Tab switcher — only show when not viewing another user */}
+                {!isViewingAnotherUser && (
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setIndividualTab('actions')}
+                            className={`px-5 py-2 rounded-full text-sm font-semibold transition-colors ${
+                                individualTab === 'actions'
+                                    ? 'bg-[#00B512] text-white shadow'
+                                    : 'border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-interactive dark:text-white text-[#00313A] hover:bg-gray-50 dark:hover:bg-darkBg-card'
+                            }`}
+                        >
+                            My Actions
+                        </button>
+                        <button
+                            onClick={() => setIndividualTab('contributions')}
+                            className={`inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold transition-colors ${
+                                individualTab === 'contributions'
+                                    ? 'bg-[#00B512] text-white shadow'
+                                    : 'border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-interactive dark:text-white text-[#00313A] hover:bg-gray-50 dark:hover:bg-darkBg-card'
+                            }`}
+                        >
+                            <Target size={14} />
+                            Group Contributions
+                            {activeContributions.length > 0 && (
+                                <span className="bg-amber-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+                                    {activeContributions.length}
+                                </span>
+                            )}
+                        </button>
+                    </div>
+                )}
+
+                {individualTab === 'actions' || isViewingAnotherUser
+                    ? renderPurchasedActions()
+                    : contributionsLoading
+                    ? (
+                        <div className="flex flex-col items-center justify-center py-20">
+                            <Loader2 className="w-8 h-8 animate-spin text-[#00B512]" />
+                            <p className="mt-3 text-sm text-gray-500">Loading contributions…</p>
+                        </div>
+                    )
+                    : visibleContributions.length === 0
+                    ? (
+                        <div className="bg-white dark:bg-darkBg-card border border-emerald-100 dark:border-darkBorder-light rounded-3xl p-8 text-center shadow-sm">
+                            <div className="flex justify-center mb-3">
+                                <div className="p-4 rounded-full bg-[#00B512]/10">
+                                    <Target className="w-6 h-6 text-[#00B512]" />
+                                </div>
+                            </div>
+                            <p className="font-semibold text-[#00313A] dark:text-white mb-1">No contribution campaigns yet</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">Group admins can create campaigns from the group chat.</p>
+                        </div>
+                    )
+                    : (
+                        <div className="space-y-6">
+                            {activeContributions.length > 0 && (
+                                <div>
+                                    <p className="text-xs font-semibold text-[#00313A] dark:text-white uppercase tracking-widest mb-3">Active</p>
+                                    <div className="grid gap-4 md:grid-cols-2">
+                                        {activeContributions.map((c) => (
+                                            <ContributionCard key={c.id} contribution={c} currentUserId={currentUserId || ''} />
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            {historyContributions.length > 0 && (
+                                <div>
+                                    <p className="text-xs font-semibold text-[#00313A] dark:text-white uppercase tracking-widest mb-3">History</p>
+                                    <div className="grid gap-4 md:grid-cols-2">
+                                        {historyContributions.map((c) => (
+                                            <ContributionCard key={c.id} contribution={c} currentUserId={currentUserId || ''} />
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )
+                }
+            </div>
+        );
     };
 
     return (
