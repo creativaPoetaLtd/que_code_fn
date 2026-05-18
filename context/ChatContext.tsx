@@ -306,7 +306,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
                         ...conv,
                         lastMessage: {
                             content: "Secure message",
-                            messageType: "text",
+                            messageType: "text" as const,
                             createdAt: data.createdAt,
                             sender: data.sender.name,
                         },
@@ -326,7 +326,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
                     senderId: data.senderId,
                     senderName: data.sender.lastName || data.sender.name,
                     content: "Secure message",
-                    messageType: "text",
+                    messageType: "text" as const,
                 });
             }
 
