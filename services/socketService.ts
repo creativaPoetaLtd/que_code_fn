@@ -223,12 +223,28 @@ class SocketService {
         }
     }
 
+    onSecureMessageAvailable(callback: (message: any) => void) {
+        if (this.socket) {
+            this.socket.on("secure_message_available", callback)
+        }
+    }
+
     offNewMessage(callback?: (message: any) => void) {
         if (this.socket) {
             if (callback) {
                 this.socket.off("new_message", callback)
             } else {
                 this.socket.off("new_message")
+            }
+        }
+    }
+
+    offSecureMessageAvailable(callback?: (message: any) => void) {
+        if (this.socket) {
+            if (callback) {
+                this.socket.off("secure_message_available", callback)
+            } else {
+                this.socket.off("secure_message_available")
             }
         }
     }

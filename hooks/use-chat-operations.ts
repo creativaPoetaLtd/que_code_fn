@@ -5,7 +5,6 @@ import { useAuthToken } from '@/hooks/use-auth-token';
 import { useChat } from '@/context/ChatContext';
 import {
     useGetUserChatsQuery,
-    useCreateOrGetDMChatMutation,
     useSendMessageMutation,
     useMarkMessagesAsReadMutation,
     useCreateGroupChatMutation,
@@ -14,6 +13,7 @@ import {
 } from '@/states/chatSlice';
 import { toast } from '@/hooks/use-toast';
 import { parseMessageContent } from '@/utils/messageUtils';
+import { createOrGetPreferredDmChat } from '@/services/secureChatService';
 import type {
     Chat,
     Message,
@@ -64,8 +64,6 @@ export function useChatOperations(): UseChatOperationsReturn {
         skip: !token,
     });
 
-    const [createOrGetDMChat, { isLoading: isCreatingDMChat }] =
-        useCreateOrGetDMChatMutation();
     const [sendMessage, { isLoading: isSendingMessage }] =
         useSendMessageMutation();
     const [markAsRead] = useMarkMessagesAsReadMutation();
@@ -104,6 +102,8 @@ export function useChatOperations(): UseChatOperationsReturn {
             name: conv.name,
             isGroup: conv.isGroup,
             type: conv.type,
+            securityMode: conv.securityMode,
+            protocolVersion: conv.protocolVersion,
             groupId: conv.groupId, // Include groupId
             lastMessage: conv.lastMessage?.content ? {
                 content: parseMessageContent(conv.lastMessage.content, conv.lastMessage.messageType),
@@ -127,6 +127,8 @@ export function useChatOperations(): UseChatOperationsReturn {
             name: chat.name,
             isGroup: chat.isGroup,
             type: chat.type,
+            securityMode: chat.securityMode,
+            protocolVersion: chat.protocolVersion,
             groupId: chat.groupId, // Include groupId
             lastMessage: chat.lastMessage ? {
                 content: parseMessageContent(chat.lastMessage.content, chat.lastMessage.messageType),
@@ -150,26 +152,33 @@ export function useChatOperations(): UseChatOperationsReturn {
 
     const handleStartNewChat = useCallback(async (contact: any) => {
         try {
-            const result = await createOrGetDMChat({
-                participantId: contact.otherUser.id
-            }).unwrap()
+            if (!token) {
+                throw new Error("Authentication required");
+            }
 
-            setContextActiveChat(result.data.chatId)
+            const result = await createOrGetPreferredDmChat({
+                token,
+                participantId: contact.otherUser.id,
+            });
+
+            setContextActiveChat(result.chatId)
 
             toast({
-                title: "Chat Started",
-                description: `Started a new conversation with ${contact.otherUser.firstName} ${contact.otherUser.lastName}`,
+                title: result.usedSecure ? "Secure Chat Started" : "Chat Started",
+                description: result.usedSecure
+                    ? `Started a secure conversation with ${contact.otherUser.firstName} ${contact.otherUser.lastName}`
+                    : `Started a new conversation with ${contact.otherUser.firstName} ${contact.otherUser.lastName}`,
             })
 
             contextRefreshConversations?.()
         } catch (error: any) {
             toast({
                 title: "Error",
-                description: error.data?.message || "Failed to start chat",
+                description: error?.data?.message || error?.message || "Failed to start chat",
                 variant: "destructive"
             })
         }
-    }, [createOrGetDMChat, setContextActiveChat, contextRefreshConversations])
+    }, [token, setContextActiveChat, contextRefreshConversations])
 
     const handleJoinGroup = useCallback(async (group: any) => {
         try {
@@ -253,7 +262,7 @@ export function useChatOperations(): UseChatOperationsReturn {
         conversations,
         activeChat,
         messages,
-        isLoading: chatsLoading || isCreatingDMChat || isSendingMessage || isCreatingGroup || isJoiningGroup,
+        isLoading: chatsLoading || isSendingMessage || isCreatingGroup || isJoiningGroup,
         isConnected,
         typingUsers,
         onlineUsers,

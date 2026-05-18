@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { Search, MessageCircle, Users, Loader2, AlertCircle } from "lucide-react"
-import { toast } from "@/hooks/use-toast"
 import { useGetAcceptedContactsQuery } from "@/states/contactSlice"
 import { useAuthToken } from "@/hooks/use-auth-token"
 import type { Conversation } from "@/types/chat.types"
@@ -14,7 +13,7 @@ import type { Conversation } from "@/types/chat.types"
 interface StartChatModalProps {
   isOpen: boolean
   onClose: () => void
-  onStartChat: (contact: any) => void
+  onStartChat: (contact: any) => Promise<void> | void
   existingConversations: Conversation[]
 }
 
@@ -47,14 +46,10 @@ export default function StartChatModal({ isOpen, onClose, onStartChat, existingC
     return fullName.includes(search) || email.includes(search)
   })
 
-  const handleStartChat = (contact: any) => {
-    onStartChat(contact)
+  const handleStartChat = async (contact: any) => {
+    await Promise.resolve(onStartChat(contact))
     onClose()
     setSearchTerm("")
-    toast({
-      title: "Chat Started",
-      description: `Started a new conversation with ${contact.otherUser.firstName} ${contact.otherUser.lastName}`,
-    })
   }
 
   const handleClose = () => {
@@ -143,7 +138,7 @@ export default function StartChatModal({ isOpen, onClose, onStartChat, existingC
                   <div
                     key={contact.id}
                     className='flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer group'
-                    onClick={() => handleStartChat(contact)}
+                    onClick={() => void handleStartChat(contact)}
                   >
                     <div className='flex items-center flex-1'>
                       <Avatar className='h-12 w-12 mr-3'>
@@ -176,7 +171,7 @@ export default function StartChatModal({ isOpen, onClose, onStartChat, existingC
                       className='opacity-0 group-hover:opacity-100 transition-opacity'
                       onClick={e => {
                         e.stopPropagation();
-                        handleStartChat(contact);
+                        void handleStartChat(contact);
                       }}
                     >
                       <MessageCircle size={16} className='mr-2' />
