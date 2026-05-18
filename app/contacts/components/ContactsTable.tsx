@@ -17,6 +17,7 @@ import { useAuthToken } from "@/hooks/use-auth-token";
 import { useToast } from "@/hooks/use-toast";
 import { ManageTagsDialog } from "./ManageTagsDialog";
 import { useRouter } from "next/navigation";
+import { createOrGetPreferredDmChat } from "@/services/secureChatService";
 
 interface ContactsTableProps {
     contacts: Contact[];
@@ -52,6 +53,40 @@ export function ContactsTable({ contacts, isLoading, onSelect }: ContactsTablePr
             toast({
                 title: "Error",
                 description: "Failed to update favorite status",
+                variant: "destructive",
+            });
+        }
+    };
+
+    const handleSendMessage = async (contact: Contact) => {
+        if (!token) {
+            toast({
+                title: "Authentication required",
+                description: "Please log in again to open a conversation.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        try {
+            const result = await createOrGetPreferredDmChat({
+                token,
+                participantId: contact.otherUser.id,
+            });
+
+            sessionStorage.setItem("pendingChatId", result.chatId);
+            router.push("/chat");
+
+            toast({
+                title: result.usedSecure ? "Secure Chat Ready" : "Chat Ready",
+                description: result.usedSecure
+                    ? `Opening a secure conversation with ${contact.otherUser.firstName} ${contact.otherUser.lastName}.`
+                    : `Opening your conversation with ${contact.otherUser.firstName} ${contact.otherUser.lastName}.`,
+            });
+        } catch (error: any) {
+            toast({
+                title: "Unable to open chat",
+                description: error?.data?.message || error?.message || "Please try again.",
                 variant: "destructive",
             });
         }
@@ -159,7 +194,9 @@ export function ContactsTable({ contacts, isLoading, onSelect }: ContactsTablePr
                                                 <DropdownMenuItem onClick={(e) => handleOpenProfile(e, contact.otherUser.id)}>
                                                     View Profile
                                                 </DropdownMenuItem>
-                                                <DropdownMenuItem>Send Message</DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => void handleSendMessage(contact)}>
+                                                    Send Message
+                                                </DropdownMenuItem>
                                                 <DropdownMenuItem>Send Money</DropdownMenuItem>
                                                 <DropdownMenuItem onSelect={() => setManagingTagsContactId(contact.id)}>
                                                     Edit Tags
@@ -216,7 +253,9 @@ export function ContactsTable({ contacts, isLoading, onSelect }: ContactsTablePr
                                         <DropdownMenuItem onClick={(e) => handleOpenProfile(e, contact.otherUser.id)}>
                                             View Profile
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem>Send Message</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => void handleSendMessage(contact)}>
+                                            Send Message
+                                        </DropdownMenuItem>
                                         <DropdownMenuItem>Send Money</DropdownMenuItem>
                                         <DropdownMenuItem onSelect={() => setManagingTagsContactId(contact.id)}>
                                             Edit Tags
