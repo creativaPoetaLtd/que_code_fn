@@ -562,6 +562,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                 if (existingAction.coverImage) {
                     setCoverImagePreview(existingAction.coverImage);
                 }
+                
             } else {
                 setSelectedType(undefined);
             }
@@ -703,7 +704,9 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
             if (values.seatType) {
                 metadataObj.seatType = values.seatType;
             }
+
             
+
             // Parse custom metadata if provided
             if (values.metadata) {
                 const metadataStr = typeof values.metadata === 'string' ? values.metadata : JSON.stringify(values.metadata);
@@ -834,6 +837,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                 if (values.description) formData.append('description', values.description);
                 if (values.dedicatedQrCode) formData.append('dedicatedQrCode', values.dedicatedQrCode);
                 
+
                 if (actionId) {
                     await updateActionWithFormData(actionId, formData);
                     setActionNameForSubActions(values.name);
@@ -856,6 +860,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                 return;
             } else {
                 // No file, use JSON payload
+              
                 const payload = {
                     type: values.type,
                     name: values.name,
@@ -1182,6 +1187,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                                 <TextArea rows={4} placeholder={actionTypeConfig[selectedType]?.placeholders?.description || 'Tell supporters what this action is about'} />
                             </Form.Item>
                         )}
+
                     </Form>
                 );
             case 'stepB':
@@ -1369,6 +1375,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                                     )}
                                 </div>
                             </Form.Item>
+
                             <div className="md:col-span-2">
                                 <button
                                     type="button"
@@ -1379,9 +1386,9 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                                     Extra Metadata (Optional)
                                 </button>
                                 {showSubActionMetadata && (
-                                    <Form.Item 
-                                        name="metadata" 
-                                        label="" 
+                                    <Form.Item
+                                        name="metadata"
+                                        label=""
                                         tooltip="Add custom key-value pairs (e.g., benefits, features)"
                                     >
                                         <KeyValueInput placeholder='e.g., benefits: VIP lounge, early access' />
