@@ -870,7 +870,6 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                     shortDescription: values.shortDescription,
                     description: values.description,
                     dedicatedQrCode: values.dedicatedQrCode,
-                    ...(Object.keys(actionMeta).length > 0 && { metadata: actionMeta }),
                 };
                 if (actionId) {
                     await updateAction(actionId, payload);
