@@ -65,45 +65,59 @@ export function TicketModal({
           </button>
         </div>
 
-        {/* Hero: 2-col */}
+        {/* Hero: image with overlay (left) + description + quick-pick (right) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 p-6 pb-0">
-          <div className="rounded-xl overflow-hidden h-64 bg-[#111927] flex-shrink-0">
+          {/* Left: image with gradient overlay + title + meta badges */}
+          <div className="relative rounded-xl overflow-hidden h-64 bg-[#111927] flex-shrink-0">
             {action.coverImage ? (
               <img src={action.coverImage} alt={action.name} className="w-full h-full object-cover" />
             ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <Ticket className="w-16 h-16 text-[#1e2d40]" />
-              </div>
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-950 to-[#0d1117]" />
             )}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0d1117] via-[#0d1117]/40 to-transparent" />
+            <div className="absolute bottom-0 left-0 right-0 p-4">
+              <div className="flex flex-wrap gap-2 mb-2">
+                {action.metadata?.schedule && (
+                  <span className="bg-black/50 text-white/80 text-xs px-2.5 py-0.5 rounded-md backdrop-blur-sm font-medium">
+                    {action.metadata.schedule}
+                  </span>
+                )}
+                {action.metadata?.venue && (
+                  <span className="bg-black/50 text-white/80 text-xs px-2.5 py-0.5 rounded-md backdrop-blur-sm font-medium">
+                    {action.metadata.venue}
+                  </span>
+                )}
+                {action.metadata?.accessMode && (
+                  <span className="bg-[#1a3a5c]/80 border border-[#3b82f6] text-[#60a5fa] text-xs px-2.5 py-0.5 rounded-md backdrop-blur-sm font-medium">
+                    {action.metadata.accessMode}
+                  </span>
+                )}
+              </div>
+              <h2 className="text-[#f0f4f8] font-bold text-xl leading-tight drop-shadow">{action.name}</h2>
+            </div>
           </div>
 
-          <div className="flex flex-col gap-3">
-            <h2 className="text-[#f0f4f8] font-bold text-2xl leading-tight">{action.name}</h2>
-
-            <div className="flex flex-wrap gap-2">
-              {action.metadata?.schedule && (
-                <span className="bg-[#1a2c3d] text-[#5b8aaa] rounded-md px-2.5 py-0.5 text-xs font-medium">
-                  {action.metadata.schedule}
-                </span>
-              )}
-              {action.metadata?.venue && (
-                <span className="bg-[#1a2c3d] text-[#5b8aaa] rounded-md px-2.5 py-0.5 text-xs font-medium">
-                  {action.metadata.venue}
-                </span>
-              )}
-              {action.metadata?.accessMode && (
-                <span className="bg-[#1a3a5c] border border-[#3b82f6] text-[#60a5fa] rounded-md px-2.5 py-0.5 text-xs font-medium">
-                  {action.metadata.accessMode}
-                </span>
-              )}
-            </div>
-
+          {/* Right: description + quick-pick price buttons */}
+          <div className="flex flex-col gap-4">
             {(action.description || action.shortDescription) && (
               <p className="text-[#8da0b3] text-sm leading-relaxed">
                 {action.description || action.shortDescription}
               </p>
             )}
-
+            {activeSubActions.length > 0 && (
+              <div className="grid grid-cols-2 gap-2">
+                {activeSubActions.map(s => (
+                  <button
+                    key={s.id}
+                    onClick={() => document.getElementById(`ticket-card-${s.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+                    className="bg-[#111927] border border-[#1e2d40] rounded-xl px-3 py-3 flex flex-col items-center gap-0.5 hover:border-[#3b82f6] hover:bg-[#1a2c3d] transition-colors text-center"
+                  >
+                    <span className="text-[#f0f4f8] text-xs font-bold leading-tight">{s.name}</span>
+                    <span className="text-[#60a5fa] text-xs font-semibold">{formatPrice(s.price, action.currency)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
             {action.metadata?.features && Array.isArray(action.metadata.features) && (
               <ul className="space-y-1.5">
                 {action.metadata.features.map((f: string, i: number) => (
@@ -149,50 +163,49 @@ export function TicketModal({
                   >
                     {subAction.coverImage && (
                       <div className="relative h-32 w-full">
-                        <img
-                          src={subAction.coverImage}
-                          alt={subAction.name}
-                          className="w-full h-full object-cover"
-                        />
+                        <img src={subAction.coverImage} alt={subAction.name} className="w-full h-full object-cover" />
                         <div className="absolute inset-0 bg-gradient-to-t from-[#111927]/90 to-transparent" />
                       </div>
                     )}
 
                     <div className="p-5">
-                      <div className="flex items-start justify-between gap-3 mb-2">
-                        <div>
-                          <h4 className="text-[#f0f4f8] font-bold text-base">{subAction.name}</h4>
-                          {subAction.description && (
-                            <p className="text-[#8da0b3] text-xs mt-0.5">{subAction.description}</p>
-                          )}
-                        </div>
-                        <span className="text-[#3b82f6] font-bold text-xl flex-shrink-0">
+                      {/* Name + price row */}
+                      <div className="flex items-start justify-between gap-3 mb-1.5">
+                        <h4 className="text-[#f0f4f8] font-bold text-lg leading-tight">{subAction.name}</h4>
+                        <span className="text-[#f0f4f8] font-bold text-lg flex-shrink-0">
                           {formatPrice(subAction.price, action.currency)}
                         </span>
                       </div>
+                      {subAction.description && (
+                        <p className="text-[#8da0b3] text-sm mb-3">{subAction.description}</p>
+                      )}
 
-                      <div className="flex flex-wrap gap-1.5 mb-4">
-                        {accessLabel && (
-                          <span className="bg-[#1a2c3d] text-[#5b8aaa] text-xs px-2 py-0.5 rounded-md">
-                            {accessLabel}
-                          </span>
-                        )}
-                        {stock !== null && (
-                          <span className="bg-[#1a2c3d] text-[#5b8aaa] text-xs px-2 py-0.5 rounded-md">
-                            {stock} left
-                          </span>
-                        )}
-                        {max && (
-                          <span className="bg-[#1a2c3d] text-[#5b8aaa] text-xs px-2 py-0.5 rounded-md capitalize">
-                            max {max} per user
-                          </span>
-                        )}
-                      </div>
+                      {/* Badges */}
+                      {(accessLabel || stock !== null || max) && (
+                        <div className="flex flex-wrap gap-1.5 mb-4">
+                          {accessLabel && (
+                            <span className="bg-[#111927] border border-[#1e2d40] text-[#8da0b3] text-xs px-2.5 py-0.5 rounded-full">
+                              {accessLabel}
+                            </span>
+                          )}
+                          {stock !== null && (
+                            <span className="bg-[#111927] border border-[#1e2d40] text-[#8da0b3] text-xs px-2.5 py-0.5 rounded-full">
+                              {stock} left
+                            </span>
+                          )}
+                          {max && (
+                            <span className="bg-[#111927] border border-[#1e2d40] text-[#8da0b3] text-xs px-2.5 py-0.5 rounded-full">
+                              max {max}
+                            </span>
+                          )}
+                        </div>
+                      )}
 
+                      {/* Feature list */}
                       {highlights.length > 0 && (
                         <ul className="space-y-1.5 mb-4">
                           {highlights.map((h, i) => (
-                            <li key={i} className="flex items-start gap-2 text-[#7a95ad] text-xs">
+                            <li key={i} className="flex items-start gap-2 text-[#7a95ad] text-sm">
                               <span className="text-[#3b82f6] mt-0.5 flex-shrink-0">·</span>
                               {h}
                             </li>
@@ -200,10 +213,11 @@ export function TicketModal({
                         </ul>
                       )}
 
+                      {/* Existing QR code */}
                       {subAction.dedicatedQrCodeData && (
                         <div className="bg-[#0d1525] border border-[#1e2d40] rounded-xl p-4 mb-4 flex items-center gap-4">
-                          <div className="bg-white rounded-lg p-2">
-                            <img src={subAction.dedicatedQrCodeData} alt="QR Code" className="w-16 h-16" />
+                          <div className="bg-white rounded-lg p-2 flex-shrink-0">
+                            <img src={subAction.dedicatedQrCodeData} alt="QR Code" className="w-16 h-16 block" />
                           </div>
                           <div>
                             <div className="flex items-center gap-2 mb-1">
@@ -215,37 +229,32 @@ export function TicketModal({
                         </div>
                       )}
 
+                      {/* Wallet (org view) */}
                       {subAction.wallet && currentUserId === userId && isLoggedInAsOrganization && (
                         <div className="bg-[#1a3a5c]/30 border border-[#3b82f6]/30 rounded-lg px-3 py-2 mb-4 text-xs text-[#60a5fa] font-semibold">
                           Wallet: {subAction.wallet.currency} {subAction.wallet.balance.toLocaleString()}
                         </div>
                       )}
 
-                      {/* Quantity with round buttons */}
-                      <div className="mb-4">
-                        <label className="text-[#4a6278] text-xs font-semibold mb-2 block">Quantity</label>
+                      {/* Quantity — inline row */}
+                      <div className="flex items-center justify-between mb-4">
+                        <span className="text-[#4a6278] text-sm font-semibold">Quantity</span>
                         <div className="flex items-center gap-3">
                           <button
                             onClick={() => adjustQuantity(subAction, -1)}
                             disabled={qty <= 0}
-                            className="w-8 h-8 rounded-full bg-[#111927] border border-[#1e2d40] text-[#8da0b3] hover:text-[#f0f4f8] hover:border-[#2a3d54] disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center font-bold text-base"
-                          >
-                            −
-                          </button>
+                            className="w-9 h-9 rounded-full bg-[#0d1525] border border-[#1e2d40] text-[#8da0b3] hover:text-[#f0f4f8] hover:border-[#3b82f6] disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center font-bold text-base"
+                          >−</button>
                           <span className="text-[#f0f4f8] font-bold text-base w-6 text-center">{qty}</span>
                           <button
                             onClick={() => adjustQuantity(subAction, 1)}
                             disabled={max !== null && max !== undefined && qty >= max}
-                            className="w-8 h-8 rounded-full bg-[#111927] border border-[#1e2d40] text-[#8da0b3] hover:text-[#f0f4f8] hover:border-[#2a3d54] disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center font-bold text-base"
-                          >
-                            +
-                          </button>
-                          {max && (
-                            <span className="text-[#4a6278] text-xs">max {max}</span>
-                          )}
+                            className="w-9 h-9 rounded-full bg-[#0d1525] border border-[#1e2d40] text-[#8da0b3] hover:text-[#f0f4f8] hover:border-[#3b82f6] disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center font-bold text-base"
+                          >+</button>
                         </div>
                       </div>
 
+                      {/* Buyer fields */}
                       {qty > 0 && (
                         <div className="bg-[#0d1525] border border-[#1e2d40] rounded-xl p-4 space-y-3 mb-4">
                           <p className="text-[#4a6278] text-xs font-semibold">Buyer information</p>
@@ -272,31 +281,24 @@ export function TicketModal({
                       <button
                         onClick={() => onPurchase(subAction)}
                         disabled={qty <= 0 || purchasing[subAction.id]}
-                        className="w-full py-3 rounded-lg bg-[#3b82f6] hover:bg-[#2563eb] disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-sm transition-colors flex items-center justify-center gap-2"
+                        className="w-full py-3 rounded-xl bg-[#3b82f6] hover:bg-[#2563eb] disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-sm transition-colors flex items-center justify-center gap-2"
                       >
                         {purchasing[subAction.id] ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Processing...
-                          </>
-                        ) : (
-                          'Buy now'
-                        )}
+                          <><Loader2 className="w-4 h-4 animate-spin" />Processing...</>
+                        ) : 'Buy now'}
                       </button>
                     </div>
 
+                    {/* Details & conditions expandable */}
                     <button
                       onClick={() => toggleDetails(subAction.id)}
-                      className="w-full flex items-center justify-between px-5 py-3 text-[#4a6278] text-xs border-t border-[#1e2d40] hover:bg-[#111927] transition-colors"
+                      className="w-full flex items-center justify-between px-5 py-3.5 border-t border-[#1e2d40] hover:bg-[#0d1525] transition-colors"
                     >
-                      <span>Included details &amp; conditions</span>
-                      {expandedDetails[subAction.id] ? (
-                        <ChevronUp className="w-3.5 h-3.5" />
-                      ) : (
-                        <ChevronDown className="w-3.5 h-3.5" />
-                      )}
+                      <span className="text-[#f0f4f8] text-sm font-semibold">Included details &amp; conditions</span>
+                      {expandedDetails[subAction.id]
+                        ? <ChevronUp className="w-4 h-4 text-[#4a6278]" />
+                        : <ChevronDown className="w-4 h-4 text-[#4a6278]" />}
                     </button>
-
                     {expandedDetails[subAction.id] && (
                       <div className="px-5 pb-4 space-y-1.5">
                         {action.policy.refund && (
@@ -316,11 +318,9 @@ export function TicketModal({
                             {action.fulfillment.postPurchaseMessage}
                           </p>
                         )}
-                        {!action.policy.refund &&
-                          !action.policy.cancellation &&
-                          !action.fulfillment.postPurchaseMessage && (
-                            <p className="text-[#4a6278] text-xs">No additional details provided.</p>
-                          )}
+                        {!action.policy.refund && !action.policy.cancellation && !action.fulfillment.postPurchaseMessage && (
+                          <p className="text-[#4a6278] text-xs">No additional details provided.</p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -330,35 +330,12 @@ export function TicketModal({
           )}
 
           {/* Event info footer */}
-          {(action.metadata?.eventType ||
-            action.metadata?.accessMode ||
-            action.metadata?.paymentMethod ||
-            action.metadata?.refundPolicy) && (
+          {(action.metadata?.eventType || action.metadata?.accessMode || action.metadata?.paymentMethod || action.metadata?.refundPolicy) && (
             <div className="grid grid-cols-2 gap-px bg-[#1e2d40] rounded-xl overflow-hidden mt-4">
-              {action.metadata?.eventType && (
-                <div className="bg-[#0d1117] p-4">
-                  <p className="text-[#4a6278] text-xs mb-1">Event type</p>
-                  <p className="text-[#f0f4f8] font-semibold text-sm">{action.metadata.eventType}</p>
-                </div>
-              )}
-              {action.metadata?.accessMode && (
-                <div className="bg-[#0d1117] p-4">
-                  <p className="text-[#4a6278] text-xs mb-1">Access mode</p>
-                  <p className="text-[#f0f4f8] font-semibold text-sm">{action.metadata.accessMode}</p>
-                </div>
-              )}
-              {action.metadata?.paymentMethod && (
-                <div className="bg-[#0d1117] p-4">
-                  <p className="text-[#4a6278] text-xs mb-1">Payment</p>
-                  <p className="text-[#f0f4f8] font-semibold text-sm">{action.metadata.paymentMethod}</p>
-                </div>
-              )}
-              {action.metadata?.refundPolicy && (
-                <div className="bg-[#0d1117] p-4">
-                  <p className="text-[#4a6278] text-xs mb-1">Refund policy</p>
-                  <p className="text-[#f0f4f8] font-semibold text-sm">{action.metadata.refundPolicy}</p>
-                </div>
-              )}
+              {action.metadata?.eventType && <div className="bg-[#0d1117] p-4"><p className="text-[#4a6278] text-xs mb-1">Event type</p><p className="text-[#f0f4f8] font-semibold text-sm">{action.metadata.eventType}</p></div>}
+              {action.metadata?.accessMode && <div className="bg-[#0d1117] p-4"><p className="text-[#4a6278] text-xs mb-1">Access mode</p><p className="text-[#f0f4f8] font-semibold text-sm">{action.metadata.accessMode}</p></div>}
+              {action.metadata?.paymentMethod && <div className="bg-[#0d1117] p-4"><p className="text-[#4a6278] text-xs mb-1">Payment</p><p className="text-[#f0f4f8] font-semibold text-sm">{action.metadata.paymentMethod}</p></div>}
+              {action.metadata?.refundPolicy && <div className="bg-[#0d1117] p-4"><p className="text-[#4a6278] text-xs mb-1">Refund policy</p><p className="text-[#f0f4f8] font-semibold text-sm">{action.metadata.refundPolicy}</p></div>}
             </div>
           )}
         </div>
@@ -377,13 +354,11 @@ export function TicketModal({
             </div>
             <button
               onClick={() => {
-                const firstSelected = activeSubActions.find(
-                  s => (purchaseData[s.id]?.quantity || 0) > 0
-                );
+                const firstSelected = activeSubActions.find(s => (purchaseData[s.id]?.quantity || 0) > 0);
                 if (firstSelected) onPurchase(firstSelected);
               }}
               disabled={activeSubActions.some(s => purchasing[s.id])}
-              className="px-6 py-2.5 bg-[#3b82f6] hover:bg-[#2563eb] disabled:opacity-40 rounded-lg text-white font-bold text-sm transition-colors"
+              className="px-6 py-2.5 bg-[#3b82f6] hover:bg-[#2563eb] disabled:opacity-40 rounded-xl text-white font-bold text-sm transition-colors flex-shrink-0"
             >
               Checkout
             </button>

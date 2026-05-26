@@ -562,25 +562,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                 if (existingAction.coverImage) {
                     setCoverImagePreview(existingAction.coverImage);
                 }
-                // Pre-populate type-specific action metadata
-                if (existingAction.metadata) {
-                    const m = existingAction.metadata;
-                    if (existingAction.type === 'vote') {
-                        form.setFieldsValue({
-                            actionMetaIsLive: m.isLive ?? false,
-                            actionMetaClosesAt: m.closesAt || '',
-                            actionMetaVotesPerUser: m.votesPerUser || 1,
-                        });
-                    } else if (existingAction.type === 'ticket') {
-                        form.setFieldsValue({
-                            actionMetaSchedule: m.schedule || '',
-                            actionMetaVenue: m.venue || '',
-                            actionMetaEventType: m.eventType || '',
-                            actionMetaAccessMode: m.accessMode || '',
-                            actionMetaPaymentMethod: m.paymentMethod || '',
-                        });
-                    }
-                }
+                
             } else {
                 setSelectedType(undefined);
             }
@@ -723,23 +705,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                 metadataObj.seatType = values.seatType;
             }
 
-            // Type-specific structured fields
-            if (selectedType === 'vote') {
-                if (values.candidateNumber) metadataObj.candidateNumber = values.candidateNumber;
-                if (values.zone) metadataObj.zone = values.zone;
-                if (values.badge) metadataObj.badge = values.badge;
-                if (values.rank) metadataObj.rank = Number(values.rank);
-            } else if (selectedType === 'ticket') {
-                if (values.highlights) metadataObj.highlights = values.highlights.split(',').map((s: string) => s.trim()).filter(Boolean);
-                if (values.accessLabel) metadataObj.accessLabel = values.accessLabel;
-            } else if (selectedType === 'booking') {
-                if (values.duration) metadataObj.duration = values.duration;
-                if (values.maxPeople) metadataObj.maxPeople = Number(values.maxPeople);
-                if (values.category) metadataObj.category = values.category;
-                if (values.availableSlots) metadataObj.availableSlots = values.availableSlots.split(',').map((s: string) => s.trim()).filter(Boolean);
-                if (values.locationOptions) metadataObj.locationOptions = values.locationOptions.split(',').map((s: string) => s.trim()).filter(Boolean);
-                if (values.highlights) metadataObj.highlights = values.highlights.split(',').map((s: string) => s.trim()).filter(Boolean);
-            }
+            
 
             // Parse custom metadata if provided
             if (values.metadata) {
@@ -870,22 +836,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                 if (values.shortDescription) formData.append('shortDescription', values.shortDescription);
                 if (values.description) formData.append('description', values.description);
                 if (values.dedicatedQrCode) formData.append('dedicatedQrCode', values.dedicatedQrCode);
-                // Append type-specific metadata
-                const actionMetaFd: Record<string, any> = {};
-                if (values.type === 'vote') {
-                    if (values.actionMetaIsLive !== undefined) actionMetaFd.isLive = values.actionMetaIsLive;
-                    if (values.actionMetaClosesAt) actionMetaFd.closesAt = values.actionMetaClosesAt;
-                    if (values.actionMetaVotesPerUser) actionMetaFd.votesPerUser = values.actionMetaVotesPerUser;
-                } else if (values.type === 'ticket') {
-                    if (values.actionMetaSchedule) actionMetaFd.schedule = values.actionMetaSchedule;
-                    if (values.actionMetaVenue) actionMetaFd.venue = values.actionMetaVenue;
-                    if (values.actionMetaEventType) actionMetaFd.eventType = values.actionMetaEventType;
-                    if (values.actionMetaAccessMode) actionMetaFd.accessMode = values.actionMetaAccessMode;
-                    if (values.actionMetaPaymentMethod) actionMetaFd.paymentMethod = values.actionMetaPaymentMethod;
-                }
-                if (Object.keys(actionMetaFd).length > 0) {
-                    formData.append('metadata', JSON.stringify(actionMetaFd));
-                }
+                
 
                 if (actionId) {
                     await updateActionWithFormData(actionId, formData);
@@ -909,18 +860,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                 return;
             } else {
                 // No file, use JSON payload
-                const actionMeta: Record<string, any> = {};
-                if (values.type === 'vote') {
-                    if (values.actionMetaIsLive !== undefined) actionMeta.isLive = values.actionMetaIsLive;
-                    if (values.actionMetaClosesAt) actionMeta.closesAt = values.actionMetaClosesAt;
-                    if (values.actionMetaVotesPerUser) actionMeta.votesPerUser = values.actionMetaVotesPerUser;
-                } else if (values.type === 'ticket') {
-                    if (values.actionMetaSchedule) actionMeta.schedule = values.actionMetaSchedule;
-                    if (values.actionMetaVenue) actionMeta.venue = values.actionMetaVenue;
-                    if (values.actionMetaEventType) actionMeta.eventType = values.actionMetaEventType;
-                    if (values.actionMetaAccessMode) actionMeta.accessMode = values.actionMetaAccessMode;
-                    if (values.actionMetaPaymentMethod) actionMeta.paymentMethod = values.actionMetaPaymentMethod;
-                }
+              
                 const payload = {
                     type: values.type,
                     name: values.name,
@@ -1249,45 +1189,6 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                             </Form.Item>
                         )}
 
-                        {/* Type-specific action metadata */}
-                        {selectedType === 'vote' && (
-                            <div className="md:col-span-2 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl">
-                                <h4 className="font-semibold text-blue-700 dark:text-blue-300 text-sm mb-3">Vote Settings</h4>
-                                <div className="grid gap-3 md:grid-cols-3">
-                                    <Form.Item name="actionMetaIsLive" label="Live Vote" valuePropName="checked">
-                                        <Switch />
-                                    </Form.Item>
-                                    <Form.Item name="actionMetaClosesAt" label="Closes At (HH:MM)">
-                                        <Input placeholder="23:00" />
-                                    </Form.Item>
-                                    <Form.Item name="actionMetaVotesPerUser" label="Votes Per User" initialValue={1}>
-                                        <InputNumber min={1} className="w-full" />
-                                    </Form.Item>
-                                </div>
-                            </div>
-                        )}
-                        {selectedType === 'ticket' && (
-                            <div className="md:col-span-2 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl">
-                                <h4 className="font-semibold text-blue-700 dark:text-blue-300 text-sm mb-3">Event Details</h4>
-                                <div className="grid gap-3 md:grid-cols-2">
-                                    <Form.Item name="actionMetaSchedule" label="Schedule">
-                                        <Input placeholder="Saturday · 20:00" />
-                                    </Form.Item>
-                                    <Form.Item name="actionMetaVenue" label="Venue">
-                                        <Input placeholder="Brussels Arena" />
-                                    </Form.Item>
-                                    <Form.Item name="actionMetaEventType" label="Event Type">
-                                        <Input placeholder="Live concert" />
-                                    </Form.Item>
-                                    <Form.Item name="actionMetaAccessMode" label="Access Mode">
-                                        <Input placeholder="Instant QR confirmation" />
-                                    </Form.Item>
-                                    <Form.Item name="actionMetaPaymentMethod" label="Payment Method">
-                                        <Input placeholder="Automatic system routing" />
-                                    </Form.Item>
-                                </div>
-                            </div>
-                        )}
                     </Form>
                 );
             case 'stepB':
@@ -1475,64 +1376,6 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                                     )}
                                 </div>
                             </Form.Item>
-                            {/* Type-specific sub-action metadata fields */}
-                            {selectedType === 'vote' && (
-                                <div className="md:col-span-2 p-4 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700 rounded-xl">
-                                    <h4 className="font-semibold text-purple-700 dark:text-purple-300 text-sm mb-3">Candidate Details</h4>
-                                    <div className="grid gap-3 md:grid-cols-2">
-                                        <Form.Item name="candidateNumber" label="Candidate Number">
-                                            <Input placeholder="01" />
-                                        </Form.Item>
-                                        <Form.Item name="zone" label="Zone / Stage">
-                                            <Input placeholder="Main stage" />
-                                        </Form.Item>
-                                        <Form.Item name="badge" label="Status Badge" className="md:col-span-2">
-                                            <Input placeholder="Current trend · Strong support" />
-                                        </Form.Item>
-                                        <Form.Item name="rank" label="Current Rank">
-                                            <InputNumber min={1} className="w-full" placeholder="1" />
-                                        </Form.Item>
-                                    </div>
-                                </div>
-                            )}
-                            {selectedType === 'ticket' && (
-                                <div className="md:col-span-2 p-4 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700 rounded-xl">
-                                    <h4 className="font-semibold text-purple-700 dark:text-purple-300 text-sm mb-3">Tier Details</h4>
-                                    <div className="grid gap-3 md:grid-cols-2">
-                                        <Form.Item name="accessLabel" label="Access Label">
-                                            <Input placeholder="Priority check-in" />
-                                        </Form.Item>
-                                        <Form.Item name="highlights" label="Highlights (comma-separated)" className="md:col-span-2">
-                                            <Input placeholder="Priority entrance, Premium seating, Exclusive event lane" />
-                                        </Form.Item>
-                                    </div>
-                                </div>
-                            )}
-                            {selectedType === 'booking' && (
-                                <div className="md:col-span-2 p-4 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700 rounded-xl">
-                                    <h4 className="font-semibold text-purple-700 dark:text-purple-300 text-sm mb-3">Service Details</h4>
-                                    <div className="grid gap-3 md:grid-cols-2">
-                                        <Form.Item name="duration" label="Duration">
-                                            <Input placeholder="2h 30m" />
-                                        </Form.Item>
-                                        <Form.Item name="maxPeople" label="Max People">
-                                            <InputNumber min={1} className="w-full" placeholder="3" />
-                                        </Form.Item>
-                                        <Form.Item name="category" label="Category">
-                                            <Input placeholder="Bridal, Event, Hair..." />
-                                        </Form.Item>
-                                        <Form.Item name="availableSlots" label="Available Slots (comma-separated)">
-                                            <Input placeholder="09:00, 11:30, 14:00, 17:00" />
-                                        </Form.Item>
-                                        <Form.Item name="locationOptions" label="Location Options (comma-separated)">
-                                            <Input placeholder="Studio, On-site, With trial" />
-                                        </Form.Item>
-                                        <Form.Item name="highlights" label="Highlights (comma-separated)">
-                                            <Input placeholder="Premium styling, Fast booking, Quality finish" />
-                                        </Form.Item>
-                                    </div>
-                                </div>
-                            )}
 
                             <div className="md:col-span-2">
                                 <button

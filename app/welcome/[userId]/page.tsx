@@ -651,10 +651,8 @@ const WelcomeProfilePage: React.FC = () => {
     }
   };
 
-  const handleActionClick = async (action: Action) => {
-    setSelectedAction(action);
-    setIsSubActionsModalOpen(true);
-    await fetchSubActions(action.id);
+  const handleActionClick = (action: Action) => {
+    router.push(`/welcome/${userId}/action/${action.id}`);
   };
 
   const formatDate = (dateString: string | null) => {
@@ -1449,6 +1447,34 @@ const WelcomeProfilePage: React.FC = () => {
   };
 
   const isOrg = user.profileType === 'organization';
+
+  // Blue for org/pro, green for personal
+  const accent = isOrg ? {
+    dot:      'bg-blue-400',
+    ring:     'border-blue-400',
+    ringGlow: 'shadow-[0_0_0_4px_rgba(96,165,250,0.15)]',
+    text:     'text-blue-400',
+    editBtn:  'bg-blue-500/20 hover:bg-blue-500/30 border-blue-500/40 text-blue-400',
+    solid:    'bg-blue-500 hover:bg-blue-600',
+    iconBtn:  'bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/25',
+    iconColor:'text-blue-400',
+    active:   'bg-blue-400',
+    bgPage:   'bg-[#080d1a]',
+    bgCard:   'bg-[#0d1527]',
+  } : {
+    dot:      'bg-emerald-400',
+    ring:     'border-emerald-400',
+    ringGlow: 'shadow-[0_0_0_4px_rgba(52,211,153,0.15)]',
+    text:     'text-emerald-400',
+    editBtn:  'bg-emerald-500/20 hover:bg-emerald-500/30 border-emerald-500/40 text-emerald-400',
+    solid:    'bg-emerald-500 hover:bg-emerald-600',
+    iconBtn:  'bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25',
+    iconColor:'text-emerald-400',
+    active:   'bg-emerald-400',
+    bgPage:   'bg-[#060d08]',
+    bgCard:   'bg-[#0b1610]',
+  };
+
   const shouldShowProfileMedia = isOrg
     ? user.showProfileImageOnWelcome !== false || user.showLogoOnWelcome !== false
     : user.showProfileImageOnWelcome !== false;
@@ -1472,7 +1498,7 @@ const WelcomeProfilePage: React.FC = () => {
     return (
       <>
         {isHydrated && isLoggedIn && <Header />}
-        <div className="min-h-screen bg-[#080d1a] flex items-center justify-center">
+        <div className={`min-h-screen ${accent.bgPage} flex items-center justify-center`}>
           <Loader2 className="w-10 h-10 text-white/30 animate-spin" />
         </div>
       </>
@@ -1482,17 +1508,17 @@ const WelcomeProfilePage: React.FC = () => {
   return (
     <>
       {isHydrated && isLoggedIn && <Header />}
-      <div className="min-h-screen bg-[#080d1a]">
-        <div className="max-w-5xl mx-auto px-4 py-8 space-y-5">
+      <div className={`min-h-screen ${accent.bgPage}`}>
+        <div className="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-8 space-y-4 sm:space-y-5">
 
           {/* Profile header card */}
-          <div className="rounded-2xl p-6 md:p-8 bg-[#0d1527]">
+          <div className={`rounded-2xl p-4 sm:p-6 md:p-8 ${accent.bgCard}`}>
 
             {/* Top bar */}
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center gap-2 border border-white/20 rounded-full px-4 py-2">
-                <div className="w-2 h-2 rounded-full bg-blue-400" />
-                <span className="text-xs font-bold text-white tracking-widest uppercase">
+            <div className="flex items-center justify-between mb-5 sm:mb-8">
+              <div className="flex items-center gap-2 border border-white/20 rounded-full px-3 sm:px-4 py-2">
+                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${accent.dot}`} />
+                <span className="text-xs font-bold text-white tracking-widest uppercase truncate">
                   {isOrg ? 'QC PRO PROFILE' : 'QC PROFILE'}
                 </span>
               </div>
@@ -1500,7 +1526,7 @@ const WelcomeProfilePage: React.FC = () => {
                 {isOwner && (
                   <button
                     onClick={() => setIsEditPanelOpen(true)}
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/40 text-blue-400 text-xs font-semibold transition-colors"
+                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold transition-colors ${accent.editBtn}`}
                   >
                     <Pencil className="w-3.5 h-3.5" />
                     Edit Profile
@@ -1527,15 +1553,15 @@ const WelcomeProfilePage: React.FC = () => {
             </div>
 
             {/* Profile row */}
-            <div className="flex flex-col sm:flex-row gap-7 items-start">
+            <div className="flex flex-col sm:flex-row gap-5 sm:gap-7 items-center sm:items-start">
               {shouldShowProfileMedia && (
                 <div className="relative flex-shrink-0">
-                  <div className="w-36 h-36 rounded-full overflow-hidden border-4 bg-white/10 border-blue-500/40">
+                  <div className={`w-28 h-28 sm:w-36 sm:h-36 rounded-full overflow-hidden border-4 bg-white/10 ${accent.ring} ${accent.ringGlow}`}>
                     {getDisplayImage() ? (
                       <img src={getDisplayImage()} alt={user.name} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <User className="w-14 h-14 text-white/30" />
+                        <User className="w-10 h-10 sm:w-14 sm:h-14 text-white/30" />
                       </div>
                     )}
                   </div>
@@ -1547,10 +1573,10 @@ const WelcomeProfilePage: React.FC = () => {
                 </div>
               )}
 
-              <div className="flex-1 min-w-0 mt-2 sm:mt-0">
-                <h1 className="text-4xl md:text-5xl font-black text-white mb-4 leading-tight">{user.name}</h1>
+              <div className="flex-1 min-w-0 mt-2 sm:mt-0 w-full text-center sm:text-left">
+                <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-white mb-3 sm:mb-4 leading-tight">{user.name}</h1>
 
-                <div className="flex flex-wrap gap-2 mb-4">
+                <div className="flex flex-wrap gap-2 mb-3 sm:mb-4 justify-center sm:justify-start">
                   {user.showProfileTypeOnWelcome !== false && (
                     <span className="border border-white/25 rounded-full px-3 py-1 text-xs text-white/80">
                       {isOrg ? 'Professional account' : 'Personal account'}
@@ -1566,24 +1592,24 @@ const WelcomeProfilePage: React.FC = () => {
                 </div>
 
                 {user.showStatusMessageOnWelcome && user.statusMessage && (
-                  <p className="text-white/60 text-sm mb-5 leading-relaxed max-w-xl">{user.statusMessage}</p>
+                  <p className="text-white/60 text-sm mb-4 sm:mb-5 leading-relaxed max-w-xl mx-auto sm:mx-0">{user.statusMessage}</p>
                 )}
 
                 {/* Icon action buttons */}
-                <div className="flex gap-3">
+                <div className="flex flex-wrap gap-2 sm:gap-3 justify-center sm:justify-start">
                   {isLoggedIn ? (
                     <button
                       onClick={handleSendMoney}
                       title={isOrg ? 'Pay' : 'Send Money'}
-                      className="w-12 h-12 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 flex items-center justify-center transition-colors"
+                      className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${accent.iconBtn}`}
                     >
-                      <DollarSign className="w-5 h-5 text-white" />
+                      <DollarSign className={`w-5 h-5 ${accent.iconColor}`} />
                     </button>
                   ) : (
                     <Dialog>
                       <DialogTrigger asChild>
-                        <button className="w-12 h-12 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 flex items-center justify-center transition-colors">
-                          <DollarSign className="w-5 h-5 text-white" />
+                        <button className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${accent.iconBtn}`}>
+                          <DollarSign className={`w-5 h-5 ${accent.iconColor}`} />
                         </button>
                       </DialogTrigger>
                       <DialogContent>
@@ -1591,7 +1617,7 @@ const WelcomeProfilePage: React.FC = () => {
                         <form className="space-y-4" onSubmit={e => { e.preventDefault(); handleSubmit(); }}>
                           <CustomInput type="number" placeholder="Enter amount" value={amount} onChange={e => setAmount(e.target.value)} className="h-12 rounded-xl" />
                           <DialogFooter>
-                            <CustomButton type="submit" disabled={!amount} className="w-full h-12 rounded-xl font-bold border-none bg-blue-500 text-white">Next</CustomButton>
+                            <CustomButton type="submit" disabled={!amount} className={`w-full h-12 rounded-xl font-bold border-none text-white ${accent.solid}`}>Next</CustomButton>
                           </DialogFooter>
                         </form>
                       </DialogContent>
@@ -1602,30 +1628,30 @@ const WelcomeProfilePage: React.FC = () => {
                     <button
                       onClick={handleSendMessageToFriend}
                       title="Send message"
-                      className="w-12 h-12 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 flex items-center justify-center transition-colors"
+                      className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${accent.iconBtn}`}
                     >
-                      <MessageSquare className="w-5 h-5 text-white" />
+                      <MessageSquare className={`w-5 h-5 ${accent.iconColor}`} />
                     </button>
                   )}
 
                   {!isOrg && isLoggedIn && relationshipStatus !== 'active' && (
-                    <button onClick={handleAddFriend} title="Add Friend" className="w-12 h-12 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 flex items-center justify-center transition-colors">
-                      <UserPlus className="w-5 h-5 text-white" />
+                    <button onClick={handleAddFriend} title="Add Friend" className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${accent.iconBtn}`}>
+                      <UserPlus className={`w-5 h-5 ${accent.iconColor}`} />
                     </button>
                   )}
 
                   {isLoggedInAsOrganization && !isOrg && isLoggedIn && (
-                    <button onClick={handleViewUserQRObjects} title="View QR" className="w-12 h-12 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 flex items-center justify-center transition-colors">
-                      <QrCode className="w-5 h-5 text-white" />
+                    <button onClick={handleViewUserQRObjects} title="View QR" className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${accent.iconBtn}`}>
+                      <QrCode className={`w-5 h-5 ${accent.iconColor}`} />
                     </button>
                   )}
 
-                  <button 
+                  <button
                     onClick={() => setIsGalleryModalOpen(true)}
                     disabled={gallery.length === 0}
-                    className="w-12 h-12 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${accent.iconBtn}`}
                     title="Gallery">
-                    <ImageIcon className="w-5 h-5 text-white" />
+                    <ImageIcon className={`w-5 h-5 ${accent.iconColor}`} />
                   </button>
                 </div>
               </div>
@@ -1633,7 +1659,7 @@ const WelcomeProfilePage: React.FC = () => {
 
             {/* Gallery Strip */}
             {shouldShowGallery && (
-              <div className="mt-7 pt-6 border-t border-white/5">
+              <div className="mt-5 sm:mt-7 pt-5 sm:pt-6 border-t border-white/5">
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <h3 className="text-white font-bold text-lg">{isOrg ? 'Gallery' : 'Status photos'}</h3>
@@ -1682,25 +1708,25 @@ const WelcomeProfilePage: React.FC = () => {
 
             {/* Stats row — organisation only */}
             {shouldShowOrgStats && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-8 pt-8 border-t border-white/5">
-                <div className="bg-white/5 rounded-xl p-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mt-6 sm:mt-8 pt-6 sm:pt-8 border-t border-white/5">
+                <div className="bg-white/5 rounded-xl p-3 sm:p-4">
                   <p className="text-white/40 text-xs mb-1">Scans this week</p>
-                  <p className="text-3xl font-black text-white">{orgStatsLoading ? '—' : orgStats?.scansThisWeek || 0}</p>
+                  <p className="text-2xl sm:text-3xl font-black text-white">{orgStatsLoading ? '—' : orgStats?.scansThisWeek || 0}</p>
                   <p className="text-white/30 text-xs mt-1">QR code scans</p>
                 </div>
-                <div className="bg-white/5 rounded-xl p-4">
+                <div className="bg-white/5 rounded-xl p-3 sm:p-4">
                   <p className="text-white/40 text-xs mb-1">Total bookings</p>
-                  <p className="text-3xl font-black text-white">{orgStatsLoading ? '—' : orgStats?.totalBookings || 0}</p>
+                  <p className="text-2xl sm:text-3xl font-black text-white">{orgStatsLoading ? '—' : orgStats?.totalBookings || 0}</p>
                   <p className="text-white/30 text-xs mt-1">Confirmed reservations</p>
                 </div>
-                <div className="bg-white/5 rounded-xl p-4">
+                <div className="bg-white/5 rounded-xl p-3 sm:p-4">
                   <p className="text-white/40 text-xs mb-1">Audience rating</p>
-                  <p className="text-xl font-black text-white">{orgStatsLoading ? '—' : orgStats?.audienceRating.toFixed(1) || '0.0'} / 5</p>
+                  <p className="text-lg sm:text-xl font-black text-white">{orgStatsLoading ? '—' : orgStats?.audienceRating.toFixed(1) || '0.0'} / 5</p>
                   <p className="text-white/30 text-xs mt-1">Customer satisfaction</p>
                 </div>
-                <div className="bg-white/5 rounded-xl p-4">
+                <div className="bg-white/5 rounded-xl p-3 sm:p-4">
                   <p className="text-white/40 text-xs mb-1">Live actions</p>
-                  <p className="text-3xl font-black text-white">{actionsLoading ? '—' : actions.length}</p>
+                  <p className="text-2xl sm:text-3xl font-black text-white">{actionsLoading ? '—' : actions.length}</p>
                   <p className="text-white/30 text-xs mt-1">Tickets & offers</p>
                 </div>
               </div>
@@ -1716,11 +1742,11 @@ const WelcomeProfilePage: React.FC = () => {
               </div>
 
               {actionsLoading ? (
-                <div className="rounded-2xl bg-[#0d1527] flex items-center justify-center py-20 border border-white/5">
+                <div className={`rounded-2xl flex items-center justify-center py-20 border border-white/5 ${accent.bgCard}`}>
                   <Loader2 className="w-8 h-8 text-white/30 animate-spin" />
                 </div>
               ) : actions.length === 0 ? (
-                <div className="rounded-2xl bg-[#0d1527] py-16 text-center border border-white/5">
+                <div className={`rounded-2xl py-16 text-center border border-white/5 ${accent.bgCard}`}>
                   <Ticket className="w-10 h-10 text-white/20 mx-auto mb-3" />
                   <p className="text-white/30 font-medium">No actions available at the moment</p>
                 </div>
@@ -1728,28 +1754,27 @@ const WelcomeProfilePage: React.FC = () => {
                 <>
                   {/* Featured action — first action, full-width split card */}
                   <div
-                    className="rounded-2xl overflow-hidden flex flex-col md:flex-row mb-5 cursor-pointer border border-white/5 hover:border-white/10 transition-colors"
-                    style={{ minHeight: 340 }}
+                    className="rounded-2xl overflow-hidden flex flex-col md:flex-row mb-4 sm:mb-5 cursor-pointer border border-white/5 hover:border-white/10 transition-colors"
                     onClick={() => handleActionClick(actions[0])}
                   >
-                    <div className="md:w-1/2 relative bg-[#0d1527] min-h-48">
+                    <div className={`md:w-1/2 relative min-h-44 sm:min-h-56 ${accent.bgCard}`}>
                       {actions[0].coverImage ? (
                         <img src={actions[0].coverImage} alt={actions[0].name} className="absolute inset-0 w-full h-full object-cover" />
                       ) : (
-                        <div className="absolute inset-0 bg-gradient-to-br from-blue-950 to-[#080d1a] flex items-center justify-center">
+                        <div className={`absolute inset-0 flex items-center justify-center bg-gradient-to-br ${isOrg ? 'from-blue-950 to-[#080d1a]' : 'from-emerald-950 to-[#060d08]'}`}>
                           <Ticket className="w-16 h-16 text-blue-800" />
                         </div>
                       )}
                     </div>
-                    <div className="md:w-1/2 bg-[#0d1527] p-7 flex flex-col justify-center">
-                      <div className="flex flex-wrap gap-2 mb-4">
+                    <div className={`md:w-1/2 p-5 sm:p-7 flex flex-col justify-center ${accent.bgCard}`}>
+                      <div className="flex flex-wrap gap-2 mb-3 sm:mb-4">
                         <span className="border border-white/20 rounded-full px-3 py-1 text-xs text-white/70">Featured action</span>
                         {actions[0].status === 'published' && (
                           <span className="border border-white/20 rounded-full px-3 py-1 text-xs text-white/70">New</span>
                         )}
                         <span className="border border-white/20 rounded-full px-3 py-1 text-xs text-white/70">Hot</span>
                       </div>
-                      <h2 className="text-3xl font-black text-white mb-3 leading-tight">{actions[0].name}</h2>
+                      <h2 className="text-2xl sm:text-3xl font-black text-white mb-3 leading-tight">{actions[0].name}</h2>
                       {(actions[0].description || actions[0].shortDescription) && (
                         <p className="text-white/50 text-sm mb-5 line-clamp-3 leading-relaxed">
                           {actions[0].description || actions[0].shortDescription}
@@ -1772,7 +1797,12 @@ const WelcomeProfilePage: React.FC = () => {
                           onClick={e => { e.stopPropagation(); handleActionClick(actions[0]); }}
                           className="px-6 py-2.5 bg-blue-500 hover:bg-blue-600 rounded-xl text-white font-bold text-sm transition-colors"
                         >
-                          Buy now
+                          {actions[0].type === 'vote' ? 'Vote now' :
+                           actions[0].type === 'booking' ? 'Book now' :
+                           actions[0].type === 'donation' ? 'Donate' :
+                           actions[0].type === 'subscription' ? 'Subscribe' :
+                           actions[0].type === 'payment' || actions[0].type === 'transport' ? 'Pay now' :
+                           'Buy now'}
                         </button>
                         <button className="px-6 py-2.5 border border-white/20 rounded-xl text-white text-sm hover:bg-white/10 transition-colors">
                           View details
@@ -1783,18 +1813,18 @@ const WelcomeProfilePage: React.FC = () => {
 
                   {/* Remaining actions grid */}
                   {actions.length > 1 && (
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                       {actions.slice(1).map(action => (
                         <button
                           key={action.id}
                           onClick={() => handleActionClick(action)}
                           className="relative rounded-2xl overflow-hidden text-left group border border-white/5 hover:border-white/10 transition-colors"
-                          style={{ minHeight: 220 }}
+                          style={{ minHeight: 200 }}
                         >
                           {action.coverImage ? (
                             <img src={action.coverImage} alt={action.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                           ) : (
-                            <div className="absolute inset-0 bg-gradient-to-br from-[#131e35] to-[#0d1527]" />
+                            <div className={`absolute inset-0 bg-gradient-to-br ${isOrg ? 'from-[#131e35] to-[#0d1527]' : 'from-[#0f2018] to-[#0b1610]'}`} />
                           )}
                           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                           <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
@@ -1831,35 +1861,35 @@ const WelcomeProfilePage: React.FC = () => {
           )}
 
           {/* Bottom 2-col: Send me + Other infos */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
 
             {/* Left: Send me + Contact form */}
             <div className="space-y-5">
 
               {/* Send me */}
               {shouldShowSendMoney && (
-              <div className="rounded-2xl p-6 border border-white/5 bg-[#0d1527]">
-                <div className="flex items-start justify-between mb-3">
+              <div className={`rounded-2xl p-5 sm:p-6 border border-white/5 ${accent.bgCard}`}>
+                <div className="flex items-start justify-between gap-3 mb-3">
                   <div>
-                    <h3 className="text-white font-bold text-xl">Send me</h3>
+                    <h3 className="text-white font-bold text-lg sm:text-xl">Send me</h3>
                     <p className="text-white/40 text-sm">Fast, secure and private</p>
                   </div>
-                  <span className="border border-white/15 text-white/40 text-xs px-3 py-1.5 rounded-full">
-                    {isOrg ? 'Professional transfer' : 'Private transfer'}
+                  <span className="border border-white/15 text-white/40 text-xs px-2.5 py-1.5 rounded-full flex-shrink-0">
+                    {isOrg ? 'Professional' : 'Private'}
                   </span>
                 </div>
-                <p className="text-white/40 text-sm mb-6">Send money quickly and securely through QC.</p>
+                <p className="text-white/40 text-sm mb-5 sm:mb-6">Send money quickly and securely through QC.</p>
                 {isLoggedIn ? (
                   <button
                     onClick={handleSendMoney}
-                    className="w-full py-4 rounded-2xl font-bold text-sm transition-colors bg-blue-500 hover:bg-blue-600 text-white"
+                    className={`w-full py-4 rounded-2xl font-bold text-sm transition-colors text-white ${accent.solid}`}
                   >
                     Send me
                   </button>
                 ) : (
                   <Dialog>
                     <DialogTrigger asChild>
-                      <button className="w-full py-4 rounded-2xl font-bold text-sm transition-colors bg-blue-500 hover:bg-blue-600 text-white">
+                      <button className={`w-full py-4 rounded-2xl font-bold text-sm transition-colors text-white ${accent.solid}`}>
                         Send me
                       </button>
                     </DialogTrigger>
@@ -1868,7 +1898,7 @@ const WelcomeProfilePage: React.FC = () => {
                       <form className="space-y-4" onSubmit={e => { e.preventDefault(); handleSubmit(); }}>
                         <CustomInput type="number" placeholder="Enter amount" value={amount} onChange={e => setAmount(e.target.value)} className="h-12 rounded-xl" />
                         <DialogFooter>
-                          <CustomButton type="submit" disabled={!amount} className="w-full h-12 rounded-xl font-bold border-none bg-blue-500 text-white">Next</CustomButton>
+                          <CustomButton type="submit" disabled={!amount} className={`w-full h-12 rounded-xl font-bold border-none text-white ${accent.solid}`}>Next</CustomButton>
                         </DialogFooter>
                       </form>
                     </DialogContent>
@@ -1879,8 +1909,8 @@ const WelcomeProfilePage: React.FC = () => {
 
               {/* Private contact form */}
               {shouldShowOutsideContactForm && (
-              <div className="rounded-2xl p-6 border border-white/5 bg-[#0d1527]">
-                <h3 className="text-white font-bold text-xl mb-1">Private contact form</h3>
+              <div className={`rounded-2xl p-5 sm:p-6 border border-white/5 ${accent.bgCard}`}>
+                <h3 className="text-white font-bold text-lg sm:text-xl mb-1">Private contact form</h3>
                 <p className="text-white/40 text-sm mb-6">
                   {isOrg
                     ? 'Need more information, a partnership or a direct question? Use this form to contact the business securely.'
@@ -1919,7 +1949,7 @@ const WelcomeProfilePage: React.FC = () => {
                     <button
                       onClick={handleContactSubmit}
                       disabled={!contactForm.name || !contactForm.email || !contactForm.message || contactSubmitting}
-                      className={`px-8 py-3 rounded-2xl font-bold text-sm disabled:opacity-40 transition-colors bg-blue-500 hover:bg-blue-600 text-white`}
+                      className={`px-8 py-3 rounded-2xl font-bold text-sm disabled:opacity-40 transition-colors text-white ${accent.solid}`}
                     >
                       {contactSubmitting ? 'Sending...' : 'Send message'}
                     </button>
@@ -1929,15 +1959,15 @@ const WelcomeProfilePage: React.FC = () => {
               )}
 
               {shouldShowFriendMessageButton && (
-                <div className="rounded-2xl p-6 border border-white/5 bg-[#0d1527]">
-                  <h3 className="text-white font-bold text-xl mb-1">Direct messages</h3>
+                <div className={`rounded-2xl p-5 sm:p-6 border border-white/5 ${accent.bgCard}`}>
+                  <h3 className="text-white font-bold text-lg sm:text-xl mb-1">Direct messages</h3>
                   <p className="text-white/40 text-sm mb-6">
                     You are friends. Continue this conversation in your messages tab.
                   </p>
                   <button
                     onClick={handleSendMessageToFriend}
                     disabled={friendMessageLoading}
-                    className={`w-full py-4 rounded-2xl font-bold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-blue-500 hover:bg-blue-600 text-white`}
+                    className={`w-full py-4 rounded-2xl font-bold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-white ${accent.solid}`}
                   >
                     {friendMessageLoading ? 'Opening chat...' : 'Send message'}
                   </button>
@@ -1950,8 +1980,8 @@ const WelcomeProfilePage: React.FC = () => {
 
               {/* Other infos */}
               {shouldShowOtherInfo && (
-              <div className="rounded-2xl p-6 border border-white/5 bg-[#0d1527]">
-                <h3 className="text-white font-bold text-xl mb-1">Other infos</h3>
+              <div className={`rounded-2xl p-5 sm:p-6 border border-white/5 ${accent.bgCard}`}>
+                <h3 className="text-white font-bold text-lg sm:text-xl mb-1">Other infos</h3>
                 <p className="text-white/40 text-sm mb-5">
                   {isOrg ? 'Public details and social links for this professional account.' : 'More ways to stay connected.'}
                 </p>
@@ -2007,12 +2037,12 @@ const WelcomeProfilePage: React.FC = () => {
 
               {/* Friendship request — only when not already friends */}
               {shouldShowFriendshipRequest && (
-                <div className="rounded-2xl p-6 border border-white/5 bg-[#0d1527]">
-                  <h3 className="text-white font-bold text-xl mb-3">Friendship request</h3>
+                <div className={`rounded-2xl p-5 sm:p-6 border border-white/5 ${accent.bgCard}`}>
+                  <h3 className="text-white font-bold text-lg sm:text-xl mb-3">Friendship request</h3>
                   <div className="mb-3">
                     <div className="inline-flex items-center gap-2 border border-white/20 rounded-full px-3 py-1.5">
                       <div className={`w-2 h-2 rounded-full ${
-                        relationshipStatus === 'active' ? 'bg-blue-400' :
+                        relationshipStatus === 'active' ? accent.active :
                         relationshipStatus === 'pending_invitation' ? 'bg-yellow-400' :
                         'bg-white/30'
                       }`} />
@@ -2048,9 +2078,9 @@ const WelcomeProfilePage: React.FC = () => {
 
           {/* Join QC footer — non-logged-in */}
           {isHydrated && !isLoggedIn && (
-            <div className="rounded-2xl p-6 border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 bg-[#0d1527]">
+            <div className={`rounded-2xl p-5 sm:p-6 border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-5 ${accent.bgCard}`}>
               <div>
-                <h3 className="text-white font-bold text-xl mb-1">Join QC</h3>
+                <h3 className="text-white font-bold text-lg sm:text-xl mb-1">Join QC</h3>
                 <p className="text-white/40 text-sm">Create an account or log in to access the full QC experience.</p>
                 <p className="text-white/20 text-xs mt-1">Create an account or log in to continue on QC.</p>
               </div>
@@ -2058,7 +2088,7 @@ const WelcomeProfilePage: React.FC = () => {
                 <button onClick={handleSignupClick} className="px-6 py-2.5 border border-white/25 rounded-full text-white text-sm hover:bg-white/10 transition-colors">
                   Create account
                 </button>
-                <button onClick={handleLoginClick} className={`px-6 py-2.5 rounded-full font-bold text-sm transition-colors bg-blue-500 hover:bg-blue-600 text-white`}>
+                <button onClick={handleLoginClick} className={`px-6 py-2.5 rounded-full font-bold text-sm transition-colors text-white ${accent.solid}`}>
                   Log in
                 </button>
               </div>
@@ -2117,7 +2147,7 @@ const WelcomeProfilePage: React.FC = () => {
             <div className='space-y-5 py-4'>
               {/* Reference ID */}
               <div className='bg-[#FFF9E6] dark:bg-darkBg-interactive rounded-xl p-4 border border-[#D4AF37]/20'>
-                <p className='text-xs font-semibold text-blue-400 uppercase tracking-wide mb-1'>Receipt / Reference</p>
+                <p className={`text-xs font-semibold uppercase tracking-wide mb-1 ${accent.text}`}>Receipt / Reference</p>
                 <p className='text-base font-bold text-[#00313A] dark:text-white font-mono'>{purchaseResult.referenceId}</p>
               </div>
 
@@ -2131,7 +2161,7 @@ const WelcomeProfilePage: React.FC = () => {
 
               {/* Updated Wallet Balance */}
               <div className='bg-gradient-to-br from-[#FFF9E6] to-[#FFFEF8] dark:from-darkBg-interactive dark:to-darkBg-card rounded-xl p-4 border-2 border-[#D4AF37]/20'>
-                <p className='text-xs font-semibold text-blue-400 uppercase tracking-wide mb-1'>Your New Wallet Balance</p>
+                <p className={`text-xs font-semibold uppercase tracking-wide mb-1 ${accent.text}`}>Your New Wallet Balance</p>
                 <p className='text-2xl font-bold text-[#00313A] dark:text-white'>
                   {purchaseResult.buyerCurrency} {purchaseResult.buyerBalanceAfter.toLocaleString()}
                 </p>
@@ -2140,7 +2170,7 @@ const WelcomeProfilePage: React.FC = () => {
               {/* Post Purchase Message */}
               {selectedAction?.fulfillment?.postPurchaseMessage && (
                 <div className='bg-gradient-to-br from-[#FFF9E6] to-[#FFFEF8] dark:bg-darkBg-interactive rounded-xl p-4 border-2 border-[#D4AF37]/20'>
-                  <p className='text-xs font-semibold text-blue-400 uppercase tracking-wide mb-1'>Message from Organizer</p>
+                  <p className={`text-xs font-semibold uppercase tracking-wide mb-1 ${accent.text}`}>Message from Organizer</p>
                   <p className='text-sm font-bold text-[#00313A] leading-relaxed'>{selectedAction.fulfillment.postPurchaseMessage}</p>
                 </div>
               )}
@@ -2148,7 +2178,7 @@ const WelcomeProfilePage: React.FC = () => {
               {/* QR Code */}
               {purchaseResult.qrCodeData && (
                 <div className='flex flex-col items-center gap-3 bg-white dark:bg-darkBg-main rounded-xl p-4 border-2 border-[#D4AF37]/20'>
-                  <p className='text-xs font-semibold text-blue-400 uppercase tracking-wide'>Your Ticket QR Code</p>
+                  <p className={`text-xs font-semibold uppercase tracking-wide ${accent.text}`}>Your Ticket QR Code</p>
                   <img
                     src={purchaseResult.qrCodeData}
                     alt='Ticket QR Code'
@@ -2163,7 +2193,7 @@ const WelcomeProfilePage: React.FC = () => {
             <CustomButton
               variant='outline'
               onClick={() => setIsPurchaseSuccessOpen(false)}
-              className='border-2 border-[#D4AF37] text-blue-400 rounded-xl font-bold hover:bg-[#D4AF37] hover:text-white'
+              className={`border-2 border-[#D4AF37] rounded-xl font-bold hover:bg-[#D4AF37] hover:text-white ${accent.text}`}
             >
               Close
             </CustomButton>
