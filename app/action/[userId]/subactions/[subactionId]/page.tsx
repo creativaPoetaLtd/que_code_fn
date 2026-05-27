@@ -6,32 +6,29 @@ import axios from 'axios';
 import baseUrl from '@/helpers/baseUrl';
 import { useAuthToken } from '@/hooks/use-auth-token';
 import { useUserInfo } from '@/hooks/use-user-info';
-import { useSidebar } from '@/context/SidebarContext';
-import Navigation from '@/components/Navigation';
-import { Header } from '@/components/Header';
-import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import {
     AlertTriangle,
     ArrowLeft,
     Calendar,
-    Clock,
-    DollarSign,
-    Edit,
-    Loader2,
-    Trash2,
+    Check,
     CheckCircle2,
+    ChevronDown,
+    ChevronUp,
+    Clock,
+    Edit2,
+    ExternalLink,
+    Loader2,
     Package,
+    QrCode,
+    Save,
     ShoppingCart,
+    Trash2,
+    Users,
+    Wallet,
+    X,
 } from 'lucide-react';
-import {
-    Dialog,
-    DialogTrigger,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogFooter,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 
 interface SubAction {
     id: string;
@@ -42,10 +39,7 @@ interface SubAction {
     stock?: number;
     stockReserved?: number;
     variants?: Record<string, any>;
-    metadata?: {
-        seatType?: string;
-        benefits?: string[];
-    };
+    metadata?: Record<string, any>;
     isActive?: boolean;
     sortOrder?: number;
     coverImage?: string;
@@ -53,63 +47,68 @@ interface SubAction {
     createdAt?: string;
     updatedAt?: string;
     parentActionType?: string;
-    wallet?: {
-        id: string;
-        balance: number;
-        currency: string;
-    };
+    wallet?: { id: string; balance: number; currency: string };
 }
 
-interface OrganizationAction {
+interface ParentAction {
     id: string;
     name: string;
+    type: string;
     description?: string;
     shortDescription?: string;
     status: 'draft' | 'published' | 'archived';
-    pricing?: {
-        mode: string;
-    };
+    pricing?: { mode: string };
     currency?: string;
-    availability?: {
-        startsAt?: string;
-        endsAt?: string;
-        userQuota?: number | null;
-    };
+    coverImage?: string | null;
+    buyerFields?: string[];
+    availability?: { startsAt?: string; endsAt?: string; userQuota?: number | null };
+    metadata?: Record<string, any>;
+    fulfillment?: { postPurchaseMessage?: string | null };
 }
 
 const formatDate = (date?: string) => {
     if (!date) return 'N/A';
-    return new Date(date).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-    });
+    return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 };
 
-const SubActionDetailPage = () => {
+const ctaLabel = (type?: string) => {
+    switch (type) {
+        case 'vote': return 'Vote now';
+        case 'booking': return 'Book now';
+        case 'donation': return 'Donate';
+        case 'subscription': return 'Subscribe';
+        case 'payment':
+        case 'transport': return 'Pay now';
+        default: return 'Buy now';
+    }
+};
+
+export default function SubActionDetailPage() {
     const params = useParams();
     const router = useRouter();
-    const userId = params?.userId as string;
+    const actionId = params?.userId as string;
     const subactionId = params?.subactionId as string;
     const { getToken } = useAuthToken();
     const { userId: tokenUserId, accountType } = useUserInfo();
-    const { isExpanded } = useSidebar();
     const { toast } = useToast();
 
     const [subAction, setSubAction] = useState<SubAction | null>(null);
-    const [parentAction, setParentAction] = useState<OrganizationAction | null>(null);
+    const [parentAction, setParentAction] = useState<ParentAction | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    // Edit state
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [editFormData, setEditFormData] = useState<SubAction | null>(null);
-    const [isPurchaseOpen, setIsPurchaseOpen] = useState(false);
-    const [purchaseQuantity, setPurchaseQuantity] = useState('1');
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+    // Purchase state
+    const [purchaseQuantity, setPurchaseQuantity] = useState(1);
     const [buyerData, setBuyerData] = useState<Record<string, string>>({});
     const [customAmount, setCustomAmount] = useState('');
     const [isPurchasing, setIsPurchasing] = useState(false);
     const [purchaseError, setPurchaseError] = useState<string | null>(null);
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [purchaseResult, setPurchaseResult] = useState<{
         referenceId: string;
         description: string;
@@ -118,291 +117,131 @@ const SubActionDetailPage = () => {
         qrCodeData?: string;
     } | null>(null);
     const [isPurchaseSuccessOpen, setIsPurchaseSuccessOpen] = useState(false);
+    const [showPurchaseForm, setShowPurchaseForm] = useState(false);
+    const [detailsExpanded, setDetailsExpanded] = useState(false);
 
-    const isOwner = userId === tokenUserId && accountType === 'organization';
+    const isOwner = actionId === tokenUserId && accountType === 'organization';
 
-    // Fetch subaction and parent action details
-    const fetchSubActionDetails = useCallback(async () => {
-        
-        if (!userId || !subactionId) {
-            console.error('Missing required parameters - userId:', userId, 'subactionId:', subactionId);
-            setError('Missing required parameters');
-            setLoading(false);
-            return;
-        }
-
+    const fetchDetails = useCallback(async () => {
+        if (!subactionId) { setError('Missing parameters'); setLoading(false); return; }
         const token = getToken();
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
-
         try {
             setLoading(true);
             setError(null);
-
-            // Fetch the subaction directly by ID
-            const subActionResponse = await axios.get(
-                `${baseUrl}/sub-actions/${subactionId}`,
-                { headers }
-            );
-
-            const foundSubAction = subActionResponse.data?.data || subActionResponse.data;
-
-            if (!foundSubAction) {
-                setError('Subaction not found');
-                setLoading(false);
-                return;
+            const subRes = await axios.get(`${baseUrl}/sub-actions/${subactionId}`, { headers });
+            const found: SubAction = subRes.data?.data || subRes.data;
+            if (!found) { setError('Not found'); setLoading(false); return; }
+            if (found.metadata && typeof found.metadata === 'string') {
+                try { found.metadata = JSON.parse(found.metadata); } catch { found.metadata = {}; }
             }
-
-            // Parse metadata if it's a JSON string
-            if (foundSubAction.metadata && typeof foundSubAction.metadata === 'string') {
-                try {
-                    foundSubAction.metadata = JSON.parse(foundSubAction.metadata);
-                } catch (err) {
-                    console.error('Error parsing metadata:', err);
-                    foundSubAction.metadata = {};
-                }
-            }
-
-            // Now fetch the parent action
-            const actionId = foundSubAction.actionId;
-            const actionResponse = await axios.get(
-                `${baseUrl}/actions/${actionId}`,
-                { headers }
-            );
-
-            const foundAction = actionResponse.data?.data || actionResponse.data;
-
-            setSubAction(foundSubAction);
+            const actionRes = await axios.get(`${baseUrl}/actions/${found.actionId}`, { headers });
+            const foundAction: ParentAction = actionRes.data?.data || actionRes.data;
+            setSubAction(found);
             setParentAction(foundAction);
-            setEditFormData(foundSubAction);
+            setEditFormData(found);
         } catch (err: any) {
-            console.error('Error fetching subaction details:', err);
-            const errorMessage =
-                err?.response?.data?.message ||
-                err?.message ||
-                'Failed to load subaction details';
-            setError(errorMessage);
+            setError(err?.response?.data?.message || err?.message || 'Failed to load');
         } finally {
             setLoading(false);
         }
-    }, [userId, subactionId, getToken]);
+    }, [subactionId, getToken]);
 
-    useEffect(() => {
-        const token = getToken();
-        setIsLoggedIn(!!token);
-        fetchSubActionDetails();
-    }, [fetchSubActionDetails, getToken]);
+    useEffect(() => { fetchDetails(); }, [fetchDetails]);
 
     const handleSaveEdit = async () => {
         if (!editFormData || !parentAction) return;
-
         const token = getToken();
-        if (!token) {
-            setError('You need to be logged in');
-            return;
-        }
-
+        if (!token) return;
         try {
             setIsSaving(true);
-            const headers = { Authorization: `Bearer ${token}` };
-
-            const payload: Record<string, any> = {
-                name: editFormData.name,
-                price: editFormData.price,
-                description: editFormData.description || null,
-                stock: editFormData.stock || null,
-                metadata: editFormData.metadata || {},
-            };
-
             await axios.put(
                 `${baseUrl}/sub-actions/${subactionId}`,
-                payload,
-                { headers }
+                { name: editFormData.name, price: editFormData.price, description: editFormData.description || null, stock: editFormData.stock || null, metadata: editFormData.metadata || {} },
+                { headers: { Authorization: `Bearer ${token}` } }
             );
-
             setSubAction(editFormData);
             setIsEditing(false);
         } catch (err: any) {
-            const errorMessage =
-                err?.response?.data?.message || err?.message || 'Failed to save changes';
-            setError(errorMessage);
+            setError(err?.response?.data?.message || err?.message || 'Failed to save');
         } finally {
             setIsSaving(false);
         }
     };
 
     const handleDelete = async () => {
-        if (!window.confirm('Are you sure you want to delete this subaction?')) {
-            return;
-        }
-
         const token = getToken();
-        if (!token) {
-            setError('You need to be logged in');
-            return;
-        }
-
+        if (!token) return;
         try {
             setIsSaving(true);
-            const headers = { Authorization: `Bearer ${token}` };
-
-            await axios.delete(
-                `${baseUrl}/sub-actions/${subactionId}`,
-                { headers }
-            );
-
-            router.push(`/action/${userId}`);
+            await axios.delete(`${baseUrl}/sub-actions/${subactionId}`, { headers: { Authorization: `Bearer ${token}` } });
+            router.push(`/action/${actionId}`);
         } catch (err: any) {
-            const errorMessage =
-                err?.response?.data?.message || err?.message || 'Failed to delete subaction';
-            setError(errorMessage);
+            setError(err?.response?.data?.message || err?.message || 'Failed to delete');
             setIsSaving(false);
         }
     };
 
     const handlePurchase = async () => {
-        if (!parentAction) return;
-
-        const quantity = parseInt(purchaseQuantity);
-        if (!quantity || quantity <= 0) {
-            setPurchaseError('Please enter a valid quantity');
-            return;
+        if (!parentAction || !subAction) return;
+        if (purchaseQuantity <= 0) { setPurchaseError('Enter a valid quantity'); return; }
+        if (parentAction.pricing?.mode === 'pay_what_you_want') {
+            const amt = parseFloat(customAmount);
+            if (!customAmount || isNaN(amt) || amt <= 0) { setPurchaseError('Enter a valid amount'); return; }
         }
-
-        // For pay_what_you_want mode, validate custom amount
-        if ((parentAction as any)?.pricing?.mode === 'pay_what_you_want') {
-            const amount = parseFloat(customAmount);
-            if (!customAmount || isNaN(amount) || amount <= 0) {
-                setPurchaseError('Please enter a valid amount');
-                return;
-            }
+        if (subAction.stock != null && purchaseQuantity > subAction.stock) {
+            setPurchaseError(`Only ${subAction.stock} available`); return;
         }
-
-        // Validate stock
-        if (subAction && subAction.stock !== null && subAction.stock !== undefined && quantity > subAction.stock) {
-            setPurchaseError(`Only ${subAction.stock} items available`);
-            return;
-        }
-
-        // Validate buyer data - check configured buyer fields or defaults
-        const requiredFields = (parentAction as any)?.buyerFields && (parentAction as any).buyerFields.length > 0
-            ? (parentAction as any).buyerFields.filter((f: string) => f !== 'notes')
+        const requiredFields = parentAction.buyerFields?.length
+            ? parentAction.buyerFields.filter(f => f !== 'notes')
             : ['fullName', 'email', 'phone'];
-
-        const missingFields = requiredFields.filter((field: string) => !buyerData?.[field]?.trim());
-        if (missingFields.length > 0) {
-            const fieldNames = missingFields
-                .map((f: string) => {
-                    const labels: Record<string, string> = {
-                        fullName: 'Full Name',
-                        firstName: 'First Name',
-                        lastName: 'Last Name',
-                        email: 'Email',
-                        phone: 'Phone',
-                        phoneNumber: 'Phone Number',
-                        address: 'Address',
-                        city: 'City',
-                        country: 'Country',
-                        zipCode: 'Zip Code',
-                        postalCode: 'Postal Code',
-                        idNumber: 'ID Number',
-                        companyName: 'Company Name',
-                        taxId: 'Tax ID',
-                    };
-                    return labels[f] || f;
-                })
-                .join(', ');
-            setPurchaseError(`Please fill in: ${fieldNames}`);
-            return;
+        const missing = requiredFields.filter(f => !buyerData[f]?.trim());
+        if (missing.length) {
+            const labels: Record<string, string> = { fullName: 'Full Name', firstName: 'First Name', lastName: 'Last Name', email: 'Email', phone: 'Phone', phoneNumber: 'Phone Number', address: 'Address', city: 'City', country: 'Country', zipCode: 'Zip Code', idNumber: 'ID Number' };
+            setPurchaseError(`Please fill in: ${missing.map(f => labels[f] || f).join(', ')}`); return;
         }
-
         try {
             setIsPurchasing(true);
             setPurchaseError(null);
-
             const token = getToken();
-            if (!token) {
-                setPurchaseError('Please login to purchase');
-                setIsPurchasing(false);
-                return;
-            }
-
-            if (!tokenUserId) {
-                setPurchaseError('User ID not found. Please login again.');
-                setIsPurchasing(false);
-                return;
-            }
-
-            const headers = {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`,
-            };
-
-            const requestBody: any = {
-                subActionId: subactionId,
-                quantity: quantity,
-                buyerId: tokenUserId,
-                buyerData: buyerData,
-            };
-
-            // For pay_what_you_want pricing, add custom amount
-            if ((parentAction as any)?.pricing?.mode === 'pay_what_you_want') {
-                requestBody.amount = parseFloat(customAmount);
-            }
-
-            const purchaseResponse = await axios.post(
-                `${baseUrl}/actions/${parentAction.id}/purchase`,
-                requestBody,
-                { headers }
-            );
-
-            const resultData = purchaseResponse.data?.data;
-
-            // Close modal and reset form
-            setIsPurchaseOpen(false);
-            setPurchaseQuantity('1');
-            setCustomAmount('');
+            if (!token) { setPurchaseError('Please login to continue'); setIsPurchasing(false); return; }
+            if (!tokenUserId) { setPurchaseError('User ID not found. Please login again.'); setIsPurchasing(false); return; }
+            const body: any = { subActionId: subactionId, quantity: purchaseQuantity, buyerId: tokenUserId, buyerData };
+            if (parentAction.pricing?.mode === 'pay_what_you_want') body.amount = parseFloat(customAmount);
+            const res = await axios.post(`${baseUrl}/actions/${parentAction.id}/purchase`, body, {
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            });
+            const result = res.data?.data;
+            setShowPurchaseForm(false);
+            setPurchaseQuantity(1);
             setBuyerData({});
-
-            if (resultData?.transaction) {
-                // Show enriched success dialog
+            setCustomAmount('');
+            if (result?.transaction) {
                 setPurchaseResult({
-                    referenceId: resultData.transaction.referenceId || '',
-                    description: resultData.transaction.description || '',
-                    buyerBalanceAfter: resultData.wallets?.buyer?.balanceAfter ?? 0,
-                    buyerCurrency: resultData.wallets?.buyer?.currency || 'RWF',
-                    qrCodeData: resultData.qrObject?.qrCodeData,
+                    referenceId: result.transaction.referenceId || '',
+                    description: result.transaction.description || '',
+                    buyerBalanceAfter: result.wallets?.buyer?.balanceAfter ?? 0,
+                    buyerCurrency: result.wallets?.buyer?.currency || 'RWF',
+                    qrCodeData: result.qrObject?.qrCodeData,
                 });
                 setIsPurchaseSuccessOpen(true);
             } else {
-                // Fallback toast
-                toast({
-                    title: 'Purchase Successful!',
-                    description: 'Check your email for details.',
-                    variant: 'default',
-                });
-                setTimeout(() => {
-                    router.push('/home');
-                }, 1000);
+                toast({ title: 'Success!', description: `Completed for ${subAction.name}.` });
             }
         } catch (err: any) {
-            const errorMessage =
-                err?.response?.data?.message || err?.message || 'Failed to complete purchase';
-            setPurchaseError(errorMessage);
+            setPurchaseError(err?.response?.data?.message || err?.message || 'Operation failed.');
         } finally {
             setIsPurchasing(false);
         }
     };
 
     const updateBuyerData = (field: string, value: string) => {
-        setBuyerData(prev => ({
-            ...prev,
-            [field]: value
-        }));
+        setBuyerData(prev => ({ ...prev, [field]: value }));
         setPurchaseError(null);
     };
 
     const renderBuyerField = (field: string, value: string, isRequired: boolean) => {
-        const fieldConfig: Record<string, { label: string; type: string; placeholder: string }> = {
+        const configs: Record<string, { label: string; type: string; placeholder: string }> = {
             fullName: { label: 'Full Name', type: 'text', placeholder: 'Enter full name' },
             firstName: { label: 'First Name', type: 'text', placeholder: 'Enter first name' },
             lastName: { label: 'Last Name', type: 'text', placeholder: 'Enter last name' },
@@ -413,696 +252,543 @@ const SubActionDetailPage = () => {
             city: { label: 'City', type: 'text', placeholder: 'Enter city' },
             country: { label: 'Country', type: 'text', placeholder: 'Enter country' },
             zipCode: { label: 'Zip Code', type: 'text', placeholder: 'Enter zip code' },
-            postalCode: { label: 'Postal Code', type: 'text', placeholder: 'Enter postal code' },
             idNumber: { label: 'ID Number', type: 'text', placeholder: 'Enter ID number' },
-            companyName: { label: 'Company Name', type: 'text', placeholder: 'Enter company name' },
-            taxId: { label: 'Tax ID', type: 'text', placeholder: 'Enter tax ID' },
-            notes: { label: 'Notes', type: 'text', placeholder: 'Enter notes (optional)' },
+            notes: { label: 'Notes', type: 'text', placeholder: 'Add notes (optional)' },
         };
-
-        const config = fieldConfig[field] || { label: field, type: 'text', placeholder: `Enter ${field}` };
-
+        const cfg = configs[field] || { label: field, type: 'text', placeholder: `Enter ${field}` };
         return (
-            <div key={field} className="space-y-2">
-                <label className="text-xs font-semibold text-[#00313A] dark:text-white mb-1 flex items-center gap-1">
-                    {config.label}
-                    {isRequired && <span className="text-red-500">*</span>}
+            <div key={field} className="space-y-1.5">
+                <label className="text-xs font-semibold text-[#4a6278] flex items-center gap-1">
+                    {cfg.label}{isRequired && <span className="text-red-400">*</span>}
                 </label>
                 {field === 'notes' ? (
                     <textarea
-                        value={value || ''}
-                        onChange={(e) => updateBuyerData(field, e.target.value)}
-                        className="w-full h-20 rounded-lg border-2 border-[#00313A]/10 dark:border-darkBorder-light focus:border-[#D4AF37] text-sm p-2 focus:outline-none bg-white dark:bg-darkBg-interactive text-[#00313A] dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-                        placeholder={config.placeholder}
+                        value={value}
+                        onChange={e => updateBuyerData(field, e.target.value)}
+                        rows={3}
+                        placeholder={cfg.placeholder}
+                        className="w-full bg-[#0d1525] border border-[#1e2d40] focus:border-[#3b82f6] rounded-lg px-3 py-2 text-sm text-[#f0f4f8] placeholder:text-[#4a6278] outline-none resize-none transition-colors"
                     />
                 ) : (
                     <input
-                        type={config.type}
-                        value={value || ''}
-                        onChange={(e) => updateBuyerData(field, e.target.value)}
-                        className="w-full px-4 py-2 border-2 border-[#00313A]/10 dark:border-darkBorder-light rounded-lg focus:border-[#00B512] text-sm bg-white dark:bg-darkBg-interactive text-[#00313A] dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-                        placeholder={config.placeholder}
+                        type={cfg.type}
+                        value={value}
+                        onChange={e => updateBuyerData(field, e.target.value)}
+                        placeholder={cfg.placeholder}
+                        className="w-full bg-[#0d1525] border border-[#1e2d40] focus:border-[#3b82f6] rounded-lg px-3 py-2 text-sm text-[#f0f4f8] placeholder:text-[#4a6278] outline-none transition-colors"
                     />
                 )}
             </div>
         );
     };
 
+    // ── Loading ──────────────────────────────────────────────────────────────────
     if (loading) {
         return (
-            <div className="flex min-h-screen bg-gray-50 dark:bg-darkBg-main">
-                {isLoggedIn && <Navigation />}
-                <main className={cn(
-                    "flex-1 flex flex-col p-4 md:p-8 transition-all duration-300",
-                    isLoggedIn && (isExpanded ? "lg:ml-64" : "lg:ml-20")
-                )}>
-                    <div className="flex items-center justify-center h-screen">
-                        <div className="text-center">
-                            <Loader2 className="w-12 h-12 animate-spin text-[#D4AF37] mx-auto mb-4" />
-                            <p className="text-[#00313A] dark:text-white font-medium">Loading subaction details...</p>
-                        </div>
-                    </div>
-                </main>
+            <div className="min-h-screen bg-[#0d1117] flex items-center justify-center">
+                <Loader2 className="w-10 h-10 text-[#4a6278] animate-spin" />
             </div>
         );
     }
 
+    if (error || !subAction || !parentAction) {
+        return (
+            <div className="min-h-screen bg-[#0d1117] flex flex-col items-center justify-center gap-4 px-4">
+                <div className="bg-[#111927] border border-red-500/20 rounded-2xl p-8 text-center max-w-sm w-full">
+                    <AlertTriangle className="w-10 h-10 text-red-400 mx-auto mb-3" />
+                    <p className="text-[#f0f4f8] font-bold mb-1">Something went wrong</p>
+                    <p className="text-[#8da0b3] text-sm mb-5">{error || 'Item not found'}</p>
+                    <button
+                        onClick={fetchDetails}
+                        className="px-5 py-2.5 bg-[#3b82f6] hover:bg-[#2563eb] rounded-xl text-white font-bold text-sm transition-colors"
+                    >
+                        Try again
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    const isPWYW = parentAction.pricing?.mode === 'pay_what_you_want';
+    const stock = subAction.stock ?? null;
+    const userQuota = parentAction.availability?.userQuota ?? null;
+    const maxQty = userQuota && stock != null ? Math.min(userQuota, stock) : userQuota ?? stock ?? 999;
+    const totalPrice = isPWYW
+        ? parseFloat(customAmount || '0') * purchaseQuantity
+        : Number(subAction.price) * purchaseQuantity;
+
+    const benefitsList: string[] = subAction.metadata?.benefits || subAction.metadata?.highlights || [];
+    const metaEntries = Object.entries(subAction.metadata || {}).filter(
+        ([k]) => !['benefits', 'highlights', 'extendedDescription'].includes(k)
+    );
+
     return (
-        <div className="flex min-h-screen bg-gray-50 dark:bg-darkBg-main">
-            {isLoggedIn && <Navigation />}
+        <div className="min-h-screen bg-[#0d1117]">
 
-            <main className={cn(
-                "flex-1 flex flex-col p-4 md:p-8 transition-all duration-300",
-                isLoggedIn && (isExpanded ? "lg:ml-64" : "lg:ml-20")
-            )}>
-                <div className="flex-1 overflow-y-auto pb-24 lg:pb-8">
-                    {isLoggedIn && <Header />}
-
-                    <section className="mt-6 space-y-6">
-                        {/* Back Button */}
+            {/* ── Sticky nav ─────────────────────────────────────────────────── */}
+            <div className="sticky top-0 z-40 bg-[#0d1117]/95 backdrop-blur border-b border-[#1e2d40] px-4 sm:px-6 py-3 flex items-center gap-3">
+                <button
+                    onClick={() => router.back()}
+                    className="w-9 h-9 rounded-lg bg-[#111927] border border-[#1e2d40] flex items-center justify-center text-[#8da0b3] hover:text-[#f0f4f8] hover:bg-[#1e2d40] transition-colors flex-shrink-0"
+                >
+                    <ArrowLeft className="w-4 h-4" />
+                </button>
+                <div className="flex-1 min-w-0">
+                    <p className="text-[#4a6278] text-xs truncate">{parentAction.name}</p>
+                    <h1 className="text-[#f0f4f8] font-bold text-sm truncate">{subAction.name}</h1>
+                </div>
+                {isOwner && !isEditing && (
+                    <div className="flex items-center gap-2">
                         <button
-                            onClick={() => router.back()}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-gray-200 dark:border-darkBorder-light text-[#00313A] dark:text-white hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors"
+                            onClick={() => setIsEditing(true)}
+                            className="w-9 h-9 rounded-lg bg-[#111927] border border-[#1e2d40] flex items-center justify-center text-[#8da0b3] hover:text-[#f0f4f8] hover:bg-[#1e2d40] transition-colors"
                         >
-                            <ArrowLeft className="w-4 h-4" />
-                            Back
+                            <Edit2 className="w-4 h-4" />
                         </button>
+                        <button
+                            onClick={() => setShowDeleteConfirm(true)}
+                            className="w-9 h-9 rounded-lg bg-[#111927] border border-red-500/30 flex items-center justify-center text-red-400 hover:bg-red-500/10 transition-colors"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                        </button>
+                    </div>
+                )}
+                {isOwner && isEditing && (
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => { setIsEditing(false); setEditFormData(subAction); }}
+                            className="px-3 py-1.5 rounded-lg bg-[#111927] border border-[#1e2d40] text-[#8da0b3] text-xs font-semibold hover:text-[#f0f4f8] transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleSaveEdit}
+                            disabled={isSaving}
+                            className="px-3 py-1.5 rounded-lg bg-[#3b82f6] hover:bg-[#2563eb] disabled:opacity-40 text-white text-xs font-bold flex items-center gap-1.5 transition-colors"
+                        >
+                            {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                            Save
+                        </button>
+                    </div>
+                )}
+            </div>
 
-                        {error ? (
-                            <div className="bg-white dark:bg-darkBg-card border border-red-100 dark:border-darkBorder-light rounded-3xl p-8 text-center">
-                                <div className="flex items-center justify-center gap-2 text-red-600 dark:text-red-400 font-semibold mb-2">
-                                    <AlertTriangle className="w-5 h-5" />
-                                    <span>Error loading subaction</span>
-                                </div>
-                                <p className="text-gray-600 dark:text-gray-300 mb-4">{error}</p>
-                                <button
-                                    onClick={() => fetchSubActionDetails()}
-                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#D4AF37] text-white font-semibold shadow hover:bg-[#C9A530]"
-                                >
-                                    Try again
-                                </button>
-                            </div>
-                        ) : subAction && parentAction ? (
-                            <>
-                                {/* Parent Action Reference */}
-                                <div className="p-4 mb-4">
-                                    <p className="text-xs font-semibold text-[#D4AF37] uppercase tracking-widest mb-3">
-                                        Parent Action
-                                    </p>
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <h2 className="text-3xl font-bold text-[#00313A] dark:text-white mb-2">
-                                                {parentAction.name}
-                                            </h2>
-                                            <p className="text-base text-[#00313A]/70 dark:text-gray-300">
-                                                {parentAction.shortDescription}
-                                            </p>
-                                        </div>
-                                        <span className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${
-                                            parentAction.status === 'published'
-                                                ? 'bg-[#D4AF37]/10 dark:bg-[#D4AF37]/20 text-[#D4AF37]'
-                                                : 'bg-gray-100 dark:bg-darkBg-card text-gray-600 dark:text-gray-300'
-                                        }`}>
-                                            {parentAction.status}
-                                        </span>
-                                    </div>
-                                </div>
+            <div className="max-w-[960px] mx-auto pb-32">
 
-                                {/* Main Subaction Details */}
-                                <div className="bg-white dark:bg-darkBg-card rounded-3xl border border-white/40 dark:border-darkBorder-light shadow-md p-6 space-y-6">
-                                    {/* Header */}
-                                    <div className="flex items-start justify-between gap-4 pb-6 border-b border-gray-100 dark:border-darkBorder-light">
-                                        <div>
-                                            {isEditing && editFormData ? (
-                                                <input
-                                                    type="text"
-                                                    value={editFormData.name}
-                                                    onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                                                    className="text-3xl font-bold text-[#00313A] dark:text-white bg-transparent border-b-2 border-[#D4AF37] outline-none w-full"
-                                                />
-                                            ) : (
-                                                <>
-                                                    <h1 className="text-3xl font-bold text-[#00313A] dark:text-white">
-                                                        {subAction.name}
-                                                    </h1>
-                                                    <p className="text-xl font-semibold text-[#00313A]/70 dark:text-gray-300 mt-2">
-                                                        {subAction.stock ? `${subAction.stock}` : '∞'} available
-                                                    </p>
-                                                </>
-                                            )}
-                                            {/* <p className="text-sm text-[#00313A]/70 dark:text-gray-300 mt-2">
-                                                ID: {subactionId}
-                                            </p> */}
-                                        </div>
-
-                                        {isOwner && !isEditing && (
-                                            <div className="flex gap-2">
-                                                <button
-                                                    onClick={() => router.push(`/action?transferActionId=${subAction.actionId}&transferSubActionId=${subAction.id}`)}
-                                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#00313A] text-white text-sm font-semibold shadow hover:bg-[#00252e] transition-colors"
-                                                >
-                                                    <DollarSign className="w-4 h-4" />
-                                                    Transfer to Wallet
-                                                </button>
-                                                <button
-                                                    onClick={() => setIsEditing(true)}
-                                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#D4AF37] text-white text-sm font-semibold shadow hover:bg-[#C9A530] transition-colors"
-                                                >
-                                                    <Edit className="w-4 h-4" />
-                                                    Edit
-                                                </button>
-                                                <button
-                                                    onClick={handleDelete}
-                                                    disabled={isSaving}
-                                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-red-500 text-white text-sm font-semibold shadow hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                    Delete
-                                                </button>
-                                            </div>
-                                        )}
-
-                                        {!isOwner && !isEditing && (
-                                            <Dialog open={isPurchaseOpen} onOpenChange={setIsPurchaseOpen}>
-                                                <DialogTrigger asChild>
-                                                    <button
-                                                        disabled={isPurchasing}
-                                                        className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#D4AF37] text-white text-sm font-semibold shadow hover:bg-[#C9A530] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                                    >
-                                                        {isPurchasing ? (
-                                                            <>
-                                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                                                Purchasing...
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <ShoppingCart className="w-4 h-4" />
-                                                                {(() => {
-                                                                    switch (subAction.parentActionType) {
-                                                                        case 'ticket':
-                                                                        case 'service':
-                                                                            return 'Purchase';
-                                                                        case 'payment':
-                                                                        case 'transport':
-                                                                            return 'Pay';
-                                                                        case 'booking':
-                                                                            return 'Book Now';
-                                                                        case 'vote':
-                                                                            return 'Vote';
-                                                                        case 'subscription':
-                                                                            return 'Subscribe';
-                                                                        case 'donation':
-                                                                            return 'Donate';
-                                                                        default:
-                                                                            return 'Buy Now';
-                                                                    }
-                                                                })()}
-                                                            </>
-                                                        )}
-                                                    </button>
-                                                </DialogTrigger>
-                                                <DialogContent className="bg-white dark:bg-darkBg-card border border-gray-200 dark:border-darkBorder-light rounded-3xl">
-                                                    <DialogHeader>
-                                                        <DialogTitle className="text-2xl font-bold text-[#00313A] dark:text-white">
-                                                            Purchase {subAction.name}
-                                                        </DialogTitle>
-                                                    </DialogHeader>
-                                                    <div className="space-y-6 py-4">
-                                                        {/* Quantity Section */}
-                                                        <div>
-                                                            <label className="block text-sm font-semibold text-[#00313A] dark:text-white mb-2">
-                                                                Quantity
-                                                            </label>
-                                                            <div className="flex items-center gap-3">
-                                                                <button
-                                                                    onClick={() => setPurchaseQuantity(Math.max(1, parseInt(purchaseQuantity) - 1).toString())}
-                                                                    className="px-3 py-2 rounded-lg border border-gray-300 dark:border-darkBorder-light hover:bg-gray-100 dark:hover:bg-darkBg-interactive"
-                                                                >
-                                                                    −
-                                                                </button>
-                                                                <input
-                                                                    type="number"
-                                                                    min="1"
-                                                                    max={subAction.stock}
-                                                                    value={purchaseQuantity}
-                                                                    onChange={(e) => setPurchaseQuantity(e.target.value || '1')}
-                                                                    className="w-16 text-center px-3 py-2 border border-gray-300 dark:border-darkBorder-light rounded-lg bg-white dark:bg-darkBg-interactive text-[#00313A] dark:text-white"
-                                                                />
-                                                                <button
-                                                                    onClick={() => setPurchaseQuantity(Math.min(subAction.stock || 1, parseInt(purchaseQuantity) + 1).toString())}
-                                                                    className="px-3 py-2 rounded-lg border border-gray-300 dark:border-darkBorder-light hover:bg-gray-100 dark:hover:bg-darkBg-interactive"
-                                                                >
-                                                                    +
-                                                                </button>
-                                                            </div>
-                                                            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                                                                Available: {subAction.stock} units
-                                                            </p>
-                                                        </div>
-
-                                                        {/* Custom Amount for Pay What You Want */}
-                                                        {(parentAction as any)?.pricing?.mode === 'pay_what_you_want' && (
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-semibold text-[#D4AF37] flex items-center gap-2">
-                                                                    <span>Your Price</span>
-                                                                    <DollarSign className="w-4 h-4 text-[#D4AF37]" />
-                                                                </label>
-                                                                <div className="flex items-center gap-2">
-                                                                    <span className="text-sm font-semibold text-[#D4AF37]">
-                                                                        {parentAction.currency || 'USD'}
-                                                                    </span>
-                                                                    <input
-                                                                        type="number"
-                                                                        min="0"
-                                                                        step="0.01"
-                                                                        value={customAmount}
-                                                                        onChange={(e) => {
-                                                                            const value = e.target.value;
-                                                                            if (!value || (parseFloat(value) >= 0 && !isNaN(parseFloat(value)))) {
-                                                                                setCustomAmount(value);
-                                                                                setPurchaseError(null);
-                                                                            }
-                                                                        }}
-                                                                        className="flex-1 px-4 py-2 border border-gray-300 dark:border-darkBorder-light rounded-lg bg-white dark:bg-darkBg-interactive text-right font-semibold text-[#00313A] dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-                                                                        placeholder="Enter amount you want to pay"
-                                                                    />
-                                                                </div>
-                                                                <p className="text-xs text-[#D4AF37] font-semibold">
-                                                                    Enter any amount you'd like to pay
-                                                                </p>
-                                                            </div>
-                                                        )}
-
-                                                        {/* Price Summary */}
-                                                        <div className="bg-gray-50 dark:bg-darkBg-interactive rounded-lg p-4">
-                                                            {(parentAction as any)?.pricing?.mode === 'pay_what_you_want' ? (
-                                                                <>
-                                                                    <div className="flex justify-between items-center mb-2">
-                                                                        <span className="text-sm text-gray-600 dark:text-gray-300">Quantity:</span>
-                                                                        <span className="font-semibold text-[#00313A] dark:text-white">
-                                                                            {purchaseQuantity}
-                                                                        </span>
-                                                                    </div>
-                                                                    <div className="flex justify-between items-center mb-2">
-                                                                        <span className="text-sm text-gray-600 dark:text-gray-300">Price per item:</span>
-                                                                        <span className="font-semibold text-[#00313A] dark:text-white">
-                                                                            {customAmount ? `${parentAction.currency || 'USD'} ${parseFloat(customAmount).toFixed(2)}` : 'N/A'}
-                                                                        </span>
-                                                                    </div>
-                                                                    <div className="flex justify-between items-center pt-2 border-t border-gray-200 dark:border-darkBorder-light">
-                                                                        <span className="font-semibold text-[#00313A] dark:text-white">Total:</span>
-                                                                        <span className="text-xl font-bold text-[#D4AF37]">
-                                                                            {customAmount ? `${parentAction.currency || 'USD'} ${(parseFloat(customAmount) * parseInt(purchaseQuantity)).toFixed(2)}` : 'N/A'}
-                                                                        </span>
-                                                                    </div>
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    <div className="flex justify-between items-center mb-2">
-                                                                        <span className="text-sm text-gray-600 dark:text-gray-300">Unit Price:</span>
-                                                                        <span className="font-semibold text-[#00313A] dark:text-white">
-                                                                            {parentAction.currency || 'USD'} {Number(subAction.price).toFixed(2)}
-                                                                        </span>
-                                                                    </div>
-                                                                    <div className="flex justify-between items-center pt-2 border-t border-gray-200 dark:border-darkBorder-light">
-                                                                        <span className="font-semibold text-[#00313A] dark:text-white">Total:</span>
-                                                                        <span className="text-xl font-bold text-[#D4AF37]">
-                                                                            {parentAction.currency || 'USD'} {(Number(subAction.price) * parseInt(purchaseQuantity)).toFixed(2)}
-                                                                        </span>
-                                                                    </div>
-                                                                </>
-                                                            )}
-                                                        </div>
-
-                                                        {/* Buyer Information - Dynamic Fields */}
-                                                        <div className="space-y-4">
-                                                            {(() => {
-                                                                const requiredFields = (parentAction as any)?.buyerFields && (parentAction as any).buyerFields.length > 0
-                                                                    ? (parentAction as any).buyerFields
-                                                                    : ['fullName', 'email', 'phone'];
-                                                                
-                                                                const notesFields = requiredFields.filter((f: string) => f === 'notes');
-                                                                const otherFields = requiredFields.filter((f: string) => f !== 'notes');
-
-                                                                return (
-                                                                    <>
-                                                                        {otherFields.map((field: string) => {
-                                                                            const isRequired = field !== 'notes';
-                                                                            return renderBuyerField(field, buyerData[field] || '', isRequired);
-                                                                        })}
-                                                                        {notesFields.map((field: string) => {
-                                                                            return renderBuyerField(field, buyerData[field] || '', false);
-                                                                        })}
-                                                                    </>
-                                                                );
-                                                            })()}
-                                                        </div>
-
-                                                        {/* Error Message */}
-                                                        {purchaseError && (
-                                                            <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-lg p-3">
-                                                                <p className="text-sm text-red-600 dark:text-red-400">{purchaseError}</p>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    <DialogFooter className="flex gap-2 justify-end">
-                                                        <button
-                                                            onClick={() => setIsPurchaseOpen(false)}
-                                                            className="px-4 py-2 rounded-lg border border-gray-300 dark:border-darkBorder-light text-[#00313A] dark:text-white hover:bg-gray-50 dark:hover:bg-darkBg-interactive"
-                                                        >
-                                                            Cancel
-                                                        </button>
-                                                        <button
-                                                            onClick={handlePurchase}
-                                                            disabled={isPurchasing}
-                                                            className="px-4 py-2 rounded-lg bg-[#D4AF37] text-white font-semibold hover:bg-[#C9A530] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                                                        >
-                                                            {isPurchasing ? (
-                                                                <>
-                                                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                                                    Processing...
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    <ShoppingCart className="w-4 h-4" />
-                                                                    {(() => {
-                                                                        switch (subAction.parentActionType) {
-                                                                            case 'ticket':
-                                                                            case 'service':
-                                                                                return 'Complete Purchase';
-                                                                            case 'payment':
-                                                                            case 'transport':
-                                                                                return 'Complete Payment';
-                                                                            case 'booking':
-                                                                                return 'Complete Booking';
-                                                                            case 'vote':
-                                                                                return 'Submit Vote';
-                                                                            case 'subscription':
-                                                                                return 'Complete Subscription';
-                                                                            case 'donation':
-                                                                                return 'Complete Donation';
-                                                                            default:
-                                                                                return 'Complete Purchase';
-                                                                        }
-                                                                    })()}
-                                                                </>
-                                                            )}
-                                                        </button>
-                                                    </DialogFooter>
-                                                </DialogContent>
-                                            </Dialog>
-                                        )}
-                                    </div>
-
-                                    {/* Main Content Layout - Cover Image, QR Code, and Details */}
-                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                        {/* Left Column - Cover Image (Square) */}
-                                        <div className="lg:col-span-1">
-                                            {subAction.coverImage ? (
-                                                <div className="relative w-full aspect-square rounded-3xl overflow-hidden shadow-lg border-4 border-[#D4AF37]/20">
-                                                    <img
-                                                        src={subAction.coverImage}
-                                                        alt={subAction.name}
-                                                        className="w-full h-full object-cover"
-                                                    />
-                                                </div>
-                                            ) : (
-                                                <div className="relative w-full aspect-square rounded-3xl bg-gradient-to-br from-[#FFF9E6] to-[#FFFEF8] dark:from-darkBg-interactive dark:to-darkBg-card flex items-center justify-center border-4 border-[#D4AF37]/20">
-                                                    <div className="text-center">
-                                                        <Package className="w-16 h-16 text-[#D4AF37]/30 mx-auto mb-2" />
-                                                        <p className="text-sm text-[#D4AF37]/60 font-medium">No cover image</p>
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* QR Code - Small on the side */}
-                                            {subAction.dedicatedQrCodeData && (
-                                                <div className="mt-4 bg-white dark:bg-darkBg-card rounded-2xl border-2 border-[#D4AF37]/20 p-3 shadow-md">
-                                                    <p className="text-xs font-semibold text-[#D4AF37] uppercase tracking-widest mb-2 text-center">
-                                                        QR Code
-                                                    </p>
-                                                    <div className="flex justify-center">
-                                                        <img
-                                                            src={subAction.dedicatedQrCodeData}
-                                                            alt="QR Code"
-                                                            className="w-32 h-32 rounded-lg"
-                                                        />
-                                                    </div>
-                                                    <p className="text-xs text-center text-[#D4AF37] font-semibold mt-2">Scan to access</p>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Right Column - Details and Content */}
-                                        <div className="lg:col-span-2 space-y-6">
-                                            {/* Pricing Cards */}
-                                            {(parentAction as any)?.pricing?.mode !== 'pay_what_you_want' && (
-                                                <div className="bg-gradient-to-br from-[#FFF9E6] via-[#FFFBF0] to-[#FFFEF8] dark:from-darkBg-interactive dark:to-darkBg-card rounded-2xl border-2 border-[#D4AF37]/20 p-5 shadow-md">
-                                                    <div className="flex items-center gap-2 mb-3">
-                                                        <DollarSign className="w-5 h-5 text-[#D4AF37]" />
-                                                        <span className="text-sm font-bold text-[#D4AF37] uppercase tracking-wide">
-                                                            Price
-                                                        </span>
-                                                    </div>
-                                                    {isEditing && editFormData ? (
-                                                        <input
-                                                            type="number"
-                                                            step="0.01"
-                                                            value={editFormData.price}
-                                                            onChange={(e) => setEditFormData({ ...editFormData, price: parseFloat(e.target.value) })}
-                                                            className="text-3xl font-bold text-[#00313A] dark:text-white bg-transparent border-b-2 border-[#D4AF37] outline-none w-full"
-                                                        />
-                                                    ) : (
-                                                        <p className="text-3xl font-bold text-[#00313A] dark:text-white">
-                                                            ${Number(subAction.price).toFixed(2)}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            )}
-
-                                            {/* Wallet Balance Card - visible only to the owning organisation */}
-                                            {!isEditing && isOwner && subAction.wallet && (
-                                                <div className="bg-gradient-to-br from-[#FFF9E6] via-[#FFFBF0] to-[#FFFEF8] dark:from-darkBg-interactive dark:to-darkBg-card rounded-2xl border-2 border-[#D4AF37]/20 p-5 shadow-md">
-                                                    <div className="flex items-center gap-2 mb-3">
-                                                        <DollarSign className="w-5 h-5 text-[#D4AF37]" />
-                                                        <span className="text-sm font-bold text-[#D4AF37] uppercase tracking-wide">
-                                                            Wallet Balance
-                                                        </span>
-                                                    </div>
-                                                    <p className="text-2xl font-bold text-[#00313A] dark:text-white">
-                                                        {subAction.wallet.currency} {subAction.wallet.balance.toLocaleString()}
-                                                    </p>
-                                                </div>
-                                            )}
-
-                                            {/* Description */}
-                                            <div className="bg-white dark:bg-darkBg-card rounded-2xl border-2 border-[#D4AF37]/10 p-5 shadow-md">
-                                                <div className="flex items-center gap-2 mb-3">
-                                                    <div className="w-1 h-6 bg-[#D4AF37] rounded-full"></div>
-                                                    <h3 className="text-sm font-bold text-[#D4AF37] uppercase tracking-wide">
-                                                        Description
-                                                    </h3>
-                                                </div>
-                                                {isEditing && editFormData ? (
-                                                    <textarea
-                                                        value={editFormData.description || ''}
-                                                        onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
-                                                        className="w-full rounded-xl border-2 border-[#D4AF37]/20 dark:border-darkBorder-light dark:bg-darkBg-main dark:text-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40"
-                                                        rows={4}
-                                                        placeholder="Add a description..."
-                                                    />
-                                                ) : (
-                                                    <p className="text-[#00313A] dark:text-gray-300 leading-relaxed">
-                                                        {subAction.description || 'No description provided'}
-                                                    </p>
-                                                )}
-                                            </div>
-
-                                            {/* Metadata Section */}
-                                            {subAction.metadata && (
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                                    {subAction.metadata.seatType && (
-                                                        <div className="bg-white dark:bg-darkBg-card rounded-2xl border-2 border-[#D4AF37]/10 p-4 shadow-md">
-                                                            <p className="text-xs font-bold text-[#D4AF37] uppercase tracking-wide mb-2">
-                                                                Seat Type
-                                                            </p>
-                                                            <p className="text-lg font-semibold text-[#00313A] dark:text-white capitalize">
-                                                                {subAction.metadata.seatType}
-                                                            </p>
-                                                        </div>
-                                                    )}
-
-                                                    {(subAction.metadata as any).extra && (
-                                                        <div className="bg-white dark:bg-darkBg-card rounded-2xl border-2 border-[#D4AF37]/10 p-4 shadow-md">
-                                                            <p className="text-xs font-bold text-[#D4AF37] uppercase tracking-wide mb-2">
-                                                                Extra
-                                                            </p>
-                                                            <p className="text-lg font-semibold text-[#00313A] dark:text-white capitalize">
-                                                                {(subAction.metadata as any).extra}
-                                                            </p>
-                                                        </div>
-                                                    )}
-
-                                                    {Array.isArray(subAction.metadata.benefits) && subAction.metadata.benefits.length > 0 && (
-                                                        <div className="bg-white dark:bg-darkBg-card rounded-2xl border-2 border-[#D4AF37]/10 p-4 shadow-md sm:col-span-2">
-                                                            <div className="flex items-center gap-2 mb-3">
-                                                                <div className="w-1 h-5 bg-[#D4AF37] rounded-full"></div>
-                                                                <p className="text-xs font-bold text-[#D4AF37] uppercase tracking-wide">
-                                                                    Benefits
-                                                                </p>
-                                                            </div>
-                                                            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                                                {subAction.metadata.benefits.map((benefit) => (
-                                                                    <li key={benefit} className="flex items-start gap-2">
-                                                                        <CheckCircle2 className="w-4 h-4 text-[#D4AF37] mt-0.5 flex-shrink-0" />
-                                                                        <span className="text-sm text-[#00313A] dark:text-gray-300">{benefit}</span>
-                                                                    </li>
-                                                                ))}
-                                                            </ul>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-
-                                            {/* Timestamps */}
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="bg-gradient-to-br from-gray-50 dark:from-darkBg-interactive to-white dark:to-darkBg-card rounded-xl border border-[#D4AF37]/10 p-3">
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <Calendar className="w-3 h-3 text-[#D4AF37]" />
-                                                        <span className="text-xs font-semibold text-[#D4AF37]">
-                                                            Created
-                                                        </span>
-                                                    </div>
-                                                    <p className="text-xs font-medium text-[#00313A] dark:text-gray-300">
-                                                        {formatDate(subAction.createdAt)}
-                                                    </p>
-                                                </div>
-
-                                                <div className="bg-gradient-to-br from-gray-50 dark:from-darkBg-interactive to-white dark:to-darkBg-card rounded-xl border border-[#D4AF37]/10 p-3">
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <Clock className="w-3 h-3 text-[#D4AF37]" />
-                                                        <span className="text-xs font-semibold text-[#D4AF37]">
-                                                            Updated
-                                                        </span>
-                                                    </div>
-                                                    <p className="text-xs font-medium text-[#00313A] dark:text-gray-300">
-                                                        {formatDate(subAction.updatedAt)}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Edit Actions */}
-                                    {isEditing && (
-                                        <div className="pt-6 border-t border-gray-100 dark:border-darkBorder-light flex gap-3 justify-end">
-                                            <button
-                                                onClick={() => {
-                                                    setIsEditing(false);
-                                                    setEditFormData(subAction);
-                                                }}
-                                                disabled={isSaving}
-                                                className="px-6 py-3 rounded-full border border-gray-200 dark:border-darkBorder-light text-[#00313A] dark:text-white font-semibold hover:bg-gray-100 dark:hover:bg-darkBg-interactive disabled:opacity-50 transition-colors"
-                                            >
-                                                Cancel
-                                            </button>
-                                            <button
-                                                onClick={handleSaveEdit}
-                                                disabled={isSaving}
-                                                className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#D4AF37] text-white font-semibold shadow hover:bg-[#C9A530] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                            >
-                                                {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
-                                                Save Changes
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                            </>
-                        ) : (
-                            <div className="bg-white dark:bg-darkBg-card border border-red-100 dark:border-darkBorder-light rounded-3xl p-8 text-center">
-                                <div className="flex items-center justify-center gap-2 text-red-600 dark:text-red-400 font-semibold mb-2">
-                                    <AlertTriangle className="w-5 h-5" />
-                                    <span>Subaction not found</span>
-                                </div>
-                                <p className="text-gray-600 dark:text-gray-300">
-                                    The subaction you're looking for doesn't exist or has been deleted.
-                                </p>
-                            </div>
-                        )}
-                    </section>
-                </div>
-            </main>
-
-            {isLoggedIn && (
-                <div className="lg:hidden">
-                    <Navigation />
-                </div>
-            )}
-
-            {/* Purchase Success Dialog */}
-            <Dialog open={isPurchaseSuccessOpen} onOpenChange={(open) => {
-                setIsPurchaseSuccessOpen(open);
-                if (!open) router.push('/home');
-            }}>
-                <DialogContent className="bg-white dark:bg-darkBg-card border border-gray-200 dark:border-darkBorder-light rounded-3xl max-w-md">
-                    <DialogHeader>
-                        <DialogTitle className="text-2xl font-bold text-[#00313A] dark:text-white flex items-center gap-3">
-                            <div className="w-10 h-10 bg-gradient-to-br from-[#D4AF37] to-[#E5C158] rounded-full flex items-center justify-center shadow-md">
-                                <CheckCircle2 className="w-6 h-6 text-white" />
-                            </div>
-                            Purchase Successful!
-                        </DialogTitle>
-                    </DialogHeader>
-                    {purchaseResult && (
-                        <div className="space-y-5 py-4">
-                            {/* Reference ID */}
-                            <div className="bg-[#FFF9E6] dark:bg-darkBg-interactive rounded-xl p-4 border border-[#D4AF37]/20">
-                                <p className="text-xs font-semibold text-[#D4AF37] uppercase tracking-wide mb-1">Receipt / Reference</p>
-                                <p className="text-base font-bold text-[#00313A] dark:text-white font-mono">{purchaseResult.referenceId}</p>
-                            </div>
-
-                            {/* Description */}
-                            {purchaseResult.description && (
-                                <div className="bg-gray-50 dark:bg-darkBg-interactive rounded-xl p-4 border border-gray-200 dark:border-darkBorder-light">
-                                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Purchase Summary</p>
-                                    <p className="text-sm text-[#00313A] dark:text-white">{purchaseResult.description}</p>
-                                </div>
+                {/* ── Hero ───────────────────────────────────────────────────── */}
+                <div className="relative w-full h-72 overflow-hidden">
+                    {(subAction.coverImage || parentAction.coverImage) ? (
+                        <img
+                            src={subAction.coverImage || parentAction.coverImage!}
+                            alt={subAction.name}
+                            className="w-full h-full object-cover"
+                        />
+                    ) : (
+                        <div className="absolute inset-0 bg-gradient-to-br from-blue-950 to-[#0d1117]" />
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0d1117] via-[#0d1117]/50 to-transparent" />
+                    <div className="absolute bottom-0 left-0 right-0 p-6">
+                        <div className="flex flex-wrap gap-2 mb-3">
+                            <span className={`text-xs px-2.5 py-0.5 rounded-md font-semibold capitalize ${
+                                parentAction.status === 'published'
+                                    ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-400'
+                                    : 'bg-[#1e2d40] text-[#8da0b3]'
+                            }`}>
+                                {parentAction.status}
+                            </span>
+                            {parentAction.type && (
+                                <span className="bg-[#1a3a5c]/80 border border-[#3b82f6] text-[#60a5fa] text-xs px-2.5 py-0.5 rounded-md font-medium backdrop-blur-sm capitalize">
+                                    {parentAction.type}
+                                </span>
                             )}
-
-                            {/* Updated Wallet Balance */}
-                            <div className="bg-gradient-to-br from-[#FFF9E6] to-[#FFFEF8] dark:from-darkBg-interactive dark:to-darkBg-card rounded-xl p-4 border-2 border-[#D4AF37]/20">
-                                <p className="text-xs font-semibold text-[#D4AF37] uppercase tracking-wide mb-1">Your New Wallet Balance</p>
-                                <p className="text-2xl font-bold text-[#00313A] dark:text-white">
-                                    {purchaseResult.buyerCurrency} {purchaseResult.buyerBalanceAfter.toLocaleString()}
-                                </p>
-                            </div>
-
-                            {/* QR Code */}
-                            {purchaseResult.qrCodeData && (
-                                <div className="flex flex-col items-center gap-3 bg-white dark:bg-darkBg-main rounded-xl p-4 border-2 border-[#D4AF37]/20">
-                                    <p className="text-xs font-semibold text-[#D4AF37] uppercase tracking-wide">Your Ticket QR Code</p>
-                                    <img
-                                        src={purchaseResult.qrCodeData}
-                                        alt="Ticket QR Code"
-                                        className="w-40 h-40 rounded-lg"
-                                    />
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 text-center">Show this at the entry gate</p>
-                                </div>
+                            {stock != null && (
+                                <span className="bg-black/50 text-white/70 text-xs px-2.5 py-0.5 rounded-md backdrop-blur-sm">
+                                    {stock} left
+                                </span>
                             )}
                         </div>
-                    )}
-                    <DialogFooter className="flex gap-2 justify-end">
+                        {isEditing && editFormData ? (
+                            <input
+                                value={editFormData.name}
+                                onChange={e => setEditFormData({ ...editFormData, name: e.target.value })}
+                                className="text-2xl font-bold bg-transparent border-b-2 border-[#3b82f6] text-[#f0f4f8] outline-none w-full"
+                            />
+                        ) : (
+                            <h2 className="text-2xl font-bold text-[#f0f4f8] leading-tight drop-shadow">{subAction.name}</h2>
+                        )}
+                        {(subAction.description || parentAction.shortDescription) && !isEditing && (
+                            <p className="text-[#8da0b3] text-sm mt-1.5 max-w-lg line-clamp-2">
+                                {subAction.description || parentAction.shortDescription}
+                            </p>
+                        )}
+                    </div>
+                </div>
+
+                {/* ── Main grid ──────────────────────────────────────────────── */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 p-6">
+
+                    {/* Left column */}
+                    <div className="flex flex-col gap-4">
+
+                        {/* Price card */}
+                        <div className="bg-[#111927] border border-[#1e2d40] rounded-xl p-5">
+                            <p className="text-[#4a6278] text-xs font-semibold uppercase tracking-wide mb-1">
+                                {isPWYW ? 'Pay what you want' : 'Price'}
+                            </p>
+                            {isEditing && editFormData && !isPWYW ? (
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    value={editFormData.price}
+                                    onChange={e => setEditFormData({ ...editFormData, price: parseFloat(e.target.value) })}
+                                    className="text-3xl font-bold bg-transparent border-b-2 border-[#3b82f6] text-[#f0f4f8] outline-none w-full"
+                                />
+                            ) : (
+                                <p className="text-3xl font-bold text-[#f0f4f8]">
+                                    {isPWYW ? 'Open price' : `${parentAction.currency || ''} ${Number(subAction.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                                </p>
+                            )}
+                            {stock != null && (
+                                <p className="text-[#4a6278] text-xs mt-1.5">{stock} units available</p>
+                            )}
+                        </div>
+
+                        {/* Wallet balance (owner only) */}
+                        {isOwner && subAction.wallet && (
+                            <div className="bg-[#111927] border border-[#1e2d40] rounded-xl p-5 flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-lg bg-[#1a3a5c] border border-[#3b82f6]/30 flex items-center justify-center flex-shrink-0">
+                                    <Wallet className="w-4 h-4 text-[#60a5fa]" />
+                                </div>
+                                <div>
+                                    <p className="text-[#4a6278] text-xs font-semibold">Wallet balance</p>
+                                    <p className="text-[#f0f4f8] font-bold">
+                                        {subAction.wallet.currency} {subAction.wallet.balance.toLocaleString()}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* QR code */}
+                        {subAction.dedicatedQrCodeData && (
+                            <div className="bg-[#111927] border border-[#1e2d40] rounded-xl p-5">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <QrCode className="w-4 h-4 text-[#3b82f6]" />
+                                    <p className="text-[#f0f4f8] font-semibold text-sm">Your QR Code</p>
+                                </div>
+                                <div className="flex justify-center mb-3">
+                                    <div className="bg-white rounded-xl p-3">
+                                        <img
+                                            src={subAction.dedicatedQrCodeData}
+                                            alt="QR Code"
+                                            className="w-40 h-40 block"
+                                        />
+                                    </div>
+                                </div>
+                                <a
+                                    href={`/action/${actionId}/subactions/${subAction.id}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#1a3a5c] border border-[#3b82f6] text-[#60a5fa] text-sm font-semibold hover:bg-[#1e4a72] transition-colors"
+                                >
+                                    <ExternalLink className="w-4 h-4" />
+                                    Open link
+                                </a>
+                            </div>
+                        )}
+
+                        {/* Timestamps */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="bg-[#111927] border border-[#1e2d40] rounded-xl p-3">
+                                <div className="flex items-center gap-1.5 mb-1">
+                                    <Calendar className="w-3 h-3 text-[#4a6278]" />
+                                    <p className="text-[#4a6278] text-xs">Created</p>
+                                </div>
+                                <p className="text-[#8da0b3] text-xs font-semibold">{formatDate(subAction.createdAt)}</p>
+                            </div>
+                            <div className="bg-[#111927] border border-[#1e2d40] rounded-xl p-3">
+                                <div className="flex items-center gap-1.5 mb-1">
+                                    <Clock className="w-3 h-3 text-[#4a6278]" />
+                                    <p className="text-[#4a6278] text-xs">Updated</p>
+                                </div>
+                                <p className="text-[#8da0b3] text-xs font-semibold">{formatDate(subAction.updatedAt)}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right column */}
+                    <div className="flex flex-col gap-4">
+
+                        {/* Description */}
+                        <div className="bg-[#111927] border border-[#1e2d40] rounded-xl p-5">
+                            <p className="text-[#4a6278] text-xs font-semibold uppercase tracking-wide mb-2">Description</p>
+                            {isEditing && editFormData ? (
+                                <textarea
+                                    value={editFormData.description || ''}
+                                    onChange={e => setEditFormData({ ...editFormData, description: e.target.value })}
+                                    rows={4}
+                                    placeholder="Add a description..."
+                                    className="w-full bg-[#0d1525] border border-[#1e2d40] focus:border-[#3b82f6] rounded-lg px-3 py-2 text-sm text-[#f0f4f8] placeholder:text-[#4a6278] outline-none resize-none transition-colors"
+                                />
+                            ) : (
+                                <p className="text-[#8da0b3] text-sm leading-relaxed">
+                                    {subAction.description || parentAction.description || parentAction.shortDescription || 'No description provided.'}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Benefits */}
+                        {benefitsList.length > 0 && (
+                            <div className="bg-[#111927] border border-[#1e2d40] rounded-xl p-5">
+                                <p className="text-[#4a6278] text-xs font-semibold uppercase tracking-wide mb-3">Included</p>
+                                <ul className="space-y-2">
+                                    {benefitsList.map((b: string, i: number) => (
+                                        <li key={i} className="flex items-start gap-2 text-sm text-[#8da0b3]">
+                                            <span className="text-[#3b82f6] mt-0.5 flex-shrink-0">·</span>{b}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+
+                        {/* Metadata grid */}
+                        {metaEntries.length > 0 && (
+                            <div className="bg-[#111927] border border-[#1e2d40] rounded-xl overflow-hidden">
+                                <button
+                                    onClick={() => setDetailsExpanded(p => !p)}
+                                    className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-[#0d1525] transition-colors"
+                                >
+                                    <span className="text-[#f0f4f8] text-sm font-semibold">Details</span>
+                                    {detailsExpanded
+                                        ? <ChevronUp className="w-4 h-4 text-[#4a6278]" />
+                                        : <ChevronDown className="w-4 h-4 text-[#4a6278]" />}
+                                </button>
+                                {detailsExpanded && (
+                                    <div className="grid grid-cols-2 gap-px bg-[#1e2d40] border-t border-[#1e2d40]">
+                                        {metaEntries.map(([k, v]) => (
+                                            <div key={k} className="bg-[#0d1117] p-3">
+                                                <p className="text-[#4a6278] text-xs mb-0.5 capitalize">{k.replace(/([A-Z])/g, ' $1')}</p>
+                                                <p className="text-[#f0f4f8] text-xs font-semibold truncate">{String(v)}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Stock edit (owner) */}
+                        {isEditing && editFormData && (
+                            <div className="bg-[#111927] border border-[#1e2d40] rounded-xl p-5">
+                                <p className="text-[#4a6278] text-xs font-semibold uppercase tracking-wide mb-3">Stock</p>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    value={editFormData.stock ?? ''}
+                                    onChange={e => setEditFormData({ ...editFormData, stock: e.target.value ? parseInt(e.target.value) : undefined })}
+                                    placeholder="Unlimited"
+                                    className="w-full bg-[#0d1525] border border-[#1e2d40] focus:border-[#3b82f6] rounded-lg px-3 py-2 text-sm text-[#f0f4f8] placeholder:text-[#4a6278] outline-none transition-colors"
+                                />
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* ── Purchase form ───────────────────────────────────────────── */}
+                {!isOwner && (
+                    <div className="px-6 pb-6">
+                        {!showPurchaseForm ? (
+                            <button
+                                onClick={() => setShowPurchaseForm(true)}
+                                className="w-full py-3.5 rounded-xl bg-[#3b82f6] hover:bg-[#2563eb] text-white font-bold text-sm transition-colors flex items-center justify-center gap-2"
+                            >
+                                <ShoppingCart className="w-4 h-4" />
+                                {ctaLabel(parentAction.type)}
+                            </button>
+                        ) : (
+                            <div className="bg-[#111927] border border-[#1e2d40] rounded-xl overflow-hidden">
+                                <div className="flex items-center justify-between px-5 py-4 border-b border-[#1e2d40]">
+                                    <p className="text-[#f0f4f8] font-bold">Complete your order</p>
+                                    <button
+                                        onClick={() => { setShowPurchaseForm(false); setPurchaseError(null); }}
+                                        className="w-7 h-7 rounded-lg bg-[#0d1525] border border-[#1e2d40] flex items-center justify-center text-[#8da0b3] hover:text-[#f0f4f8] transition-colors"
+                                    >
+                                        <X className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+
+                                <div className="p-5 space-y-5">
+                                    {/* Quantity */}
+                                    <div>
+                                        <label className="text-[#4a6278] text-xs font-semibold mb-2 block">
+                                            Quantity {maxQty < 999 && <span className="font-normal">(max {maxQty})</span>}
+                                        </label>
+                                        <div className="flex items-center gap-3">
+                                            <button
+                                                onClick={() => setPurchaseQuantity(q => Math.max(1, q - 1))}
+                                                disabled={purchaseQuantity <= 1}
+                                                className="w-9 h-9 rounded-full bg-[#0d1525] border border-[#1e2d40] text-[#8da0b3] hover:text-[#f0f4f8] hover:border-[#3b82f6] disabled:opacity-30 flex items-center justify-center font-bold transition-colors"
+                                            >−</button>
+                                            <span className="text-[#f0f4f8] font-bold text-base w-8 text-center">{purchaseQuantity}</span>
+                                            <button
+                                                onClick={() => setPurchaseQuantity(q => Math.min(maxQty, q + 1))}
+                                                disabled={purchaseQuantity >= maxQty}
+                                                className="w-9 h-9 rounded-full bg-[#0d1525] border border-[#1e2d40] text-[#8da0b3] hover:text-[#f0f4f8] hover:border-[#3b82f6] disabled:opacity-30 flex items-center justify-center font-bold transition-colors"
+                                            >+</button>
+                                        </div>
+                                    </div>
+
+                                    {/* PWYW amount */}
+                                    {isPWYW && (
+                                        <div>
+                                            <label className="text-[#4a6278] text-xs font-semibold mb-2 block">Your amount ({parentAction.currency})</label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                value={customAmount}
+                                                onChange={e => { setCustomAmount(e.target.value); setPurchaseError(null); }}
+                                                placeholder="Enter amount"
+                                                className="w-full bg-[#0d1525] border border-[#1e2d40] focus:border-[#3b82f6] rounded-lg px-3 py-2 text-sm text-[#f0f4f8] placeholder:text-[#4a6278] outline-none transition-colors"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {/* Buyer fields */}
+                                    <div className="space-y-3">
+                                        <p className="text-[#4a6278] text-xs font-semibold uppercase tracking-wide">Your information</p>
+                                        {(parentAction.buyerFields?.length ? parentAction.buyerFields : ['fullName', 'email', 'phone']).map(f =>
+                                            renderBuyerField(f, buyerData[f] || '', f !== 'notes')
+                                        )}
+                                    </div>
+
+                                    {/* Price summary */}
+                                    <div className="bg-[#0d1525] border border-[#1e2d40] rounded-xl p-4 flex items-center justify-between">
+                                        <div>
+                                            <p className="text-[#4a6278] text-xs">Total</p>
+                                            <p className="text-[#f0f4f8] font-bold text-lg">
+                                                {isPWYW && !customAmount ? '—' : `${parentAction.currency || ''} ${totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                                            </p>
+                                        </div>
+                                        <p className="text-[#4a6278] text-xs text-right">
+                                            {purchaseQuantity} × {isPWYW ? `${parentAction.currency} ${parseFloat(customAmount || '0').toFixed(2)}` : `${parentAction.currency} ${Number(subAction.price).toFixed(2)}`}
+                                        </p>
+                                    </div>
+
+                                    {purchaseError && (
+                                        <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-3 py-2.5 rounded-lg text-sm">
+                                            {purchaseError}
+                                        </div>
+                                    )}
+
+                                    <button
+                                        onClick={handlePurchase}
+                                        disabled={isPurchasing}
+                                        className="w-full py-3 rounded-xl bg-[#3b82f6] hover:bg-[#2563eb] disabled:opacity-40 text-white font-bold text-sm transition-colors flex items-center justify-center gap-2"
+                                    >
+                                        {isPurchasing
+                                            ? <><Loader2 className="w-4 h-4 animate-spin" />Processing...</>
+                                            : ctaLabel(parentAction.type)
+                                        }
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+
+            {/* ── Delete confirm dialog ───────────────────────────────────────── */}
+            <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+                <DialogContent className="bg-[#0d1117] border border-[#1e2d40] rounded-2xl max-w-sm p-0 gap-0 overflow-hidden">
+                    <div className="p-6">
+                        <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-4">
+                            <Trash2 className="w-5 h-5 text-red-400" />
+                        </div>
+                        <h3 className="text-[#f0f4f8] font-bold text-center mb-2">Delete this item?</h3>
+                        <p className="text-[#8da0b3] text-sm text-center">
+                            This will permanently delete <span className="font-semibold text-[#f0f4f8]">{subAction.name}</span>. This action cannot be undone.
+                        </p>
+                    </div>
+                    <div className="flex gap-2 px-6 pb-6">
                         <button
-                            onClick={() => { setIsPurchaseSuccessOpen(false); router.push('/home'); }}
-                            className="px-5 py-2 rounded-full bg-[#D4AF37] text-white font-semibold hover:bg-[#C9A530] transition-colors"
+                            onClick={() => setShowDeleteConfirm(false)}
+                            className="flex-1 py-2.5 rounded-xl bg-[#111927] border border-[#1e2d40] text-[#8da0b3] hover:text-[#f0f4f8] text-sm font-semibold transition-colors"
                         >
-                            Go to My Tickets
+                            Cancel
                         </button>
-                    </DialogFooter>
+                        <button
+                            onClick={handleDelete}
+                            disabled={isSaving}
+                            className="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 disabled:opacity-40 text-white text-sm font-bold transition-colors flex items-center justify-center gap-2"
+                        >
+                            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                            Delete
+                        </button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* ── Purchase success dialog ─────────────────────────────────────── */}
+            <Dialog open={isPurchaseSuccessOpen} onOpenChange={setIsPurchaseSuccessOpen}>
+                <DialogContent className="bg-[#0d1117] border border-[#1e2d40] rounded-2xl w-[calc(100vw-2rem)] max-w-lg p-0 gap-0 overflow-hidden">
+                    <div className="flex items-center gap-3 px-5 py-4 border-b border-[#1e2d40]">
+                        <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center flex-shrink-0">
+                            <Check className="w-5 h-5 text-white" />
+                        </div>
+                        <h2 className="text-lg font-bold text-[#f0f4f8]">Success!</h2>
+                    </div>
+
+                    <div className="overflow-y-auto max-h-[65vh]">
+                        {purchaseResult && (
+                            <div className="space-y-3 p-5">
+                                <div className="bg-[#111927] border border-[#1e2d40] rounded-xl p-4">
+                                    <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wide mb-1.5">Reference</p>
+                                    <p className="text-base font-bold text-[#f0f4f8] font-mono break-all">{purchaseResult.referenceId}</p>
+                                </div>
+
+                                {purchaseResult.description && (
+                                    <div className="bg-[#111927] border border-[#1e2d40] rounded-xl p-4">
+                                        <p className="text-xs font-semibold text-[#4a6278] uppercase tracking-wide mb-1.5">Summary</p>
+                                        <p className="text-sm text-[#8da0b3]">{purchaseResult.description}</p>
+                                    </div>
+                                )}
+
+                                <div className="bg-[#111927] border border-[#1e2d40] rounded-xl p-4">
+                                    <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wide mb-1.5">New Wallet Balance</p>
+                                    <p className="text-2xl font-bold text-[#f0f4f8]">
+                                        {purchaseResult.buyerCurrency} {purchaseResult.buyerBalanceAfter.toLocaleString()}
+                                    </p>
+                                </div>
+
+                                {parentAction.fulfillment?.postPurchaseMessage && (
+                                    <div className="bg-[#111927] border border-[#1e2d40] rounded-xl p-4">
+                                        <p className="text-xs font-semibold text-[#4a6278] uppercase tracking-wide mb-1.5">Message from Organizer</p>
+                                        <p className="text-sm text-[#8da0b3]">{parentAction.fulfillment.postPurchaseMessage}</p>
+                                    </div>
+                                )}
+
+                                {purchaseResult.qrCodeData && (
+                                    <div className="flex flex-col items-center gap-3 bg-[#111927] border border-[#1e2d40] rounded-xl p-5">
+                                        <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wide">Your QR Code</p>
+                                        <div className="bg-white rounded-xl p-3">
+                                            <img src={purchaseResult.qrCodeData} alt="QR Code" className="w-40 h-40 block" />
+                                        </div>
+                                        <p className="text-xs text-[#4a6278] text-center">Show this to confirm your entry</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="px-5 py-4 border-t border-[#1e2d40]">
+                        <button
+                            onClick={() => setIsPurchaseSuccessOpen(false)}
+                            className="w-full py-3 bg-[#3b82f6] hover:bg-[#2563eb] text-white rounded-xl font-bold text-sm transition-colors"
+                        >
+                            Close
+                        </button>
+                    </div>
                 </DialogContent>
             </Dialog>
         </div>
     );
-};
-
-export default SubActionDetailPage;
+}
