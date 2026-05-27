@@ -1,6 +1,7 @@
 "use client";
 
 import baseUrl from "@/helpers/baseUrl";
+import { assertTrustedDeviceIdentity } from "@/lib/e2ee/identityTrustStore";
 import { decryptSecureEnvelope, encryptSecureTextForRecipients } from "@/lib/e2ee/secureMessageCrypto";
 import { ensureRegisteredSecureDevice } from "@/services/e2eeDeviceService";
 import type { Conversation, Message, ReplyPreview } from "@/types/chat.types";
@@ -91,7 +92,7 @@ const fetchPublicDeviceBundles = async (token: string, userId: string) => {
     oneTimePreKeys: device.oneTimePreKeys || [],
   })) as PublicSecureDeviceBundle[];
 
-  const devices = rawDevices.filter((device) => {
+  const usableDevices = rawDevices.filter((device) => {
     const valid = hasUsablePublicBundle(device);
     if (!valid) {
       console.warn("Skipping invalid secure device bundle", {
@@ -101,6 +102,17 @@ const fetchPublicDeviceBundles = async (token: string, userId: string) => {
     }
     return valid;
   });
+  const devices = await Promise.all(
+    usableDevices.map(async (device) => {
+      await assertTrustedDeviceIdentity({
+        userId,
+        deviceId: device.deviceId,
+        identityPublicKey: device.bundle.identityPublicKey,
+      });
+
+      return device;
+    }),
+  );
 
   bundleCache.set(cacheKey, {
     cachedAt: Date.now(),
