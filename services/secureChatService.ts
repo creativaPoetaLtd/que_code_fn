@@ -339,6 +339,7 @@ export const sendSecureTextMessage = async ({
   });
 
   bundleCache.delete(`bundles:${userId}`);
+  bundleCache.delete(`bundles:${recipientUserId}`);
 
   return {
     id: payload.data.id,
