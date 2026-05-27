@@ -321,6 +321,9 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
                         fileSize={message.fileSize}
                         duration={message.duration}
                         mimeType={message.mimeType}
+                        secureMediaKey={message.secureMediaKey}
+                        secureMediaIv={message.secureMediaIv}
+                        isSecureMedia={message.isSecureMedia}
                     />
                 ) : (
                     <>

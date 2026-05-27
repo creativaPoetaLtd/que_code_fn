@@ -4,6 +4,7 @@ import baseUrl from "@/helpers/baseUrl";
 import { assertTrustedDeviceIdentity, getIdentityFingerprint } from "@/lib/e2ee/identityTrustStore";
 import { saveStoredSecureDeviceState } from "@/lib/e2ee/deviceStore";
 import { decryptSecureEnvelope, encryptSecureTextForRecipients } from "@/lib/e2ee/secureMessageCrypto";
+import { encryptSecureMediaFile } from "@/lib/e2ee/secureMediaCrypto";
 import { ensureRegisteredSecureDevice } from "@/services/e2eeDeviceService";
 import type { Conversation, Message, ReplyPreview } from "@/types/chat.types";
 import type {
@@ -164,11 +165,32 @@ const decryptSecureApiMessage = async ({
     throw new Error("Unable to resolve the sender secure identity");
   }
 
-  const content = await decryptSecureEnvelope({
+  const decryptedContent = await decryptSecureEnvelope({
     envelope,
     senderIdentityPublicKey: senderDevice.bundle.identityPublicKey,
     recipientState: state,
   });
+  let content = decryptedContent;
+  let mediaFields: Partial<Message> = {};
+
+  if (rawMessage.messageType !== "text") {
+    try {
+      const mediaPayload = JSON.parse(decryptedContent);
+      content = mediaPayload.caption || mediaPayload.originalName || "Secure media";
+      mediaFields = {
+        mediaUrl: mediaPayload.mediaUrl,
+        mediaType: mediaPayload.mediaType,
+        fileSize: mediaPayload.originalSize,
+        fileName: mediaPayload.originalName,
+        mimeType: mediaPayload.originalType,
+        secureMediaKey: mediaPayload.encryptedKey,
+        secureMediaIv: mediaPayload.encryptedIv,
+        isSecureMedia: true,
+      } as Partial<Message>;
+    } catch {
+      content = "[Unable to decode secure media metadata]";
+    }
+  }
   const recipientOneTimePreKeyId = envelope.recipientOneTimePreKeyId || null;
 
   if (recipientOneTimePreKeyId) {
@@ -186,6 +208,7 @@ const decryptSecureApiMessage = async ({
     id: rawMessage.id,
     chatId: rawMessage.chatId,
     content,
+    ...mediaFields,
     messageType: rawMessage.messageType,
     replyToMessageId: rawMessage.replyToMessageId || null,
     replyTo: null as ReplyPreview | null,
@@ -376,6 +399,107 @@ export const sendSecureTextMessage = async ({
     status: payload.data.status || "sent",
     createdAt: payload.data.createdAt,
     sender: payload.data.sender,
+    readBy: [],
+  } satisfies Message;
+};
+
+export const sendSecureMediaMessage = async ({
+  token,
+  userId,
+  chatId,
+  conversation,
+  file,
+  caption,
+}: {
+  token: string;
+  userId: string;
+  chatId: string;
+  conversation: Conversation;
+  file: File;
+  caption?: string;
+}) => {
+  const state = await getSecureDeviceState(token, userId);
+  const encryptedMedia = await encryptSecureMediaFile(file);
+  const formData = new FormData();
+  formData.append("file", encryptedMedia.encryptedFile);
+
+  const uploadResponse = await fetch(`${getApiBaseUrl()}/e2ee/chats/${chatId}/media`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "x-qc-device-id": state.deviceId,
+    },
+    body: formData,
+  });
+  const uploadPayload = await uploadResponse.json().catch(() => null);
+
+  if (!uploadResponse.ok || !uploadPayload?.data?.url) {
+    throw new Error(uploadPayload?.message || "Failed to upload secure media");
+  }
+
+  const recipientUserId = getConversationRecipient(conversation, userId);
+  const [senderDevices, recipientDevices] = await Promise.all([
+    fetchPublicDeviceBundles(token, userId),
+    fetchPublicDeviceBundles(token, recipientUserId),
+  ]);
+  const mediaType = file.type.startsWith("image/")
+    ? "image"
+    : file.type.startsWith("video/")
+      ? "video"
+      : file.type.startsWith("audio/")
+        ? "audio"
+        : "document";
+  const encryptedContent = JSON.stringify({
+    mediaUrl: uploadPayload.data.url,
+    mediaType,
+    encryptedKey: encryptedMedia.key,
+    encryptedIv: encryptedMedia.iv,
+    originalName: encryptedMedia.originalName,
+    originalType: encryptedMedia.originalType,
+    originalSize: encryptedMedia.originalSize,
+    caption: caption || "",
+  });
+  const { recipientPayloads } = await encryptSecureTextForRecipients({
+    content: encryptedContent,
+    senderUserId: userId,
+    senderState: state,
+    recipientDevices: [...senderDevices, ...recipientDevices],
+  });
+  const messagePayload = await fetchJson(`${getApiBaseUrl()}/e2ee/chats/${chatId}/messages`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      "x-qc-device-id": state.deviceId,
+    },
+    body: JSON.stringify({
+      messageType: mediaType,
+      recipientPayloads,
+    }),
+  });
+
+  bundleCache.delete(`bundles:${userId}`);
+  bundleCache.delete(`bundles:${recipientUserId}`);
+
+  return {
+    id: messagePayload.data.id,
+    chatId,
+    content: caption || encryptedMedia.originalName,
+    messageType: mediaType,
+    mediaUrl: uploadPayload.data.url,
+    mediaType,
+    fileSize: encryptedMedia.originalSize,
+    fileName: encryptedMedia.originalName,
+    mimeType: encryptedMedia.originalType,
+    secureMediaKey: encryptedMedia.key,
+    secureMediaIv: encryptedMedia.iv,
+    isSecureMedia: true,
+    replyToMessageId: null,
+    replyTo: null,
+    reactions: [],
+    status: messagePayload.data.status || "sent",
+    createdAt: messagePayload.data.createdAt,
+    sender: messagePayload.data.sender,
     readBy: [],
   } satisfies Message;
 };

@@ -1,8 +1,9 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Download, Play, Pause, Volume2, VolumeX } from "lucide-react"
+import { Download, Lock, Play, Pause, Volume2, VolumeX } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { decryptSecureMediaBlob } from "@/lib/e2ee/secureMediaCrypto"
 import { formatDuration, formatFileSize, getFileIcon } from "@/services/mediaService"
 import type { MediaData } from "@/types/chat.types"
 
@@ -18,12 +19,26 @@ export default function MediaMessageContent({
     fileName,
     fileSize,
     duration,
-    mimeType
+    mimeType,
+    secureMediaKey,
+    secureMediaIv,
+    isSecureMedia
 }: MediaMessageContentProps) {
     const handleDownload = async (url: string, filename: string) => {
         try {
             const response = await fetch(url);
-            const blob = await response.blob();
+            if (!response.ok) {
+                throw new Error(`Download failed with status ${response.status}`);
+            }
+            const encryptedBlob = await response.blob();
+            const blob = isSecureMedia && secureMediaKey && secureMediaIv
+                ? await decryptSecureMediaBlob({
+                    encryptedBlob,
+                    key: secureMediaKey,
+                    iv: secureMediaIv,
+                    originalType: mimeType || "application/octet-stream",
+                })
+                : encryptedBlob;
             const blobUrl = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = blobUrl;
@@ -34,9 +49,44 @@ export default function MediaMessageContent({
             window.URL.revokeObjectURL(blobUrl);
         } catch (error) {
             console.error('Download failed:', error);
-            window.open(url, '_blank');
+            if (!isSecureMedia) {
+                window.open(url, '_blank');
+            }
         }
     };
+
+    if (isSecureMedia && mediaUrl) {
+        return (
+            <div className="space-y-2">
+                <div className="flex items-center gap-3 p-3 bg-gray-100 dark:bg-white/10 rounded-lg max-w-sm">
+                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md bg-white dark:bg-darkBg-card">
+                        <Lock className="h-5 w-5 text-brand-green dark:text-brand-gold" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate text-gray-900 dark:text-white">
+                            {fileName || "Secure file"}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-300">
+                            {fileSize ? formatFileSize(fileSize) : "Encrypted media"}
+                        </p>
+                    </div>
+                    <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 flex-shrink-0"
+                        onClick={() => handleDownload(mediaUrl, fileName || "secure-file")}
+                        title="Download decrypted file"
+                    >
+                        <Download className="h-4 w-4" />
+                    </Button>
+                </div>
+                {content && content !== `Sent a ${mediaType}` && (
+                    <p className="text-sm">{content}</p>
+                )}
+            </div>
+        )
+    }
 
     // Image rendering
     if (mediaType === 'image' && mediaUrl) {

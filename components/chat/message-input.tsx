@@ -11,10 +11,11 @@ import { useChat } from "@/context/ChatContext"
 import { useTheme } from "@/context/ThemeContext"
 import MediaUploadModal from "./media-upload-modal"
 import { uploadMediaMessage } from "@/services/mediaService"
+import { sendSecureMediaMessage } from "@/services/secureChatService"
 import MentionDropdown, { MentionMember } from "./mention-dropdown"
 import { useSearchGroupMembersQuery } from "@/states/groupSlice"
 import { useAuthToken } from "@/hooks/use-auth-token"
-import type { ReplyPreview } from "@/types/chat.types"
+import type { Conversation, ReplyPreview } from "@/types/chat.types"
 
 const EmojiPicker = dynamic(() => import("emoji-picker-react"), { ssr: false })
 const ALL_MENTION_USER_ID = "__all__"
@@ -48,6 +49,7 @@ interface MessageInputProps {
     /** Pass the group ID when inside a group chat to enable @mentions */
     groupId?: string
     isSecureChat?: boolean
+    secureConversation?: Conversation
     replyToMessage?: ReplyPreview | null
     onCancelReply?: () => void
 }
@@ -57,6 +59,7 @@ export default function MessageInput({
     chatId,
     groupId,
     isSecureChat = false,
+    secureConversation,
     replyToMessage = null,
     onCancelReply,
 }: MessageInputProps) {
@@ -90,8 +93,9 @@ export default function MessageInput({
 
     const chat   = useChat()
     const { theme } = useTheme()
-    const { getToken } = useAuthToken()
+    const { getToken, getUserId } = useAuthToken()
     const token  = getToken()
+    const userId = getUserId()
     const isDark = theme === "dark"
     const { activeChat, sendMessage: contextSendMessage, startTyping, stopTyping, isConnected, addMessage } = chat
     const currentChatId = chatId || activeChat
@@ -381,11 +385,37 @@ export default function MessageInput({
 
     const handleMediaUpload = async (file: File, caption: string) => {
         if (isSecureChat) {
-            toast({
-                title: "Secure media unavailable",
-                description: "Media encryption is not enabled for secure chats yet.",
-                variant: "destructive",
-            })
+            if (!currentChatId || !token || !userId || !secureConversation) {
+                toast({
+                    title: "Secure media unavailable",
+                    description: "Your secure session is not ready yet.",
+                    variant: "destructive",
+                })
+                return
+            }
+
+            setUploading(true); setUploadProgress(10)
+            try {
+                const message = await sendSecureMediaMessage({
+                    token,
+                    userId,
+                    chatId: currentChatId,
+                    conversation: secureConversation,
+                    file,
+                    caption,
+                })
+                if (addMessage) addMessage(message as any)
+                toast({ title: "Secure media sent", description: "Your encrypted media has been sent successfully" })
+                setShowMediaModal(false)
+            } catch (error: any) {
+                toast({
+                    title: "Secure media failed",
+                    description: error?.message || "Failed to send encrypted media",
+                    variant: "destructive",
+                })
+            } finally {
+                setUploading(false); setUploadProgress(0)
+            }
             return
         }
 
@@ -500,14 +530,6 @@ export default function MessageInput({
                     <Button
                         variant="ghost" size="icon"
                         onClick={() => {
-                            if (isSecureChat) {
-                                toast({
-                                    title: "Secure media unavailable",
-                                    description: "Media encryption is not enabled for secure chats yet.",
-                                    variant: "destructive",
-                                })
-                                return
-                            }
                             setShowMediaModal(true)
                         }}
                         className="flex-shrink-0 h-8 w-8 sm:h-9 sm:w-9 mb-0.5 hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors"

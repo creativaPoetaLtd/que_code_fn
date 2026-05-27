@@ -88,6 +88,9 @@ export interface MediaData {
     thumbnailUrl?: string;
     fileName?: string;
     mimeType?: string;
+    secureMediaKey?: string;
+    secureMediaIv?: string;
+    isSecureMedia?: boolean;
     duration?: number;
     width?: number;
     height?: number;

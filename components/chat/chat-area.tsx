@@ -222,6 +222,7 @@ export default function ChatArea({
                     chatId={conversation.id}
                     groupId={conversation.isGroup ? conversation.groupId : undefined}
                     isSecureChat={conversation.securityMode === "secure_dm_v1"}
+                    secureConversation={conversation}
                     replyToMessage={replyToMessage}
                     onCancelReply={() => setReplyToMessage(null)}
                 />
