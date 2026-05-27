@@ -24,6 +24,24 @@ const MAX_DB_SAFE_PREKEY_ID = 2_147_483_646;
 
 const encoder = new TextEncoder();
 
+export interface SecureDeviceSummary {
+  id: string;
+  deviceId: string;
+  deviceName?: string | null;
+  platform?: string | null;
+  appVersion?: string | null;
+  isActive: boolean;
+  lastSeenAt?: string | null;
+  revokedAt?: string | null;
+  bundle?: {
+    algorithm: SupportedE2EEAlgorithm;
+    registrationId: number;
+    signedPreKeyId: number;
+    uploadedAt?: string | null;
+  } | null;
+  availableOneTimePreKeys: number;
+}
+
 const stableStringify = (value: unknown): string => {
   if (value === null || typeof value !== "object") {
     return JSON.stringify(value);
@@ -236,6 +254,50 @@ const getRegisteredDeviceSummary = async (token: string, deviceId: string) => {
   } catch {
     return null;
   }
+};
+
+export const listMySecureDevices = async (token: string): Promise<SecureDeviceSummary[]> => {
+  if (!baseUrl) {
+    throw new Error("NEXT_PUBLIC_API_URL is not configured");
+  }
+
+  const response = await fetch(`${baseUrl}/e2ee/devices`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(payload?.message || "Failed to load secure devices");
+  }
+
+  return Array.isArray(payload?.data) ? payload.data : [];
+};
+
+export const revokeMySecureDevice = async (token: string, deviceId: string) => {
+  if (!baseUrl) {
+    throw new Error("NEXT_PUBLIC_API_URL is not configured");
+  }
+
+  const response = await fetch(`${baseUrl}/e2ee/devices/${encodeURIComponent(deviceId)}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(payload?.message || "Failed to revoke secure device");
+  }
+
+  return payload?.data;
+};
+
+export const getCurrentSecureDeviceId = async () => {
+  const state = await getStoredSecureDeviceState();
+  return state?.deviceId || null;
 };
 
 const buildPublicBundlePayload = (

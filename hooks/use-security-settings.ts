@@ -2,11 +2,23 @@ import { useState, useEffect, useCallback } from "react";
 import { toast } from "@/hooks/use-toast";
 import { getPinStatus, changePin } from "@/helpers/api";
 import { PinStatus, SecurityFormData } from "@/types/settings.types";
+import { useAuthToken } from "@/hooks/use-auth-token";
+import {
+  getCurrentSecureDeviceId,
+  listMySecureDevices,
+  revokeMySecureDevice,
+  type SecureDeviceSummary,
+} from "@/services/e2eeDeviceService";
 
 export const useSecuritySettings = () => {
+  const { getToken } = useAuthToken();
   const [pinStatus, setPinStatus] = useState<PinStatus | null>(null);
   const [loadingPinStatus, setLoadingPinStatus] = useState(false);
   const [changingPin, setChangingPin] = useState(false);
+  const [secureDevices, setSecureDevices] = useState<SecureDeviceSummary[]>([]);
+  const [loadingSecureDevices, setLoadingSecureDevices] = useState(false);
+  const [revokingSecureDeviceId, setRevokingSecureDeviceId] = useState<string | null>(null);
+  const [currentSecureDeviceId, setCurrentSecureDeviceId] = useState<string | null>(null);
   
   const [securityFormData, setSecurityFormData] = useState<SecurityFormData>({
     currentPassword: "",
@@ -23,6 +35,82 @@ export const useSecuritySettings = () => {
   const updateSecurityFormData = (updates: Partial<SecurityFormData>) => {
     setSecurityFormData(prev => ({ ...prev, ...updates }));
   };
+
+  const fetchSecureDevices = useCallback(async () => {
+    const token = getToken();
+    if (!token) {
+      setSecureDevices([]);
+      setCurrentSecureDeviceId(null);
+      return;
+    }
+
+    setLoadingSecureDevices(true);
+    try {
+      const [devices, currentDeviceId] = await Promise.all([
+        listMySecureDevices(token),
+        getCurrentSecureDeviceId(),
+      ]);
+      setSecureDevices(devices);
+      setCurrentSecureDeviceId(currentDeviceId);
+    } catch (error: any) {
+      setSecureDevices([]);
+      toast({
+        title: "Secure devices unavailable",
+        description: error?.message || "Unable to load secure chat devices.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingSecureDevices(false);
+    }
+  }, [getToken]);
+
+  const handleRevokeSecureDevice = useCallback(async (deviceId: string) => {
+    const token = getToken();
+    if (!token) {
+      toast({
+        title: "Session expired",
+        description: "Please sign in again before managing secure devices.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (deviceId === currentSecureDeviceId) {
+      toast({
+        title: "Current device protected",
+        description: "Use another device to revoke this secure chat device.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (
+      typeof window !== "undefined" &&
+      !window.confirm("Revoke this secure chat device? It will stop receiving new encrypted messages.")
+    ) {
+      return false;
+    }
+
+    setRevokingSecureDeviceId(deviceId);
+    try {
+      await revokeMySecureDevice(token, deviceId);
+      toast({
+        title: "Secure device revoked",
+        description: "That device can no longer receive new secure chat messages.",
+      });
+      await fetchSecureDevices();
+      return true;
+    } catch (error: any) {
+      toast({
+        title: "Failed to revoke device",
+        description: error?.message || "Unable to revoke this secure device.",
+        variant: "destructive",
+      });
+      return false;
+    } finally {
+      setRevokingSecureDeviceId(null);
+    }
+  }, [currentSecureDeviceId, fetchSecureDevices, getToken]);
 
   const fetchPinStatus = useCallback(async () => {
     setLoadingPinStatus(true);
@@ -154,15 +242,22 @@ export const useSecuritySettings = () => {
   // Fetch PIN status on mount
   useEffect(() => {
     fetchPinStatus();
-  }, [fetchPinStatus]);
+    fetchSecureDevices();
+  }, [fetchPinStatus, fetchSecureDevices]);
 
   return {
     pinStatus,
     loadingPinStatus,
     changingPin,
+    secureDevices,
+    loadingSecureDevices,
+    revokingSecureDeviceId,
+    currentSecureDeviceId,
     securityFormData,
     updateSecurityFormData,
     fetchPinStatus,
+    fetchSecureDevices,
+    handleRevokeSecureDevice,
     handleChangePassword,
     handleChangePin,
     togglePasswordVisibility,
