@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { ensureRegisteredSecureDevice } from "@/services/e2eeDeviceService";
 import {
+  getCurrentUserInfo,
   getStoredUserInfo,
   getValidToken,
   refreshAccessToken,
@@ -10,7 +11,15 @@ import {
 
 const runBootstrap = async () => {
   const authUser = getStoredUserInfo();
-  if (!authUser?.id || authUser.accountType !== "user") {
+  const tokenUserInfo = getCurrentUserInfo();
+  const resolvedUserId =
+    tokenUserInfo.accountType === "user" ? tokenUserInfo.userId : authUser?.id || null;
+  const resolvedAccountType =
+    tokenUserInfo.accountType !== "unknown"
+      ? tokenUserInfo.accountType
+      : authUser?.accountType || null;
+
+  if (!resolvedUserId || resolvedAccountType !== "user") {
     return;
   }
 
@@ -21,7 +30,7 @@ const runBootstrap = async () => {
 
   await ensureRegisteredSecureDevice({
     token,
-    userId: authUser.id,
+    userId: resolvedUserId,
   });
 };
 

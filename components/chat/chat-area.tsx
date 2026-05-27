@@ -200,6 +200,7 @@ export default function ChatArea({
             {/* Message Input */}
             <div className="flex-shrink-0">
                 <MessageInput
+                    chatId={conversation.id}
                     groupId={conversation.isGroup ? conversation.groupId : undefined}
                     replyToMessage={replyToMessage}
                     onCancelReply={() => setReplyToMessage(null)}

@@ -13,6 +13,25 @@ import type {
 const bundleCache = new Map<string, { cachedAt: number; devices: PublicSecureDeviceBundle[] }>();
 const BUNDLE_CACHE_TTL_MS = 60 * 1000;
 
+const isValidBase64UrlCoordinate = (value: unknown) =>
+  typeof value === "string" && value.length >= 43 && value.length <= 44;
+
+const hasUsablePublicBundle = (device: any) =>
+  Boolean(
+    device?.bundle &&
+      device.bundle.algorithm === "qc-e2ee-p256-v1" &&
+      device.bundle.identityPublicKey?.kty === "EC" &&
+      device.bundle.identityPublicKey?.crv === "P-256" &&
+      isValidBase64UrlCoordinate(device.bundle.identityPublicKey?.x) &&
+      isValidBase64UrlCoordinate(device.bundle.identityPublicKey?.y) &&
+      device.bundle.signedPreKeyPublic?.kty === "EC" &&
+      device.bundle.signedPreKeyPublic?.crv === "P-256" &&
+      isValidBase64UrlCoordinate(device.bundle.signedPreKeyPublic?.x) &&
+      isValidBase64UrlCoordinate(device.bundle.signedPreKeyPublic?.y) &&
+      typeof device.bundle.signedPreKeySignature === "string" &&
+      device.bundle.signedPreKeySignature.length > 20,
+  );
+
 const getApiBaseUrl = () => {
   if (!baseUrl) {
     throw new Error("NEXT_PUBLIC_API_URL is not configured");
@@ -63,7 +82,7 @@ const fetchPublicDeviceBundles = async (token: string, userId: string) => {
     },
   });
 
-  const devices = (payload?.data || []).map((device: any) => ({
+  const rawDevices = (payload?.data || []).map((device: any) => ({
     userId,
     deviceId: device.deviceId,
     deviceName: device.deviceName,
@@ -71,6 +90,17 @@ const fetchPublicDeviceBundles = async (token: string, userId: string) => {
     bundle: device.bundle,
     oneTimePreKeys: device.oneTimePreKeys || [],
   })) as PublicSecureDeviceBundle[];
+
+  const devices = rawDevices.filter((device) => {
+    const valid = hasUsablePublicBundle(device);
+    if (!valid) {
+      console.warn("Skipping invalid secure device bundle", {
+        userId,
+        deviceId: device.deviceId,
+      });
+    }
+    return valid;
+  });
 
   bundleCache.set(cacheKey, {
     cachedAt: Date.now(),
@@ -229,31 +259,15 @@ export const createOrGetPreferredDmChat = async ({
   token: string;
   participantId: string;
 }) => {
-  try {
-    const secureChat = await createOrGetSecureDmChat({
-      token,
-      participantId,
-    });
+  const secureChat = await createOrGetSecureDmChat({
+    token,
+    participantId,
+  });
 
-    return {
-      ...secureChat,
-      usedSecure: true,
-    };
-  } catch (secureError) {
-    console.warn("Secure DM unavailable, falling back to legacy DM", secureError);
-
-    const legacyChat = await createOrGetLegacyDmChat({
-      token,
-      participantId,
-    });
-
-    return {
-      ...legacyChat,
-      securityMode: legacyChat.securityMode || "legacy",
-      protocolVersion: legacyChat.protocolVersion || null,
-      usedSecure: legacyChat.securityMode === "secure_dm_v1",
-    };
-  }
+  return {
+    ...secureChat,
+    usedSecure: true,
+  };
 };
 
 export const sendSecureTextMessage = async ({

@@ -18,6 +18,7 @@ const ACTIVE_APP_VERSION = "web-pwa-v1";
 const ONE_TIME_PREKEY_COUNT = 12;
 const SYNC_INTERVAL_MS = 12 * 60 * 60 * 1000;
 const SUPPORTED_ALGORITHM: SupportedE2EEAlgorithm = "qc-e2ee-p256-v1";
+const MAX_DB_SAFE_PREKEY_ID = 2_147_483_646;
 
 const encoder = new TextEncoder();
 
@@ -50,7 +51,8 @@ const toBase64Url = (buffer: ArrayBuffer) => {
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 };
 
-const getRandomId = () => window.crypto.getRandomValues(new Uint32Array(1))[0] ?? Date.now();
+const getRandomId = () =>
+  Number(window.crypto.getRandomValues(new Uint32Array(1))[0] % MAX_DB_SAFE_PREKEY_ID) + 1;
 
 const describeCurrentDevice = () => {
   const nav = window.navigator as Navigator & {
@@ -162,6 +164,13 @@ const createFreshDeviceState = async (userId: string): Promise<StoredSecureDevic
   };
 };
 
+const hasValidPreKeyIds = (state: StoredSecureDeviceState) =>
+  state.signedPreKey.keyId > 0 &&
+  state.signedPreKey.keyId <= MAX_DB_SAFE_PREKEY_ID &&
+  state.oneTimePreKeys.every(
+    (preKey) => preKey.keyId > 0 && preKey.keyId <= MAX_DB_SAFE_PREKEY_ID,
+  );
+
 const shouldResync = (state: StoredSecureDeviceState) => {
   if (!state.lastServerSyncAt) return true;
 
@@ -215,6 +224,36 @@ const registerBundle = async (token: string, state: StoredSecureDeviceState) => 
   }
 };
 
+const hasRegisteredBundle = async (token: string, deviceId: string) => {
+  if (!baseUrl) {
+    return false;
+  }
+
+  try {
+    const response = await fetch(`${baseUrl}/e2ee/devices`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      return false;
+    }
+
+    const payload = await response.json().catch(() => null);
+    const devices = Array.isArray(payload?.data) ? payload.data : [];
+    const matchingDevice = devices.find((device: any) => device.deviceId === deviceId);
+
+    if (!matchingDevice) {
+      return false;
+    }
+
+    return Boolean(matchingDevice.bundle?.algorithm) && Number(matchingDevice.availableOneTimePreKeys || 0) > 0;
+  } catch {
+    return false;
+  }
+};
+
 export const ensureRegisteredSecureDevice = async ({
   token,
   userId,
@@ -236,7 +275,14 @@ export const ensureRegisteredSecureDevice = async ({
     await saveStoredSecureDeviceState(state);
   }
 
-  if (!shouldResync(state)) {
+  if (!hasValidPreKeyIds(state)) {
+    state = await createFreshDeviceState(userId);
+    await saveStoredSecureDeviceState(state);
+  }
+
+  const needsServerSync = shouldResync(state) || !(await hasRegisteredBundle(token, state.deviceId));
+
+  if (!needsServerSync) {
     return state;
   }
 

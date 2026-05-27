@@ -55,6 +55,7 @@ interface ChatContextType {
     clearChatState: () => void;
     addReaction: (chatId: string, messageId: string, emoji: string) => void;
     removeReaction: (chatId: string, messageId: string) => void;
+    upsertConversation: (conversation: Conversation) => void;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -290,6 +291,14 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
                 return;
             }
 
+            if (data.senderId === userId) {
+                if (data.chatId === activeChat) {
+                    setSecureMessagesRefreshKey((current) => current + 1);
+                }
+                refetchChats();
+                return;
+            }
+
             if (data.chatId === activeChat) {
                 setSecureMessagesRefreshKey((current) => current + 1);
             }
@@ -453,6 +462,31 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         };
 
         const handleError = (error: { message: string }) => {
+            if (
+                activeChat &&
+                error.message?.includes("requires secure messaging")
+            ) {
+                setConversations((prev: Conversation[]) =>
+                    prev.map((conversation: Conversation) =>
+                        conversation.id === activeChat
+                            ? {
+                                ...conversation,
+                                securityMode: "secure_dm_v1",
+                                protocolVersion: conversation.protocolVersion || "secure-dm-v1",
+                            }
+                            : conversation,
+                    ).sort(sortConversations),
+                );
+                setSecureMessagesRefreshKey((current) => current + 1);
+                refetchChats();
+                toast({
+                    title: "Secure chat ready",
+                    description: "This thread is secure. Send the message again using the secure flow.",
+                    duration: 5000,
+                });
+                return;
+            }
+
             toast({
                 title: "Error",
                 description: error.message,
@@ -690,6 +724,24 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
     const refreshConversations = useCallback(() => {
         refetchChats();
     }, [refetchChats]);
+
+    const upsertConversation = useCallback((conversation: Conversation) => {
+        setConversations((prev: Conversation[]) => {
+            const existingIndex = prev.findIndex((item) => item.id === conversation.id);
+
+            if (existingIndex === -1) {
+                return [conversation, ...prev].sort(sortConversations);
+            }
+
+            const next = [...prev];
+            next[existingIndex] = {
+                ...next[existingIndex],
+                ...conversation,
+            };
+
+            return next.sort(sortConversations);
+        });
+    }, [sortConversations]);
 
     const refreshMessages = useCallback((chatId: string) => {
         if (chatId === activeChat) {
@@ -1004,6 +1056,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         clearChatState,
         addReaction,
         removeReaction,
+        upsertConversation,
     };
 
     return (

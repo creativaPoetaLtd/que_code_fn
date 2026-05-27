@@ -44,6 +44,7 @@ const pickerVars = (isDark: boolean): React.CSSProperties => ({
 
 interface MessageInputProps {
     onSendMessage?: (message: string) => void
+    chatId?: string
     /** Pass the group ID when inside a group chat to enable @mentions */
     groupId?: string
     replyToMessage?: ReplyPreview | null
@@ -52,6 +53,7 @@ interface MessageInputProps {
 
 export default function MessageInput({
     onSendMessage = () => { },
+    chatId,
     groupId,
     replyToMessage = null,
     onCancelReply,
@@ -90,6 +92,7 @@ export default function MessageInput({
     const token  = getToken()
     const isDark = theme === "dark"
     const { activeChat, sendMessage: contextSendMessage, startTyping, stopTyping, isConnected, addMessage } = chat
+    const currentChatId = chatId || activeChat
 
     // ── Debounce mentionQuery for the RTK search ───────────────────────────────
     useEffect(() => {
@@ -288,16 +291,16 @@ export default function MessageInput({
 
         const mentions = collectMentions(text)
 
-        if (contextSendMessage && activeChat) {
+        if (contextSendMessage && currentChatId) {
             contextSendMessage(
-                activeChat,
+                currentChatId,
                 text,
                 "text",
                 mentions,
                 replyToMessage?.id,
                 replyToMessage || null
             )
-            if (stopTyping) stopTyping(activeChat)
+            if (stopTyping) stopTyping(currentChatId)
         } else {
             onSendMessage(text)
         }
@@ -313,7 +316,7 @@ export default function MessageInput({
         }
     }, [
         messageText,
-        activeChat,
+        currentChatId,
         contextSendMessage,
         stopTyping,
         onSendMessage,
@@ -329,9 +332,9 @@ export default function MessageInput({
         setMessageText(value)
         setCursorPos(pos)
         detectMention(value, pos)
-        if (activeChat && startTyping && stopTyping) {
-            if (value.trim()) startTyping(activeChat)
-            else stopTyping(activeChat)
+        if (currentChatId && startTyping && stopTyping) {
+            if (value.trim()) startTyping(currentChatId)
+            else stopTyping(currentChatId)
         }
     }
 
@@ -365,7 +368,7 @@ export default function MessageInput({
 
     const handleBlur = () => {
         saveCursor()
-        if (activeChat && stopTyping) stopTyping(activeChat)
+        if (currentChatId && stopTyping) stopTyping(currentChatId)
     }
 
     // ── Attachments / Media ───────────────────────────────────────────────────
@@ -375,13 +378,13 @@ export default function MessageInput({
     }
 
     const handleMediaUpload = async (file: File, caption: string) => {
-        if (!activeChat) {
+        if (!currentChatId) {
             toast({ title: "Error", description: "No active chat selected", variant: "destructive" })
             return
         }
         setUploading(true); setUploadProgress(0)
         try {
-            const result = await uploadMediaMessage(activeChat, file, caption, (p) => setUploadProgress(p.percentage))
+            const result = await uploadMediaMessage(currentChatId, file, caption, (p) => setUploadProgress(p.percentage))
             if (result.success && result.data) {
                 if (addMessage) addMessage(result.data as any)
                 toast({ title: "Media sent", description: "Your media has been sent successfully" })

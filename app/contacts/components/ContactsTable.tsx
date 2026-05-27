@@ -78,10 +78,8 @@ export function ContactsTable({ contacts, isLoading, onSelect }: ContactsTablePr
             router.push("/chat");
 
             toast({
-                title: result.usedSecure ? "Secure Chat Ready" : "Chat Ready",
-                description: result.usedSecure
-                    ? `Opening a secure conversation with ${contact.otherUser.firstName} ${contact.otherUser.lastName}.`
-                    : `Opening your conversation with ${contact.otherUser.firstName} ${contact.otherUser.lastName}.`,
+                title: "Secure Chat Ready",
+                description: `Opening a secure conversation with ${contact.otherUser.firstName} ${contact.otherUser.lastName}.`,
             });
         } catch (error: any) {
             toast({

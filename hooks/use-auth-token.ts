@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { decodeJWT, isTokenExpired } from "@/utils/jwtUtils";
 import {
@@ -15,20 +15,30 @@ const TOKEN_KEY = "token";
 export const useAuthToken = (enableAutoRedirect: boolean = true) => {
     const router = useRouter();
     const isRedirectingRef = useRef(false);
+    const [token, setTokenState] = useState<string | null>(null);
 
-    const getToken = useCallback(() => {
+    const syncTokenState = useCallback(async (allowRefresh: boolean = false) => {
         if (typeof window === "undefined") return null;
 
         const validToken = getValidToken();
-        if (validToken) return validToken;
-
-        if (getRefreshToken()) {
-            void refreshAccessToken();
-            return null;
+        if (validToken) {
+            setTokenState((current) => (current === validToken ? current : validToken));
+            return validToken;
         }
 
+        if (allowRefresh && getRefreshToken()) {
+            const refreshedToken = await refreshAccessToken();
+            setTokenState(refreshedToken ?? null);
+            return refreshedToken ?? null;
+        }
+
+        setTokenState(null);
         return null;
     }, []);
+
+    const getToken = useCallback(() => {
+        return token;
+    }, [token]);
 
     const setToken = useCallback((token: string, expiryDays: number = 1) => {
         if (typeof window === "undefined") return false;
@@ -39,12 +49,14 @@ export const useAuthToken = (enableAutoRedirect: boolean = true) => {
         }
 
         storeAccessToken(token, expiryDays);
+        setTokenState(token);
         return true;
     }, []);
 
     const removeToken = useCallback(() => {
         if (typeof window !== "undefined") {
             clearAllTokens();
+            setTokenState(null);
         }
     }, []);
 
@@ -69,12 +81,20 @@ export const useAuthToken = (enableAutoRedirect: boolean = true) => {
         if (!enableAutoRedirect || typeof window === "undefined") return;
 
         const storedToken = getStoredAccessToken();
-        if (storedToken && !isTokenExpired(storedToken)) return;
+        if (storedToken && !isTokenExpired(storedToken)) {
+            setTokenState((current) => (current === storedToken ? current : storedToken));
+            return;
+        }
 
         if (getRefreshToken()) {
             const refreshedToken = await refreshAccessToken();
-            if (refreshedToken) return;
+            if (refreshedToken) {
+                setTokenState(refreshedToken);
+                return;
+            }
         }
+
+        setTokenState(null);
 
         if (storedToken || localStorage.getItem(TOKEN_KEY)) {
             redirectToLogin();
@@ -93,18 +113,41 @@ export const useAuthToken = (enableAutoRedirect: boolean = true) => {
         if (typeof window === "undefined") return false;
 
         const validToken = getValidToken();
-        if (validToken) return true;
+        if (validToken) {
+            setTokenState((current) => (current === validToken ? current : validToken));
+            return true;
+        }
 
         if (getRefreshToken()) {
-            void refreshAccessToken();
+            void refreshAccessToken().then((refreshedToken) => {
+                setTokenState(refreshedToken ?? null);
+            });
             return false;
         }
+
+        setTokenState(null);
 
         if (enableAutoRedirect) {
             redirectToLogin();
         }
         return false;
     }, [enableAutoRedirect, redirectToLogin]);
+
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+
+        void syncTokenState(true);
+
+        const handleAuthTokenChange = () => {
+            void syncTokenState();
+        };
+
+        window.addEventListener("authTokenChanged", handleAuthTokenChange as EventListener);
+
+        return () => {
+            window.removeEventListener("authTokenChanged", handleAuthTokenChange as EventListener);
+        };
+    }, [syncTokenState]);
 
     useEffect(() => {
         if (!enableAutoRedirect || typeof window === "undefined") return;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -17,8 +17,6 @@ import { useGetGroupByIdQuery } from '@/states/groupSlice';
 import { useAuthToken } from '@/hooks/use-auth-token';
 import FundraisingProgressBadge from './fundraising-progress-badge';
 import { socketService } from '@/services/socketService';
-import { createOrGetSecureDmChat } from '@/services/secureChatService';
-import { toast } from '@/hooks/use-toast';
 import {
   ArrowLeft,
   Info,
@@ -50,10 +48,8 @@ export default function ChatHeader({
   onDeleteGroup,
 }: ChatHeaderProps) {
   const chat = useChat();
-  const { getToken, getUserId } = useAuthToken();
+  const { getToken } = useAuthToken();
   const token = getToken();
-  const userId = getUserId();
-  const [isOpeningSecureChat, setIsOpeningSecureChat] = useState(false);
 
   // Fetch group details if it's a group chat
   const { data: groupData, refetch: refetchGroupData } = useGetGroupByIdQuery(
@@ -64,13 +60,6 @@ export default function ChatHeader({
   const group = groupData?.data;
   const isDirectConversation = !conversation.isGroup && conversation.type !== 'support';
   const isSecureConversation = conversation.securityMode === 'secure_dm_v1';
-  const secureParticipantId = useMemo(
-    () =>
-      isDirectConversation
-        ? conversation.participants.find((participant) => participant.userId !== userId)?.userId || null
-        : null,
-    [conversation.participants, isDirectConversation, userId],
-  );
 
   // Listen for real-time fundraising progress updates
   useEffect(() => {
@@ -105,44 +94,6 @@ export default function ChatHeader({
       .map(word => word[0])
       .join('')
       .toUpperCase();
-  };
-
-  const handleOpenSecureChat = async () => {
-    if (!token || !secureParticipantId) {
-      toast({
-        title: 'Secure chat unavailable',
-        description: 'Unable to resolve the other participant for this conversation.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    try {
-      setIsOpeningSecureChat(true);
-      const result = await createOrGetSecureDmChat({
-        token,
-        participantId: secureParticipantId,
-      });
-
-      chat.setActiveChat(result.chatId);
-      chat.refreshConversations();
-
-      toast({
-        title: result.chatId === conversation.id ? 'Secure chat already active' : 'Secure chat ready',
-        description:
-          result.chatId === conversation.id
-            ? 'This conversation is already using secure messaging.'
-            : 'You are now in the secure conversation thread.',
-      });
-    } catch (error: any) {
-      toast({
-        title: 'Secure chat unavailable',
-        description: error?.message || 'Failed to open the secure conversation.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsOpeningSecureChat(false);
-    }
   };
 
   return (
@@ -289,21 +240,10 @@ export default function ChatHeader({
               Chat Settings
             </DropdownMenuItem>
 
-            {isDirectConversation && !isSecureConversation && (
-              <DropdownMenuItem
-                onClick={handleOpenSecureChat}
-                className='cursor-pointer'
-                disabled={isOpeningSecureChat}
-              >
-                <Lock size={14} className='mr-2' />
-                {isOpeningSecureChat ? 'Opening Secure Chat...' : 'Open Secure Chat'}
-              </DropdownMenuItem>
-            )}
-
             {isDirectConversation && isSecureConversation && (
               <DropdownMenuItem disabled className='cursor-default opacity-70'>
                 <Lock size={14} className='mr-2' />
-                Secure Chat Active
+                End-to-end encrypted
               </DropdownMenuItem>
             )}
 
