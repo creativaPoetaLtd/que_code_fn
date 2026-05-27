@@ -471,7 +471,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
                         conversation.id === activeChat
                             ? {
                                 ...conversation,
-                                securityMode: "secure_dm_v1",
+                                securityMode: "secure_dm_v1" as const,
                                 protocolVersion: conversation.protocolVersion || "secure-dm-v1",
                             }
                             : conversation,

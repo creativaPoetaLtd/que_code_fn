@@ -279,7 +279,7 @@ export function useChatOperations(): UseChatOperationsReturn {
                 id: result.chatId,
                 name: `${contact.otherUser.firstName} ${contact.otherUser.lastName}`.trim() || 'Unknown Contact',
                 isGroup: false,
-                type: 'direct',
+                type: 'dm',
                 securityMode: 'secure_dm_v1',
                 protocolVersion: result.protocolVersion,
                 lastMessage: null,
