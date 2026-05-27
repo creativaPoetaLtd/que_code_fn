@@ -70,16 +70,29 @@ export const getStoredSecureDeviceState = async (): Promise<StoredSecureDeviceSt
   if (typeof window === "undefined") return null;
 
   if (!canUseIndexedDb()) {
-    return readFallbackState();
+    return null;
   }
 
   try {
     const state = await withStore<StoredSecureDeviceState>("readonly", (store) =>
       store.get("active"),
     );
-    return state ?? null;
+
+    if (state) {
+      writeFallbackState(null);
+      return state;
+    }
+
+    const legacyState = readFallbackState();
+    if (legacyState) {
+      await withStore("readwrite", (store) => store.put(legacyState, "active"));
+      writeFallbackState(null);
+      return legacyState;
+    }
+
+    return null;
   } catch {
-    return readFallbackState();
+    return null;
   }
 };
 
@@ -87,15 +100,14 @@ export const saveStoredSecureDeviceState = async (state: StoredSecureDeviceState
   if (typeof window === "undefined") return;
 
   if (!canUseIndexedDb()) {
-    writeFallbackState(state);
-    return;
+    throw new Error("Secure device storage requires IndexedDB");
   }
 
   try {
     await withStore("readwrite", (store) => store.put(state, "active"));
-    writeFallbackState(state);
+    writeFallbackState(null);
   } catch {
-    writeFallbackState(state);
+    throw new Error("Failed to store secure device state");
   }
 };
 
