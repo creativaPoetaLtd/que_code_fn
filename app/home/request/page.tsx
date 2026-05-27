@@ -227,7 +227,7 @@ function RequestMoneyPageInner() {
                     />
                   </div>
 
-                  <div className="space-y-1 max-h-64 overflow-y-auto border border-gray-100 dark:border-darkBorder-light rounded-xl p-2 bg-gray-50/50 dark:bg-darkBg-overlay/30">
+                  <div className="space-y-1 max-h-64 overflow-y-auto border border-gray-100 dark:border-darkBorder-light rounded-xl p-2 bg-gray-50 dark:bg-darkBg-overlay">
                     {isLoadingContacts ? (
                       <div className="flex justify-center py-4">
                         <Loader2 className="animate-spin text-brand-green" size={20} />

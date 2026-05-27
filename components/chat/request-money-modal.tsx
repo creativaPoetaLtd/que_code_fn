@@ -187,7 +187,7 @@ export default function RequestMoneyModal({ isOpen, onClose, conversation }: Req
 
                     <div className="mb-4">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 font-inter">Recipient</label>
-                        <div className="rounded-xl border border-gray-100 dark:border-darkBorder-light bg-gray-50/50 dark:bg-darkBg-overlay/30 p-3">
+                        <div className="rounded-xl border border-gray-100 dark:border-darkBorder-light bg-gray-50 dark:bg-darkBg-overlay p-3">
                             <p className="text-sm font-medium text-gray-800 dark:text-gray-100">{recipientName}</p>
                             <p className="text-xs text-gray-500 dark:text-gray-400">Direct chat request</p>
                         </div>

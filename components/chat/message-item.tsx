@@ -4,6 +4,7 @@ import type { Message, LegacyMessage, ReplyPreview, Reaction } from "@/types/cha
 import { useMemo, useRef, useState, useCallback } from "react"
 import MediaMessageContent from "./media-message-content"
 import { MoneyMessageCard } from "./money-message-card"
+import { GroupContributionCard } from "./group-contribution-card"
 import MessageText from "./message-text"
 import LinkPreviewCard from "./link-preview-card"
 import { extractUrls } from "@/utils/url-utils"
@@ -62,6 +63,7 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
 
     let messageContent: any = isLegacy ? message.message : message.content;
     let moneyTransferData = null;
+    let groupContributionData = null;
     let isOldMoneyMessage = false;
 
     // Parse money transfer/request data
@@ -70,8 +72,11 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
             const parsed = JSON.parse(messageContent);
             const isTransferLike = (parsed.type === 'money_transfer' || parsed.type === 'group_donation') && parsed.transactionId && parsed.amount;
             const isRequestLike = parsed.type === 'money_request' && parsed.requestId && parsed.amount;
+            const isContributionLike = parsed.type === 'group_contribution' && parsed.contributionId && parsed.groupId;
 
-            if (isTransferLike || isRequestLike) {
+            if (isContributionLike) {
+                groupContributionData = parsed;
+            } else if (isTransferLike || isRequestLike) {
                 moneyTransferData = parsed;
             } else {
                 // Old format - just has note text
@@ -211,6 +216,15 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
         horizontalLockRef.current = false
         setIsSwiping(false)
         setSwipeOffset(0)
+    }
+
+    // Render group contribution card
+    if (isMoneyMessage && groupContributionData) {
+        return (
+            <div className={cn("mb-4", isMe ? "ml-auto" : "mr-auto")}>
+                <GroupContributionCard data={groupContributionData} isMe={isMe} chatId={!isLegacy ? message.chatId : undefined} />
+            </div>
+        );
     }
 
     // Render money transfer message as a special card

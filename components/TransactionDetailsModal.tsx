@@ -88,7 +88,7 @@ export const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = (
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
             <div
                 className="bg-white dark:bg-darkBg-main w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden relative"
                 onClick={(e) => e.stopPropagation()}

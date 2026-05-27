@@ -14,8 +14,8 @@ interface GroupMembersListProps {
     maxHeight?: string
 }
 
-export default function GroupMembersList({ 
-    members, 
+export default function GroupMembersList({
+    members,
     isLoading = false,
     onMessageMember,
     className = "",
@@ -26,19 +26,19 @@ export default function GroupMembersList({
             case 'owner':
                 return {
                     icon: Crown,
-                    className: "bg-amber-50 text-amber-700 border-amber-300",
+                    className: "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800",
                     label: "Owner"
                 }
             case 'admin':
                 return {
                     icon: Shield,
-                    className: "bg-slate-100 text-slate-700 border-slate-300",
+                    className: "bg-slate-100 dark:bg-darkBg-interactive text-slate-600 dark:text-slate-300 border-slate-200 dark:border-darkBorder-light",
                     label: "Admin"
                 }
             default:
                 return {
                     icon: User,
-                    className: "bg-gray-50 text-gray-600 border-gray-200",
+                    className: "bg-gray-50 dark:bg-darkBg-interactive text-gray-500 dark:text-gray-400 border-gray-200 dark:border-darkBorder-light",
                     label: "Member"
                 }
         }
@@ -54,15 +54,13 @@ export default function GroupMembersList({
 
     if (isLoading) {
         return (
-            <div className={`space-y-2 ${className}`}>
+            <div className={`space-y-1 ${className}`}>
                 {[1, 2, 3].map((i) => (
-                    <div key={i} className="flex items-center justify-between p-3 animate-pulse">
-                        <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 bg-gray-200 rounded-full" />
-                            <div className="space-y-2">
-                                <div className="h-4 w-32 bg-gray-200 rounded" />
-                                <div className="h-3 w-20 bg-gray-100 rounded" />
-                            </div>
+                    <div key={i} className="flex items-center gap-3 p-3 animate-pulse">
+                        <div className="h-9 w-9 bg-gray-200 dark:bg-darkBg-interactive rounded-full flex-shrink-0" />
+                        <div className="space-y-2 flex-1">
+                            <div className="h-3.5 w-28 bg-gray-200 dark:bg-darkBg-interactive rounded" />
+                            <div className="h-3 w-20 bg-gray-100 dark:bg-darkBg-interactive/60 rounded" />
                         </div>
                     </div>
                 ))}
@@ -72,20 +70,19 @@ export default function GroupMembersList({
 
     if (!members || members.length === 0) {
         return (
-            <div className={`text-center py-8 text-gray-500 ${className}`}>
+            <div className={`text-center py-8 text-gray-400 dark:text-gray-500 text-sm ${className}`}>
                 No members found
             </div>
         )
     }
 
-    // Sort members: owner first, then admins, then regular members
     const sortedMembers = [...members].sort((a, b) => {
-        const roleOrder = { owner: 0, admin: 1, member: 2 }
-        return roleOrder[a.role] - roleOrder[b.role]
+        const roleOrder: Record<string, number> = { owner: 0, admin: 1, member: 2 }
+        return (roleOrder[a.role] ?? 3) - (roleOrder[b.role] ?? 3)
     })
 
     return (
-        <div className={`space-y-2 ${maxHeight} overflow-y-auto ${className}`}>
+        <div className={`${maxHeight} overflow-y-auto ${className}`}>
             {sortedMembers.map((member) => {
                 const roleConfig = getRoleBadgeConfig(member.role)
                 const RoleIcon = roleConfig.icon
@@ -93,48 +90,53 @@ export default function GroupMembersList({
                 return (
                     <div
                         key={member.id}
-                        className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors"
+                        className="flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors"
                     >
-                        <div className="flex items-center gap-3 flex-1">
-                            <Avatar className="h-10 w-10">
-                                <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${member.userName}`} alt={member.userName} />
-                                <AvatarFallback>{getInitials(member.userName)}</AvatarFallback>
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <Avatar className="h-9 w-9 flex-shrink-0">
+                                <AvatarImage
+                                    src={`https://api.dicebear.com/7.x/initials/svg?seed=${member.userName}`}
+                                    alt={member.userName}
+                                />
+                                <AvatarFallback className="text-xs bg-gray-200 dark:bg-darkBg-interactive text-gray-600 dark:text-gray-300">
+                                    {getInitials(member.userName)}
+                                </AvatarFallback>
                             </Avatar>
                             <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                    <span className="font-medium text-sm truncate">
+                                <div className="flex items-center gap-2 mb-0.5">
+                                    <span className="font-medium text-sm text-gray-900 dark:text-white truncate">
                                         {member.userName}
                                     </span>
                                     <Badge
                                         variant="outline"
-                                        className={`${roleConfig.className} text-xs flex items-center gap-1`}
+                                        className={`${roleConfig.className} text-[10px] flex items-center gap-1 flex-shrink-0 py-0`}
                                     >
-                                        <RoleIcon size={12} />
+                                        <RoleIcon size={10} />
                                         {roleConfig.label}
                                     </Badge>
                                 </div>
-                                <p className="text-xs text-gray-500 truncate">
+                                <p className="text-xs text-gray-400 dark:text-gray-500 truncate">
                                     {member.userEmail}
                                 </p>
                                 {member.joinedAt && (
-                                    <p className="text-xs text-gray-400">
-                                        Joined {new Date(member.joinedAt).toLocaleDateString('en-US', { 
-                                            month: 'short', 
-                                            day: 'numeric', 
-                                            year: 'numeric' 
+                                    <p className="text-[11px] text-gray-400 dark:text-gray-600">
+                                        Joined {new Date(member.joinedAt).toLocaleDateString('en-US', {
+                                            month: 'short',
+                                            day: 'numeric',
+                                            year: 'numeric'
                                         })}
                                     </p>
                                 )}
                             </div>
                         </div>
                         {onMessageMember && (
-                            <Button 
-                                variant="ghost" 
+                            <Button
+                                variant="ghost"
                                 size="icon"
                                 onClick={() => onMessageMember(member.userId)}
-                                className="shrink-0"
+                                className="shrink-0 h-8 w-8 text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
                             >
-                                <MessageCircle size={16} />
+                                <MessageCircle size={15} />
                             </Button>
                         )}
                     </div>

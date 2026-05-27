@@ -61,10 +61,10 @@ const config: Config = {
 				// Dark Mode Theme
 				darkBg: {
 					main: '#040f0c',
-					card: 'rgba(12, 36, 27, 0.8)',
-					interactive: 'rgba(15, 23, 42, 0.35)',
-					overlay: 'rgba(15, 23, 42, 0.4)',
-					sidebar: 'rgba(4, 15, 12, 0.98)',
+					card: '#0c241b',
+					interactive: '#1a3028',
+					overlay: '#0d1f17',
+					sidebar: '#040f0c',
 				},
 				darkBorder: {
 					light: 'rgba(255, 255, 255, 0.05)',
