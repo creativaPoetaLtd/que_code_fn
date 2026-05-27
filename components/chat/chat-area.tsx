@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Send, HandCoins } from "lucide-react"
+import { Send, HandCoins, Target } from "lucide-react"
 import ChatHeader from "./chat-header"
 import MessageItem from "./message-item"
 import MessageInput from "./message-input"
@@ -66,6 +66,8 @@ interface ChatAreaProps {
     onInviteToGroup: () => void
     onGroupSettings?: () => void
     onDeleteGroup?: () => void
+    onCreateContribution?: () => void
+    isGroupAdmin?: boolean
     typingUsers?: any[]
     onlineUsers?: any[]
 }
@@ -81,6 +83,8 @@ export default function ChatArea({
     onInviteToGroup,
     onGroupSettings,
     onDeleteGroup,
+    onCreateContribution,
+    isGroupAdmin = false,
     typingUsers = [],
     onlineUsers = [],
 }: ChatAreaProps) {
@@ -121,14 +125,26 @@ export default function ChatArea({
                     <Send size={14} className="mr-1.5 hidden sm:inline" />
                     Send Money
                 </Button>
-                <Button
-                    onClick={onRequestMoney}
-                    variant="outline"
-                    className="text-xs sm:text-sm py-2 px-4 rounded-lg shadow-sm transition-all duration-200 flex-1 sm:flex-none"
-                >
-                    <HandCoins size={14} className="mr-1.5 hidden sm:inline" />
-                    Request Money
-                </Button>
+                {!conversation.isGroup && (
+                    <Button
+                        onClick={onRequestMoney}
+                        variant="outline"
+                        className="text-xs sm:text-sm py-2 px-4 rounded-lg shadow-sm transition-all duration-200 flex-1 sm:flex-none"
+                    >
+                        <HandCoins size={14} className="mr-1.5 hidden sm:inline" />
+                        Request Money
+                    </Button>
+                )}
+                {conversation.isGroup && isGroupAdmin && onCreateContribution && (
+                    <Button
+                        onClick={onCreateContribution}
+                        variant="outline"
+                        className="text-xs sm:text-sm py-2 px-4 rounded-lg shadow-sm transition-all duration-200 flex-1 sm:flex-none border-brand-green/40 dark:border-brand-gold/40 text-brand-green dark:text-brand-gold hover:bg-brand-green/5 dark:hover:bg-brand-gold/5"
+                    >
+                        <Target size={14} className="mr-1.5 hidden sm:inline" />
+                        Contributions
+                    </Button>
+                )}
             </div>
 
             {/* Messages */}

@@ -72,7 +72,7 @@ const RequestContextBanner = ({
                 </p>
 
                 {note && (
-                    <div className="mt-3 px-4 py-2 bg-white/70 dark:bg-darkBg-main/50 rounded-xl border border-gray-100 dark:border-darkBorder-light max-w-xs">
+                    <div className="mt-3 px-4 py-2 bg-white dark:bg-darkBg-overlay rounded-xl border border-gray-100 dark:border-darkBorder-light max-w-xs">
                         <p className="text-sm text-gray-600 dark:text-gray-300 italic">"{note}"</p>
                     </div>
                 )}

@@ -23,7 +23,7 @@ import {
     TrendingUp,
     Wallet,
     Users,
-    UsersRound,
+    Network,
     Clock,
     Store,
     MoreHorizontal,
@@ -138,7 +138,7 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
     ]
 
     const mobileSecondaryItems: NavigationItem[] = [
-        { id: "Groups", icon: <UsersRound size={24} />, label: "Groups", path: "/groups" },
+        { id: "Groups", icon: <Network size={24} />, label: "Groups", path: "/groups" },
         { id: "Contacts", icon: <Users size={24} />, label: "Contacts", path: '/contacts' },
         { id: "Merchants", icon: <Store size={24} />, label: "Merchants", path: userId ? `/merchants/${userId}` : '/merchants' },
         { id: "History", icon: <Clock size={24} />, label: "History", path: "/transactions" },
@@ -152,7 +152,7 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
         { id: "Home", icon: <Home size={24} />, label: "Home", path: userId ? `/home/${userId}` : '/home' },
         { id: "Finances", icon: <BarChart2 size={24} />, label: "Finances", path: "/analytics" },
         { id: "Messages", icon: <MessageCircle size={24} />, label: "Messages", path: "/chat" },
-        { id: "Groups", icon: <UsersRound size={24} />, label: "Groups", path: "/groups" },
+        { id: "Groups", icon: <Network size={24} />, label: "Groups", path: "/groups" },
         { id: "Actions", icon: <FileText size={24} />, label: "Actions", path: userId ? `/action/${userId}` : '/action' },
         { id: "Contacts", icon: <Users size={24} />, label: "Contacts", path: '/contacts' },
         { id: "Merchants", icon: <Store size={24} />, label: "Merchants", path: userId ? `/merchants/${userId}` : '/merchants' },
@@ -366,7 +366,7 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
                 {/* More Menu Modal Overlay */}
                 {
                     isMoreMenuOpen && (
-                        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 animate-in fade-in duration-200">
                             {/* Modal Container */}
                             <div className={cn(
                                 "relative w-full max-w-sm rounded-3xl p-6 shadow-2xl flex flex-col items-center animate-in zoom-in-95 duration-200",

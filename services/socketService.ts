@@ -620,6 +620,101 @@ class SocketService {
         }
     }
 
+    // Group contribution real-time events
+    onGroupContributionUpdated(callback: (data: {
+        groupId: string;
+        contributionId: string;
+        collectedAmount: number;
+        goalAmount: number;
+        contributorCount: number;
+        status: string;
+        payerId: string;
+        payerName: string;
+        amount: number;
+    }) => void) {
+        if (this.socket) {
+            this.socket.on("group_contribution_updated", callback)
+        }
+    }
+
+    offGroupContributionUpdated(callback?: (data: any) => void) {
+        if (this.socket) {
+            if (callback) {
+                this.socket.off("group_contribution_updated", callback)
+            } else {
+                this.socket.off("group_contribution_updated")
+            }
+        }
+    }
+
+    onGroupContributionCreated(callback: (data: {
+        groupId: string;
+        contributionId: string;
+        title: string;
+        goalAmount: number;
+        type: string;
+        amountPerMember?: number;
+        minimumAmount?: number;
+        deadline?: string;
+        visibilityMode: string;
+    }) => void) {
+        if (this.socket) {
+            this.socket.on("group_contribution_created", callback)
+        }
+    }
+
+    offGroupContributionCreated(callback?: (data: any) => void) {
+        if (this.socket) {
+            if (callback) {
+                this.socket.off("group_contribution_created", callback)
+            } else {
+                this.socket.off("group_contribution_created")
+            }
+        }
+    }
+
+    onGroupContributionCompleted(callback: (data: {
+        groupId: string;
+        contributionId: string;
+        title: string;
+        goalAmount: number;
+        collectedAmount: number;
+    }) => void) {
+        if (this.socket) {
+            this.socket.on("group_contribution_completed", callback)
+        }
+    }
+
+    offGroupContributionCompleted(callback?: (data: any) => void) {
+        if (this.socket) {
+            if (callback) {
+                this.socket.off("group_contribution_completed", callback)
+            } else {
+                this.socket.off("group_contribution_completed")
+            }
+        }
+    }
+
+    onGroupContributionClosed(callback: (data: {
+        groupId: string;
+        contributionId: string;
+        status: string;
+    }) => void) {
+        if (this.socket) {
+            this.socket.on("group_contribution_closed", callback)
+        }
+    }
+
+    offGroupContributionClosed(callback?: (data: any) => void) {
+        if (this.socket) {
+            if (callback) {
+                this.socket.off("group_contribution_closed", callback)
+            } else {
+                this.socket.off("group_contribution_closed")
+            }
+        }
+    }
+
     getSocket() {
         return this.socket
     }

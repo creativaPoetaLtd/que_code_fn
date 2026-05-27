@@ -19,6 +19,8 @@ import { createOrGetPreferredDmChat } from '@/services/secureChatService';
 
 import SendMoneyModal from '@/components/chat/send-money-modal';
 import RequestMoneyModal from '@/components/chat/request-money-modal';
+import CreateContributionModal from '@/components/chat/create-contribution-modal';
+import { getGroupById } from '@/helpers/api';
 import AddContactModal from '@/components/chat/add-contact-modal';
 import UserProfileModal from '@/components/chat/user-profile-modal';
 import GroupProfileModal from '@/components/chat/group-profile-modal';
@@ -75,6 +77,8 @@ export default function ChatPageClean() {
   const [showMobileConversationList, setShowMobileConversationList] =
     useState(true);
   const [selectedChat, setSelectedChat] = useState<Conversation | null>(null);
+  const [isGroupAdmin, setIsGroupAdmin] = useState(false);
+  const [isCreateContributionModalOpen, setIsCreateContributionModalOpen] = useState(false);
   const [selectedOutsideMessage, setSelectedOutsideMessage] = useState<OutsideMessage | null>(null);
   const [isGroupSettingsModalOpen, setIsGroupSettingsModalOpen] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState<{ isOpen: boolean; groupId: string | null }>({
@@ -111,6 +115,24 @@ export default function ChatPageClean() {
       setActiveChat(selectedChat.id);
     }
   }, [selectedChat?.id, activeChat, setActiveChat]);
+
+  // Check if the current user is a group admin whenever the selected chat changes
+  useEffect(() => {
+    if (!selectedChat?.isGroup || !selectedChat?.groupId) {
+      setIsGroupAdmin(false);
+      return;
+    }
+    let cancelled = false;
+    getGroupById(selectedChat.groupId)
+      .then((res) => {
+        if (cancelled) return;
+        const group = res?.data?.data || res?.data;
+        const role = group?.userRole || group?.currentUserRole;
+        setIsGroupAdmin(role === 'admin' || role === 'owner');
+      })
+      .catch(() => { if (!cancelled) setIsGroupAdmin(false); });
+    return () => { cancelled = true; };
+  }, [selectedChat?.isGroup, selectedChat?.groupId]);
 
   // Auto-select conversation when activeChat changes (e.g., from joining a group)
   useEffect(() => {
@@ -335,6 +357,8 @@ export default function ChatPageClean() {
               onBackClick={handleHideChat}
               onSendMoney={() => openSendMoneyModal(selectedChat.name)}
               onRequestMoney={() => setIsRequestMoneyModalOpen(true)}
+              onCreateContribution={() => setIsCreateContributionModalOpen(true)}
+              isGroupAdmin={isGroupAdmin}
               onViewProfile={handleViewProfile}
               onInviteToGroup={handleInviteToGroup}
               onGroupSettings={handleGroupSettings}
@@ -382,6 +406,12 @@ export default function ChatPageClean() {
         isOpen={isRequestMoneyModalOpen}
         onClose={() => setIsRequestMoneyModalOpen(false)}
         conversation={selectedChat as any}
+      />
+
+      <CreateContributionModal
+        isOpen={isCreateContributionModalOpen}
+        onClose={() => setIsCreateContributionModalOpen(false)}
+        conversation={selectedChat}
       />
 
       <AddContactModal
