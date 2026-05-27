@@ -39,6 +39,7 @@ export interface StoredSecureDeviceState {
     publicKey: JsonWebKey;
     privateKey: JsonWebKey;
     signature: string;
+    createdAt?: string | null;
   };
   oneTimePreKeys: StoredOneTimePreKey[];
   lastServerSyncAt?: string | null;
