@@ -1003,16 +1003,36 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
     }, []);
 
     const addReaction = useCallback((chatId: string, messageId: string, emoji: string) => {
+        const conversation = conversations.find((item) => item.id === chatId);
+        if (conversation?.securityMode === "secure_dm_v1") {
+            toast({
+                title: "Secure reactions unavailable",
+                description: "Plaintext reactions are disabled in secure chats.",
+                variant: "destructive",
+            });
+            return;
+        }
+
         if (isConnected) {
             socketService.addReaction(chatId, messageId, emoji);
         }
-    }, [isConnected]);
+    }, [conversations, isConnected]);
 
     const removeReaction = useCallback((chatId: string, messageId: string) => {
+        const conversation = conversations.find((item) => item.id === chatId);
+        if (conversation?.securityMode === "secure_dm_v1") {
+            toast({
+                title: "Secure reactions unavailable",
+                description: "Plaintext reactions are disabled in secure chats.",
+                variant: "destructive",
+            });
+            return;
+        }
+
         if (isConnected) {
             socketService.removeReaction(chatId, messageId);
         }
-    }, [isConnected]);
+    }, [conversations, isConnected]);
 
     const clearChatState = useCallback(() => {
         // Disconnect socket properly

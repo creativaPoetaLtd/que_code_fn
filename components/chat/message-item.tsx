@@ -120,9 +120,13 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
     const horizontalLockRef = useRef(false)
     const gestureActiveRef = useRef(false)
 
-    const { addReaction, removeReaction, activeChat } = useChat()
+    const { addReaction, removeReaction, activeChat, conversations } = useChat()
     const { getUserId } = useAuthToken()
     const currentUserId = getUserId()
+    const activeConversation = activeChat
+        ? conversations.find((conversation) => conversation.id === activeChat)
+        : null
+    const reactionsAllowed = activeConversation?.securityMode !== "secure_dm_v1"
 
     // Aggregate raw reaction rows into display format
     const aggregatedReactions: Reaction[] = useMemo(() => {
@@ -342,9 +346,10 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
                     {timestamp}
                 </p>
 
-                {(!isLegacy && (onReply || true)) && !isTempMessage && (
+                {(!isLegacy && (onReply || reactionsAllowed)) && !isTempMessage && (
                     <div className="mt-1 flex items-center justify-end gap-1">
                         {/* Reaction trigger */}
+                        {reactionsAllowed && (
                         <div className="relative">
                             <Button
                                 type="button"
@@ -369,6 +374,7 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
                                 />
                             )}
                         </div>
+                        )}
 
                         {onReply && (
                             <Button
