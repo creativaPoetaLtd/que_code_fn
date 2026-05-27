@@ -47,6 +47,7 @@ interface MessageInputProps {
     chatId?: string
     /** Pass the group ID when inside a group chat to enable @mentions */
     groupId?: string
+    isSecureChat?: boolean
     replyToMessage?: ReplyPreview | null
     onCancelReply?: () => void
 }
@@ -55,6 +56,7 @@ export default function MessageInput({
     onSendMessage = () => { },
     chatId,
     groupId,
+    isSecureChat = false,
     replyToMessage = null,
     onCancelReply,
 }: MessageInputProps) {
@@ -378,6 +380,15 @@ export default function MessageInput({
     }
 
     const handleMediaUpload = async (file: File, caption: string) => {
+        if (isSecureChat) {
+            toast({
+                title: "Secure media unavailable",
+                description: "Media encryption is not enabled for secure chats yet.",
+                variant: "destructive",
+            })
+            return
+        }
+
         if (!currentChatId) {
             toast({ title: "Error", description: "No active chat selected", variant: "destructive" })
             return
@@ -488,7 +499,17 @@ export default function MessageInput({
                     {/* Media */}
                     <Button
                         variant="ghost" size="icon"
-                        onClick={() => setShowMediaModal(true)}
+                        onClick={() => {
+                            if (isSecureChat) {
+                                toast({
+                                    title: "Secure media unavailable",
+                                    description: "Media encryption is not enabled for secure chats yet.",
+                                    variant: "destructive",
+                                })
+                                return
+                            }
+                            setShowMediaModal(true)
+                        }}
                         className="flex-shrink-0 h-8 w-8 sm:h-9 sm:w-9 mb-0.5 hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors"
                         aria-label="Add media"
                     >
