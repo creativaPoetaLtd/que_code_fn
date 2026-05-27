@@ -66,6 +66,7 @@ interface ChatAreaProps {
     onInviteToGroup: () => void
     onGroupSettings?: () => void
     onDeleteGroup?: () => void
+    onVerifySecurity?: () => void
     onCreateContribution?: () => void
     isGroupAdmin?: boolean
     typingUsers?: any[]
@@ -83,6 +84,7 @@ export default function ChatArea({
     onInviteToGroup,
     onGroupSettings,
     onDeleteGroup,
+    onVerifySecurity,
     onCreateContribution,
     isGroupAdmin = false,
     typingUsers = [],
@@ -113,6 +115,7 @@ export default function ChatArea({
                     onInviteToGroup={onInviteToGroup}
                     onGroupSettings={onGroupSettings}
                     onDeleteGroup={onDeleteGroup}
+                    onVerifySecurity={onVerifySecurity}
                 />
             </div>
 

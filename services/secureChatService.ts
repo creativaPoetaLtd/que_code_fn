@@ -1,7 +1,7 @@
 "use client";
 
 import baseUrl from "@/helpers/baseUrl";
-import { assertTrustedDeviceIdentity } from "@/lib/e2ee/identityTrustStore";
+import { assertTrustedDeviceIdentity, getIdentityFingerprint } from "@/lib/e2ee/identityTrustStore";
 import { saveStoredSecureDeviceState } from "@/lib/e2ee/deviceStore";
 import { decryptSecureEnvelope, encryptSecureTextForRecipients } from "@/lib/e2ee/secureMessageCrypto";
 import { ensureRegisteredSecureDevice } from "@/services/e2eeDeviceService";
@@ -71,6 +71,9 @@ const getConversationRecipient = (conversation: Conversation, userId: string) =>
   return recipient.userId;
 };
 
+export const getSecureConversationRecipientId = (conversation: Conversation, userId: string) =>
+  getConversationRecipient(conversation, userId);
+
 const fetchPublicDeviceBundles = async (token: string, userId: string) => {
   const cacheKey = `bundles:${userId}`;
   const cached = bundleCache.get(cacheKey);
@@ -121,6 +124,27 @@ const fetchPublicDeviceBundles = async (token: string, userId: string) => {
   });
 
   return devices;
+};
+
+export const fetchSecureDeviceIdentitySummaries = async ({
+  token,
+  userId,
+}: {
+  token: string;
+  userId: string;
+}) => {
+  const devices = await fetchPublicDeviceBundles(token, userId);
+
+  return Promise.all(
+    devices.map(async (device) => ({
+      userId,
+      deviceId: device.deviceId,
+      deviceName: device.deviceName || "Secure device",
+      platform: device.platform || "unknown",
+      fingerprint: await getIdentityFingerprint(device.bundle.identityPublicKey),
+      availableOneTimePreKeys: device.oneTimePreKeys.length,
+    })),
+  );
 };
 
 const decryptSecureApiMessage = async ({

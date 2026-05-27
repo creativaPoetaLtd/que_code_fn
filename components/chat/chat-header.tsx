@@ -27,6 +27,7 @@ import {
   Circle,
   Wifi,
   Lock,
+  ShieldCheck,
   Trash2,
 } from 'lucide-react';
 
@@ -37,6 +38,7 @@ interface ChatHeaderProps {
   onInviteToGroup?: () => void;
   onGroupSettings?: () => void;
   onDeleteGroup?: () => void;
+  onVerifySecurity?: () => void;
 }
 
 export default function ChatHeader({
@@ -46,6 +48,7 @@ export default function ChatHeader({
   onInviteToGroup,
   onGroupSettings,
   onDeleteGroup,
+  onVerifySecurity,
 }: ChatHeaderProps) {
   const chat = useChat();
   const { getToken } = useAuthToken();
@@ -239,6 +242,13 @@ export default function ChatHeader({
               <Settings size={14} className='mr-2' />
               Chat Settings
             </DropdownMenuItem>
+
+            {isDirectConversation && isSecureConversation && onVerifySecurity && (
+              <DropdownMenuItem onClick={onVerifySecurity} className='cursor-pointer'>
+                <ShieldCheck size={14} className='mr-2' />
+                Verify Security
+              </DropdownMenuItem>
+            )}
 
             {isDirectConversation && isSecureConversation && (
               <DropdownMenuItem disabled className='cursor-default opacity-70'>

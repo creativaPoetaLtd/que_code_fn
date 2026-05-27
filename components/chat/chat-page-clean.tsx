@@ -15,7 +15,10 @@ import { cn } from '@/lib/utils';
 import { useDeleteGroupMutation } from '@/states/groupSlice';
 import GroupDialogs from '@/components/chat/GroupDialogs';
 import { toast } from '@/hooks/use-toast';
-import { createOrGetPreferredDmChat } from '@/services/secureChatService';
+import {
+  createOrGetPreferredDmChat,
+  getSecureConversationRecipientId,
+} from '@/services/secureChatService';
 
 import SendMoneyModal from '@/components/chat/send-money-modal';
 import RequestMoneyModal from '@/components/chat/request-money-modal';
@@ -23,6 +26,7 @@ import CreateContributionModal from '@/components/chat/create-contribution-modal
 import { getGroupById } from '@/helpers/api';
 import AddContactModal from '@/components/chat/add-contact-modal';
 import UserProfileModal from '@/components/chat/user-profile-modal';
+import SecureIdentityDialog from '@/components/chat/secure-identity-dialog';
 import GroupProfileModal from '@/components/chat/group-profile-modal';
 import ContactRequestModal from '@/components/chat/contact-request';
 import AddMemberModal from '@/components/chat/add-member-modal';
@@ -81,6 +85,7 @@ export default function ChatPageClean() {
   const [isCreateContributionModalOpen, setIsCreateContributionModalOpen] = useState(false);
   const [selectedOutsideMessage, setSelectedOutsideMessage] = useState<OutsideMessage | null>(null);
   const [isGroupSettingsModalOpen, setIsGroupSettingsModalOpen] = useState(false);
+  const [isSecureIdentityDialogOpen, setIsSecureIdentityDialogOpen] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState<{ isOpen: boolean; groupId: string | null }>({
     isOpen: false,
     groupId: null,
@@ -271,6 +276,11 @@ export default function ChatPageClean() {
     }
   };
 
+  const secureIdentityContactUserId =
+    selectedChat && currentUserId && selectedChat.securityMode === 'secure_dm_v1'
+      ? getSecureConversationRecipientId(selectedChat, currentUserId)
+      : null;
+
   // Opens the delete confirmation dialog for the active group chat
   const handleDeleteGroup = () => {
     if (selectedChat?.isGroup && selectedChat.groupId) {
@@ -363,6 +373,7 @@ export default function ChatPageClean() {
               onInviteToGroup={handleInviteToGroup}
               onGroupSettings={handleGroupSettings}
               onDeleteGroup={handleDeleteGroup}
+              onVerifySecurity={() => setIsSecureIdentityDialogOpen(true)}
               typingUsers={typingUsers}
               onlineUsers={onlineUsers}
             />
@@ -449,6 +460,14 @@ export default function ChatPageClean() {
         isOpen={isGroupSettingsModalOpen}
         onClose={() => setIsGroupSettingsModalOpen(false)}
         groupId={selectedChat?.groupId || null}
+      />
+
+      <SecureIdentityDialog
+        open={isSecureIdentityDialogOpen}
+        onOpenChange={setIsSecureIdentityDialogOpen}
+        token={token}
+        contactUserId={secureIdentityContactUserId}
+        contactName={selectedChat?.name || 'Contact'}
       />
 
       {/* Delete Group confirmation dialog (role-gated in ChatHeader) */}
