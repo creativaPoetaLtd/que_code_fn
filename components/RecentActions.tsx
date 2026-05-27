@@ -1,18 +1,14 @@
 "use client"
 import React, { useEffect, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Ticket, Target, ArrowRight } from 'lucide-react';
 import { useAuthToken } from '@/hooks/use-auth-token';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import baseUrl from '@/helpers/baseUrl';
+import { getMyGroupContributions } from '@/helpers/api';
+import { getCurrentUserInfo } from '@/utils/tokenUtils';
 
-const statusClasses: Record<string, string> = {
-  valid: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800',
-  used: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800',
-  expired: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800',
-  published: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800',
-  draft: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-800',
-};
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface RecentAction {
   id: string;
@@ -22,13 +18,28 @@ interface RecentAction {
   metadata?: {
     actionName?: string;
     subActionName?: string;
+    coverImage?: string;
   };
   status: string;
-  availability?: {
-    endsAt: string;
-  };
+  availability?: { endsAt?: string; startsAt?: string };
   validUntil?: string;
   subActions?: any[];
+  totalSubActionBalance?: number;
+  currency?: string;
+  coverImage?: string;
+}
+
+interface PendingContribution {
+  id: string;
+  groupId: string;
+  groupName: string;
+  title: string;
+  type: 'fixed' | 'flexible';
+  amountPerMember?: number;
+  minimumAmount?: number;
+  currency: string;
+  goalAmount: number;
+  collectedAmount: number;
 }
 
 interface RecentActionsProps {
@@ -36,227 +47,354 @@ interface RecentActionsProps {
   onCreateAction?: () => void;
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const fmtRwf = (n: number, cur = 'RWF') =>
+  new Intl.NumberFormat('en-RW', { style: 'currency', currency: cur, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
+
+const isExpired = (endsAt?: string) => !!endsAt && new Date(endsAt) < new Date();
+
+const getDaysRemaining = (endsAt?: string) => {
+  if (!endsAt) return null;
+  const days = Math.ceil((new Date(endsAt).getTime() - Date.now()) / 86_400_000);
+  return days > 0 ? days : 0;
+};
+
+const statusClasses: Record<string, string> = {
+  valid:     'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800',
+  used:      'bg-blue-100  dark:bg-blue-900/30  text-blue-700  dark:text-blue-400  border border-blue-200  dark:border-blue-800',
+  expired:   'bg-red-100   dark:bg-red-900/30   text-red-700   dark:text-red-400   border border-red-200   dark:border-red-800',
+  published: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800',
+  draft:     'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-800',
+};
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function TicketRow({ action, onClick }: { action: RecentAction; onClick: () => void }) {
+  const cover = action.coverImage || action.metadata?.coverImage;
+  const name  = action.metadata?.actionName || action.name || 'Ticket';
+  const tier  = action.metadata?.subActionName;
+  const days  = getDaysRemaining(action.validUntil);
+
+  return (
+    <button
+      onClick={onClick}
+      className="w-full flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-darkBg-interactive hover:bg-emerald-50 dark:hover:bg-darkBg-main border border-gray-100 dark:border-darkBorder-light hover:border-brand-green/30 transition-all text-left group"
+    >
+      {/* Thumbnail */}
+      <div className="w-11 h-11 rounded-lg overflow-hidden flex-shrink-0 bg-emerald-100 dark:bg-darkBg-main flex items-center justify-center">
+        {cover ? (
+          <img src={cover} alt={name} className="w-full h-full object-cover" />
+        ) : (
+          <Ticket size={18} className="text-brand-green dark:text-brand-gold" />
+        )}
+      </div>
+
+      {/* Info */}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{name}</p>
+        {tier && <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{tier}</p>}
+        {days !== null && (
+          <p className="text-xs text-brand-green dark:text-brand-gold mt-0.5">
+            {days === 0 ? 'Ends today' : `${days}d left`}
+          </p>
+        )}
+      </div>
+
+      {/* Valid badge */}
+      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800">
+        Valid
+      </span>
+    </button>
+  );
+}
+
+function ContributionRow({ c, userId, onClick }: { c: PendingContribution; userId?: string; onClick: () => void }) {
+  const progress = c.goalAmount > 0 ? Math.min((c.collectedAmount / c.goalAmount) * 100, 100) : 0;
+  const dueLabel = c.type === 'fixed' && c.amountPerMember
+    ? fmtRwf(Number(c.amountPerMember), c.currency)
+    : c.minimumAmount
+    ? `min ${fmtRwf(Number(c.minimumAmount), c.currency)}`
+    : 'Flexible';
+
+  return (
+    <button
+      onClick={onClick}
+      className="w-full flex items-center gap-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-900/10 hover:bg-amber-100 dark:hover:bg-amber-900/20 border border-amber-100 dark:border-amber-800/30 hover:border-amber-300 dark:hover:border-amber-700 transition-all text-left group"
+    >
+      {/* Icon */}
+      <div className="w-11 h-11 rounded-lg flex-shrink-0 bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+        <Target size={18} className="text-amber-600 dark:text-amber-400" />
+      </div>
+
+      {/* Info */}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{c.title}</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{c.groupName}</p>
+        {/* Mini progress bar */}
+        <div className="mt-1.5 h-1 w-full bg-gray-200 dark:bg-darkBg-main rounded-full overflow-hidden">
+          <div className="h-full bg-brand-green dark:bg-brand-gold rounded-full" style={{ width: `${progress}%` }} />
+        </div>
+      </div>
+
+      {/* Due amount */}
+      <div className="flex-shrink-0 text-right">
+        <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">{dueLabel}</p>
+        <p className="text-[10px] text-gray-400 mt-0.5">due</p>
+      </div>
+    </button>
+  );
+}
+
+function OrgActionRow({
+  action,
+  onClick,
+  onContinue,
+}: {
+  action: RecentAction;
+  onClick: () => void;
+  onContinue?: () => void;
+}) {
+  const expired = isExpired(action.availability?.endsAt);
+  const days    = getDaysRemaining(action.availability?.endsAt);
+  const status  = expired ? 'expired' : action.status?.toLowerCase() || 'draft';
+  const statusCls = statusClasses[status] || 'bg-gray-100 dark:bg-darkBg-interactive text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-darkBorder-light';
+  const statusLabel = expired ? 'Expired' : status.charAt(0).toUpperCase() + status.slice(1);
+  const collected = action.totalSubActionBalance;
+  const currency  = action.currency || 'RWF';
+
+  return (
+    <button
+      onClick={onClick}
+      className="w-full flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-darkBg-interactive hover:bg-emerald-50 dark:hover:bg-darkBg-main border border-gray-100 dark:border-darkBorder-light hover:border-brand-green/30 transition-all text-left group"
+    >
+      {/* Icon */}
+      <div className="w-11 h-11 rounded-lg flex-shrink-0 bg-brand-green/10 dark:bg-brand-gold/10 flex items-center justify-center">
+        <Ticket size={18} className="text-brand-green dark:text-brand-gold" />
+      </div>
+
+      {/* Info */}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{action.name}</p>
+        {action.shortDescription && (
+          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{action.shortDescription}</p>
+        )}
+        {collected !== undefined && collected !== null && collected > 0 && (
+          <p className="text-xs font-semibold text-brand-green dark:text-brand-gold mt-0.5">
+            {fmtRwf(collected, currency)} collected
+          </p>
+        )}
+        {days !== null && !expired && (
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+            {days === 0 ? 'Ends today' : `${days}d left`}
+          </p>
+        )}
+      </div>
+
+      {/* Status + draft CTA */}
+      <div className="flex-shrink-0 flex flex-col items-end gap-1">
+        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${statusCls}`}>
+          {statusLabel}
+        </span>
+        {action.status === 'draft' && onContinue && (
+          <span
+            role="button"
+            tabIndex={0}
+            onClick={(e) => { e.stopPropagation(); onContinue(); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); onContinue(); } }}
+            className="text-[11px] text-brand-green dark:text-brand-gold underline underline-offset-2 hover:no-underline"
+          >
+            Continue
+          </span>
+        )}
+      </div>
+    </button>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
 export const RecentActions = ({ userId, onCreateAction }: RecentActionsProps) => {
-  const [recentActions, setRecentActions] = useState<RecentAction[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isOrganization, setIsOrganization] = useState(false);
+  const [tickets, setTickets]                   = useState<RecentAction[]>([]);
+  const [pendingContributions, setPending]       = useState<PendingContribution[]>([]);
+  const [orgActions, setOrgActions]              = useState<RecentAction[]>([]);
+  const [isOrganization, setIsOrganization]      = useState(false);
+  const [loading, setLoading]                   = useState(true);
   const { getToken } = useAuthToken();
   const router = useRouter();
 
-  // Check if item is expired
-  const isExpired = (endsAt?: string): boolean => {
-    if (!endsAt) return false;
-    return new Date(endsAt) < new Date();
-  };
-
-  // Get status display - handles both organization actions and individual QR objects
-  const getStatusDisplay = (action: RecentAction): { label: string; className: string } => {
-    const dateToCheck = isOrganization ? action.availability?.endsAt : action.validUntil;
-    
-    // Check expiration first
-    if (isExpired(dateToCheck)) {
-      return { label: 'Expired', className: statusClasses['expired'] };
-    }
-
-    // Then use the actual status
-    const status = action.status?.toLowerCase() || 'unknown';
-    const className = statusClasses[status] || 'bg-gray-100 dark:bg-darkBg-interactive text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-darkBorder-light';
-    
-    return { label: status.charAt(0).toUpperCase() + status.slice(1), className };
-  };
-
   useEffect(() => {
-    const fetchRecentActions = async () => {
-      if (!userId) {
-        setLoading(false);
-        return;
-      }
+    if (!userId) { setLoading(false); return; }
 
+    const token = getToken();
+    if (!token) { setLoading(false); return; }
+    const headers = { Authorization: `Bearer ${token}` };
+
+    const load = async () => {
+      setLoading(true);
       try {
-        setLoading(true);
-        const token = getToken();
-        
-        if (!token) return;
+        // Detect account type from the JWT — reliable, no API call needed.
+        // The org actions endpoint always returns 200 for any ID, so API-based
+        // detection would misidentify every individual user as an organisation.
+        const { accountType, organizationId } = getCurrentUserInfo();
+        const isOrg = accountType === 'organization';
+        setIsOrganization(isOrg);
 
-        // First, try to determine account type by checking both endpoints
-        let isOrgAccount = false;
-        let isFetchedAsOrg = false;
-
-        // Try organization endpoint first
-        try {
-          const orgResponse = await axios.get(
-            `${baseUrl}/organizations/${userId}/actions/public`,
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            }
-          );
-
-          let actions = orgResponse.data?.data || orgResponse.data || [];
-          
-          if (Array.isArray(actions) && actions.length > 0) {
-            // It's an organization account with actions
-            // Filter out expired, then sort drafts first, then published
-            const sorted = actions
-              .filter((action: any) => !isExpired(action.availability?.endsAt))
-              .sort((a: any, b: any) => {
-                // Draft status comes first
-                if (a.status === 'draft' && b.status !== 'draft') return -1;
-                if (a.status !== 'draft' && b.status === 'draft') return 1;
-                // Then sort by date (newest first)
-                return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-              })
-              .slice(0, 2);
-
-            setRecentActions(sorted || []);
-            setIsOrganization(true);
-            isFetchedAsOrg = true;
-          }
-        } catch (orgError) {
-          // Organization endpoint failed - likely a user account
+        if (isOrg) {
+          // Org account: fetch this org's published public actions
+          const orgId = organizationId ?? userId;
+          const orgRes = await axios
+            .get(`${baseUrl}/organizations/${orgId}/actions/public`, { headers })
+            .catch(() => null);
+          const orgData: any[] = orgRes?.data?.data || orgRes?.data || [];
+          const sorted = Array.isArray(orgData)
+            ? orgData
+                .filter((a: any) => !isExpired(a.availability?.endsAt) || a.status === 'draft')
+                .sort((a: any, b: any) => {
+                  if (a.status === 'draft' && b.status !== 'draft') return -1;
+                  if (a.status !== 'draft' && b.status === 'draft') return 1;
+                  return new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime();
+                })
+                .slice(0, 3)
+            : [];
+          setOrgActions(sorted);
+          return;
         }
 
-        // If we haven't fetched yet, try user account
-        if (!isFetchedAsOrg) {
-          try {
-            const userResponse = await axios.get(
-              `${baseUrl}/users/${userId}/qr-objects`,
-              {
-                headers: { Authorization: `Bearer ${token}` },
-              }
-            );
+        // Individual user: fetch tickets + group contributions in parallel
+        const [qrRes, contribRes] = await Promise.allSettled([
+          axios.get(`${baseUrl}/users/${userId}/qr-objects`, { headers }),
+          getMyGroupContributions(),
+        ]);
 
-            let items = userResponse.data?.data || userResponse.data || [];
-            if (Array.isArray(items)) {
-              // Sort by creation date and get recent 2, filtered to valid tickets only and not expired
-              const recent = items
-                .filter((item: any) => item.status?.toLowerCase() === 'valid' && !isExpired(item.validUntil))
-                .sort((a: any, b: any) => 
-                  new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-                )
-                .slice(0, 2);
-
-              setRecentActions(recent || []);
-              setIsOrganization(false);
-            } else {
-              setRecentActions([]);
-              setIsOrganization(false);
-            }
-          } catch (userError) {
-            // Both failed - not authenticated or user has no data
-            console.error('Error fetching actions:', userError);
-            setRecentActions([]);
-            setIsOrganization(false);
-          }
+        // Tickets: 2 most recent valid, non-expired
+        if (qrRes.status === 'fulfilled') {
+          const items: RecentAction[] = qrRes.value?.data?.data || qrRes.value?.data || [];
+          const recent = Array.isArray(items)
+            ? items
+                .filter((i) => i.status?.toLowerCase() === 'valid' && !isExpired(i.validUntil))
+                .slice(0, 2)
+            : [];
+          setTickets(recent);
         }
-      } catch (error) {
-        console.error('Error fetching recent actions:', error);
+
+        // Contributions: show ALL active campaigns (paid and unpaid) — up to 2,
+        // unpaid first so they get attention, paid second
+        if (contribRes.status === 'fulfilled') {
+          const all: any[] = contribRes.value?.data?.data || contribRes.value?.data || [];
+          const active = Array.isArray(all) ? all.filter((c: any) => c.status === 'active') : [];
+          const sorted = [
+            ...active.filter((c: any) => !c.myPayment),  // unpaid first
+            ...active.filter((c: any) =>  c.myPayment),  // paid second
+          ].slice(0, 2);
+          setPending(sorted);
+        }
+      } catch {
+        // silently fail — card shows empty state
       } finally {
         setLoading(false);
       }
     };
 
-    fetchRecentActions();
-  }, [userId, getToken]);
+    load();
+  }, [userId]); // getToken intentionally omitted — reads storage, never changes meaningfully
 
-  const getDaysRemaining = (endsAt?: string) => {
-    if (!endsAt) return null;
-    const endDate = new Date(endsAt);
-    const now = new Date();
-    const daysLeft = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    return daysLeft > 0 ? daysLeft : 0;
-  };
+  const goToActions    = () => router.push(`/action/${userId}`);
+  const goToContribs   = (groupId?: string) =>
+    router.push(`/action/${userId}?tab=contributions${groupId ? `&group=${groupId}` : ''}`);
+
+  const hasContent = isOrganization
+    ? orgActions.length > 0
+    : tickets.length > 0 || pendingContributions.length > 0;
 
   return (
     <div className="bg-white dark:bg-darkBg-card rounded-2xl shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-100 dark:border-darkBorder-light overflow-hidden">
+
       {/* Header */}
-      <div className="flex justify-between items-center p-3 sm:p-4 border-b border-gray-100 dark:border-darkBorder-light">
-        <h3 className="text-base sm:text-lg text-[#00313A] dark:text-white font-semibold">
-          Recent Actions
-        </h3>
+      <div className="flex justify-between items-center px-4 py-3 border-b border-gray-100 dark:border-darkBorder-light">
+        <h3 className="text-base font-semibold text-[#00313A] dark:text-white">Recent Actions</h3>
         {isOrganization && (
-          <button 
+          <button
             onClick={onCreateAction}
             className="bg-brand-green dark:bg-brand-gold hover:bg-brand-green/90 dark:hover:bg-brand-goldHover transition-colors px-3 py-1.5 rounded-full text-sm font-medium text-white dark:text-[#00313A] flex items-center gap-1"
           >
-            <Plus size={16} />
-            <span className="hidden sm:inline">Create new action</span>
-            <span className="inline sm:hidden">New</span>
+            <Plus size={15} />
+            <span className="hidden sm:inline">New action</span>
+            <span className="sm:hidden">New</span>
           </button>
         )}
       </div>
- 
-      {/* Actions Grid */}
-      <div className="p-3 sm:p-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {loading ? (
-            <div className="col-span-full text-center py-8 text-gray-500">
-              Loading...
-            </div>
-          ) : recentActions.length === 0 ? (
-            <div className="col-span-full text-center py-8 text-gray-500">
-              {isOrganization ? 'No published actions yet' : 'No tickets yet'}
-            </div>
-          ) : (
-            recentActions.map((action) => {
-              const daysLeft = getDaysRemaining(
-                isOrganization ? action.availability?.endsAt : action.validUntil
-              );
-              const actionName = isOrganization ? action.name : action.metadata?.actionName;
-              const statusDisplay = getStatusDisplay(action);
 
-              return (
-                <div
-                  key={action.id}
-                  className="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 border border-emerald-200 dark:border-emerald-700 rounded-2xl p-3 sm:p-4 hover:shadow-md transition-shadow cursor-pointer"
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <h4 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base flex-1">
-                      {actionName}
-                    </h4>
-                    <div className="ml-2 flex flex-col gap-1 items-end">
-                      <span className="inline-block px-2 py-1 text-xs font-medium bg-emerald-200 dark:bg-emerald-700/40 text-emerald-800 dark:text-emerald-300 rounded-full capitalize">
-                        {action.type}
-                      </span>
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusDisplay.className}`}>
-                        {statusDisplay.label}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 mb-3">
-                    {action.shortDescription && (
-                      <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                        {action.shortDescription}
-                      </p>
-                    )}
-                    {!isOrganization && action.metadata?.subActionName && (
-                      <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                        <span className="font-medium">Tier:</span> {action.metadata.subActionName}
-                      </p>
-                    )}
-                    {daysLeft !== null && (
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        {daysLeft === 0 ? 'Ending today' : `${daysLeft} day${daysLeft !== 1 ? 's' : ''} left`}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-
-        {/* View All Link */}
-        {recentActions.length > 0 && (
-          <div className="text-right mt-3">
-            <button 
-              onClick={() => router.push(`/action/${userId}`)}
-              className="relative text-brand-green dark:text-brand-gold text-sm font-medium group"
-            >
-              View all
-              <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-brand-green dark:bg-brand-gold group-hover:w-full transition-all duration-300 ease-out"></span>
-            </button>
+      {/* Body */}
+      <div className="p-3 space-y-4">
+        {loading ? (
+          <div className="py-8 text-center text-sm text-gray-400 dark:text-gray-500">Loading…</div>
+        ) : !hasContent ? (
+          <div className="py-8 text-center text-sm text-gray-400 dark:text-gray-500">
+            {isOrganization ? 'No actions yet' : 'No tickets or contributions yet'}
           </div>
+        ) : isOrganization ? (
+          /* ── Org: action rows ── */
+          <div className="space-y-2">
+            {orgActions.map((a) => (
+              <OrgActionRow
+                key={a.id}
+                action={a}
+                onClick={goToActions}
+                onContinue={goToActions}
+              />
+            ))}
+          </div>
+        ) : (
+          /* ── Individual: tickets + pending contributions ── */
+          <>
+            {tickets.length > 0 && (
+              <div>
+                <p className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2 px-1">
+                  Your Tickets
+                </p>
+                <div className="space-y-2">
+                  {tickets.map((t) => (
+                    <TicketRow key={t.id} action={t} onClick={goToActions} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {pendingContributions.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-2 px-1">
+                  <p className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                    Pending Contributions
+                  </p>
+                  <span className="text-[10px] font-bold bg-amber-400 text-white px-1.5 py-0.5 rounded-full leading-none">
+                    {pendingContributions.length}
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {pendingContributions.map((c) => (
+                    <ContributionRow
+                      key={c.id}
+                      c={c}
+                      userId={userId}
+                      onClick={() => goToContribs(c.groupId)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* View all */}
+        {hasContent && !loading && (
+          <button
+            onClick={isOrganization ? goToActions : () => goToContribs()}
+            className="w-full flex items-center justify-center gap-1 text-sm font-medium text-brand-green dark:text-brand-gold hover:opacity-80 transition-opacity pt-1"
+          >
+            View all
+            <ArrowRight size={14} />
+          </button>
         )}
       </div>
     </div>
