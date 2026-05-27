@@ -333,9 +333,9 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
                 notificationService.notifyNewMessage({
                     chatId: data.chatId,
                     senderId: data.senderId,
-                    senderName: data.sender.lastName || data.sender.name,
-                    content: "Secure message",
-                    messageType: "text" as const,
+                    senderName: "",
+                    content: "",
+                    messageType: "secure" as const,
                 });
             }
 
@@ -683,8 +683,18 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
                 }));
 
                 await markSecureChatAsRead({ token, userId, chatId: activeChat });
-            } catch (error) {
+            } catch (error: any) {
                 console.error("Failed to load secure chat messages", error);
+                if (
+                    error?.name === "SecureIdentityChangedError" ||
+                    error?.message?.includes("Secure device identity changed")
+                ) {
+                    toast({
+                        title: "Security warning",
+                        description: "A secure device identity changed. Verify this contact before continuing.",
+                        variant: "destructive",
+                    });
+                }
             }
         };
 
@@ -847,9 +857,14 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
                         ...prev,
                         [chatId]: (prev[chatId] || []).filter((message) => message.id !== tempMessageId)
                     }));
+                    const identityChanged =
+                        error?.name === "SecureIdentityChangedError" ||
+                        error?.message?.includes("Secure device identity changed");
                     toast({
-                        title: "Secure message failed",
-                        description: error?.message || "Failed to send secure message",
+                        title: identityChanged ? "Security warning" : "Secure message failed",
+                        description: identityChanged
+                            ? "A secure device identity changed. Verify this contact before sending."
+                            : error?.message || "Failed to send secure message",
                         variant: "destructive",
                     });
                 }

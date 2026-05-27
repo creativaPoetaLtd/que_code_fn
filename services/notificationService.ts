@@ -92,8 +92,20 @@ class NotificationService {
     senderId: string;
     senderName: string;
     content: string;
-    messageType: 'text' | 'image' | 'file' | 'voice' | 'money';
+    messageType: 'text' | 'image' | 'file' | 'voice' | 'money' | 'secure';
   }) {
+    if (data.messageType === 'secure') {
+      await this.notify({
+        type: NotificationType.MESSAGE,
+        title: 'New secure message',
+        message: 'Open QueCode to view this encrypted message.',
+        url: `${window.location.origin}/chat`,
+        chatId: data.chatId,
+        senderId: data.senderId,
+      });
+      return;
+    }
+
     const typeMap: Record<string, NotificationType> = {
       text: NotificationType.MESSAGE,
       image: NotificationType.MEDIA,

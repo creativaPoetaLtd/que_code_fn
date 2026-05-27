@@ -74,7 +74,9 @@ export const assertTrustedDeviceIdentity = async ({
   const existing = pins[pinKey];
 
   if (existing && existing !== fingerprint) {
-    throw new Error("Secure device identity changed. Verify this contact before continuing.");
+    const error = new Error("Secure device identity changed. Verify this contact before continuing.");
+    error.name = "SecureIdentityChangedError";
+    throw error;
   }
 
   if (!existing) {
