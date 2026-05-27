@@ -242,8 +242,9 @@ export const encryptSecureTextForRecipients = async ({
       true,
       ["deriveBits"],
     );
+    const selectedOneTimePreKey = recipientDevice.oneTimePreKeys[0] || null;
     const recipientPublicKey = await importExchangePublicKey(
-      recipientDevice.bundle.signedPreKeyPublic,
+      selectedOneTimePreKey?.publicKey || recipientDevice.bundle.signedPreKeyPublic,
     );
     const wrappingKey = await deriveWrappingKey({
       privateKey: ephemeralKeyPair.privateKey,
@@ -273,6 +274,7 @@ export const encryptSecureTextForRecipients = async ({
       senderDeviceId: senderState.deviceId,
       recipientUserId: recipientDevice.userId,
       recipientDeviceId: recipientDevice.deviceId,
+      recipientOneTimePreKeyId: selectedOneTimePreKey?.keyId || null,
       ephemeralPublicKey,
       wrappedMessageKey: toBase64Url(wrappedMessageKey),
       wrappedMessageKeyIv: toBase64Url(wrappingIv),
@@ -324,10 +326,21 @@ export const decryptSecureEnvelope = async ({
     throw new Error("Secure message signature verification failed");
   }
 
-  const signedPreKeyPrivate = await importExchangePrivateKey(recipientState.signedPreKey.privateKey);
+  const recipientOneTimePreKeyId = envelope.recipientOneTimePreKeyId || null;
+  const oneTimePreKey = recipientOneTimePreKeyId
+    ? recipientState.oneTimePreKeys.find((preKey) => preKey.keyId === recipientOneTimePreKeyId)
+    : null;
+
+  if (recipientOneTimePreKeyId && !oneTimePreKey) {
+    throw new Error("Secure message one-time pre-key is not available on this device");
+  }
+
+  const recipientPreKeyPrivate = await importExchangePrivateKey(
+    oneTimePreKey?.privateKey || recipientState.signedPreKey.privateKey,
+  );
   const ephemeralPublicKey = await importExchangePublicKey(envelope.ephemeralPublicKey);
   const wrappingKey = await deriveWrappingKey({
-    privateKey: signedPreKeyPrivate,
+    privateKey: recipientPreKeyPrivate,
     publicKey: ephemeralPublicKey,
     senderDeviceId: envelope.senderDeviceId,
     recipientDeviceId: envelope.recipientDeviceId,

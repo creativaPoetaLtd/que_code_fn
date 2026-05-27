@@ -2,6 +2,7 @@
 
 import baseUrl from "@/helpers/baseUrl";
 import { assertTrustedDeviceIdentity } from "@/lib/e2ee/identityTrustStore";
+import { saveStoredSecureDeviceState } from "@/lib/e2ee/deviceStore";
 import { decryptSecureEnvelope, encryptSecureTextForRecipients } from "@/lib/e2ee/secureMessageCrypto";
 import { ensureRegisteredSecureDevice } from "@/services/e2eeDeviceService";
 import type { Conversation, Message, ReplyPreview } from "@/types/chat.types";
@@ -144,6 +145,18 @@ const decryptSecureApiMessage = async ({
     senderIdentityPublicKey: senderDevice.bundle.identityPublicKey,
     recipientState: state,
   });
+  const recipientOneTimePreKeyId = envelope.recipientOneTimePreKeyId || null;
+
+  if (recipientOneTimePreKeyId) {
+    const remainingOneTimePreKeys = state.oneTimePreKeys.filter(
+      (preKey) => preKey.keyId !== recipientOneTimePreKeyId,
+    );
+
+    if (remainingOneTimePreKeys.length !== state.oneTimePreKeys.length) {
+      state.oneTimePreKeys = remainingOneTimePreKeys;
+      await saveStoredSecureDeviceState(state);
+    }
+  }
 
   return {
     id: rawMessage.id,

@@ -68,6 +68,7 @@ export interface SecureEncryptedEnvelope {
   senderDeviceId: string;
   recipientUserId: string;
   recipientDeviceId: string;
+  recipientOneTimePreKeyId?: number | null;
   ephemeralPublicKey: JsonWebKey;
   wrappedMessageKey: string;
   wrappedMessageKeyIv: string;
