@@ -62,6 +62,25 @@ const getSecureDeviceState = async (token: string, userId: string) => {
   return state;
 };
 
+const parseSecureControlMessage = (content: string) => {
+  try {
+    const payload = JSON.parse(content);
+    if (payload?.kind === "reaction" && payload?.targetMessageId) {
+      return payload as {
+        kind: "reaction";
+        version?: number;
+        targetMessageId: string;
+        action: "set" | "remove";
+        emoji?: string;
+      };
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+};
+
 const getConversationRecipient = (conversation: Conversation, userId: string) => {
   const recipient = conversation.participants.find((participant) => participant.userId !== userId);
   if (!recipient) {
@@ -266,7 +285,32 @@ export const fetchSecureChatMessages = async ({
     }),
   );
 
-  return decryptedMessages.reverse();
+  const chronologicalMessages = decryptedMessages.reverse();
+  const visibleMessages: Message[] = [];
+
+  for (const message of chronologicalMessages) {
+    const controlMessage = parseSecureControlMessage(message.content);
+
+    if (controlMessage?.kind === "reaction") {
+      const target = visibleMessages.find((item) => item.id === controlMessage.targetMessageId);
+      if (target) {
+        const existingReactions = target.reactions || [];
+        const withoutSender = existingReactions.filter(
+          (reaction) => reaction.userId !== message.sender.id,
+        );
+
+        target.reactions =
+          controlMessage.action === "set" && controlMessage.emoji
+            ? [...withoutSender, { userId: message.sender.id, emoji: controlMessage.emoji }]
+            : withoutSender;
+      }
+      continue;
+    }
+
+    visibleMessages.push(message);
+  }
+
+  return visibleMessages;
 };
 
 export const createOrGetSecureDmChat = async ({
@@ -529,6 +573,75 @@ export const sendSecureMediaMessage = async ({
     sender: messagePayload.data.sender,
     readBy: [],
   } satisfies Message;
+};
+
+export const sendSecureReactionMessage = async ({
+  token,
+  userId,
+  chatId,
+  conversation,
+  targetMessageId,
+  emoji,
+  action,
+}: {
+  token: string;
+  userId: string;
+  chatId: string;
+  conversation: Conversation;
+  targetMessageId: string;
+  emoji?: string;
+  action: "set" | "remove";
+}) => {
+  const state = await getSecureDeviceState(token, userId);
+  const recipientUserId = getConversationRecipient(conversation, userId);
+
+  const sendAttempt = async (forceRefresh: boolean) => {
+    const [senderDevices, recipientDevices] = await Promise.all([
+      fetchPublicDeviceBundles(token, userId, { forceRefresh }),
+      fetchPublicDeviceBundles(token, recipientUserId, { forceRefresh }),
+    ]);
+    const { recipientPayloads } = await encryptSecureTextForRecipients({
+      content: JSON.stringify({
+        kind: "reaction",
+        version: 1,
+        targetMessageId,
+        action,
+        emoji: action === "set" ? emoji : null,
+      }),
+      senderUserId: userId,
+      senderState: state,
+      recipientDevices: [...senderDevices, ...recipientDevices],
+    });
+
+    return fetchJson(`${getApiBaseUrl()}/e2ee/chats/${chatId}/messages`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        "x-qc-device-id": state.deviceId,
+      },
+      body: JSON.stringify({
+        messageType: "text",
+        replyToMessageId: targetMessageId,
+        recipientPayloads,
+      }),
+    });
+  };
+
+  try {
+    await sendAttempt(false);
+  } catch (error) {
+    if (!isUnavailableOneTimePreKeyError(error)) {
+      throw error;
+    }
+
+    bundleCache.delete(`bundles:${userId}`);
+    bundleCache.delete(`bundles:${recipientUserId}`);
+    await sendAttempt(true);
+  }
+
+  bundleCache.delete(`bundles:${userId}`);
+  bundleCache.delete(`bundles:${recipientUserId}`);
 };
 
 export const markSecureChatAsRead = async ({

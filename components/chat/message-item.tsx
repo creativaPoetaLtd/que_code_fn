@@ -120,13 +120,10 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
     const horizontalLockRef = useRef(false)
     const gestureActiveRef = useRef(false)
 
-    const { addReaction, removeReaction, activeChat, conversations } = useChat()
+    const { addReaction, removeReaction, activeChat } = useChat()
     const { getUserId } = useAuthToken()
     const currentUserId = getUserId()
-    const activeConversation = activeChat
-        ? conversations.find((conversation) => conversation.id === activeChat)
-        : null
-    const reactionsAllowed = activeConversation?.securityMode !== "secure_dm_v1"
+    const reactionsAllowed = true
 
     // Aggregate raw reaction rows into display format
     const aggregatedReactions: Reaction[] = useMemo(() => {

@@ -11,6 +11,7 @@ import {
     TypingUser,
     OnlineUser,
     ChatParticipantStatus,
+    MessageType,
     Participant,
     ReactionRow,
 } from "@/types/chat.types";
@@ -19,6 +20,7 @@ import { notificationService } from "@/services/notificationService";
 import {
     fetchSecureChatMessages,
     markSecureChatAsRead,
+    sendSecureReactionMessage,
     sendSecureTextMessage,
 } from "@/services/secureChatService";
 
@@ -63,6 +65,14 @@ const ChatContext = createContext<ChatContextType | undefined>(undefined);
 interface ChatProviderProps {
     children: ReactNode;
 }
+
+type NotificationMessageType = "text" | "image" | "file" | "voice" | "money" | "secure";
+
+const toNotificationMessageType = (messageType: MessageType): NotificationMessageType => {
+    if (messageType === "audio") return "voice";
+    if (messageType === "video" || messageType === "document") return "file";
+    return messageType;
+};
 
 export const ChatProvider = ({ children }: ChatProviderProps) => {
     const { getToken, getUserId } = useAuthToken();
@@ -375,7 +385,9 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
                             senderId: data.senderId,
                             senderName: data.sender.name,
                             content: latestMessage?.content || "",
-                            messageType: latestMessage ? latestMessage.messageType : "secure" as const,
+                            messageType: latestMessage
+                                ? toNotificationMessageType(latestMessage.messageType)
+                                : "secure" as const,
                         });
                     }
                 })
@@ -1095,10 +1107,47 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
     const addReaction = useCallback((chatId: string, messageId: string, emoji: string) => {
         const conversation = conversations.find((item) => item.id === chatId);
         if (conversation?.securityMode === "secure_dm_v1") {
-            toast({
-                title: "Secure reactions unavailable",
-                description: "Plaintext reactions are disabled in secure chats.",
-                variant: "destructive",
+            if (!token || !userId) {
+                toast({
+                    title: "Secure reaction failed",
+                    description: "Your secure session is not ready yet.",
+                    variant: "destructive",
+                });
+                return;
+            }
+
+            setMessages((prev: Record<string, Message[]>) => ({
+                ...prev,
+                [chatId]: (prev[chatId] || []).map((message) =>
+                    message.id === messageId
+                        ? {
+                            ...message,
+                            reactions: [
+                                ...(message.reactions || []).filter(
+                                    (reaction) => reaction.userId !== userId,
+                                ),
+                                { userId, emoji },
+                            ],
+                        }
+                        : message
+                ),
+            }));
+
+            void sendSecureReactionMessage({
+                token,
+                userId,
+                chatId,
+                conversation,
+                targetMessageId: messageId,
+                emoji,
+                action: "set",
+            }).catch((error) => {
+                toast({
+                    title: "Secure reaction failed",
+                    description: error?.message || "Failed to send encrypted reaction",
+                    variant: "destructive",
+                });
+                setSecureMessagesRefreshKey((current) => current + 1);
             });
             return;
         }
@@ -1106,15 +1155,48 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         if (isConnected) {
             socketService.addReaction(chatId, messageId, emoji);
         }
-    }, [conversations, isConnected]);
+    }, [conversations, isConnected, token, userId]);
 
     const removeReaction = useCallback((chatId: string, messageId: string) => {
         const conversation = conversations.find((item) => item.id === chatId);
         if (conversation?.securityMode === "secure_dm_v1") {
-            toast({
-                title: "Secure reactions unavailable",
-                description: "Plaintext reactions are disabled in secure chats.",
-                variant: "destructive",
+            if (!token || !userId) {
+                toast({
+                    title: "Secure reaction failed",
+                    description: "Your secure session is not ready yet.",
+                    variant: "destructive",
+                });
+                return;
+            }
+
+            setMessages((prev: Record<string, Message[]>) => ({
+                ...prev,
+                [chatId]: (prev[chatId] || []).map((message) =>
+                    message.id === messageId
+                        ? {
+                            ...message,
+                            reactions: (message.reactions || []).filter(
+                                (reaction) => reaction.userId !== userId,
+                            ),
+                        }
+                        : message
+                ),
+            }));
+
+            void sendSecureReactionMessage({
+                token,
+                userId,
+                chatId,
+                conversation,
+                targetMessageId: messageId,
+                action: "remove",
+            }).catch((error) => {
+                toast({
+                    title: "Secure reaction failed",
+                    description: error?.message || "Failed to remove encrypted reaction",
+                    variant: "destructive",
+                });
+                setSecureMessagesRefreshKey((current) => current + 1);
             });
             return;
         }
@@ -1122,7 +1204,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         if (isConnected) {
             socketService.removeReaction(chatId, messageId);
         }
-    }, [conversations, isConnected]);
+    }, [conversations, isConnected, token, userId]);
 
     const clearChatState = useCallback(() => {
         // Disconnect socket properly
