@@ -6,6 +6,7 @@ import { decryptSecureEnvelope, encryptSecureTextForRecipients } from "@/lib/e2e
 import { encryptSecureMediaFile } from "@/lib/e2ee/secureMediaCrypto";
 import { ensureRegisteredSecureDevice } from "@/services/e2eeDeviceService";
 import type { Conversation, Message, ReplyPreview } from "@/types/chat.types";
+import { getChatPreviewText } from "@/utils/chatPreview";
 import type {
   PublicSecureDeviceBundle,
   SecureEncryptedEnvelope,
@@ -203,7 +204,9 @@ const decryptSecureApiMessage = async ({
   if (rawMessage.messageType !== "text") {
     try {
       const mediaPayload = JSON.parse(decryptedContent);
-      content = mediaPayload.caption || mediaPayload.originalName || "Secure media";
+      content =
+        mediaPayload.caption ||
+        getChatPreviewText({ messageType: mediaPayload.mediaType || rawMessage.messageType });
       mediaFields = {
         mediaUrl: mediaPayload.mediaUrl,
         mediaType: mediaPayload.mediaType,
@@ -555,7 +558,7 @@ export const sendSecureMediaMessage = async ({
   return {
     id: messagePayload.data.id,
     chatId,
-    content: caption || encryptedMedia.originalName,
+    content: caption || getChatPreviewText({ messageType: mediaType }),
     messageType: mediaType,
     mediaUrl: uploadPayload.data.url,
     mediaType,

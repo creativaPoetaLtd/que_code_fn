@@ -17,6 +17,7 @@ import {
 } from "@/types/chat.types";
 import { toast } from "@/hooks/use-toast";
 import { notificationService } from "@/services/notificationService";
+import { getChatPreviewText } from "@/utils/chatPreview";
 import {
     fetchSecureChatMessages,
     markSecureChatAsRead,
@@ -66,11 +67,10 @@ interface ChatProviderProps {
     children: ReactNode;
 }
 
-type NotificationMessageType = "text" | "image" | "file" | "voice" | "money" | "secure";
+type NotificationMessageType = "text" | "image" | "video" | "audio" | "file" | "voice" | "money" | "secure";
 
 const toNotificationMessageType = (messageType: MessageType): NotificationMessageType => {
-    if (messageType === "audio") return "voice";
-    if (messageType === "video" || messageType === "document") return "file";
+    if (messageType === "document") return "file";
     return messageType;
 };
 
@@ -134,7 +134,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
                     ? {
                         ...conv,
                         lastMessage: {
-                            content: latestMessage.content,
+                            content: getChatPreviewText(latestMessage),
                             messageType: latestMessage.messageType,
                             createdAt: latestMessage.createdAt,
                             sender: latestMessage.sender.name,
@@ -755,7 +755,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
                                 ? {
                                     ...conv,
                                     lastMessage: {
-                                        content: latestMessage.content,
+                                        content: getChatPreviewText(latestMessage),
                                         messageType: latestMessage.messageType,
                                         createdAt: latestMessage.createdAt,
                                         sender: latestMessage.sender.name,

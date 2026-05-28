@@ -1,6 +1,7 @@
 import { NotificationType, NotificationPayload, NotificationConfig } from '@/types/notification.types';
 import { toast } from '@/hooks/use-toast';
 import { soundService, getPrefs } from './soundService';
+import { getChatPreviewText } from '@/utils/chatPreview';
 
 class NotificationService {
   private config: NotificationConfig = {
@@ -92,7 +93,7 @@ class NotificationService {
     senderId: string;
     senderName: string;
     content: string;
-    messageType: 'text' | 'image' | 'file' | 'voice' | 'money' | 'secure';
+    messageType: 'text' | 'image' | 'video' | 'audio' | 'file' | 'voice' | 'money' | 'secure';
   }) {
     if (data.messageType === 'secure') {
       await this.notify({
@@ -109,6 +110,8 @@ class NotificationService {
     const typeMap: Record<string, NotificationType> = {
       text: NotificationType.MESSAGE,
       image: NotificationType.MEDIA,
+      video: NotificationType.MEDIA,
+      audio: NotificationType.VOICE,
       file: NotificationType.DOCUMENT,
       voice: NotificationType.VOICE,
       money: NotificationType.MONEY,
@@ -117,6 +120,8 @@ class NotificationService {
     const titleMap: Record<string, string> = {
       text: `New message from ${data.senderName}`,
       image: `${data.senderName} sent a photo`,
+      video: `${data.senderName} sent a video`,
+      audio: `${data.senderName} sent an audio`,
       file: `${data.senderName} sent a file`,
       voice: `${data.senderName} sent a voice note`,
       money: `💰 ${data.senderName} sent you money`,
@@ -125,7 +130,7 @@ class NotificationService {
     await this.notify({
       type: typeMap[data.messageType] || NotificationType.MESSAGE,
       title: titleMap[data.messageType] || `New message from ${data.senderName}`,
-      message: data.content.substring(0, 100),
+      message: getChatPreviewText(data).substring(0, 100),
       url: `${window.location.origin}/chat`,
       chatId: data.chatId,
       senderId: data.senderId,

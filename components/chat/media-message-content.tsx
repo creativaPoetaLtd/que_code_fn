@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { decryptSecureMediaBlob } from "@/lib/e2ee/secureMediaCrypto"
 import { formatDuration, formatFileSize, getFileIcon } from "@/services/mediaService"
 import type { MediaData } from "@/types/chat.types"
+import { getChatPreviewText } from "@/utils/chatPreview"
 
 interface MediaMessageContentProps extends MediaData {
     content: string
@@ -27,6 +28,12 @@ export default function MediaMessageContent({
     const [decryptedMediaUrl, setDecryptedMediaUrl] = useState<string | null>(null)
     const [isDecryptingPreview, setIsDecryptingPreview] = useState(false)
     const [previewError, setPreviewError] = useState<string | null>(null)
+    const mediaPreviewText = getChatPreviewText({ messageType: mediaType })
+    const showCaption = Boolean(
+        content &&
+        content !== `Sent a ${mediaType}` &&
+        content !== mediaPreviewText
+    )
 
     useEffect(() => {
         return () => {
@@ -134,7 +141,7 @@ export default function MediaMessageContent({
                             </Button>
                         </div>
                     </div>
-                    {content && content !== `Sent a ${mediaType}` && (
+                    {showCaption && (
                         <p className="text-sm">{content}</p>
                     )}
                 </div>
@@ -168,7 +175,7 @@ export default function MediaMessageContent({
                             </Button>
                         </div>
                     </div>
-                    {content && content !== `Sent a ${mediaType}` && (
+                    {showCaption && (
                         <p className="text-sm">{content}</p>
                     )}
                 </div>
@@ -196,7 +203,7 @@ export default function MediaMessageContent({
                     </div>
                     <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate text-gray-900 dark:text-white">
-                            {fileName || "Secure file"}
+                            {mediaPreviewText || "Secure file"}
                         </p>
                         <p className="text-xs text-gray-500 dark:text-gray-300">
                             {fileSize ? formatFileSize(fileSize) : "Encrypted media"}
@@ -226,7 +233,7 @@ export default function MediaMessageContent({
                         <Download className="h-4 w-4" />
                     </Button>
                 </div>
-                {content && content !== `Sent a ${mediaType}` && (
+                {showCaption && (
                     <p className="text-sm">{content}</p>
                 )}
                 {previewError && (
@@ -261,7 +268,7 @@ export default function MediaMessageContent({
                         </Button>
                     </div>
                 </div>
-                {content && content !== `Sent a ${mediaType}` && (
+                {showCaption && (
                     <p className="text-sm">{content}</p>
                 )}
             </div>
@@ -296,7 +303,7 @@ export default function MediaMessageContent({
                         </Button>
                     </div>
                 </div>
-                {content && content !== `Sent a ${mediaType}` && (
+                {showCaption && (
                     <p className="text-sm">{content}</p>
                 )}
                 {duration && (
@@ -350,7 +357,7 @@ export default function MediaMessageContent({
                         <Download className="h-5 w-5 text-gray-600 dark:text-gray-300" />
                     </button>
                 </div>
-                {content && content !== `Sent a ${mediaType}` && (
+                {showCaption && (
                     <p className="text-sm">{content}</p>
                 )}
             </div>
@@ -377,7 +384,7 @@ export default function MediaMessageContent({
                         <Download className="h-5 w-5 text-gray-600 dark:text-gray-300" />
                     </button>
                 </div>
-                {content && (
+                {showCaption && (
                     <p className="text-sm">{content}</p>
                 )}
             </div>
@@ -409,6 +416,12 @@ function AudioPlayer({
     const [currentTime, setCurrentTime] = useState(0)
     const [totalDuration, setTotalDuration] = useState(duration || 0)
     const [isMuted, setIsMuted] = useState(false)
+    const audioPreviewText = getChatPreviewText({ messageType: mediaType })
+    const showAudioCaption = Boolean(
+        content &&
+        content !== `Sent a ${mediaType}` &&
+        content !== audioPreviewText
+    )
 
     useEffect(() => {
         const audio = audioRef.current
@@ -519,9 +532,9 @@ function AudioPlayer({
                     </Button>
                 )}
             </div>
-            {content && content !== `Sent a ${mediaType}` && (
-                <p className="text-sm">{content}</p>
-            )}
+                {showAudioCaption && (
+                    <p className="text-sm">{content}</p>
+                )}
         </div>
     )
 }

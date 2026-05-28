@@ -2,10 +2,11 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Users, Headphones } from 'lucide-react';
+import { FileText, Headphones, Image as ImageIcon, Music, Users, Video } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Conversation } from '@/types/chat.types';
 import { formatTimestampWithoutSeconds } from '@/utils/timeUtils';
+import { getChatPreviewText } from '@/utils/chatPreview';
 
 interface ConversationItemProps {
   conversation: Conversation;
@@ -20,6 +21,21 @@ export default function ConversationItem({
 }: ConversationItemProps) {
   const hasUnread = (conversation.unreadCount || 0) > 0;
   const isSupport = conversation.type === 'support';
+  const lastMessageType = conversation.lastMessage?.messageType;
+  const lastMessagePreview = getChatPreviewText({
+    content: conversation.lastMessage?.content,
+    messageType: lastMessageType,
+  });
+  const MediaPreviewIcon =
+    lastMessageType === 'image'
+      ? ImageIcon
+      : lastMessageType === 'video'
+        ? Video
+        : lastMessageType === 'audio'
+          ? Music
+          : lastMessageType === 'document' || lastMessageType === 'file'
+            ? FileText
+            : null;
 
   return (
     <div
@@ -98,7 +114,10 @@ export default function ConversationItem({
                   {conversation.isOnline ? 1 : 0}/{conversation.memberCount}
                 </span>
               )}
-              {conversation.lastMessage?.content || ''}
+              {MediaPreviewIcon && (
+                <MediaPreviewIcon className='mr-1.5 inline h-3.5 w-3.5 align-[-2px]' />
+              )}
+              {lastMessagePreview}
             </p>
           </div>
         </div>
