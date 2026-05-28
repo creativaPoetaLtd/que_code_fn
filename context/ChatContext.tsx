@@ -102,6 +102,44 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         return new Date(bTime).getTime() - new Date(aTime).getTime();
     }, [isSupportConversation]);
 
+    const updateSecureConversationPreview = useCallback(async (chatId: string) => {
+        if (!token || !userId) return null;
+
+        const secureMessages = await fetchSecureChatMessages({
+            token,
+            userId,
+            chatId,
+            page: 1,
+            limit: 1,
+        });
+        const latestMessage = secureMessages[secureMessages.length - 1] || null;
+
+        if (!latestMessage || latestMessage.content.startsWith("[Unable to decrypt")) {
+            return latestMessage;
+        }
+
+        setConversations((prev: Conversation[]) => {
+            const updatedConversations = prev.map((conv: Conversation) =>
+                conv.id === chatId
+                    ? {
+                        ...conv,
+                        lastMessage: {
+                            content: latestMessage.content,
+                            messageType: latestMessage.messageType,
+                            createdAt: latestMessage.createdAt,
+                            sender: latestMessage.sender.name,
+                        },
+                        timestamp: latestMessage.createdAt,
+                    }
+                    : conv
+            );
+
+            return updatedConversations.sort(sortConversations);
+        });
+
+        return latestMessage;
+    }, [sortConversations, token, userId]);
+
     // Monitor token and userId changes
     useEffect(() => {
         const currentToken = getToken();
@@ -329,15 +367,30 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
                 return updatedConversations.sort(sortConversations);
             });
 
-            if (data.senderId !== userId) {
-                notificationService.notifyNewMessage({
-                    chatId: data.chatId,
-                    senderId: data.senderId,
-                    senderName: "",
-                    content: "",
-                    messageType: "secure" as const,
+            void updateSecureConversationPreview(data.chatId)
+                .then((latestMessage) => {
+                    if (data.senderId !== userId) {
+                        notificationService.notifyNewMessage({
+                            chatId: data.chatId,
+                            senderId: data.senderId,
+                            senderName: data.sender.name,
+                            content: latestMessage?.content || "",
+                            messageType: latestMessage ? latestMessage.messageType : "secure" as const,
+                        });
+                    }
+                })
+                .catch((error) => {
+                    console.error("Failed to decrypt secure notification preview", error);
+                    if (data.senderId !== userId) {
+                        notificationService.notifyNewMessage({
+                            chatId: data.chatId,
+                            senderId: data.senderId,
+                            senderName: "",
+                            content: "",
+                            messageType: "secure" as const,
+                        });
+                    }
                 });
-            }
 
             refetchChats();
         };
@@ -589,7 +642,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
             socketService.offPaymentRequestUpdated(handlePaymentRequestUpdated);
             socketService.offReactionUpdated(handleReactionUpdated);
         };
-    }, [isConnected, activeChat, userId, refetchMessages, sortConversations, conversations, token, refetchChats]);
+    }, [isConnected, activeChat, userId, refetchMessages, sortConversations, conversations, token, refetchChats, updateSecureConversationPreview]);
 
     useEffect(() => {
         if (!activeChat) return;
@@ -682,6 +735,28 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
                     })),
                 }));
 
+                const latestMessage = secureMessages[secureMessages.length - 1] || null;
+                if (latestMessage && !latestMessage.content.startsWith("[Unable to decrypt")) {
+                    setConversations((prev: Conversation[]) => {
+                        const updatedConversations = prev.map((conv: Conversation) =>
+                            conv.id === activeChat
+                                ? {
+                                    ...conv,
+                                    lastMessage: {
+                                        content: latestMessage.content,
+                                        messageType: latestMessage.messageType,
+                                        createdAt: latestMessage.createdAt,
+                                        sender: latestMessage.sender.name,
+                                    },
+                                    timestamp: latestMessage.createdAt,
+                                }
+                                : conv
+                        );
+
+                        return updatedConversations.sort(sortConversations);
+                    });
+                }
+
                 await markSecureChatAsRead({ token, userId, chatId: activeChat });
             } catch (error: any) {
                 console.error("Failed to load secure chat messages", error);
@@ -707,7 +782,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
             cancelled = true;
             window.clearInterval(interval);
         };
-    }, [activeChat, token, userId, isActiveSecureChat, secureMessagesRefreshKey]);
+    }, [activeChat, token, userId, isActiveSecureChat, secureMessagesRefreshKey, sortConversations]);
 
     useEffect(() => {
         if (!token || !userId) {
@@ -827,7 +902,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
                         ? {
                             ...conv,
                             lastMessage: {
-                                content: "Secure message",
+                                content: trimmedContent,
                                 messageType: "text" as const,
                                 createdAt: tempMessage.createdAt,
                                 sender: "You"
