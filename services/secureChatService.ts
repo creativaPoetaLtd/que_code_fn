@@ -75,10 +75,14 @@ const getConversationRecipient = (conversation: Conversation, userId: string) =>
 export const getSecureConversationRecipientId = (conversation: Conversation, userId: string) =>
   getConversationRecipient(conversation, userId);
 
-const fetchPublicDeviceBundles = async (token: string, userId: string) => {
+const fetchPublicDeviceBundles = async (
+  token: string,
+  userId: string,
+  options?: { forceRefresh?: boolean },
+) => {
   const cacheKey = `bundles:${userId}`;
   const cached = bundleCache.get(cacheKey);
-  if (cached && Date.now() - cached.cachedAt < BUNDLE_CACHE_TTL_MS) {
+  if (!options?.forceRefresh && cached && Date.now() - cached.cachedAt < BUNDLE_CACHE_TTL_MS) {
     return cached.devices;
   }
 
@@ -126,6 +130,11 @@ const fetchPublicDeviceBundles = async (token: string, userId: string) => {
 
   return devices;
 };
+
+const isUnavailableOneTimePreKeyError = (error: unknown) =>
+  error instanceof Error &&
+  (error.message.includes("unavailable one-time pre-key") ||
+    error.message.includes("already consumed"));
 
 export const fetchSecureDeviceIdentitySummaries = async ({
   token,
@@ -359,31 +368,47 @@ export const sendSecureTextMessage = async ({
 }) => {
   const state = await getSecureDeviceState(token, userId);
   const recipientUserId = getConversationRecipient(conversation, userId);
-  const [senderDevices, recipientDevices] = await Promise.all([
-    fetchPublicDeviceBundles(token, userId),
-    fetchPublicDeviceBundles(token, recipientUserId),
-  ]);
 
-  const { recipientPayloads } = await encryptSecureTextForRecipients({
-    content,
-    senderUserId: userId,
-    senderState: state,
-    recipientDevices: [...senderDevices, ...recipientDevices],
-  });
+  const sendAttempt = async (forceRefresh: boolean) => {
+    const [senderDevices, recipientDevices] = await Promise.all([
+      fetchPublicDeviceBundles(token, userId, { forceRefresh }),
+      fetchPublicDeviceBundles(token, recipientUserId, { forceRefresh }),
+    ]);
 
-  const payload = await fetchJson(`${getApiBaseUrl()}/e2ee/chats/${chatId}/messages`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-      "x-qc-device-id": state.deviceId,
-    },
-    body: JSON.stringify({
-      messageType: "text",
-      replyToMessageId: replyToMessageId || null,
-      recipientPayloads,
-    }),
-  });
+    const { recipientPayloads } = await encryptSecureTextForRecipients({
+      content,
+      senderUserId: userId,
+      senderState: state,
+      recipientDevices: [...senderDevices, ...recipientDevices],
+    });
+
+    return fetchJson(`${getApiBaseUrl()}/e2ee/chats/${chatId}/messages`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        "x-qc-device-id": state.deviceId,
+      },
+      body: JSON.stringify({
+        messageType: "text",
+        replyToMessageId: replyToMessageId || null,
+        recipientPayloads,
+      }),
+    });
+  };
+
+  let payload: any;
+  try {
+    payload = await sendAttempt(false);
+  } catch (error) {
+    if (!isUnavailableOneTimePreKeyError(error)) {
+      throw error;
+    }
+
+    bundleCache.delete(`bundles:${userId}`);
+    bundleCache.delete(`bundles:${recipientUserId}`);
+    payload = await sendAttempt(true);
+  }
 
   bundleCache.delete(`bundles:${userId}`);
   bundleCache.delete(`bundles:${recipientUserId}`);
@@ -438,10 +463,6 @@ export const sendSecureMediaMessage = async ({
   }
 
   const recipientUserId = getConversationRecipient(conversation, userId);
-  const [senderDevices, recipientDevices] = await Promise.all([
-    fetchPublicDeviceBundles(token, userId),
-    fetchPublicDeviceBundles(token, recipientUserId),
-  ]);
   const mediaType = file.type.startsWith("image/")
     ? "image"
     : file.type.startsWith("video/")
@@ -459,24 +480,44 @@ export const sendSecureMediaMessage = async ({
     originalSize: encryptedMedia.originalSize,
     caption: caption || "",
   });
-  const { recipientPayloads } = await encryptSecureTextForRecipients({
-    content: encryptedContent,
-    senderUserId: userId,
-    senderState: state,
-    recipientDevices: [...senderDevices, ...recipientDevices],
-  });
-  const messagePayload = await fetchJson(`${getApiBaseUrl()}/e2ee/chats/${chatId}/messages`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-      "x-qc-device-id": state.deviceId,
-    },
-    body: JSON.stringify({
-      messageType: mediaType,
-      recipientPayloads,
-    }),
-  });
+  const sendAttempt = async (forceRefresh: boolean) => {
+    const [senderDevices, recipientDevices] = await Promise.all([
+      fetchPublicDeviceBundles(token, userId, { forceRefresh }),
+      fetchPublicDeviceBundles(token, recipientUserId, { forceRefresh }),
+    ]);
+    const { recipientPayloads } = await encryptSecureTextForRecipients({
+      content: encryptedContent,
+      senderUserId: userId,
+      senderState: state,
+      recipientDevices: [...senderDevices, ...recipientDevices],
+    });
+
+    return fetchJson(`${getApiBaseUrl()}/e2ee/chats/${chatId}/messages`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        "x-qc-device-id": state.deviceId,
+      },
+      body: JSON.stringify({
+        messageType: mediaType,
+        recipientPayloads,
+      }),
+    });
+  };
+
+  let messagePayload: any;
+  try {
+    messagePayload = await sendAttempt(false);
+  } catch (error) {
+    if (!isUnavailableOneTimePreKeyError(error)) {
+      throw error;
+    }
+
+    bundleCache.delete(`bundles:${userId}`);
+    bundleCache.delete(`bundles:${recipientUserId}`);
+    messagePayload = await sendAttempt(true);
+  }
 
   bundleCache.delete(`bundles:${userId}`);
   bundleCache.delete(`bundles:${recipientUserId}`);
