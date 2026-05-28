@@ -76,7 +76,10 @@ export default function MediaMessageContent({
     }
 
     useEffect(() => {
-        if (!isSecureMedia || mediaType !== "image" || !mediaUrl || decryptedMediaUrl || isDecryptingPreview) {
+        const canAutoPreview =
+            mediaType === "image" || mediaType === "video" || mediaType === "audio"
+
+        if (!isSecureMedia || !canAutoPreview || !mediaUrl || decryptedMediaUrl || isDecryptingPreview) {
             return
         }
 
