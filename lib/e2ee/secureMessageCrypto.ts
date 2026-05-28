@@ -242,7 +242,8 @@ export const encryptSecureTextForRecipients = async ({
       true,
       ["deriveBits"],
     );
-    const selectedOneTimePreKey = recipientDevice.oneTimePreKeys[0] || null;
+    const selectedOneTimePreKey =
+      recipientDevice.userId === senderUserId ? null : recipientDevice.oneTimePreKeys[0] || null;
     const recipientPublicKey = await importExchangePublicKey(
       selectedOneTimePreKey?.publicKey || recipientDevice.bundle.signedPreKeyPublic,
     );

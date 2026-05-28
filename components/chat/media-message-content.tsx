@@ -75,6 +75,14 @@ export default function MediaMessageContent({
         }
     }
 
+    useEffect(() => {
+        if (!isSecureMedia || mediaType !== "image" || !mediaUrl || decryptedMediaUrl || isDecryptingPreview) {
+            return
+        }
+
+        void loadSecurePreview()
+    }, [isSecureMedia, mediaType, mediaUrl, decryptedMediaUrl, isDecryptingPreview])
+
     const handleDownload = async (url: string, filename: string) => {
         try {
             const encryptedBlob = await fetchMediaBlob(url);
