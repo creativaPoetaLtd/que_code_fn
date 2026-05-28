@@ -2,7 +2,6 @@
 
 import baseUrl from "@/helpers/baseUrl";
 import { assertTrustedDeviceIdentity, getIdentityFingerprint } from "@/lib/e2ee/identityTrustStore";
-import { saveStoredSecureDeviceState } from "@/lib/e2ee/deviceStore";
 import { decryptSecureEnvelope, encryptSecureTextForRecipients } from "@/lib/e2ee/secureMessageCrypto";
 import { encryptSecureMediaFile } from "@/lib/e2ee/secureMediaCrypto";
 import { ensureRegisteredSecureDevice } from "@/services/e2eeDeviceService";
@@ -200,19 +199,6 @@ const decryptSecureApiMessage = async ({
       content = "[Unable to decode secure media metadata]";
     }
   }
-  const recipientOneTimePreKeyId = envelope.recipientOneTimePreKeyId || null;
-
-  if (recipientOneTimePreKeyId) {
-    const remainingOneTimePreKeys = state.oneTimePreKeys.filter(
-      (preKey) => preKey.keyId !== recipientOneTimePreKeyId,
-    );
-
-    if (remainingOneTimePreKeys.length !== state.oneTimePreKeys.length) {
-      state.oneTimePreKeys = remainingOneTimePreKeys;
-      await saveStoredSecureDeviceState(state);
-    }
-  }
-
   return {
     id: rawMessage.id,
     chatId: rawMessage.chatId,
