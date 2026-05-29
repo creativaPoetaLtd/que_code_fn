@@ -2,12 +2,13 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Headphones, Image as ImageIcon, Music, Users, Video } from 'lucide-react';
+import { Check, CheckCheck, FileText, Headphones, Image as ImageIcon, Music, Users, Video } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Conversation } from '@/types/chat.types';
 import { formatTimestampWithoutSeconds } from '@/utils/timeUtils';
 import { getChatPreviewText } from '@/utils/chatPreview';
 import { getInitials, isPlaceholderAvatar } from '@/utils/avatar';
+import { useAuthToken } from '@/hooks/use-auth-token';
 
 interface ConversationItemProps {
   conversation: Conversation;
@@ -20,6 +21,8 @@ export default function ConversationItem({
   isActive,
   onClick,
 }: ConversationItemProps) {
+  const { getUserId } = useAuthToken();
+  const currentUserId = getUserId();
   const hasUnread = (conversation.unreadCount || 0) > 0;
   const isSupport = conversation.type === 'support';
   const lastMessageType = conversation.lastMessage?.messageType;
@@ -37,11 +40,23 @@ export default function ConversationItem({
           : lastMessageType === 'document' || lastMessageType === 'file'
             ? FileText
             : null;
+  const isOutgoingPreview = conversation.lastMessage?.sender === 'You';
+  const isReadPreview = Boolean(
+    conversation.lastMessage?.readBy?.some((receipt) => receipt.userId && receipt.userId !== currentUserId)
+  );
+  const isDeliveredPreview = Boolean(
+    conversation.lastMessage?.deliveryConfirmed || conversation.lastMessage?.deliveredAt || isReadPreview
+  );
+  const PreviewStatusIcon = isOutgoingPreview
+    ? isReadPreview || isDeliveredPreview
+      ? CheckCheck
+      : Check
+    : null;
 
   return (
     <div
       className={cn(
-        'p-3 sm:p-4 border-b border-gray-100 dark:border-darkBorder-light cursor-pointer hover:bg-gray-50 dark:hover:bg-darkBg-interactive transition-all duration-200',
+        'px-3 py-2 border-b border-gray-100 dark:border-darkBorder-light cursor-pointer hover:bg-gray-50 dark:hover:bg-darkBg-interactive transition-all duration-200',
         isSupport && !isActive &&
           'bg-emerald-50/70 dark:bg-emerald-950/20 border-l-4 border-l-emerald-500',
         isActive
@@ -64,7 +79,7 @@ export default function ConversationItem({
             </div>
           ) : (
             <div className='relative'>
-              <Avatar className='h-10 w-10'>
+              <Avatar className='h-9 w-9'>
                 {!isPlaceholderAvatar(conversation.avatar) && (
                   <AvatarImage
                     src={conversation.avatar}
@@ -85,7 +100,7 @@ export default function ConversationItem({
         <div className='flex-1 min-w-0'>
           <div className='flex justify-between items-center'>
             <p className={cn(
-              'font-medium truncate text-sm sm:text-base',
+              'font-medium truncate text-sm',
               hasUnread && !isActive && 'font-bold text-gray-900 dark:text-white'
             )}>
               {conversation.name || 'Unknown Contact'}
@@ -101,17 +116,25 @@ export default function ConversationItem({
                   {conversation.unreadCount}
                 </Badge>
               )}
-              <span className='text-xs text-gray-500 whitespace-nowrap'>
+              <span className='text-[11px] text-gray-500 whitespace-nowrap'>
                 {(formatTimestampWithoutSeconds(conversation.timestamp)) || ''}
               </span>
             </div>
           </div>
 
-          <div className='flex justify-between items-center mt-1'>
+          <div className='flex justify-between items-center mt-0.5'>
             <p className={cn(
-              'text-xs sm:text-sm truncate max-w-[70%]',
+              'text-xs truncate max-w-[70%]',
               hasUnread && !isActive ? 'text-gray-900 dark:text-white font-semibold' : 'text-gray-500 dark:text-gray-400'
             )}>
+              {PreviewStatusIcon && (
+                <PreviewStatusIcon
+                  className={cn(
+                    'mr-1 inline h-3.5 w-3.5 align-[-2px]',
+                    isReadPreview ? 'text-emerald-600' : 'text-gray-500'
+                  )}
+                />
+              )}
               {conversation.isGroup && conversation.memberCount && (
                 <span className='text-xs bg-gray-100 dark:bg-darkBg-interactive text-gray-600 dark:text-gray-400 rounded-full px-1.5 py-0.5 mr-1.5 hidden sm:inline-block'>
                   {conversation.isOnline ? 1 : 0}/{conversation.memberCount}

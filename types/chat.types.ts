@@ -25,6 +25,11 @@ export interface LastMessage {
   content: string;
   messageType: MessageType;
   createdAt: string;
+  status?: MessageStatus;
+  deliveredAt?: Date | string | null;
+  readAt?: Date | string | null;
+  readBy?: ReadReceipt[];
+  deliveryConfirmed?: boolean;
   sender:
     | string
     | {

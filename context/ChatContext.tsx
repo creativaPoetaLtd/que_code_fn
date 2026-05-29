@@ -137,7 +137,12 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
                             content: getChatPreviewText(latestMessage),
                             messageType: latestMessage.messageType,
                             createdAt: latestMessage.createdAt,
-                            sender: latestMessage.sender.name,
+                            sender: latestMessage.sender.id === userId ? "You" : latestMessage.sender.name,
+                            status: latestMessage.status,
+                            deliveredAt: latestMessage.deliveredAt,
+                            readAt: latestMessage.readAt,
+                            readBy: latestMessage.readBy,
+                            deliveryConfirmed: latestMessage.deliveryConfirmed,
                         },
                         timestamp: latestMessage.createdAt,
                     }
@@ -416,6 +421,9 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
                         : msg
                 ) || []
             }));
+            void updateSecureConversationPreview(data.chatId).catch((error) => {
+                console.error("Failed to update delivered secure preview", error);
+            });
         };
 
         const handleMessagesRead = (data: { chatId: string; readBy: string; readAt: Date }) => {
@@ -446,6 +454,9 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
                         : conv
                 ));
             }
+            void updateSecureConversationPreview(data.chatId).catch((error) => {
+                console.error("Failed to update read secure preview", error);
+            });
         };
 
         const handleUserTyping = (data: TypingUser) => {
@@ -766,7 +777,12 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
                                         content: getChatPreviewText(latestMessage),
                                         messageType: latestMessage.messageType,
                                         createdAt: latestMessage.createdAt,
-                                        sender: latestMessage.sender.name,
+                                        sender: latestMessage.sender.id === userId ? "You" : latestMessage.sender.name,
+                                        status: latestMessage.status,
+                                        deliveredAt: latestMessage.deliveredAt,
+                                        readAt: latestMessage.readAt,
+                                        readBy: latestMessage.readBy,
+                                        deliveryConfirmed: latestMessage.deliveryConfirmed,
                                     },
                                     timestamp: latestMessage.createdAt,
                                 }
@@ -809,6 +825,22 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
             return;
         }
 
+        const securePreviewTargets = conversations.filter(
+            (conversation) =>
+                conversation.securityMode === "secure_dm_v1" &&
+                (
+                    !conversation.lastMessage ||
+                    conversation.lastMessage.content === "Secure message" ||
+                    conversation.lastMessage.content.startsWith("[Unable to decrypt")
+                ),
+        );
+
+        securePreviewTargets.forEach((conversation) => {
+            void updateSecureConversationPreview(conversation.id).catch((error) => {
+                console.error("Failed to update secure conversation preview", error);
+            });
+        });
+
         const hasSecureConversations = conversations.some(
             (conversation) => conversation.securityMode === "secure_dm_v1",
         );
@@ -824,7 +856,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         return () => {
             window.clearInterval(interval);
         };
-    }, [token, userId, conversations, refetchChats]);
+    }, [token, userId, conversations, refetchChats, updateSecureConversationPreview]);
 
     const refreshConversations = useCallback(() => {
         refetchChats();

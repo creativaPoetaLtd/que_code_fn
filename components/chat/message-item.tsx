@@ -181,11 +181,8 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
     }
 
     const messageStatus = !isLegacy ? (message as Message).status : undefined
-    const recipientIds = activeConversation?.participants
-        ?.map((participant) => participant.userId)
-        .filter((participantId) => participantId && participantId !== currentUserId) || []
     const hasReadProof = !isLegacy && Boolean(
-        (message as Message).readBy?.some((receipt) => recipientIds.includes(receipt.userId))
+        (message as Message).readBy?.some((receipt) => receipt.userId && receipt.userId !== currentUserId)
     )
     const hasDeliveryProof = !isLegacy && Boolean((message as any).deliveryConfirmed || hasReadProof)
     const visualStatus = isTempMessage
