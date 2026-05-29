@@ -21,6 +21,10 @@ export default function ConversationItem({
 }: ConversationItemProps) {
   const hasUnread = (conversation.unreadCount || 0) > 0;
   const isSupport = conversation.type === 'support';
+  const getInitials = (name?: string) => {
+    const parts = (name || 'User').trim().split(/\s+/).filter(Boolean);
+    return parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join('') || 'U';
+  };
   const lastMessageType = conversation.lastMessage?.messageType;
   const lastMessagePreview = getChatPreviewText({
     content: conversation.lastMessage?.content,
@@ -64,12 +68,14 @@ export default function ConversationItem({
           ) : (
             <div className='relative'>
               <Avatar className='h-10 w-10'>
-                <AvatarImage
-                  src={conversation.avatar || '/placeholder.svg'}
-                  alt={conversation.name || 'User'}
-                />
-                <AvatarFallback>
-                  {(conversation.name || 'U').charAt(0).toUpperCase()}
+                {conversation.avatar && (
+                  <AvatarImage
+                    src={conversation.avatar}
+                    alt={conversation.name || 'User'}
+                  />
+                )}
+                <AvatarFallback className='font-semibold text-sm'>
+                  {getInitials(conversation.name)}
                 </AvatarFallback>
               </Avatar>
               {conversation.isOnline && (

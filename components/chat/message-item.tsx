@@ -181,22 +181,31 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
     }
 
     const messageStatus = !isLegacy ? (message as Message).status : undefined
+    const recipientIds = activeConversation?.participants
+        ?.map((participant) => participant.userId)
+        .filter((participantId) => participantId && participantId !== currentUserId) || []
+    const hasReadProof = !isLegacy && Boolean(
+        (message as Message).readAt ||
+        (message as Message).readBy?.some((receipt) => recipientIds.includes(receipt.userId))
+    )
+    const hasDeliveryProof = !isLegacy && Boolean((message as Message).deliveredAt || messageStatus === "delivered")
+    const visualStatus = isTempMessage
+        ? "pending"
+        : hasReadProof
+            ? "read"
+            : hasDeliveryProof
+                ? "delivered"
+                : "sent"
     const StatusIcon = (() => {
         if (!isMe || isLegacy) return null
-        if (isTempMessage) return Clock
-        if (messageStatus === "read") return CheckCheck
-        if (messageStatus === "delivered") return CheckCheck
+        if (visualStatus === "pending") return Clock
+        if (visualStatus === "read") return CheckCheck
+        if (visualStatus === "delivered") return CheckCheck
         return Check
     })()
-    const statusTone = isTempMessage
-        ? "text-white/70 dark:text-darkBg-main/70"
-        : messageStatus === "read"
-            ? "text-emerald-300 dark:text-emerald-700"
-            : messageStatus === "delivered"
-                ? "text-white/75 dark:text-darkBg-main/70"
-                : messageStatus === "sent"
-                    ? "text-white/75 dark:text-darkBg-main/70"
-                    : "text-white/75 dark:text-darkBg-main/70"
+    const statusTone = visualStatus === "read"
+        ? "text-emerald-600 dark:text-emerald-700"
+        : "text-gray-500 dark:text-darkBg-main/70"
 
     const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
         if (!canSwipeReply) return

@@ -165,7 +165,7 @@ export default function ChatArea({
                                 return (
                                     <div key={message.id}>
                                         {showSep && <DateSeparator date={msgDate} />}
-                                        <div className="mb-4">
+                                        <div className="mb-0.5">
                                             <MessageItem
                                                 message={message}
                                                 onReply={(reply) => setReplyToMessage(reply)}
