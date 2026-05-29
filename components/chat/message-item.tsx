@@ -8,7 +8,7 @@ import { GroupContributionCard } from "./group-contribution-card"
 import MessageText from "./message-text"
 import LinkPreviewCard from "./link-preview-card"
 import { extractUrls } from "@/utils/url-utils"
-import { AlertCircle, Check, CheckCheck, Clock, Reply, Smile } from "lucide-react"
+import { Check, CheckCheck, Clock, Reply, Smile } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import ReactionPicker from "./reaction-picker"
 import { useChat } from "@/context/ChatContext"
@@ -127,6 +127,7 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
         ? conversations.find((conversation) => conversation.id === activeChat)
         : null
     const shouldShowSenderName = Boolean(activeConversation?.isGroup && !isMe)
+    const shouldShowIncomingAvatar = Boolean(activeConversation?.isGroup && !isMe)
     const reactionsAllowed = true
 
     // Aggregate raw reaction rows into display format
@@ -179,15 +180,23 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
         return initials || "U"
     }
 
+    const messageStatus = !isLegacy ? (message as Message).status : undefined
     const StatusIcon = (() => {
         if (!isMe || isLegacy) return null
-        const msg = message as Message
         if (isTempMessage) return Clock
-        if (msg.status === "read") return CheckCheck
-        if (msg.status === "delivered") return CheckCheck
-        if (msg.status === "sent") return Check
-        return AlertCircle
+        if (messageStatus === "read") return CheckCheck
+        if (messageStatus === "delivered") return CheckCheck
+        return Check
     })()
+    const statusTone = isTempMessage
+        ? "text-white/70 dark:text-darkBg-main/70"
+        : messageStatus === "read"
+            ? "text-emerald-300 dark:text-emerald-700"
+            : messageStatus === "delivered"
+                ? "text-white/75 dark:text-darkBg-main/70"
+                : messageStatus === "sent"
+                    ? "text-white/75 dark:text-darkBg-main/70"
+                    : "text-white/75 dark:text-darkBg-main/70"
 
     const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
         if (!canSwipeReply) return
@@ -257,8 +266,8 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
     }
     
     return (
-        <div className={cn("flex mb-1.5 sm:mb-2", isMe ? "justify-end" : "justify-start")}>
-            {!isMe && (
+        <div className={cn("flex mb-0.5 sm:mb-1", isMe ? "justify-end" : "justify-start")}>
+            {shouldShowIncomingAvatar && (
                 <Avatar className="h-7 w-7 mt-0.5 mr-2 flex-shrink-0">
                     {avatar && <AvatarImage src={avatar} alt={senderDisplayName} />}
                     <AvatarFallback className="text-[10px] font-semibold">
@@ -365,11 +374,7 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
                     {StatusIcon && (
                         <StatusIcon
                             size={13}
-                            className={cn(
-                                (message as Message).status === "read"
-                                    ? "text-sky-200 dark:text-sky-700"
-                                    : ""
-                            )}
+                            className={statusTone}
                         />
                     )}
                 </div>
@@ -474,14 +479,6 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
                 </div>
             </div>
 
-            {isMe && (
-                <Avatar className="h-7 w-7 mt-0.5 ml-2 flex-shrink-0">
-                    {avatar && <AvatarImage src={avatar} alt="You" />}
-                    <AvatarFallback className="text-[10px] font-semibold">
-                        {getInitials(senderDisplayName || "You")}
-                    </AvatarFallback>
-                </Avatar>
-            )}
         </div>
     )
 }
