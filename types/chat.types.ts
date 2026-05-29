@@ -134,6 +134,7 @@ export interface Message extends MediaData {
     sender: MessageSender;
     readBy?: ReadReceipt[];
     isMe?: boolean;
+    deliveryConfirmed?: boolean;
     mentions?: MentionData[];
     reactions?: ReactionRow[];
 }

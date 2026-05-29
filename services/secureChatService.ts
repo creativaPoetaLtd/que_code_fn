@@ -235,7 +235,8 @@ const decryptSecureApiMessage = async ({
     readAt: rawMessage.readAt || undefined,
     createdAt: rawMessage.createdAt,
     sender: rawMessage.sender,
-    readBy: [],
+    readBy: rawMessage.readBy || [],
+    deliveryConfirmed: Boolean(rawMessage.deliveredAt),
   } satisfies Message;
 };
 
@@ -282,7 +283,8 @@ export const fetchSecureChatMessages = async ({
           readAt: rawMessage.readAt || undefined,
           createdAt: rawMessage.createdAt,
           sender: rawMessage.sender,
-          readBy: [],
+          readBy: rawMessage.readBy || [],
+          deliveryConfirmed: Boolean(rawMessage.deliveredAt),
         } satisfies Message;
       }
     }),

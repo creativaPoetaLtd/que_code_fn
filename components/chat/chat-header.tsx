@@ -17,6 +17,7 @@ import { useGetGroupByIdQuery } from '@/states/groupSlice';
 import { useAuthToken } from '@/hooks/use-auth-token';
 import FundraisingProgressBadge from './fundraising-progress-badge';
 import { socketService } from '@/services/socketService';
+import { getInitials, isPlaceholderAvatar } from '@/utils/avatar';
 import {
   ArrowLeft,
   Info,
@@ -90,15 +91,6 @@ export default function ChatHeader({
     return conversation.isOnline ? 'Online' : 'Last seen recently';
   };
 
-  const getInitials = (name: string | undefined) => {
-    if (!name) return 'U';
-    return name
-      .split(' ')
-      .map(word => word[0])
-      .join('')
-      .toUpperCase();
-  };
-
   return (
     <div className='flex items-center justify-between px-3 sm:px-4 py-3 bg-white dark:bg-darkBg-card border-b border-gray-100 dark:border-darkBorder-light shadow-sm'>
       {/* Back Button - Mobile Only */}
@@ -116,7 +108,7 @@ export default function ChatHeader({
       <div className='flex items-center gap-3 flex-1 min-w-0'>
         <div className='relative'>
           <Avatar className='h-10 w-10 border-2 border-gray-100'>
-            {conversation.avatar && (
+            {!isPlaceholderAvatar(conversation.avatar) && (
               <AvatarImage
                 src={conversation.avatar}
                 alt={conversation.name || 'User'}

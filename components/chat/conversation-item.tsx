@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import type { Conversation } from '@/types/chat.types';
 import { formatTimestampWithoutSeconds } from '@/utils/timeUtils';
 import { getChatPreviewText } from '@/utils/chatPreview';
+import { getInitials, isPlaceholderAvatar } from '@/utils/avatar';
 
 interface ConversationItemProps {
   conversation: Conversation;
@@ -21,10 +22,6 @@ export default function ConversationItem({
 }: ConversationItemProps) {
   const hasUnread = (conversation.unreadCount || 0) > 0;
   const isSupport = conversation.type === 'support';
-  const getInitials = (name?: string) => {
-    const parts = (name || 'User').trim().split(/\s+/).filter(Boolean);
-    return parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join('') || 'U';
-  };
   const lastMessageType = conversation.lastMessage?.messageType;
   const lastMessagePreview = getChatPreviewText({
     content: conversation.lastMessage?.content,
@@ -68,7 +65,7 @@ export default function ConversationItem({
           ) : (
             <div className='relative'>
               <Avatar className='h-10 w-10'>
-                {conversation.avatar && (
+                {!isPlaceholderAvatar(conversation.avatar) && (
                   <AvatarImage
                     src={conversation.avatar}
                     alt={conversation.name || 'User'}
