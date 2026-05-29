@@ -185,10 +185,9 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
         ?.map((participant) => participant.userId)
         .filter((participantId) => participantId && participantId !== currentUserId) || []
     const hasReadProof = !isLegacy && Boolean(
-        (message as Message).readAt ||
         (message as Message).readBy?.some((receipt) => recipientIds.includes(receipt.userId))
     )
-    const hasDeliveryProof = !isLegacy && Boolean((message as Message).deliveredAt || messageStatus === "delivered")
+    const hasDeliveryProof = !isLegacy && Boolean((message as any).deliveryConfirmed || hasReadProof)
     const visualStatus = isTempMessage
         ? "pending"
         : hasReadProof

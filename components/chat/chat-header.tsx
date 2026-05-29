@@ -116,10 +116,12 @@ export default function ChatHeader({
       <div className='flex items-center gap-3 flex-1 min-w-0'>
         <div className='relative'>
           <Avatar className='h-10 w-10 border-2 border-gray-100'>
-            <AvatarImage
-              src={conversation.avatar}
-              alt={conversation.name || 'User'}
-            />
+            {conversation.avatar && (
+              <AvatarImage
+                src={conversation.avatar}
+                alt={conversation.name || 'User'}
+              />
+            )}
             <AvatarFallback className='bg-brand-green dark:bg-brand-gold text-white dark:text-darkBg-main font-medium'>
               {getInitials(conversation.name)}
             </AvatarFallback>

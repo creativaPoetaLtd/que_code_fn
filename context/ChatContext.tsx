@@ -412,7 +412,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
                 ...prev,
                 [data.chatId]: prev[data.chatId]?.map((msg: Message) =>
                     msg.id === data.messageId
-                        ? { ...msg, status: 'delivered', deliveredAt: data.deliveredAt }
+                        ? { ...msg, status: 'delivered', deliveredAt: data.deliveredAt, deliveryConfirmed: true }
                         : msg
                 ) || []
             }));
@@ -423,8 +423,16 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
             setMessages((prev: Record<string, Message[]>) => ({
                 ...prev,
                 [data.chatId]: prev[data.chatId]?.map((msg: Message) =>
-                    msg.status === 'delivered' && msg.sender.id !== userId
-                        ? { ...msg, status: 'read', readAt: data.readAt }
+                    msg.sender.id === userId && data.readBy !== userId
+                        ? {
+                            ...msg,
+                            status: 'read',
+                            readAt: data.readAt,
+                            readBy: [
+                                ...(msg.readBy || []).filter((receipt: any) => receipt.userId !== data.readBy),
+                                { userId: data.readBy, name: '', readAt: data.readAt },
+                            ],
+                        }
                         : msg
                 ) || []
             }));
