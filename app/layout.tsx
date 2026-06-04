@@ -89,6 +89,12 @@ export default function RootLayout({
       <body
         className={`${poppins.className} ${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        {/* Runs synchronously before first paint — prevents accent-color flash on org accounts */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var r=localStorage.getItem('token');if(!r)return;var p;try{p=JSON.parse(r)}catch(e){p=r}var t=p&&p.value?p.value:p;if(!t||typeof t!=='string')return;var b=t.split('.');if(b.length!==3)return;var payload=JSON.parse(atob(b[1].replace(/-/g,'+').replace(/_/g,'/')));if(payload&&payload.accountType==='organization')document.documentElement.classList.add('accent-org')}catch(e){}})()`,
+          }}
+        />
         <ClientProvider>
           <AccentProvider />
           {children}
