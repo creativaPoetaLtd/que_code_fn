@@ -487,15 +487,27 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
     const [pricingMode, setPricingMode] = useState<string>('fixed');
     const [availabilityMode, setAvailabilityMode] = useState<string>('always');
 
+    const subActionLabel = useMemo(() => {
+        if (selectedType === 'vote') return { singular: 'Contestant', plural: 'Contestants' };
+        return { singular: 'Sub-action', plural: 'Sub-actions' };
+    }, [selectedType]);
+
     // Filter steps based on pricing mode - show subActions for tiered and pay_what_you_want pricing
     const stepItems = useMemo(() => {
-        return allStepItems.filter(step => {
-            if (step.key === 'subActions' && !['tiered', 'pay_what_you_want'].includes(pricingMode)) {
-                return false;
-            }
-            return true;
-        });
-    }, [pricingMode]);
+        return allStepItems
+            .filter(step => {
+                if (step.key === 'subActions' && !['tiered', 'pay_what_you_want'].includes(pricingMode)) {
+                    return false;
+                }
+                return true;
+            })
+            .map(step => {
+                if (step.key === 'subActions') {
+                    return { ...step, title: subActionLabel.plural, description: subActionLabel.plural };
+                }
+                return step;
+            });
+    }, [pricingMode, subActionLabel]);
 
     const stepKey = useMemo(() => stepItems[currentStep]?.key, [currentStep, stepItems]);
     const isLastStep = currentStep === stepItems.length - 1;
@@ -649,7 +661,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
 
     const handleAddSubAction = async (): Promise<boolean> => {
         if (!actionId) {
-            message.error('Complete steps A & B before adding sub-actions.');
+            message.error(`Complete steps A & B before adding ${subActionLabel.plural.toLowerCase()}.`);
             return false;
         }
         try {
@@ -776,7 +788,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                 await createSubAction(actionId, cleanPayload);
             }
             
-            message.success('Sub-action added');
+            message.success(`${subActionLabel.singular} added`);
             subActionForm.resetFields();
             if (pricingMode === 'pay_what_you_want' && actionNameForSubActions) {
                 subActionForm.setFieldValue('name', actionNameForSubActions);
@@ -802,11 +814,11 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
         try {
             setLoading(true);
             await deleteSubAction(subActionId);
-            message.success('Sub-action removed');
+            message.success(`${subActionLabel.singular} removed`);
             loadSubActions();
         } catch (err) {
             console.error(err);
-            message.error('Unable to delete sub-action');
+            message.error(`Unable to delete ${subActionLabel.singular.toLowerCase()}`);
         } finally {
             setLoading(false);
         }
@@ -956,7 +968,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                     return;
                 }
                 if (subActions.length === 0) {
-                    message.warning('Add at least one sub-action before continuing.');
+                    message.warning(`Add at least one ${subActionLabel.singular.toLowerCase()} before continuing.`);
                     return;
                 }
                 setCurrentStep((prev) => prev + 1);
@@ -1284,7 +1296,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                 return (
                     <div className="space-y-4">
                         <Form form={subActionForm} layout="vertical" className="grid gap-4 md:grid-cols-2">
-                            <Form.Item name="name" label="Sub-action Name" rules={[{ required: true, message: 'Provide a name' }]}>
+                            <Form.Item name="name" label={`${subActionLabel.singular} Name`} rules={[{ required: true, message: 'Provide a name' }]}>
                                 <Input placeholder={selectedType && actionTypeConfig[selectedType]?.placeholders?.name ? `e.g., ${actionTypeConfig[selectedType]?.placeholders?.name}` : "VIP Ticket"} />
                             </Form.Item>
                             {pricingMode !== 'pay_what_you_want' && !isVoteTieredPricing && (
@@ -1401,12 +1413,12 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                         </Form>
                         <div className="flex justify-end">
                             <Button icon={<PlusOutlined />} type="primary" onClick={handleAddSubAction} loading={loading}>
-                                Add Sub-action
+                                Add {subActionLabel.singular}
                             </Button>
                         </div>
                         <div className="space-y-4">
                             <Typography.Title level={5} className="!text-[#00313A]">
-                                Added Sub-actions ({subActions.length})
+                                Added {subActionLabel.plural} ({subActions.length})
                             </Typography.Title>
                             {subActions.length > 0 ? (
                                 <div className="space-y-4">
@@ -1464,7 +1476,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                                 </div>
                             ) : (
                                 <div className="text-center py-8 text-gray-400">
-                                    <p>No sub-actions added yet. Add one using the form above.</p>
+                                    <p>No {subActionLabel.plural.toLowerCase()} added yet. Add one using the form above.</p>
                                 </div>
                             )}
                         </div>
@@ -1662,7 +1674,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                         {/* Sub-actions Review */}
                         {subActions.length > 0 && (
                             <div className="border-b pb-6">
-                                <h3 className="text-base font-semibold mb-4">Sub-actions ({subActions.length})</h3>
+                                <h3 className="text-base font-semibold mb-4">{subActionLabel.plural} ({subActions.length})</h3>
                                 <div className="space-y-3">
                                     {subActions.map((item) => (
                                         <div key={item.id} className="p-3 bg-gray-50 rounded-lg">
