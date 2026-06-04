@@ -22,6 +22,7 @@ import {
   validateMediaFile,
   type MediaUploadProgress,
 } from "@/services/mediaService";
+import { useAccent } from "@/hooks/use-accent";
 
 interface SupportMessage {
   id: string;
@@ -109,6 +110,7 @@ export default function SupportPage() {
   const router = useRouter();
   const { getToken, getUserId } = useAuthToken();
   const userId = getUserId();
+  const accent = useAccent();
 
   const [chatId, setChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<SupportMessage[]>([]);
@@ -280,9 +282,9 @@ export default function SupportPage() {
   // â”€â”€â”€ loading screen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (isInitializing) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className={`flex items-center justify-center min-h-screen bg-gray-50 ${accent.darkBgPage}`}>
         <div className="flex flex-col items-center gap-3 text-gray-500">
-          <Loader2 className="w-8 h-8 animate-spin text-green-500" />
+          <Loader2 className={`w-8 h-8 animate-spin ${accent.text}`} />
           <p className="text-sm">Connecting to supportâ€¦</p>
         </div>
       </div>
@@ -291,7 +293,7 @@ export default function SupportPage() {
 
   // â”€â”€â”€ render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className={`flex min-h-screen bg-gray-50 ${accent.darkBgPage}`}>
       <Navigation />
 
       <main
@@ -310,8 +312,8 @@ export default function SupportPage() {
             <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-300" />
           </button>
           <div className="flex items-center gap-3 flex-1">
-            <div className="w-9 h-9 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
-              <Headphones className="w-5 h-5 text-green-600 dark:text-green-400" />
+            <div className={`w-9 h-9 rounded-full ${accent.lightIconBg} flex items-center justify-center`}>
+              <Headphones className={`w-5 h-5 ${accent.lightIconColor}`} />
             </div>
             <div>
               <p className="font-semibold text-gray-900 dark:text-white text-sm">Support Team</p>

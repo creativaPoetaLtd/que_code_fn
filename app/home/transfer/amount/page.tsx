@@ -28,6 +28,7 @@ import { PinSetupModal } from "@/components/PinSetupModal";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Loader2, AlertCircle, ScanLine } from "lucide-react";
 import { isTokenExpired, getUserIdFromToken } from "@/utils/jwtUtils";
+import { useAccent } from "@/hooks/use-accent";
 
 interface Recipient {
     id: string;
@@ -76,6 +77,7 @@ const AmountPageInner = () => {
     const router = useRouter();
     const { isExpanded } = useSidebar();
     const { getToken } = useAuthToken();
+    const accent = useAccent();
     const searchParams = useSearchParams();
     const requestId = searchParams.get("requestId");
 
@@ -304,7 +306,7 @@ const AmountPageInner = () => {
     // ── Loading state ─────────────────────────────────────────────
     if (fetchingRequest && !recipient) {
         return (
-            <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-transparent">
+            <div className={`flex flex-col min-h-screen bg-gray-50 ${accent.darkBgPage}`}>
                 <Navigation />
                 <main
                     className={cn(
@@ -328,7 +330,7 @@ const AmountPageInner = () => {
     // ── Error / no-recipient state ────────────────────────────────
     if (!recipient) {
         return (
-            <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-transparent">
+            <div className={`flex flex-col min-h-screen bg-gray-50 ${accent.darkBgPage}`}>
                 <Navigation />
                 <main
                     className={cn(
@@ -376,7 +378,7 @@ const AmountPageInner = () => {
     const allowEditAmount = requestMeta ? requestMeta.allowEditAmount : true;
 
     return (
-        <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-transparent">
+        <div className={`flex flex-col min-h-screen bg-gray-50 ${accent.darkBgPage}`}>
             <Navigation hideBottomNav />
             <main className={cn(
                 "flex-1 flex flex-col p-4 sm:p-6 lg:p-8 transition-all duration-300",

@@ -8,6 +8,7 @@ import ClientProvider from "@/components/ClientProvider";
 import { Toaster } from "@/components/ui/toaster";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import PushNotificationPrompt from "@/components/PushNotificationPrompt";
+import AccentProvider from "@/components/AccentProvider";
 
 const poppins = localFont({
   src: [
@@ -88,7 +89,10 @@ export default function RootLayout({
       <body
         className={`${poppins.className} ${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <ClientProvider>{children}</ClientProvider>
+        <ClientProvider>
+          <AccentProvider />
+          {children}
+        </ClientProvider>
         <Toaster />
         <PWAInstallPrompt />
         <PushNotificationPrompt />

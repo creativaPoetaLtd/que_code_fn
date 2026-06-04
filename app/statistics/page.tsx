@@ -12,11 +12,13 @@ import React from 'react'
 import { useSidebar } from '@/context/SidebarContext'
 import { cn } from '@/lib/utils'
 import { BackButton } from '@/components/shared/BackButton'
+import { useAccent } from '@/hooks/use-accent'
 
 const page = () => {
     const { isExpanded } = useSidebar();
+    const accent = useAccent();
     return (
-        <div className="flex flex-col min-h-screen bg-gray-50">
+        <div className={`flex flex-col min-h-screen bg-gray-50 ${accent.darkBgPage}`}>
             {/* Desktop Sidebar */}
             <Navigation />
 
