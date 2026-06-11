@@ -164,25 +164,31 @@ function ContributeFlow({ contribution, onSuccess }: { contribution: MyContribut
     );
 
     if (step === 'enter_amount') return (
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
             <Input type="number" placeholder={`Amount${contribution.minimumAmount ? ` (min ${fmtRwf(Number(contribution.minimumAmount), contribution.currency)})` : ''}`}
-                value={amount} onChange={(e) => setAmount(e.target.value)} className="h-8 text-xs w-36" autoFocus />
-            <Button size="sm" variant="outline" className="h-8 text-xs" onClick={cancel}>Cancel</Button>
-            <Button size="sm" className="h-8 text-xs bg-[#00B512] hover:bg-[#009a0f] text-white" onClick={() => {
-                if (!amount || Number(amount) <= 0) return;
-                setStep('enter_pin');
-            }}>Next</Button>
+                value={amount} onChange={(e) => setAmount(e.target.value)} className="h-8 text-xs w-full sm:w-36 min-w-0" autoFocus />
+            <div className="flex gap-2">
+                <Button size="sm" variant="outline" className="h-8 text-xs flex-1 sm:flex-none" onClick={cancel}>Cancel</Button>
+                <Button size="sm" className="h-8 text-xs flex-1 sm:flex-none bg-[#00B512] hover:bg-[#009a0f] text-white" onClick={() => {
+                    if (!amount || Number(amount) <= 0) return;
+                    setStep('enter_pin');
+                }}>Next</Button>
+            </div>
         </div>
     );
 
     if (step === 'enter_pin') return (
-        <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex items-center gap-1 text-xs text-gray-500"><Lock size={11} /><span>PIN</span></div>
-            <Input type="password" inputMode="numeric" maxLength={4} placeholder="••••"
-                value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                className="h-8 text-xs w-20 tracking-widest" autoFocus />
-            <Button size="sm" variant="outline" className="h-8 text-xs" onClick={cancel}>Cancel</Button>
-            <Button size="sm" className="h-8 text-xs bg-[#00B512] hover:bg-[#009a0f] text-white" onClick={handlePay}>Pay</Button>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
+            <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 text-xs text-gray-500"><Lock size={11} /><span>PIN</span></div>
+                <Input type="password" inputMode="numeric" maxLength={4} placeholder="••••"
+                    value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                    className="h-8 text-xs w-full sm:w-20 min-w-0 tracking-widest" autoFocus />
+            </div>
+            <div className="flex gap-2">
+                <Button size="sm" variant="outline" className="h-8 text-xs flex-1 sm:flex-none" onClick={cancel}>Cancel</Button>
+                <Button size="sm" className="h-8 text-xs flex-1 sm:flex-none bg-[#00B512] hover:bg-[#009a0f] text-white" onClick={handlePay}>Pay</Button>
+            </div>
         </div>
     );
 
@@ -322,7 +328,7 @@ function ContributionCard({ contribution: initial, currentUserId }: { contributi
                 )}
 
                 {c.isAdmin && (isActive || c.status === 'expired') && (
-                    <div className="flex gap-2 ml-auto">
+                    <div className="flex gap-2 flex-shrink-0 ml-auto">
                         {isActive && (
                             <Button variant="outline" size="sm" className="h-7 text-[11px] border-red-200 text-red-500 hover:bg-red-50" onClick={handleClose}>
                                 Close
@@ -337,11 +343,13 @@ function ContributionCard({ contribution: initial, currentUserId }: { contributi
             </div>
 
             {extendOpen && (
-                <div className="mt-3 flex items-center gap-2 flex-wrap">
+                <div className="mt-3 flex flex-col sm:flex-row sm:items-center gap-2">
                     <Input type="date" min={new Date().toISOString().split('T')[0]} value={newDeadline}
-                        onChange={(e) => setNewDeadline(e.target.value)} className="h-8 text-xs w-44" />
-                    <Button size="sm" className="h-8 text-xs bg-[#00B512] hover:bg-[#009a0f] text-white" onClick={handleExtend}>Save</Button>
-                    <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => { setExtendOpen(false); setNewDeadline(''); }}>Cancel</Button>
+                        onChange={(e) => setNewDeadline(e.target.value)} className="h-8 text-xs w-full sm:w-44 min-w-0" />
+                    <div className="flex gap-2">
+                        <Button size="sm" className="h-8 text-xs flex-1 sm:flex-none bg-[#00B512] hover:bg-[#009a0f] text-white" onClick={handleExtend}>Save</Button>
+                        <Button size="sm" variant="outline" className="h-8 text-xs flex-1 sm:flex-none" onClick={() => { setExtendOpen(false); setNewDeadline(''); }}>Cancel</Button>
+                    </div>
                 </div>
             )}
 
@@ -1414,10 +1422,10 @@ const ActionsByAccountPage = () => {
             <div className="space-y-4">
                 {/* Tab switcher — only show when not viewing another user */}
                 {!isViewingAnotherUser && (
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                         <button
                             onClick={() => setIndividualTab('actions')}
-                            className={`px-5 py-2 rounded-full text-sm font-semibold transition-colors ${
+                            className={`flex-1 sm:flex-none justify-center px-5 py-2 rounded-full text-sm font-semibold transition-colors ${
                                 individualTab === 'actions'
                                     ? 'bg-[#00B512] text-white shadow'
                                     : 'border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-interactive dark:text-white text-[#00313A] hover:bg-gray-50 dark:hover:bg-darkBg-card'
@@ -1427,7 +1435,7 @@ const ActionsByAccountPage = () => {
                         </button>
                         <button
                             onClick={() => setIndividualTab('contributions')}
-                            className={`inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold transition-colors ${
+                            className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-5 py-2 rounded-full text-sm font-semibold transition-colors ${
                                 individualTab === 'contributions'
                                     ? 'bg-[#00B512] text-white shadow'
                                     : 'border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-interactive dark:text-white text-[#00313A] hover:bg-gray-50 dark:hover:bg-darkBg-card'

@@ -34,7 +34,7 @@ export interface GroupContributionData {
   groupId: string;
   title: string;
   note?: string;
-  goalAmount: number;
+  goalAmount?: number | null;
   collectedAmount: number;
   contributorCount: number;
   contributionType: "fixed" | "flexible";
@@ -42,6 +42,8 @@ export interface GroupContributionData {
   minimumAmount?: number;
   deadline?: string;
   visibilityMode: "all" | "admin_only";
+  disbursementPolicy?: "hold" | "auto";
+  disbursementRecipientName?: string;
   status: "active" | "completed" | "closed" | "expired";
   currency: string;
   createdByName: string;
@@ -160,7 +162,7 @@ export function GroupContributionCard({ data, isMe, chatId }: Props) {
   const isCompleted = localStatus === "completed";
   const isClosed =
     localStatus === "closed" || localStatus === "expired";
-  const canContribute = isActive && !hasPaid && !loadingCheck;
+  const canContribute = isActive && !loadingCheck;
   const isDeadlinePast =
     data.deadline && new Date(data.deadline) < new Date();
 
@@ -169,7 +171,7 @@ export function GroupContributionCard({ data, isMe, chatId }: Props) {
     if (isCompleted)
       return (
         <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
-          <CheckCircle size={11} /> Goal Reached
+          <CheckCircle size={11} /> {goal > 0 ? "Goal Reached" : "Completed"}
         </span>
       );
     if (isClosed)
@@ -349,27 +351,40 @@ export function GroupContributionCard({ data, isMe, chatId }: Props) {
         </div>
 
         {/* progress */}
-        <div className="space-y-1.5">
-          <div className="flex justify-between items-baseline">
-            <span className="text-xs text-gray-500 dark:text-gray-400">
-              {fmt(localCollected, data.currency)}
-            </span>
-            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-              {fmt(goal, data.currency)} goal
-            </span>
+        {goal > 0 ? (
+          <div className="space-y-1.5">
+            <div className="flex justify-between items-baseline">
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {fmt(localCollected, data.currency)}
+              </span>
+              <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                {fmt(goal, data.currency)} goal
+              </span>
+            </div>
+            <Progress value={progress} className="h-2" />
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                {Math.round(progress)}% collected
+              </span>
+              <span className="inline-flex items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400">
+                <Users size={11} />
+                {localCount}{" "}
+                {localCount === 1 ? "contributor" : "contributors"}
+              </span>
+            </div>
           </div>
-          <Progress value={progress} className="h-2" />
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] text-gray-500 dark:text-gray-400">
-              {Math.round(progress)}% collected
+        ) : (
+          <div className="flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400">
+            <span className="font-semibold text-gray-700 dark:text-gray-300">
+              {fmt(localCollected, data.currency)} collected
             </span>
-            <span className="inline-flex items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400">
+            <span className="inline-flex items-center gap-1">
               <Users size={11} />
               {localCount}{" "}
               {localCount === 1 ? "contributor" : "contributors"}
             </span>
           </div>
-        </div>
+        )}
 
         {/* details row */}
         <div className="flex flex-col gap-1 text-[11px] text-gray-500 dark:text-gray-400">
@@ -397,6 +412,12 @@ export function GroupContributionCard({ data, isMe, chatId }: Props) {
               <CalendarClock size={11} />
               {isDeadlinePast ? "Deadline passed " : "Due "}
               {fmtDeadline(data.deadline)}
+            </span>
+          )}
+          {data.disbursementPolicy === "auto" && data.disbursementRecipientName && (
+            <span className="inline-flex items-center gap-1 text-brand-green dark:text-brand-gold">
+              <ArrowRight size={11} />
+              {data.disbursementRecipientName} on completion
             </span>
           )}
         </div>

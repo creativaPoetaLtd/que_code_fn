@@ -59,6 +59,7 @@ export const validateToken = (token: string | null, expires?: number): string | 
 };
 
 export const getTokenFromStorage = (): string | null => {
+    if (typeof window === 'undefined') return null;
     for (const storage of [sessionStorage, localStorage]) {
         try {
             const stored = storage.getItem(ACCESS_TOKEN_KEY);

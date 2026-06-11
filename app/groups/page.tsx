@@ -213,27 +213,29 @@ function GroupRow({
 
             <td className="px-4 py-3 text-right">
                 <div
-                    className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="flex items-center justify-end gap-1"
                     onClick={(e) => e.stopPropagation()}
                 >
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-gray-500 dark:text-gray-400 hover:text-brand-green dark:hover:text-brand-gold hover:bg-brand-green/10 dark:hover:bg-brand-gold/10"
-                        title="Open chat"
-                        onClick={onChat}
-                    >
-                        <MessageSquare className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-gray-500 dark:text-gray-400 hover:text-brand-green dark:hover:text-brand-gold hover:bg-brand-green/10 dark:hover:bg-brand-gold/10"
-                        title="Contributions"
-                        onClick={onContributions}
-                    >
-                        <Target className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-gray-500 dark:text-gray-400 hover:text-brand-green dark:hover:text-brand-gold hover:bg-brand-green/10 dark:hover:bg-brand-gold/10"
+                            title="Open chat"
+                            onClick={onChat}
+                        >
+                            <MessageSquare className="h-4 w-4" />
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-gray-500 dark:text-gray-400 hover:text-brand-green dark:hover:text-brand-gold hover:bg-brand-green/10 dark:hover:bg-brand-gold/10"
+                            title="Contributions"
+                            onClick={onContributions}
+                        >
+                            <Target className="h-4 w-4" />
+                        </Button>
+                    </div>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button
@@ -422,12 +424,21 @@ function GroupDetailsPanel({
             <div
                 ref={panelRef}
                 className={cn(
-                    "fixed inset-y-0 right-0 w-96 max-w-[95vw] bg-white dark:bg-darkBg-card shadow-2xl transform transition-transform duration-300 ease-in-out z-[110] border-l border-gray-200 dark:border-darkBorder-light flex flex-col",
-                    isOpen ? "translate-x-0" : "translate-x-full"
+                    "fixed bg-white dark:bg-darkBg-card shadow-2xl transform transition-transform duration-300 ease-in-out z-[110] flex flex-col",
+                    "bottom-0 inset-x-0 h-[90vh] rounded-t-2xl border-t border-gray-200 dark:border-darkBorder-light",
+                    "sm:inset-y-0 sm:right-0 sm:inset-x-auto sm:w-96 sm:h-full sm:rounded-none sm:border-t-0 sm:border-l sm:border-gray-200 sm:dark:border-darkBorder-light",
+                    isOpen
+                        ? "translate-y-0 sm:translate-y-0 sm:translate-x-0"
+                        : "translate-y-full sm:translate-y-0 sm:translate-x-full"
                 )}
             >
+                {/* Mobile drag handle */}
+                <div className="sm:hidden flex justify-center pt-2.5 pb-1 flex-shrink-0">
+                    <div className="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full" />
+                </div>
+
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-darkBorder-light flex-shrink-0">
+                <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100 dark:border-darkBorder-light flex-shrink-0">
                     <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Group Details</h2>
                     <div className="flex items-center gap-1">
                         <Button
@@ -453,7 +464,7 @@ function GroupDetailsPanel({
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto px-5 pb-6">
+                <div className="flex-1 overflow-y-auto px-4 sm:px-5 pb-6">
                     <GroupDetailsContent
                         groupId={groupId}
                         token={token}
@@ -563,7 +574,7 @@ export default function GroupsPage() {
 
                     <div className="flex-1 flex flex-col overflow-hidden px-4 sm:px-6 lg:px-8 pb-4">
                         {/* Page header */}
-                        <div className="flex items-start justify-between mb-6">
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-6">
                             <div>
                                 <BackButton className="mb-3" />
                                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Groups</h1>
@@ -572,7 +583,7 @@ export default function GroupsPage() {
                                 </p>
                             </div>
 
-                            <div className="flex items-center gap-2 sm:gap-3 mt-1">
+                            <div className="flex items-center gap-2 sm:gap-3 sm:mt-1 self-start sm:self-auto">
                                 {/* Expandable search */}
                                 <div className={cn(
                                     "flex items-center transition-all duration-300 overflow-hidden",
