@@ -1,12 +1,20 @@
 "use client"
 import React, { useEffect, useState } from 'react';
-import { Plus, Ticket, Target, ArrowRight } from 'lucide-react';
+import { Plus, Ticket, Target, ArrowRight, Users, BarChart3, ChevronDown } from 'lucide-react';
 import { useAuthToken } from '@/hooks/use-auth-token';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import baseUrl from '@/helpers/baseUrl';
 import { getMyGroupContributions } from '@/helpers/api';
 import { getCurrentUserInfo } from '@/utils/tokenUtils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import CreateGroupModal from '@/components/chat/create-group-modal';
+import { toast } from '@/hooks/use-toast';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -109,13 +117,22 @@ function TicketRow({ action, onClick }: { action: RecentAction; onClick: () => v
   );
 }
 
-function ContributionRow({ c, userId, onClick }: { c: PendingContribution; userId?: string; onClick: () => void }) {
+function ContributionRow({ c, onClick }: { c: any; onClick: () => void }) {
   const progress = c.goalAmount > 0 ? Math.min((c.collectedAmount / c.goalAmount) * 100, 100) : 0;
+  const isPaid = !!c.myPayment;
+  const isActive = c.status === 'active';
+
   const dueLabel = c.type === 'fixed' && c.amountPerMember
     ? fmtRwf(Number(c.amountPerMember), c.currency)
     : c.minimumAmount
     ? `min ${fmtRwf(Number(c.minimumAmount), c.currency)}`
     : 'Flexible';
+
+  const statusBadge: Record<string, string> = {
+    active:  'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
+    expired: 'bg-red-100   dark:bg-red-900/30   text-red-700   dark:text-red-400',
+    closed:  'bg-gray-100  dark:bg-darkBg-interactive text-gray-500 dark:text-gray-400',
+  };
 
   return (
     <button
@@ -131,16 +148,23 @@ function ContributionRow({ c, userId, onClick }: { c: PendingContribution; userI
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{c.title}</p>
         <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{c.groupName}</p>
-        {/* Mini progress bar */}
         <div className="mt-1.5 h-1 w-full bg-gray-200 dark:bg-darkBg-main rounded-full overflow-hidden">
           <div className="h-full bg-brand-green dark:bg-brand-gold rounded-full" style={{ width: `${progress}%` }} />
         </div>
       </div>
 
-      {/* Due amount */}
-      <div className="flex-shrink-0 text-right">
-        <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">{dueLabel}</p>
-        <p className="text-[10px] text-gray-400 mt-0.5">due</p>
+      {/* Right side */}
+      <div className="flex-shrink-0 text-right space-y-1">
+        {!isActive || isPaid ? (
+          <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${statusBadge[c.status] ?? statusBadge.closed}`}>
+            {isPaid && isActive ? 'Paid' : c.status.charAt(0).toUpperCase() + c.status.slice(1)}
+          </span>
+        ) : (
+          <>
+            <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">{dueLabel}</p>
+            <p className="text-[10px] text-gray-400">due</p>
+          </>
+        )}
       </div>
     </button>
   );
@@ -220,6 +244,7 @@ export const RecentActions = ({ userId, onCreateAction }: RecentActionsProps) =>
   const [orgActions, setOrgActions]              = useState<RecentAction[]>([]);
   const [isOrganization, setIsOrganization]      = useState(false);
   const [loading, setLoading]                   = useState(true);
+  const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
   const { getToken } = useAuthToken();
   const router = useRouter();
 
@@ -278,16 +303,20 @@ export const RecentActions = ({ userId, onCreateAction }: RecentActionsProps) =>
           setTickets(recent);
         }
 
-        // Contributions: show ALL active campaigns (paid and unpaid) — up to 2,
-        // unpaid first so they get attention, paid second
+        // Contributions: active ones first (unpaid before paid), capped at 2.
+        // Fall back to expired/closed only when there are no active ones at all.
         if (contribRes.status === 'fulfilled') {
           const all: any[] = contribRes.value?.data?.data || contribRes.value?.data || [];
-          const active = Array.isArray(all) ? all.filter((c: any) => c.status === 'active') : [];
-          const sorted = [
-            ...active.filter((c: any) => !c.myPayment),  // unpaid first
-            ...active.filter((c: any) =>  c.myPayment),  // paid second
-          ].slice(0, 2);
-          setPending(sorted);
+          if (Array.isArray(all)) {
+            const active = [
+              ...all.filter((c: any) => c.status === 'active' && !c.myPayment),
+              ...all.filter((c: any) => c.status === 'active' &&  c.myPayment),
+            ];
+            const toShow = active.length > 0
+              ? active.slice(0, 2)
+              : all.filter((c: any) => c.status !== 'active').slice(0, 2);
+            setPending(toShow);
+          }
         }
       } catch {
         // silently fail — card shows empty state
@@ -313,16 +342,59 @@ export const RecentActions = ({ userId, onCreateAction }: RecentActionsProps) =>
       {/* Header */}
       <div className="flex justify-between items-center px-4 py-3 border-b border-gray-100 dark:border-darkBorder-light">
         <h3 className="text-base font-semibold text-[#00313A] dark:text-white">Recent Actions</h3>
-        {isOrganization && (
-          <button
-            onClick={onCreateAction}
-            className="bg-brand-green dark:bg-brand-gold hover:bg-brand-green/90 dark:hover:bg-brand-goldHover transition-colors px-3 py-1.5 rounded-full text-sm font-medium text-white dark:text-[#00313A] flex items-center gap-1"
-          >
-            <Plus size={15} />
-            <span className="hidden sm:inline">New action</span>
-            <span className="sm:hidden">New</span>
-          </button>
-        )}
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="bg-brand-green dark:bg-brand-gold hover:bg-brand-green/90 dark:hover:bg-brand-goldHover transition-colors px-3 py-1.5 rounded-full text-sm font-medium text-white dark:text-[#00313A] flex items-center gap-1.5">
+              <Plus size={14} />
+              <span>Create</span>
+              <ChevronDown size={12} />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            {/* Group */}
+            <DropdownMenuItem
+              className="flex items-center gap-3 py-2.5 cursor-pointer"
+              onClick={() => setIsCreateGroupOpen(true)}
+            >
+              <div className="h-8 w-8 rounded-full bg-brand-green/10 dark:bg-brand-gold/10 flex items-center justify-center flex-shrink-0">
+                <Users size={15} className="text-brand-green dark:text-brand-gold" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">Group</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Create a new group</p>
+              </div>
+            </DropdownMenuItem>
+
+            {/* Contribution */}
+            <DropdownMenuItem
+              className="flex items-center gap-3 py-2.5 cursor-pointer"
+              onClick={() => router.push('/chat')}
+            >
+              <div className="h-8 w-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center flex-shrink-0">
+                <Target size={15} className="text-amber-600 dark:text-amber-400" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">Contribution</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">View &amp; start fundraisers</p>
+              </div>
+            </DropdownMenuItem>
+
+            {/* Vote */}
+            <DropdownMenuItem
+              className="flex items-center gap-3 py-2.5 cursor-pointer"
+              onClick={() => toast({ description: "Open any group chat to start a vote." })}
+            >
+              <div className="h-8 w-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center flex-shrink-0">
+                <BarChart3 size={15} className="text-purple-600 dark:text-purple-400" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">Vote</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Create a group poll</p>
+              </div>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Body */}
@@ -365,18 +437,14 @@ export const RecentActions = ({ userId, onCreateAction }: RecentActionsProps) =>
               <div>
                 <div className="flex items-center justify-between mb-2 px-1">
                   <p className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-                    Pending Contributions
+                    Contributions
                   </p>
-                  <span className="text-[10px] font-bold bg-amber-400 text-white px-1.5 py-0.5 rounded-full leading-none">
-                    {pendingContributions.length}
-                  </span>
                 </div>
                 <div className="space-y-2">
-                  {pendingContributions.map((c) => (
+                  {pendingContributions.map((c: any) => (
                     <ContributionRow
                       key={c.id}
                       c={c}
-                      userId={userId}
                       onClick={() => goToContribs(c.groupId)}
                     />
                   ))}
@@ -397,6 +465,12 @@ export const RecentActions = ({ userId, onCreateAction }: RecentActionsProps) =>
           </button>
         )}
       </div>
+
+      <CreateGroupModal
+        isOpen={isCreateGroupOpen}
+        onClose={() => setIsCreateGroupOpen(false)}
+        token={getToken()}
+      />
     </div>
   );
 };

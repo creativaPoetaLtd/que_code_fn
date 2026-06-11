@@ -10,8 +10,9 @@ import { Switch } from '@/components/ui/switch';
 import { useGetGroupByIdQuery, useUpdateGroupMutation } from '@/states/groupSlice';
 import { useAuthToken } from '@/hooks/use-auth-token';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, Settings, Users, Lock, Target, Calendar, Info } from 'lucide-react';
+import { Loader2, Settings, Lock, Target, Info, Wallet, ArrowDownLeft, ArrowUpRight, RefreshCw } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { getGroupWallet } from '@/helpers/api';
 
 interface GroupSettingsModalProps {
   isOpen: boolean;
@@ -43,6 +44,22 @@ export default function GroupSettingsModal({ isOpen, onClose, groupId }: GroupSe
   const [updateGroup, { isLoading: updating }] = useUpdateGroupMutation();
 
   const group = groupData?.data;
+
+  const [walletData, setWalletData] = useState<{ balance: number; currency: string; transactions: any[] } | null>(null);
+  const [walletLoading, setWalletLoading] = useState(false);
+
+  const fetchWallet = async () => {
+    if (!groupId) return;
+    setWalletLoading(true);
+    try {
+      const res = await getGroupWallet(groupId);
+      setWalletData(res?.data?.data ?? null);
+    } catch {
+      toast({ variant: 'destructive', description: 'Failed to load wallet data' });
+    } finally {
+      setWalletLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (group) {
@@ -142,18 +159,22 @@ export default function GroupSettingsModal({ isOpen, onClose, groupId }: GroupSe
         ) : (
           <form onSubmit={handleSubmit}>
             <Tabs defaultValue="general" className="w-full">
-              <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-darkBg-interactive">
+              <TabsList className="grid w-full grid-cols-4 bg-gray-100 dark:bg-darkBg-interactive">
                 <TabsTrigger value="general" className="data-[state=active]:bg-white dark:data-[state=active]:bg-darkBg-card">
-                  <Info className="w-4 h-4 mr-2" />
-                  General
+                  <Info className="w-4 h-4 mr-1" />
+                  <span className="hidden sm:inline">General</span>
                 </TabsTrigger>
                 <TabsTrigger value="privacy" className="data-[state=active]:bg-white dark:data-[state=active]:bg-darkBg-card">
-                  <Lock className="w-4 h-4 mr-2" />
-                  Privacy
+                  <Lock className="w-4 h-4 mr-1" />
+                  <span className="hidden sm:inline">Privacy</span>
                 </TabsTrigger>
                 <TabsTrigger value="fundraising" className="data-[state=active]:bg-white dark:data-[state=active]:bg-darkBg-card">
-                  <Target className="w-4 h-4 mr-2" />
-                  Fundraising
+                  <Target className="w-4 h-4 mr-1" />
+                  <span className="hidden sm:inline">Fundraising</span>
+                </TabsTrigger>
+                <TabsTrigger value="wallet" className="data-[state=active]:bg-white dark:data-[state=active]:bg-darkBg-card" onClick={fetchWallet}>
+                  <Wallet className="w-4 h-4 mr-1" />
+                  <span className="hidden sm:inline">Wallet</span>
                 </TabsTrigger>
               </TabsList>
 
@@ -304,6 +325,81 @@ export default function GroupSettingsModal({ isOpen, onClose, groupId }: GroupSe
                       The progress will be visible in the chat header.
                     </p>
                   </div>
+                )}
+              </TabsContent>
+              {/* Wallet */}
+              <TabsContent value="wallet" className="mt-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Group Wallet</h3>
+                  <button
+                    type="button"
+                    onClick={fetchWallet}
+                    disabled={walletLoading}
+                    className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 hover:text-brand-green dark:hover:text-brand-gold transition-colors"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${walletLoading ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </button>
+                </div>
+
+                {walletLoading && !walletData ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin text-brand-green dark:text-brand-gold" />
+                  </div>
+                ) : walletData ? (
+                  <>
+                    {/* Balance card */}
+                    <div className="rounded-xl bg-brand-green/10 dark:bg-brand-gold/10 border border-brand-green/20 dark:border-brand-gold/20 px-5 py-4">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Available Balance</p>
+                      <p className="text-2xl font-bold text-brand-green dark:text-brand-gold">
+                        {new Intl.NumberFormat('en-RW', { style: 'currency', currency: walletData.currency || 'RWF', minimumFractionDigits: 0 }).format(walletData.balance)}
+                      </p>
+                    </div>
+
+                    {/* Transaction list */}
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">Recent Transactions</p>
+                      {walletData.transactions.length === 0 ? (
+                        <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-6">No transactions yet</p>
+                      ) : (
+                        <ul className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                          {walletData.transactions.map((tx: any) => {
+                            const isIn = tx.direction === 'in';
+                            const senderName = tx.senderWallet?.user
+                              ? `${tx.senderWallet.user.firstName} ${tx.senderWallet.user.lastName}`
+                              : tx.senderWallet?.groupId ? 'Group wallet' : 'External';
+                            const receiverName = tx.receiverWallet?.user
+                              ? `${tx.receiverWallet.user.firstName} ${tx.receiverWallet.user.lastName}`
+                              : tx.receiverWallet?.groupId ? 'Group wallet' : 'External';
+                            return (
+                              <li key={tx.id} className="flex items-center justify-between bg-gray-50 dark:bg-darkBg-interactive rounded-lg px-3 py-2.5">
+                                <div className="flex items-center gap-2.5">
+                                  <div className={`p-1.5 rounded-full ${isIn ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
+                                    {isIn
+                                      ? <ArrowDownLeft className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
+                                      : <ArrowUpRight className="w-3.5 h-3.5 text-red-500 dark:text-red-400" />}
+                                  </div>
+                                  <div>
+                                    <p className="text-xs font-medium text-gray-700 dark:text-gray-300 leading-tight">
+                                      {tx.description || (isIn ? `From ${senderName}` : `To ${receiverName}`)}
+                                    </p>
+                                    <p className="text-[11px] text-gray-400 dark:text-gray-500">
+                                      {new Date(tx.createdAt).toLocaleDateString('en-RW', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                    </p>
+                                  </div>
+                                </div>
+                                <span className={`text-xs font-semibold ${isIn ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
+                                  {isIn ? '+' : '-'}{new Intl.NumberFormat('en-RW', { minimumFractionDigits: 0 }).format(Number(tx.amount))} RWF
+                                </span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-6">Click Refresh to load wallet data</p>
                 )}
               </TabsContent>
             </Tabs>

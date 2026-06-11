@@ -397,18 +397,23 @@ export const getSubActions = (actionId: string) => apiGet(`/actions/${actionId}/
 export const getGroupById = (groupId: string) =>
   axios.get(`${baseUrl}/groups/${groupId}`, { headers: getAuthHeaders() });
 
+export const getGroupWallet = (groupId: string) =>
+  apiGet(`/groups/${groupId}/wallet`);
+
 // Group contributions
 export const createGroupContribution = (
   groupId: string,
   payload: {
     title: string;
     note?: string;
-    goalAmount: number;
+    goalAmount?: number;
     type: "fixed" | "flexible";
     amountPerMember?: number;
     minimumAmount?: number;
     deadline?: string;
     visibilityMode: "all" | "admin_only";
+    disbursementPolicy?: "hold" | "auto";
+    disbursementRecipientId?: string;
   }
 ) =>
   axios.post(`${baseUrl}/groups/${groupId}/contributions`, payload, {
