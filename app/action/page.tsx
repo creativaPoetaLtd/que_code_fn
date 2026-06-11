@@ -5,11 +5,13 @@ import Navigation from '@/components/Navigation'
 import React, { Suspense } from 'react'
 import { useSidebar } from '@/context/SidebarContext'
 import { cn } from '@/lib/utils'
+import { useAccent } from '@/hooks/use-accent'
 
 const page = () => {
     const { isExpanded } = useSidebar();
+    const accent = useAccent();
     return (
-        <div className="flex min-h-screen bg-gray-50">
+        <div className={`flex min-h-screen bg-gray-50 ${accent.darkBgPage}`}>
             <Navigation />
 
             <main className={cn(

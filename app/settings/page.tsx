@@ -13,11 +13,13 @@ import { PrivacyTab } from "@/components/settings/PrivacyTab"
 import { useSidebar } from "@/context/SidebarContext"
 import { cn } from "@/lib/utils"
 import { BackButton } from "@/components/shared/BackButton"
+import { useAccent } from "@/hooks/use-accent"
 
 export default function SettingsPage() {
     const { isExpanded } = useSidebar();
+    const accent = useAccent();
     return (
-        <Layout className="min-h-screen bg-gray-50 dark:bg-darkBg-main transition-colors duration-300 mobile-bottom-padding">
+        <Layout className={`min-h-screen bg-gray-50 dark:bg-darkBg-main ${accent.darkBgPage} transition-colors duration-300 mobile-bottom-padding`}>
             <div className="flex min-h-screen">
                 <Navigation />
                 <main className={cn(
@@ -33,37 +35,37 @@ export default function SettingsPage() {
 
                         <Tabs defaultValue="profile" className="w-full">
                             <TabsList className="grid grid-cols-2 sm:grid-cols-5 mb-6 sm:mb-8 w-full bg-white dark:bg-darkBg-card dark:border dark:border-darkBorder-light gap-1 sm:gap-0">
-                                <TabsTrigger 
-                                    value="profile" 
-                                    className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm dark:text-gray-300 dark:data-[state=active]:bg-blue-600 dark:data-[state=active]:text-white transition-colors"
+                                <TabsTrigger
+                                    value="profile"
+                                    className={`flex items-center gap-1 sm:gap-2 text-xs sm:text-sm dark:text-gray-300 ${accent.tabActive} dark:data-[state=active]:text-white transition-colors`}
                                 >
                                     <User size={16} className="flex-shrink-0" />
                                     <span className="hidden sm:inline">Profile</span>
                                 </TabsTrigger>
-                                <TabsTrigger 
-                                    value="security" 
-                                    className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm dark:text-gray-300 dark:data-[state=active]:bg-blue-600 dark:data-[state=active]:text-white transition-colors"
+                                <TabsTrigger
+                                    value="security"
+                                    className={`flex items-center gap-1 sm:gap-2 text-xs sm:text-sm dark:text-gray-300 ${accent.tabActive} dark:data-[state=active]:text-white transition-colors`}
                                 >
                                     <Shield size={16} className="flex-shrink-0" />
                                     <span className="hidden sm:inline">Security</span>
                                 </TabsTrigger>
-                                <TabsTrigger 
-                                    value="notifications" 
-                                    className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm dark:text-gray-300 dark:data-[state=active]:bg-blue-600 dark:data-[state=active]:text-white transition-colors"
+                                <TabsTrigger
+                                    value="notifications"
+                                    className={`flex items-center gap-1 sm:gap-2 text-xs sm:text-sm dark:text-gray-300 ${accent.tabActive} dark:data-[state=active]:text-white transition-colors`}
                                 >
                                     <Bell size={16} className="flex-shrink-0" />
                                     <span className="hidden sm:inline">Notifications</span>
                                 </TabsTrigger>
-                                <TabsTrigger 
-                                    value="payment" 
-                                    className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm dark:text-gray-300 dark:data-[state=active]:bg-blue-600 dark:data-[state=active]:text-white transition-colors"
+                                <TabsTrigger
+                                    value="payment"
+                                    className={`flex items-center gap-1 sm:gap-2 text-xs sm:text-sm dark:text-gray-300 ${accent.tabActive} dark:data-[state=active]:text-white transition-colors`}
                                 >
                                     <CreditCard size={16} className="flex-shrink-0" />
                                     <span className="hidden sm:inline">Payment</span>
                                 </TabsTrigger>
-                                <TabsTrigger 
-                                    value="privacy" 
-                                    className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm dark:text-gray-300 dark:data-[state=active]:bg-blue-600 dark:data-[state=active]:text-white transition-colors"
+                                <TabsTrigger
+                                    value="privacy"
+                                    className={`flex items-center gap-1 sm:gap-2 text-xs sm:text-sm dark:text-gray-300 ${accent.tabActive} dark:data-[state=active]:text-white transition-colors`}
                                 >
                                     <Lock size={16} className="flex-shrink-0" />
                                     <span className="hidden sm:inline">Privacy</span>

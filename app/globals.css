@@ -12,6 +12,26 @@
   }
 } */
 
+/* ── Account-type dark-mode palette ──────────────────────────────────────── */
+/* Personal (green) — default */
+.dark {
+  --dark-bg-main:        #060d08;
+  --dark-bg-card:        #0b1610;
+  --dark-bg-interactive: #132016;
+  --dark-bg-overlay:     #0d1a12;
+  --dark-bg-sidebar:     #060d08;
+}
+
+/* Organisation (blue) — applied when AccentProvider adds .accent-org to <html> */
+.dark.accent-org {
+  --dark-bg-main:        #080d1a;
+  --dark-bg-card:        #0d1527;
+  --dark-bg-interactive: #1a2540;
+  --dark-bg-overlay:     #0d1734;
+  --dark-bg-sidebar:     #080d1a;
+}
+/* ──────────────────────────────────────────────────────────────────────────── */
+
 body {
   font-family: 'Poppins', sans-serif;
   overflow-x: hidden;
@@ -149,12 +169,24 @@ body {
     @apply bg-background text-foreground transition-colors duration-300;
   }
 
+  /* Personal (green) gradient — default */
   .dark body {
     background: radial-gradient(
       1200px 800px at 10% -10%,
       #17624b 0%,
       #06130f 50%,
       #040f0c 100%
+    );
+    background-attachment: fixed;
+  }
+
+  /* Organisation (blue) gradient */
+  .dark.accent-org body {
+    background: radial-gradient(
+      1200px 800px at 10% -10%,
+      #1a3a8f 0%,
+      #060f1a 50%,
+      #040c18 100%
     );
     background-attachment: fixed;
   }

@@ -18,11 +18,13 @@ import { formatDistanceToNow } from "date-fns"
 import { UserAvatar } from "@/components/UserAvatar"
 import type { PaymentRequest } from "@/types/dashboard"
 import { toast } from "@/hooks/use-toast"
+import { useAccent } from "@/hooks/use-accent"
 
 export default function RequestsPage() {
     const { isExpanded } = useSidebar()
     const { getToken } = useAuthToken()
     const router = useRouter()
+    const accent = useAccent()
     
     const [receivedRequests, setReceivedRequests] = useState<PaymentRequest[]>([])
     const [sentRequests, setSentRequests] = useState<PaymentRequest[]>([])
@@ -158,7 +160,7 @@ export default function RequestsPage() {
                                 </Button>
                                 <Button 
                                     size="sm" 
-                                    className="bg-blue-600 hover:bg-blue-700 text-white h-8"
+                                    className={`${accent.solidDark} text-white h-8`}
                                     onClick={() => router.push(`/home/transfer/amount?requestId=${request.id}`)}
                                 >
                                     Pay Now
@@ -173,7 +175,7 @@ export default function RequestsPage() {
     }
 
     return (
-        <div className="flex min-h-screen bg-gray-50 dark:bg-transparent">
+        <div className={`flex min-h-screen bg-gray-50 ${accent.darkBgPage}`}>
             <Navigation />
             
             <div className={cn(
@@ -189,7 +191,7 @@ export default function RequestsPage() {
                         <div className="mb-6">
                             <BackButton className="mb-4" />
                             <div className="flex items-center gap-3">
-                                <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
+                                <div className={`p-2 ${accent.lightIconBg} rounded-lg ${accent.lightIconColor}`}>
                                     <HandCoins size={24} />
                                 </div>
                                 <div>

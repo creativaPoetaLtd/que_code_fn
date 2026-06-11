@@ -41,7 +41,7 @@ export default function CreateContributionModal({
 
   const groupId = conversation?.groupId ?? null
   const { data: membersData } = useGetGroupMembersQuery(
-    { groupId: groupId!, token },
+    { groupId: groupId!, token: token! },
     { skip: !groupId || !token || !isOpen }
   )
   const adminMembers = useMemo(

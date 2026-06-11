@@ -5,11 +5,13 @@ import Navigation from '@/components/Navigation';
 import { useSidebar } from '@/context/SidebarContext';
 import { cn } from '@/lib/utils';
 import { BackButton } from '@/components/shared/BackButton';
+import { useAccent } from '@/hooks/use-accent';
 
 export default function TransactionsPage() {
   const { isExpanded } = useSidebar();
+  const accent = useAccent();
   return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-transparent">
+    <div className={`flex min-h-screen bg-gray-50 ${accent.darkBgPage}`}>
       {/* Sidebar navigation */}
       <Navigation />
       {/* Main content */}

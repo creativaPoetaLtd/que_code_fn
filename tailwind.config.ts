@@ -58,13 +58,13 @@ const config: Config = {
 					dark: '#040f0c',
 					teal: '#17624b',
 				},
-				// Dark Mode Theme
+				// Dark Mode Theme — values driven by CSS vars so org/personal can swap at runtime
 				darkBg: {
-					main: '#040f0c',
-					card: '#0c241b',
-					interactive: '#1a3028',
-					overlay: '#0d1f17',
-					sidebar: '#040f0c',
+					main: 'var(--dark-bg-main, #060d08)',
+					card: 'var(--dark-bg-card, #0b1610)',
+					interactive: 'var(--dark-bg-interactive, #132016)',
+					overlay: 'var(--dark-bg-overlay, #0d1a12)',
+					sidebar: 'var(--dark-bg-sidebar, #060d08)',
 				},
 				darkBorder: {
 					light: 'rgba(255, 255, 255, 0.05)',

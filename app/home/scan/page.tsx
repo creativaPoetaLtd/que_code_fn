@@ -11,10 +11,12 @@ import { useSidebar } from "@/context/SidebarContext"
 import { toast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { ScanLine, Camera, FlipHorizontal, Loader2, AlertCircle, QrCode } from "lucide-react"
+import { useAccent } from "@/hooks/use-accent"
 
 export default function ScanQRPage() {
     const router = useRouter()
     const { isExpanded } = useSidebar()
+    const accent = useAccent()
 
     const [QrScanner, setQrScanner] = useState<any>(null)
     const [cameraActive, setCameraActive] = useState(false)
@@ -142,7 +144,7 @@ export default function ScanQRPage() {
     }, [stopCamera])
 
     return (
-        <div className="flex min-h-screen bg-gray-50 dark:bg-transparent">
+        <div className={`flex min-h-screen bg-gray-50 ${accent.darkBgPage}`}>
             <Navigation />
             <main
                 className={cn(

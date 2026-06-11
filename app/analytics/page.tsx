@@ -12,11 +12,13 @@ import { DateRange } from '@/types/analytics.types'
 import { useSidebar } from '@/context/SidebarContext'
 import { cn } from '@/lib/utils'
 import { BackButton } from '@/components/shared/BackButton'
+import { useAccent } from '@/hooks/use-accent'
 
 type ViewType = 'daily' | 'weekly' | 'monthly' | 'yearly'
 
 const AnalyticsPage = () => {
     const { isExpanded } = useSidebar();
+    const accent = useAccent();
     // State for filters
     const [dateRange, setDateRange] = useState<DateRange>({
         startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Last 30 days
@@ -51,7 +53,7 @@ const AnalyticsPage = () => {
         }
     };
     return (
-        <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-transparent transition-colors duration-300">
+        <div className={`flex flex-col min-h-screen bg-gray-50 ${accent.darkBgPage} transition-colors duration-300`}>
             {/* Desktop Sidebar */}
             <Navigation />
 

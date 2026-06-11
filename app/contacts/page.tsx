@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils';
 import { BackButton } from "@/components/shared/BackButton";
 import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import { useAccent } from "@/hooks/use-accent";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -32,6 +33,7 @@ function ContactsPageInner() {
     const authHook = useAuthToken();
     const token = authHook.getToken();
     const { isExpanded } = useSidebar();
+    const accent = useAccent();
     const searchParams = useSearchParams();
 
     const [searchQuery, setSearchQuery] = useState("");
@@ -111,7 +113,7 @@ function ContactsPageInner() {
     const favorites = contacts.filter((c) => c.isFavorite);
 
     return (
-        <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-transparent">
+        <div className={`flex flex-col min-h-screen bg-gray-50 ${accent.darkBgPage}`}>
             {/* Desktop Sidebar */}
             <Navigation />
 
