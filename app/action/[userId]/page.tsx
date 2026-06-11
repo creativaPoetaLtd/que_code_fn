@@ -22,6 +22,7 @@ import {
     ChevronRight,
     Lock,
     ArrowRight,
+    Plus,
 } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import Navigation from '@/components/Navigation';
@@ -423,6 +424,7 @@ const ActionsByAccountPage = () => {
     const [isSubActionsModalOpen, setIsSubActionsModalOpen] = useState(false);
     const [wizardOpen, setWizardOpen] = useState(false);
     const [editingActionId, setEditingActionId] = useState<string | null>(null);
+    const [preSelectedType, setPreSelectedType] = useState<string | null>(null);
     const [creatingSubAction, setCreatingSubAction] = useState(false);
     const [qrValidatorOpen, setQrValidatorOpen] = useState(false);
     const [subActionError, setSubActionError] = useState<string | null>(null);
@@ -826,6 +828,7 @@ const ActionsByAccountPage = () => {
     const handleWizardCompleted = () => {
         setWizardOpen(false);
         setEditingActionId(null);
+        setPreSelectedType(null);
         if (effectiveUserId) {
             fetchData(effectiveUserId);
         }
@@ -834,6 +837,7 @@ const ActionsByAccountPage = () => {
     const handleWizardClose = () => {
         setWizardOpen(false);
         setEditingActionId(null);
+        setPreSelectedType(null);
     };
 
     // Handler for organizations to mark a QR object as used
@@ -1179,63 +1183,132 @@ const ActionsByAccountPage = () => {
         const filteredActions = getFilteredOrganizationActions();
 
         return (
-            <div className="space-y-4">
-                {/* Filter and Action Buttons - Always Visible */}
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="flex flex-wrap gap-4 items-center">
-                        <div>
-                            <label className="block text-xs font-semibold text-[#00313A] dark:text-white uppercase mb-2">Status</label>
-                            <div className="flex flex-wrap gap-2">
-                                {[
-                                    { value: 'all', label: 'All' },
-                                    { value: 'published', label: 'Published' },
-                                    { value: 'draft', label: 'Draft' },
-                                    { value: 'archived', label: 'Archived' }
-                                ].map(filter => {
-                                    let count = 0;
-                                    if (filter.value === 'all') {
-                                        count = organizationActions.length;
-                                    } else if (filter.value === 'archived') {
-                                        count = organizationActions.filter(action => action.status === 'archived' || isActionExpired(action)).length;
-                                    } else {
-                                        count = organizationActions.filter(action => action.status === filter.value && !isActionExpired(action)).length;
-                                    }
-                                    return (
-                                        <button
-                                            key={filter.value}
-                                            onClick={() => setStatusFilter(filter.value as 'all' | 'draft' | 'published' | 'archived')}
-                                            className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
-                                                statusFilter === filter.value
-                                                    ? 'bg-[#00B512] text-white shadow'
-                                                    : 'border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-interactive dark:text-white text-[#00313A] hover:bg-gray-50 dark:hover:bg-darkBg-card'
-                                            }`}
-                                        >
-                                            {`${filter.label} (${count})`}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    </div>
-                    <div className="flex justify-end gap-3">
+            <div className="space-y-5">
+                {/* Create New Action */}
+                <div>
+                    <p className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-3 flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5" />
+                        Create new action
+                    </p>
+                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+                        {/* Ticket */}
                         <button
-                            onClick={() => setQrValidatorOpen(true)}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-[#00B512] to-[#1fd331] text-white text-sm font-semibold shadow hover:shadow-lg transition-all"
+                            onClick={() => { setPreSelectedType('ticket'); setEditingActionId(null); setWizardOpen(true); }}
+                            className="group relative flex flex-col items-center gap-2 pt-5 pb-3 px-3 rounded-2xl border-2 border-dashed border-emerald-200 dark:border-emerald-800/60 hover:border-emerald-400 dark:hover:border-emerald-500 hover:bg-emerald-50/60 dark:hover:bg-emerald-900/20 transition-all duration-200"
                         >
-                            <Scan className="w-4 h-4" />
-                            Scan QR Code
+                            <span className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500 text-white shadow-sm shadow-emerald-300/50 group-hover:scale-110 transition-transform duration-200">
+                                <Plus className="w-3.5 h-3.5" strokeWidth={3} />
+                            </span>
+                            <span className="text-2xl group-hover:scale-110 transition-transform duration-200">🎟️</span>
+                            <span className="text-xs font-bold text-gray-700 dark:text-gray-200 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">Ticket</span>
+                            <span className="text-[10px] text-gray-400 dark:text-gray-500">Events & entry</span>
                         </button>
+
+                        {/* Transport */}
                         <button
-                            onClick={() => {
-                                setEditingActionId(null);
-                                setWizardOpen(true);
-                            }}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#00B512] text-white text-sm font-semibold shadow hover:bg-[#009a0f] transition-colors"
+                            onClick={() => { setPreSelectedType('transport'); setEditingActionId(null); setWizardOpen(true); }}
+                            className="group relative flex flex-col items-center gap-2 pt-5 pb-3 px-3 rounded-2xl border-2 border-dashed border-blue-200 dark:border-blue-800/60 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-blue-50/60 dark:hover:bg-blue-900/20 transition-all duration-200"
                         >
-                            <Sparkles className="w-4 h-4" />
-                            Create New Action
+                            <span className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center justify-center w-6 h-6 rounded-full bg-blue-500 text-white shadow-sm shadow-blue-300/50 group-hover:scale-110 transition-transform duration-200">
+                                <Plus className="w-3.5 h-3.5" strokeWidth={3} />
+                            </span>
+                            <span className="text-2xl group-hover:scale-110 transition-transform duration-200">🚌</span>
+                            <span className="text-xs font-bold text-gray-700 dark:text-gray-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">Transport</span>
+                            <span className="text-[10px] text-gray-400 dark:text-gray-500">Routes & fares</span>
+                        </button>
+
+                        {/* Service */}
+                        <button
+                            onClick={() => { setPreSelectedType('service'); setEditingActionId(null); setWizardOpen(true); }}
+                            className="group relative flex flex-col items-center gap-2 pt-5 pb-3 px-3 rounded-2xl border-2 border-dashed border-violet-200 dark:border-violet-800/60 hover:border-violet-400 dark:hover:border-violet-500 hover:bg-violet-50/60 dark:hover:bg-violet-900/20 transition-all duration-200"
+                        >
+                            <span className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center justify-center w-6 h-6 rounded-full bg-violet-500 text-white shadow-sm shadow-violet-300/50 group-hover:scale-110 transition-transform duration-200">
+                                <Plus className="w-3.5 h-3.5" strokeWidth={3} />
+                            </span>
+                            <span className="text-2xl group-hover:scale-110 transition-transform duration-200">🛠️</span>
+                            <span className="text-xs font-bold text-gray-700 dark:text-gray-200 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">Service</span>
+                            <span className="text-[10px] text-gray-400 dark:text-gray-500">Packages & work</span>
+                        </button>
+
+                        {/* Vote */}
+                        <button
+                            onClick={() => { setPreSelectedType('vote'); setEditingActionId(null); setWizardOpen(true); }}
+                            className="group relative flex flex-col items-center gap-2 pt-5 pb-3 px-3 rounded-2xl border-2 border-dashed border-orange-200 dark:border-orange-800/60 hover:border-orange-400 dark:hover:border-orange-500 hover:bg-orange-50/60 dark:hover:bg-orange-900/20 transition-all duration-200"
+                        >
+                            <span className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center justify-center w-6 h-6 rounded-full bg-orange-500 text-white shadow-sm shadow-orange-300/50 group-hover:scale-110 transition-transform duration-200">
+                                <Plus className="w-3.5 h-3.5" strokeWidth={3} />
+                            </span>
+                            <span className="text-2xl group-hover:scale-110 transition-transform duration-200">🗳️</span>
+                            <span className="text-xs font-bold text-gray-700 dark:text-gray-200 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">Vote</span>
+                            <span className="text-[10px] text-gray-400 dark:text-gray-500">Polls & elections</span>
+                        </button>
+
+                        {/* Booking */}
+                        <button
+                            onClick={() => { setPreSelectedType('booking'); setEditingActionId(null); setWizardOpen(true); }}
+                            className="group relative flex flex-col items-center gap-2 pt-5 pb-3 px-3 rounded-2xl border-2 border-dashed border-cyan-200 dark:border-cyan-800/60 hover:border-cyan-400 dark:hover:border-cyan-500 hover:bg-cyan-50/60 dark:hover:bg-cyan-900/20 transition-all duration-200"
+                        >
+                            <span className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center justify-center w-6 h-6 rounded-full bg-cyan-500 text-white shadow-sm shadow-cyan-300/50 group-hover:scale-110 transition-transform duration-200">
+                                <Plus className="w-3.5 h-3.5" strokeWidth={3} />
+                            </span>
+                            <span className="text-2xl group-hover:scale-110 transition-transform duration-200">📅</span>
+                            <span className="text-xs font-bold text-gray-700 dark:text-gray-200 group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">Booking</span>
+                            <span className="text-[10px] text-gray-400 dark:text-gray-500">Reservations</span>
+                        </button>
+
+                        {/* Membership */}
+                        <button
+                            onClick={() => { setPreSelectedType('membership'); setEditingActionId(null); setWizardOpen(true); }}
+                            className="group relative flex flex-col items-center gap-2 pt-5 pb-3 px-3 rounded-2xl border-2 border-dashed border-amber-200 dark:border-amber-800/60 hover:border-amber-400 dark:hover:border-amber-500 hover:bg-amber-50/60 dark:hover:bg-amber-900/20 transition-all duration-200"
+                        >
+                            <span className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center justify-center w-6 h-6 rounded-full bg-amber-500 text-white shadow-sm shadow-amber-300/50 group-hover:scale-110 transition-transform duration-200">
+                                <Plus className="w-3.5 h-3.5" strokeWidth={3} />
+                            </span>
+                            <span className="text-2xl group-hover:scale-110 transition-transform duration-200">🏅</span>
+                            <span className="text-xs font-bold text-gray-700 dark:text-gray-200 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">Membership</span>
+                            <span className="text-[10px] text-gray-400 dark:text-gray-500">Plans & tiers</span>
                         </button>
                     </div>
+                </div>
+
+                {/* Status filter + Scan QR */}
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-2 flex-wrap">
+                        {[
+                            { value: 'all', label: 'All' },
+                            { value: 'published', label: 'Published' },
+                            { value: 'draft', label: 'Draft' },
+                            { value: 'archived', label: 'Archived' },
+                        ].map(filter => {
+                            let count = 0;
+                            if (filter.value === 'all') count = organizationActions.length;
+                            else if (filter.value === 'archived') count = organizationActions.filter(a => a.status === 'archived' || isActionExpired(a)).length;
+                            else count = organizationActions.filter(a => a.status === filter.value && !isActionExpired(a)).length;
+                            return (
+                                <button
+                                    key={filter.value}
+                                    onClick={() => setStatusFilter(filter.value as 'all' | 'draft' | 'published' | 'archived')}
+                                    className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                                        statusFilter === filter.value
+                                            ? 'bg-[#00B512] text-white shadow-sm shadow-emerald-300/40 dark:shadow-emerald-900/40'
+                                            : 'border border-gray-200 dark:border-darkBorder-light text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-darkBorder-medium hover:bg-gray-50 dark:hover:bg-darkBg-interactive'
+                                    }`}
+                                >
+                                    {filter.label}
+                                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${statusFilter === filter.value ? 'bg-white/20' : 'bg-gray-100 dark:bg-darkBg-interactive text-gray-500 dark:text-gray-400'}`}>
+                                        {count}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                    <button
+                        onClick={() => setQrValidatorOpen(true)}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-[#00B512] to-[#1fd331] text-white text-xs font-semibold shadow-sm hover:shadow-md hover:shadow-emerald-300/30 transition-all"
+                    >
+                        <Scan className="w-3.5 h-3.5" />
+                        Scan QR Code
+                    </button>
                 </div>
 
                 {/* Content Section - Empty or Actions Grid */}
@@ -1245,20 +1318,9 @@ const ActionsByAccountPage = () => {
                             <Ticket className="w-5 h-5" />
                             <span>No actions published yet</span>
                         </div>
-                        <p className="text-gray-600 dark:text-gray-300 max-w-md mx-auto mb-6">
-                            Create your first action to start accepting payments or issuing tickets. They will appear here in the same
-                            layout visitors see on your welcome page.
+                        <p className="text-gray-600 dark:text-gray-300 max-w-md mx-auto">
+                            Select an action type above to get started. Your published actions will appear here in the same layout visitors see on your welcome page.
                         </p>
-                        <button
-                            onClick={() => {
-                                setEditingActionId(null);
-                                setWizardOpen(true);
-                            }}
-                            className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#00B512] text-white text-sm font-semibold shadow hover:bg-[#009a0f] transition-colors"
-                        >
-                            <Sparkles className="w-4 h-4" />
-                            Create Your First Action
-                        </button>
                     </div>
                 ) : filteredActions.length === 0 ? (
                     <div className="bg-white dark:bg-darkBg-card border border-blue-100 dark:border-darkBorder-light rounded-3xl p-8 text-center shadow-sm">
@@ -1720,6 +1782,7 @@ const ActionsByAccountPage = () => {
                         organizationId={effectiveUserId}
                         onCompleted={handleWizardCompleted}
                         editingActionId={editingActionId}
+                        preSelectedType={preSelectedType}
                     />
                     <QRObjectValidator
                         isOpen={qrValidatorOpen}

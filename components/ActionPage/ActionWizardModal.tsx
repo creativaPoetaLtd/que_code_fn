@@ -47,6 +47,7 @@ interface ActionWizardModalProps {
     organizationId: string;
     onCompleted: () => void;
     editingActionId?: string | null;
+    preSelectedType?: string | null;
 }
 
 const allStepItems = [
@@ -61,15 +62,9 @@ const validTypes = [
     'ticket',
     'transport',
     'service',
-    'subscription',
-    'payment',
-    'donation',
     'vote',
     'booking',
-    'license',
     'membership',
-    'rental',
-    'group',
 ];
 
 // Dynamic form configuration based on action type
@@ -185,6 +180,153 @@ const actionTypeConfig: Record<string, {
             shortDescription: 'Group description',
             description: 'About the group and its purpose',
         },
+    },
+};
+
+const defaultLabels = {
+    builderTitle: 'Action Builder',
+    wizardTitle: 'Multi-step Action Wizard',
+    wizardDescription: 'Guide your organization through every detail, from basics to publish.',
+    nameLabel: 'Action Name',
+    shortDescLabel: 'Short Description',
+    descLabel: 'Full Description',
+    subAction: { singular: 'Sub-action', plural: 'Sub-actions' },
+    stepA: { title: 'Identity', description: 'Type & basics' },
+    stepB: { title: 'Pricing', description: 'Currency & price' },
+};
+
+const actionTypeLabels: Record<string, Partial<typeof defaultLabels>> = {
+    ticket: {
+        builderTitle: 'Ticket Builder',
+        wizardTitle: 'Create a Ticket',
+        wizardDescription: 'Set up your event ticket — name, pricing tiers, availability, and more.',
+        nameLabel: 'Event Name',
+        shortDescLabel: 'Event Tagline',
+        descLabel: 'Full Event Details',
+        subAction: { singular: 'Ticket Tier', plural: 'Ticket Tiers' },
+        stepA: { title: 'Event Details', description: 'Name & media' },
+        stepB: { title: 'Ticket Pricing', description: 'Price & tiers' },
+    },
+    transport: {
+        builderTitle: 'Transport Builder',
+        wizardTitle: 'Create a Transport Route',
+        wizardDescription: 'Define your route, fare structure, and seat classes.',
+        nameLabel: 'Route Name',
+        shortDescLabel: 'Route Summary',
+        descLabel: 'Route Details',
+        subAction: { singular: 'Seat Class', plural: 'Seat Classes' },
+        stepA: { title: 'Route Info', description: 'Name & media' },
+        stepB: { title: 'Fare Details', description: 'Currency & fare' },
+    },
+    service: {
+        builderTitle: 'Service Builder',
+        wizardTitle: 'Create a Service',
+        wizardDescription: 'Describe your service, packages, and how clients can book or pay.',
+        nameLabel: 'Service Name',
+        shortDescLabel: 'Service Tagline',
+        descLabel: 'Service Details',
+        subAction: { singular: 'Service Package', plural: 'Service Packages' },
+        stepA: { title: 'Service Details', description: 'Name & media' },
+        stepB: { title: 'Service Pricing', description: 'Currency & price' },
+    },
+    subscription: {
+        builderTitle: 'Subscription Builder',
+        wizardTitle: 'Create a Subscription Plan',
+        wizardDescription: "Set up recurring plans — define tiers, benefits, and billing details.",
+        nameLabel: 'Plan Name',
+        shortDescLabel: 'Plan Summary',
+        descLabel: "What's Included",
+        subAction: { singular: 'Subscription Tier', plural: 'Subscription Tiers' },
+        stepA: { title: 'Plan Details', description: 'Name & media' },
+        stepB: { title: 'Plan Pricing', description: 'Currency & tiers' },
+    },
+    payment: {
+        builderTitle: 'Payment Builder',
+        wizardTitle: 'Create a Payment',
+        wizardDescription: 'Configure a payment link — purpose, amount, and collection details.',
+        nameLabel: 'Payment Title',
+        shortDescLabel: 'Payment Purpose',
+        descLabel: 'Additional Details',
+        subAction: { singular: 'Payment Option', plural: 'Payment Options' },
+        stepA: { title: 'Payment Details', description: 'Title & purpose' },
+        stepB: { title: 'Payment Config', description: 'Currency & amount' },
+    },
+    donation: {
+        builderTitle: 'Donation Builder',
+        wizardTitle: 'Create a Donation Campaign',
+        wizardDescription: 'Tell your story, set giving levels, and start collecting donations.',
+        nameLabel: 'Campaign Name',
+        shortDescLabel: 'Campaign Tagline',
+        descLabel: 'Campaign Story',
+        subAction: { singular: 'Giving Level', plural: 'Giving Levels' },
+        stepA: { title: 'Campaign Details', description: 'Name & media' },
+        stepB: { title: 'Donation Config', description: 'Currency & amounts' },
+    },
+    vote: {
+        builderTitle: 'Vote Builder',
+        wizardTitle: 'Create a Vote',
+        wizardDescription: 'Set up a poll or election — add contestants and configure voting rules.',
+        nameLabel: 'Vote Title',
+        shortDescLabel: 'What Are People Voting On?',
+        descLabel: 'Vote Details',
+        subAction: { singular: 'Contestant', plural: 'Contestants' },
+        stepA: { title: 'Vote Details', description: 'Title & context' },
+        stepB: { title: 'Voting Cost', description: 'Currency & price' },
+    },
+    booking: {
+        builderTitle: 'Booking Builder',
+        wizardTitle: 'Create a Booking',
+        wizardDescription: 'Configure what can be booked, availability windows, and pricing.',
+        nameLabel: 'Booking Name',
+        shortDescLabel: 'What Can Be Booked?',
+        descLabel: 'Booking Conditions',
+        subAction: { singular: 'Booking Option', plural: 'Booking Options' },
+        stepA: { title: 'Booking Details', description: 'Name & media' },
+        stepB: { title: 'Booking Pricing', description: 'Currency & price' },
+    },
+    license: {
+        builderTitle: 'License Builder',
+        wizardTitle: 'Create a License',
+        wizardDescription: 'Define license tiers, terms, and how they are issued to buyers.',
+        nameLabel: 'License Name',
+        shortDescLabel: 'License Summary',
+        descLabel: 'Terms & Conditions',
+        subAction: { singular: 'License Tier', plural: 'License Tiers' },
+        stepA: { title: 'License Details', description: 'Name & terms' },
+        stepB: { title: 'License Pricing', description: 'Currency & price' },
+    },
+    membership: {
+        builderTitle: 'Membership Builder',
+        wizardTitle: 'Create a Membership',
+        wizardDescription: 'Build membership plans with benefits, tiers, and renewal settings.',
+        nameLabel: 'Membership Name',
+        shortDescLabel: 'Member Benefits',
+        descLabel: 'Full Membership Details',
+        subAction: { singular: 'Membership Plan', plural: 'Membership Plans' },
+        stepA: { title: 'Membership Details', description: 'Name & media' },
+        stepB: { title: 'Membership Pricing', description: 'Currency & tiers' },
+    },
+    rental: {
+        builderTitle: 'Rental Builder',
+        wizardTitle: 'Create a Rental',
+        wizardDescription: 'List what can be rented, set pricing options, and define rental terms.',
+        nameLabel: 'Rental Name',
+        shortDescLabel: 'What Can Be Rented?',
+        descLabel: 'Rental Terms',
+        subAction: { singular: 'Rental Option', plural: 'Rental Options' },
+        stepA: { title: 'Rental Details', description: 'Name & media' },
+        stepB: { title: 'Rental Pricing', description: 'Currency & price' },
+    },
+    group: {
+        builderTitle: 'Group Builder',
+        wizardTitle: 'Create a Group',
+        wizardDescription: 'Set up a community group — membership tiers, fees, and group details.',
+        nameLabel: 'Group Name',
+        shortDescLabel: 'Group Summary',
+        descLabel: 'About the Group',
+        subAction: { singular: 'Membership Tier', plural: 'Membership Tiers' },
+        stepA: { title: 'Group Details', description: 'Name & media' },
+        stepB: { title: 'Group Pricing', description: 'Currency & fees' },
     },
 };
 
@@ -465,7 +607,7 @@ const KeyValueInput: React.FC<KeyValueInputProps> = ({ value, onChange, placehol
     );
 };
 
-const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, organizationId, onCompleted, editingActionId }) => {
+const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, organizationId, onCompleted, editingActionId, preSelectedType }) => {
     const [currentStep, setCurrentStep] = useState(0);
     const [form] = Form.useForm();
     const [subActionForm] = Form.useForm();
@@ -487,10 +629,12 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
     const [pricingMode, setPricingMode] = useState<string>('fixed');
     const [availabilityMode, setAvailabilityMode] = useState<string>('always');
 
-    const subActionLabel = useMemo(() => {
-        if (selectedType === 'vote') return { singular: 'Contestant', plural: 'Contestants' };
-        return { singular: 'Sub-action', plural: 'Sub-actions' };
+    const currentLabels = useMemo(() => {
+        const overrides = selectedType ? (actionTypeLabels[selectedType] ?? {}) : {};
+        return { ...defaultLabels, ...overrides };
     }, [selectedType]);
+
+    const subActionLabel = useMemo(() => currentLabels.subAction, [currentLabels]);
 
     // Filter steps based on pricing mode - show subActions for tiered and pay_what_you_want pricing
     const stepItems = useMemo(() => {
@@ -505,9 +649,15 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                 if (step.key === 'subActions') {
                     return { ...step, title: subActionLabel.plural, description: subActionLabel.plural };
                 }
+                if (step.key === 'stepA') {
+                    return { ...step, title: currentLabels.stepA.title, description: currentLabels.stepA.description };
+                }
+                if (step.key === 'stepB') {
+                    return { ...step, title: currentLabels.stepB.title, description: currentLabels.stepB.description };
+                }
                 return step;
             });
-    }, [pricingMode, subActionLabel]);
+    }, [pricingMode, subActionLabel, currentLabels]);
 
     const stepKey = useMemo(() => stepItems[currentStep]?.key, [currentStep, stepItems]);
     const isLastStep = currentStep === stepItems.length - 1;
@@ -570,11 +720,12 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                     description: existingAction.description || '',
                     dedicatedQrCode: existingAction.dedicatedQrCode || '',
                 });
-                // Set preview if cover image exists
                 if (existingAction.coverImage) {
                     setCoverImagePreview(existingAction.coverImage);
                 }
-                
+            } else if (preSelectedType) {
+                setSelectedType(preSelectedType);
+                form.setFieldValue('type', preSelectedType);
             } else {
                 setSelectedType(undefined);
             }
@@ -635,8 +786,11 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
             setExistingAction(null);
             setActionId(null);
             setActionNameForSubActions('');
+            if (preSelectedType) {
+                setSelectedType(preSelectedType);
+            }
         }
-    }, [editingActionId, open]);
+    }, [editingActionId, open, preSelectedType]);
 
     const loadSubActions = useCallback(async () => {
         if (!actionId) return;
@@ -1088,20 +1242,28 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
             case 'stepA':
                 return (
                     <Form form={form} layout="vertical" className="grid gap-4 md:grid-cols-2">
-                        <Form.Item name="type" label="Action Type" rules={[{ required: true, message: 'Select an action type' }]}>
-                            <Select 
-                                placeholder="Select type" 
-                                onChange={(value) => setSelectedType(value)}
-                                options={validTypes.map((type) => ({ 
-                                    label: actionTypeConfig[type].label, 
-                                    value: type 
-                                }))}
-                            />
-                        </Form.Item>
+                        {(preSelectedType && !editingActionId) ? (
+                            <div className="md:col-span-2 flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-50 dark:bg-darkBg-interactive border border-gray-200 dark:border-darkBorder-light">
+                                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Type:</span>
+                                <span className="font-semibold text-[#00313A] dark:text-white capitalize">{actionTypeConfig[preSelectedType]?.label || preSelectedType}</span>
+                                <Form.Item name="type" hidden initialValue={preSelectedType}><Input /></Form.Item>
+                            </div>
+                        ) : (
+                            <Form.Item name="type" label="Action Type" rules={[{ required: true, message: 'Select an action type' }]}>
+                                <Select
+                                    placeholder="Select type"
+                                    onChange={(value) => setSelectedType(value)}
+                                    options={validTypes.map((type) => ({
+                                        label: actionTypeConfig[type].label,
+                                        value: type
+                                    }))}
+                                />
+                            </Form.Item>
+                        )}
                         <Form.Item
                             name="name"
-                            label="Action Name"
-                            rules={[{ required: true, message: 'Provide an action name' }]}
+                            label={currentLabels.nameLabel}
+                            rules={[{ required: true, message: `Provide a ${currentLabels.nameLabel.toLowerCase()}` }]}
                         >
                             <Input 
                                 placeholder={selectedType ? actionTypeConfig[selectedType]?.placeholders?.name || 'Enter action name' : 'Enter action name'}
@@ -1189,13 +1351,13 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                         )}
                         
                         {selectedType && actionTypeConfig[selectedType]?.showFields?.includes('shortDescription') && (
-                            <Form.Item name="shortDescription" label="Short Description" className="md:col-span-2">
+                            <Form.Item name="shortDescription" label={currentLabels.shortDescLabel} className="md:col-span-2">
                                 <Input placeholder={actionTypeConfig[selectedType]?.placeholders?.shortDescription || 'Quick headline for this action'} />
                             </Form.Item>
                         )}
-                        
+
                         {selectedType && actionTypeConfig[selectedType]?.showFields?.includes('description') && (
-                            <Form.Item name="description" label="Full Description" className="md:col-span-2">
+                            <Form.Item name="description" label={currentLabels.descLabel} className="md:col-span-2">
                                 <TextArea rows={4} placeholder={actionTypeConfig[selectedType]?.placeholders?.description || 'Tell supporters what this action is about'} />
                             </Form.Item>
                         )}
@@ -1615,14 +1777,14 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
 
                         {/* Identity Review */}
                         <div className="border-b pb-6">
-                            <h3 className="text-base font-semibold mb-4">Identity</h3>
+                            <h3 className="text-base font-semibold mb-4">{currentLabels.stepA.title}</h3>
                             <div className="grid gap-4 md:grid-cols-2 text-sm">
                                 <div>
                                     <p className="text-gray-600">Type</p>
-                                    <p className="font-semibold text-gray-900">{form.getFieldValue('type') || existingAction?.type || '-'}</p>
+                                    <p className="font-semibold text-gray-900 capitalize">{actionTypeLabels[form.getFieldValue('type') || existingAction?.type || '']?.builderTitle?.replace(' Builder', '') || form.getFieldValue('type') || existingAction?.type || '-'}</p>
                                 </div>
                                 <div>
-                                    <p className="text-gray-600">Name</p>
+                                    <p className="text-gray-600">{currentLabels.nameLabel}</p>
                                     <p className="font-semibold text-gray-900">{form.getFieldValue('name') || existingAction?.name || '-'}</p>
                                 </div>
                                 {(form.getFieldValue('slug') || existingAction?.slug) && (
@@ -1637,13 +1799,13 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                                 </div>
                                 {(form.getFieldValue('shortDescription') || existingAction?.shortDescription) && (
                                     <div className="md:col-span-2">
-                                        <p className="text-gray-600">Short Description</p>
+                                        <p className="text-gray-600">{currentLabels.shortDescLabel}</p>
                                         <p className="font-semibold text-gray-900">{form.getFieldValue('shortDescription') || existingAction?.shortDescription}</p>
                                     </div>
                                 )}
                                 {(form.getFieldValue('description') || existingAction?.description) && (
                                     <div className="md:col-span-2">
-                                        <p className="text-gray-600">Full Description</p>
+                                        <p className="text-gray-600">{currentLabels.descLabel}</p>
                                         <p className="font-semibold text-gray-900 whitespace-pre-wrap">{form.getFieldValue('description') || existingAction?.description}</p>
                                     </div>
                                 )}
@@ -1652,7 +1814,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
 
                         {/* Pricing Review */}
                         <div className="border-b pb-6">
-                            <h3 className="text-base font-semibold mb-4">Pricing</h3>
+                            <h3 className="text-base font-semibold mb-4">{currentLabels.stepB.title}</h3>
                             <div className="grid gap-4 md:grid-cols-2 text-sm">
                                 <div>
                                     <p className="text-gray-600">Pricing Mode</p>
@@ -1772,9 +1934,9 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
         >
             <div className="space-y-6">
                 <div>
-                    <p className="text-sm font-semibold text-[#00B512] uppercase tracking-[0.2em]">Action Builder</p>
-                    <h2 className="text-2xl font-bold text-[#00313A] mt-1">Multi-step Action Wizard</h2>
-                    <p className="text-sm text-[#00313A]/70">Guide your organization through every detail, from basics to publish.</p>
+                    <p className="text-sm font-semibold text-[#00B512] uppercase tracking-[0.2em]">{currentLabels.builderTitle}</p>
+                    <h2 className="text-2xl font-bold text-[#00313A] mt-1">{currentLabels.wizardTitle}</h2>
+                    <p className="text-sm text-[#00313A]/70">{currentLabels.wizardDescription}</p>
                 </div>
                 <Steps
                     current={currentStep}

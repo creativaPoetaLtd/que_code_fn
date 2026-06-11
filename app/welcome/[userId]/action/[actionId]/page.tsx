@@ -4,8 +4,11 @@ import { useParams, useRouter } from 'next/navigation';
 import axios from 'axios';
 import {
   ArrowLeft,
+  ArrowDownUp,
   ExternalLink,
+  LayoutGrid,
   Loader2,
+  List,
   Search,
   Users,
   Ticket,
@@ -18,6 +21,7 @@ import {
   X,
   Check,
   Heart,
+  TrendingUp,
 } from 'lucide-react';
 import baseUrl from '@/helpers/baseUrl';
 import { useUserInfo } from '@/hooks/use-user-info';
@@ -724,12 +728,77 @@ function VoteContent({
   action, activeSubActions, subActionsLoading, purchasing, purchaseError,
   selectedCandidate, setSelectedCandidate, searchQuery, setSearchQuery, voteFilter, setVoteFilter, onVote,
 }: any) {
+  type SortMode = 'votes-desc' | 'votes-asc' | 'newest' | 'oldest' | 'trending' | 'custom';
+  type ViewMode = 'grid' | 'list';
+
+  const [sortMode, setSortMode] = useState<SortMode>('votes-desc');
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [pinnedCandidateIds, setPinnedCandidateIds] = useState<string[]>([]);
   const filteredCandidates = useMemo(() => {
     let list = activeSubActions;
     if (searchQuery) list = list.filter((s: SubAction) => s.name.toLowerCase().includes(searchQuery.toLowerCase()));
-    if (voteFilter === 'top') list = [...list].sort((a: SubAction, b: SubAction) => (b.metadata?.votes || 0) - (a.metadata?.votes || 0));
-    return list;
-  }, [activeSubActions, searchQuery, voteFilter]);
+
+    const getVotes = (candidate: SubAction) => Number(candidate.metadata?.votes ?? 0);
+    const getRank = (candidate: SubAction) => Number(candidate.metadata?.rank ?? Number.MAX_SAFE_INTEGER);
+    const getAgeScore = (candidate: SubAction) => {
+      const createdAt = Date.parse(candidate.createdAt);
+      return Number.isNaN(createdAt) ? Number.MAX_SAFE_INTEGER : Date.now() - createdAt;
+    };
+    const getMomentum = (candidate: SubAction) => getVotes(candidate) / Math.max(getAgeScore(candidate) / 3_600_000, 1);
+
+    const compareCandidates = (a: SubAction, b: SubAction) => {
+      const votesA = getVotes(a);
+      const votesB = getVotes(b);
+      const rankA = getRank(a);
+      const rankB = getRank(b);
+      const sortOrderA = a.sortOrder ?? Number.MAX_SAFE_INTEGER;
+      const sortOrderB = b.sortOrder ?? Number.MAX_SAFE_INTEGER;
+      const createdAtA = Date.parse(a.createdAt) || 0;
+      const createdAtB = Date.parse(b.createdAt) || 0;
+      const momentumA = getMomentum(a);
+      const momentumB = getMomentum(b);
+
+      if (sortMode === 'votes-desc') return votesB - votesA || rankA - rankB || sortOrderA - sortOrderB || createdAtB - createdAtA || a.name.localeCompare(b.name);
+      if (sortMode === 'votes-asc') return votesA - votesB || rankA - rankB || sortOrderA - sortOrderB || createdAtA - createdAtB || a.name.localeCompare(b.name);
+      if (sortMode === 'newest') return createdAtB - createdAtA || votesB - votesA || rankA - rankB || sortOrderA - sortOrderB || a.name.localeCompare(b.name);
+      if (sortMode === 'oldest') return createdAtA - createdAtB || votesB - votesA || rankA - rankB || sortOrderA - sortOrderB || a.name.localeCompare(b.name);
+      if (sortMode === 'trending') return momentumB - momentumA || votesB - votesA || rankA - rankB || sortOrderA - sortOrderB || createdAtB - createdAtA || a.name.localeCompare(b.name);
+      return sortOrderA - sortOrderB || rankA - rankB || votesB - votesA || createdAtA - createdAtB || a.name.localeCompare(b.name);
+    };
+
+    const sortFiltered = [...list].sort(compareCandidates);
+    if (voteFilter === 'top') return sortFiltered;
+    if (voteFilter === 'new') return [...sortFiltered].sort((a, b) => (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0));
+    return sortFiltered;
+  }, [activeSubActions, searchQuery, voteFilter, sortMode]);
+
+  const getVotes = (candidate: SubAction) => Number(candidate.metadata?.votes ?? 0);
+  const getRank = (candidate: SubAction) => Number(candidate.metadata?.rank ?? Number.MAX_SAFE_INTEGER);
+  const getAgeScore = (candidate: SubAction) => {
+    const createdAt = Date.parse(candidate.createdAt);
+    return Number.isNaN(createdAt) ? Number.MAX_SAFE_INTEGER : Date.now() - createdAt;
+  };
+  const getMomentum = (candidate: SubAction) => getVotes(candidate) / Math.max(getAgeScore(candidate) / 3_600_000, 1);
+  const getTrendLabel = (candidate: SubAction) => {
+    const momentum = getMomentum(candidate);
+    if (momentum >= 10) return 'Surging';
+    if (momentum >= 4) return 'Trending';
+    if (momentum >= 1) return 'Rising';
+    return 'Steady';
+  };
+
+  const pinnedCandidates = useMemo(
+    () => pinnedCandidateIds.map(candidateId => activeSubActions.find((candidate: SubAction) => candidate.id === candidateId)).filter(Boolean) as SubAction[],
+    [activeSubActions, pinnedCandidateIds]
+  );
+
+  const togglePinnedCandidate = (candidateId: string) => {
+    setPinnedCandidateIds(prev => {
+      if (prev.includes(candidateId)) return prev.filter(id => id !== candidateId);
+      if (prev.length >= 3) return [...prev.slice(1), candidateId];
+      return [...prev, candidateId];
+    });
+  };
 
   const [expandedMore, setExpandedMore] = useState<Record<string, boolean>>({});
 
@@ -801,7 +870,9 @@ function VoteContent({
           {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#4a6278]" />
+            <label className="sr-only" htmlFor="vote-search-input">Search candidates</label>
             <input
+              id="vote-search-input"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="Search candidate..."
@@ -809,11 +880,120 @@ function VoteContent({
             />
           </div>
 
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="inline-flex items-center gap-2 rounded-xl border border-[#1e2d40] bg-[#111927] p-1">
+              <button
+                type="button"
+                onClick={() => setViewMode('grid')}
+                aria-pressed={viewMode === 'grid'}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  viewMode === 'grid' ? 'bg-[#1a3a5c] text-[#60a5fa]' : 'text-[#8da0b3] hover:text-[#f0f4f8]'
+                }`}
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                Grid
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('list')}
+                aria-pressed={viewMode === 'list'}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  viewMode === 'list' ? 'bg-[#1a3a5c] text-[#60a5fa]' : 'text-[#8da0b3] hover:text-[#f0f4f8]'
+                }`}
+              >
+                <List className="w-3.5 h-3.5" />
+                List
+              </button>
+            </div>
+            <div className="inline-flex items-center gap-1.5 text-xs text-[#4a6278]">
+              <TrendingUp className="w-3.5 h-3.5" />
+              Sort by votes
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {([
+              { value: 'votes-desc', label: 'Highest votes' },
+              { value: 'votes-asc', label: 'Lowest votes' },
+              { value: 'newest', label: 'Newest' },
+              { value: 'oldest', label: 'Oldest' },
+              { value: 'trending', label: 'Trending' },
+              { value: 'custom', label: 'Custom rank' },
+            ] as const).map(option => (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={sortMode === option.value}
+                onClick={() => setSortMode(option.value)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border ${
+                  sortMode === option.value
+                    ? 'bg-[#1a3a5c] border-[#3b82f6] text-[#60a5fa]'
+                    : 'bg-[#111927] border-[#1e2d40] text-[#8da0b3] hover:text-[#f0f4f8]'
+                }`}
+              >
+                <ArrowDownUp className="w-3.5 h-3.5" />
+                {option.label}
+              </button>
+            ))}
+          </div>
+
+          {pinnedCandidates.length > 0 && (
+            <div className="rounded-2xl border border-[#1e2d40] bg-[#0d1525] p-4 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[#f0f4f8] text-sm font-semibold">Pinned comparison</p>
+                  <p className="text-[#4a6278] text-xs">Compare up to 3 candidates side by side</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPinnedCandidateIds([])}
+                  className="text-xs text-[#8da0b3] hover:text-[#f0f4f8] transition-colors"
+                >
+                  Clear all
+                </button>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {pinnedCandidates.map(candidate => (
+                  <div key={candidate.id} className="rounded-xl border border-[#1e2d40] bg-[#111927] p-3">
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                      <div className="min-w-0">
+                        <p className="text-[#f0f4f8] text-sm font-semibold truncate">{candidate.name}</p>
+                        <p className="text-[#4a6278] text-xs">{getTrendLabel(candidate)}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => togglePinnedCandidate(candidate.id)}
+                        className="text-[#8da0b3] hover:text-[#f0f4f8] transition-colors text-xs"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div className="rounded-lg bg-[#0d1525] px-2 py-2">
+                        <p className="text-[#4a6278] text-[10px] uppercase tracking-wide">Votes</p>
+                        <p className="text-[#f0f4f8] text-sm font-bold">{Number(getVotes(candidate)).toLocaleString()}</p>
+                      </div>
+                      <div className="rounded-lg bg-[#0d1525] px-2 py-2">
+                        <p className="text-[#4a6278] text-[10px] uppercase tracking-wide">Rank</p>
+                        <p className="text-[#f0f4f8] text-sm font-bold">{getRank(candidate) !== Number.MAX_SAFE_INTEGER ? `#${getRank(candidate)}` : '—'}</p>
+                      </div>
+                      <div className="rounded-lg bg-[#0d1525] px-2 py-2">
+                        <p className="text-[#4a6278] text-[10px] uppercase tracking-wide">Trend</p>
+                        <p className="text-[#f0f4f8] text-sm font-bold">{getTrendLabel(candidate)}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Filter tabs */}
           <div className="flex gap-2">
             {(['all', 'top', 'new'] as const).map(f => (
               <button
                 key={f}
+                type="button"
                 onClick={() => setVoteFilter(f)}
                 className={`px-4 py-1.5 rounded-lg text-xs font-semibold capitalize transition-colors border ${
                   voteFilter === f
@@ -840,7 +1020,7 @@ function VoteContent({
             <p className="text-[#4a6278] text-sm">No candidates found</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 gap-4' : 'space-y-4'}>
             {filteredCandidates.map((candidate: SubAction) => {
               const isSelected = selectedCandidate?.id === candidate.id;
               const votes = candidate.metadata?.votes;
@@ -848,6 +1028,9 @@ function VoteContent({
               const zone = candidate.metadata?.zone;
               const badge = candidate.metadata?.badge;
               const candidateNum = candidate.metadata?.candidateNumber;
+              const momentum = getMomentum(candidate);
+              const trend = getTrendLabel(candidate);
+              const isPinned = pinnedCandidateIds.includes(candidate.id);
               const hasStats = votes !== undefined || rank !== undefined || zone;
               const isMoreExpanded = expandedMore[candidate.id];
 
