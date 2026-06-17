@@ -22,11 +22,26 @@ interface RecentAction {
   id: string;
   name?: string;
   type: string;
+  actionType?: string;
+  parentActionType?: string;
+  actionId?: string;
+  organizationId?: string;
   shortDescription?: string;
   metadata?: {
     actionName?: string;
     subActionName?: string;
     coverImage?: string;
+    actionId?: string;
+    organizationId?: string;
+    actionType?: string;
+    parentType?: string;
+    parentActionType?: string;
+    rank?: number;
+    candidateRank?: number;
+    votes?: number;
+    candidateVotes?: number;
+    totalCandidates?: number;
+    [key: string]: any;
   };
   status: string;
   availability?: { endsAt?: string; startsAt?: string };
@@ -35,6 +50,20 @@ interface RecentAction {
   totalSubActionBalance?: number;
   currency?: string;
   coverImage?: string;
+}
+
+interface VoteStanding {
+  id: string;
+  name: string;
+  votes: number;
+  rank: number;
+}
+
+interface VoteData {
+  standings: VoteStanding[];
+  myCandidate: string;
+  myRank: number | null;
+  organizationId?: string;
 }
 
 interface PendingContribution {
@@ -48,11 +77,12 @@ interface PendingContribution {
   currency: string;
   goalAmount: number;
   collectedAmount: number;
+  status: 'active' | 'completed' | 'closed' | 'expired';
+  myPayment?: { id: string; amount: number; createdAt: string } | null;
 }
 
 interface RecentActionsProps {
   userId?: string;
-  onCreateAction?: () => void;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -61,6 +91,12 @@ const fmtRwf = (n: number, cur = 'RWF') =>
   new Intl.NumberFormat('en-RW', { style: 'currency', currency: cur, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
 
 const isExpired = (endsAt?: string) => !!endsAt && new Date(endsAt) < new Date();
+
+const ordinal = (n: number) => {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+};
 
 const getDaysRemaining = (endsAt?: string) => {
   if (!endsAt) return null;
@@ -89,7 +125,6 @@ function TicketRow({ action, onClick }: { action: RecentAction; onClick: () => v
       onClick={onClick}
       className="w-full flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-darkBg-interactive hover:bg-emerald-50 dark:hover:bg-darkBg-main border border-gray-100 dark:border-darkBorder-light hover:border-brand-green/30 transition-all text-left group"
     >
-      {/* Thumbnail */}
       <div className="w-11 h-11 rounded-lg overflow-hidden flex-shrink-0 bg-emerald-100 dark:bg-darkBg-main flex items-center justify-center">
         {cover ? (
           <img src={cover} alt={name} className="w-full h-full object-cover" />
@@ -98,7 +133,6 @@ function TicketRow({ action, onClick }: { action: RecentAction; onClick: () => v
         )}
       </div>
 
-      {/* Info */}
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{name}</p>
         {tier && <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{tier}</p>}
@@ -109,7 +143,6 @@ function TicketRow({ action, onClick }: { action: RecentAction; onClick: () => v
         )}
       </div>
 
-      {/* Valid badge */}
       <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800">
         Valid
       </span>
@@ -117,7 +150,54 @@ function TicketRow({ action, onClick }: { action: RecentAction; onClick: () => v
   );
 }
 
-function ContributionRow({ c, onClick }: { c: any; onClick: () => void }) {
+function VoteStandingRow({
+  action,
+  voteData,
+  onClick,
+}: {
+  action: RecentAction;
+  voteData?: VoteData;
+  onClick: () => void;
+}) {
+  const actionName  = action.metadata?.actionName || action.name || 'Vote';
+  const myCandidate = voteData?.myCandidate || action.metadata?.subActionName || '';
+  const myRank      = voteData?.myRank ?? action.metadata?.rank ?? action.metadata?.candidateRank ?? null;
+  const top2        = (voteData?.standings ?? []).slice(0, 2);
+
+  const myRankLabel = myRank != null ? ordinal(myRank) : null;
+
+  const placeEmoji = (rank: number) => rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}.`;
+
+  return (
+    <button
+      onClick={onClick}
+      className="w-full p-3 rounded-xl bg-gray-50 dark:bg-darkBg-interactive hover:bg-orange-50 dark:hover:bg-darkBg-main border border-gray-100 dark:border-darkBorder-light hover:border-orange-300/30 transition-all text-left"
+    >
+      <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider truncate mb-1.5">{actionName}</p>
+
+      {myCandidate && (
+        <p className="text-[11px] truncate leading-tight mb-1">
+          <span className="text-gray-500 dark:text-gray-400">Your choice: </span>
+          <span className="font-semibold text-orange-600 dark:text-orange-400">{myCandidate}</span>
+          {myRankLabel && (
+            <span className="ml-1 text-[10px] font-bold text-orange-500 dark:text-orange-400">· {myRankLabel}</span>
+          )}
+        </p>
+      )}
+
+      <div className="space-y-0.5">
+        {top2.map((s, i) => (
+          <p key={s.id} className="text-[11px] text-gray-600 dark:text-gray-300 truncate leading-tight">
+            <span className="mr-1">{placeEmoji(i + 1)}</span>
+            <span className="font-medium">{s.name}</span>
+          </p>
+        ))}
+      </div>
+    </button>
+  );
+}
+
+function ContributionRow({ c, onClick }: { c: PendingContribution; onClick: () => void }) {
   const progress = c.goalAmount > 0 ? Math.min((c.collectedAmount / c.goalAmount) * 100, 100) : 0;
   const isPaid = !!c.myPayment;
   const isActive = c.status === 'active';
@@ -139,12 +219,10 @@ function ContributionRow({ c, onClick }: { c: any; onClick: () => void }) {
       onClick={onClick}
       className="w-full flex items-center gap-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-900/10 hover:bg-amber-100 dark:hover:bg-amber-900/20 border border-amber-100 dark:border-amber-800/30 hover:border-amber-300 dark:hover:border-amber-700 transition-all text-left group"
     >
-      {/* Icon */}
       <div className="w-11 h-11 rounded-lg flex-shrink-0 bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
         <Target size={18} className="text-amber-600 dark:text-amber-400" />
       </div>
 
-      {/* Info */}
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{c.title}</p>
         <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{c.groupName}</p>
@@ -192,12 +270,10 @@ function OrgActionRow({
       onClick={onClick}
       className="w-full flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-darkBg-interactive hover:bg-emerald-50 dark:hover:bg-darkBg-main border border-gray-100 dark:border-darkBorder-light hover:border-brand-green/30 transition-all text-left group"
     >
-      {/* Icon */}
       <div className="w-11 h-11 rounded-lg flex-shrink-0 bg-brand-green/10 dark:bg-brand-gold/10 flex items-center justify-center">
         <Ticket size={18} className="text-brand-green dark:text-brand-gold" />
       </div>
 
-      {/* Info */}
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{action.name}</p>
         {action.shortDescription && (
@@ -215,7 +291,6 @@ function OrgActionRow({
         )}
       </div>
 
-      {/* Status + draft CTA */}
       <div className="flex-shrink-0 flex flex-col items-end gap-1">
         <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${statusCls}`}>
           {statusLabel}
@@ -238,12 +313,14 @@ function OrgActionRow({
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export const RecentActions = ({ userId, onCreateAction }: RecentActionsProps) => {
-  const [tickets, setTickets]                   = useState<RecentAction[]>([]);
-  const [pendingContributions, setPending]       = useState<PendingContribution[]>([]);
-  const [orgActions, setOrgActions]              = useState<RecentAction[]>([]);
-  const [isOrganization, setIsOrganization]      = useState(false);
-  const [loading, setLoading]                   = useState(true);
+export const RecentActions = ({ userId }: RecentActionsProps) => {
+  const [tickets, setTickets]               = useState<RecentAction[]>([]);
+  const [voteItems, setVoteItems]           = useState<RecentAction[]>([]);
+  const [voteDataMap, setVoteDataMap]       = useState<Record<string, VoteData>>({});
+  const [pendingContributions, setPending]  = useState<PendingContribution[]>([]);
+  const [orgActions, setOrgActions]         = useState<RecentAction[]>([]);
+  const [isOrganization, setIsOrganization] = useState(false);
+  const [loading, setLoading]               = useState(true);
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
   const { getToken } = useAuthToken();
   const router = useRouter();
@@ -258,15 +335,11 @@ export const RecentActions = ({ userId, onCreateAction }: RecentActionsProps) =>
     const load = async () => {
       setLoading(true);
       try {
-        // Detect account type from the JWT — reliable, no API call needed.
-        // The org actions endpoint always returns 200 for any ID, so API-based
-        // detection would misidentify every individual user as an organisation.
         const { accountType, organizationId } = getCurrentUserInfo();
         const isOrg = accountType === 'organization';
         setIsOrganization(isOrg);
 
         if (isOrg) {
-          // Org account: fetch this org's published public actions
           const orgId = organizationId ?? userId;
           const orgRes = await axios
             .get(`${baseUrl}/organizations/${orgId}/actions/public`, { headers })
@@ -286,25 +359,104 @@ export const RecentActions = ({ userId, onCreateAction }: RecentActionsProps) =>
           return;
         }
 
-        // Individual user: fetch tickets + group contributions in parallel
+        // Individual user: fetch QR objects + contributions in parallel
         const [qrRes, contribRes] = await Promise.allSettled([
           axios.get(`${baseUrl}/users/${userId}/qr-objects`, { headers }),
           getMyGroupContributions(),
         ]);
 
-        // Tickets: 2 most recent valid, non-expired
         if (qrRes.status === 'fulfilled') {
           const items: RecentAction[] = qrRes.value?.data?.data || qrRes.value?.data || [];
-          const recent = Array.isArray(items)
-            ? items
-                .filter((i) => i.status?.toLowerCase() === 'valid' && !isExpired(i.validUntil))
-                .slice(0, 2)
-            : [];
-          setTickets(recent);
+          if (Array.isArray(items)) {
+            const valid = items.filter(i => i.status?.toLowerCase() === 'valid');
+
+            // Fetch action types + standings for all unique action IDs in parallel
+            const uniqueActionIds = [
+              ...new Set(
+                valid.map(i => i.metadata?.actionId || i.actionId).filter(Boolean) as string[]
+              ),
+            ];
+
+            const actionTypeMap: Record<string, string> = {};
+            const actionOrgMap: Record<string, string> = {};
+            const standingsMap: Record<string, VoteStanding[]> = {};
+
+            await Promise.allSettled(
+              uniqueActionIds.map(async (actionId) => {
+                const res = await axios.get(`${baseUrl}/actions/${actionId}`, { headers }).catch(() => null);
+                const action = res?.data?.data || res?.data;
+                if (!action) return;
+                actionTypeMap[actionId] = action.type;
+                if (action.organizationId) actionOrgMap[actionId] = action.organizationId;
+
+                if (action.type === 'vote') {
+                  const subRes = await axios
+                    .get(`${baseUrl}/actions/${actionId}/sub-actions`, { headers })
+                    .catch(() => null);
+                  const subs: any[] = subRes?.data?.data || subRes?.data || [];
+                  if (Array.isArray(subs)) {
+                    standingsMap[actionId] = subs
+                      .filter((s: any) => s.isActive !== false)
+                      .sort((a: any, b: any) =>
+                        Number(b.metadata?.votes ?? 0) - Number(a.metadata?.votes ?? 0)
+                      )
+                      .map((s: any, idx: number) => ({
+                        id: s.id,
+                        name: s.name,
+                        votes: Number(s.metadata?.votes ?? 0),
+                        rank: Number(s.metadata?.rank ?? idx + 1),
+                      }));
+                  }
+                }
+              })
+            );
+
+            // Categorise items
+            const votes: RecentAction[] = [];
+            const regularTickets: RecentAction[] = [];
+
+            for (const item of valid) {
+              const actionId = item.metadata?.actionId || item.actionId;
+              const resolvedType = actionId
+                ? (actionTypeMap[actionId] ?? item.type)
+                : item.type;
+
+              if (resolvedType === 'vote') {
+                votes.push(item);
+              } else if (!isExpired(item.validUntil)) {
+                regularTickets.push(item);
+              }
+            }
+
+            setVoteItems(votes.slice(0, 2));
+            setTickets(regularTickets.slice(0, 2));
+
+            // Build per-QR-object vote data (standings + my position)
+            const newMap: Record<string, VoteData> = {};
+            for (const item of votes) {
+              const actionId = item.metadata?.actionId || item.actionId || '';
+              const myCandidate = item.metadata?.subActionName || '';
+              const standings = standingsMap[actionId] ?? [];
+              const fromStandings = standings.find(
+                s => s.name.toLowerCase() === myCandidate.toLowerCase()
+              )?.rank ?? null;
+              const myRank =
+                fromStandings ??
+                item.metadata?.rank ??
+                item.metadata?.candidateRank ??
+                null;
+              const organizationId =
+                item.metadata?.organizationId ||
+                item.organizationId ||
+                actionOrgMap[actionId] ||
+                '';
+              newMap[item.id] = { standings, myCandidate, myRank, organizationId };
+            }
+            setVoteDataMap(newMap);
+          }
         }
 
-        // Contributions: active ones first (unpaid before paid), capped at 2.
-        // Fall back to expired/closed only when there are no active ones at all.
+        // Contributions: unpaid first, up to 2
         if (contribRes.status === 'fulfilled') {
           const all: any[] = contribRes.value?.data?.data || contribRes.value?.data || [];
           if (Array.isArray(all)) {
@@ -328,13 +480,13 @@ export const RecentActions = ({ userId, onCreateAction }: RecentActionsProps) =>
     load();
   }, [userId]); // getToken intentionally omitted — reads storage, never changes meaningfully
 
-  const goToActions    = () => router.push(`/action/${userId}`);
-  const goToContribs   = (groupId?: string) =>
+  const goToActions  = () => router.push(`/action/${userId}`);
+  const goToContribs = (groupId?: string) =>
     router.push(`/action/${userId}?tab=contributions${groupId ? `&group=${groupId}` : ''}`);
 
   const hasContent = isOrganization
     ? orgActions.length > 0
-    : tickets.length > 0 || pendingContributions.length > 0;
+    : tickets.length > 0 || voteItems.length > 0 || pendingContributions.length > 0;
 
   return (
     <div className="bg-white dark:bg-darkBg-card rounded-2xl shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-100 dark:border-darkBorder-light overflow-hidden">
@@ -418,7 +570,7 @@ export const RecentActions = ({ userId, onCreateAction }: RecentActionsProps) =>
             ))}
           </div>
         ) : (
-          /* ── Individual: tickets + pending contributions ── */
+          /* ── Individual: tickets + votes + contributions ── */
           <>
             {tickets.length > 0 && (
               <div>
@@ -428,6 +580,35 @@ export const RecentActions = ({ userId, onCreateAction }: RecentActionsProps) =>
                 <div className="space-y-2">
                   {tickets.map((t) => (
                     <TicketRow key={t.id} action={t} onClick={goToActions} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {voteItems.length > 0 && (
+              <div>
+                <p className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2 px-1">
+                  Your Votes
+                </p>
+                <div className="space-y-2">
+                  {voteItems.map((v) => (
+                    <VoteStandingRow
+                      key={v.id}
+                      action={v}
+                      voteData={voteDataMap[v.id]}
+                      onClick={() => {
+                        const actionId = v.metadata?.actionId || v.actionId;
+                        const orgId =
+                          voteDataMap[v.id]?.organizationId ||
+                          v.metadata?.organizationId ||
+                          v.organizationId;
+                        if (actionId && orgId) {
+                          router.push(`/welcome/${orgId}/action/${actionId}`);
+                        } else {
+                          goToActions();
+                        }
+                      }}
+                    />
                   ))}
                 </div>
               </div>
