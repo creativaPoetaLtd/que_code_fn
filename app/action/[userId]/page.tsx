@@ -22,6 +22,7 @@ import {
     ChevronRight,
     Lock,
     ArrowRight,
+    Plus,
 } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import Navigation from '@/components/Navigation';
@@ -127,6 +128,12 @@ interface MyContribution {
 
 const fmtRwf = (n: number, cur = 'RWF') =>
     new Intl.NumberFormat('en-RW', { style: 'currency', currency: cur, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
+
+const toOrdinal = (n: number) => {
+    const s = ['th', 'st', 'nd', 'rd'];
+    const v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+};
 
 function ContributeFlow({ contribution, onSuccess }: { contribution: MyContribution; onSuccess: (amount: number) => void }) {
     type Step = 'idle' | 'enter_amount' | 'enter_pin' | 'loading';
@@ -423,6 +430,7 @@ const ActionsByAccountPage = () => {
     const [isSubActionsModalOpen, setIsSubActionsModalOpen] = useState(false);
     const [wizardOpen, setWizardOpen] = useState(false);
     const [editingActionId, setEditingActionId] = useState<string | null>(null);
+    const [preSelectedType, setPreSelectedType] = useState<string | null>(null);
     const [creatingSubAction, setCreatingSubAction] = useState(false);
     const [qrValidatorOpen, setQrValidatorOpen] = useState(false);
     const [subActionError, setSubActionError] = useState<string | null>(null);
@@ -437,6 +445,8 @@ const ActionsByAccountPage = () => {
     const [purchasedActionsFilter, setPurchasedActionsFilter] = useState<'all' | 'archive'>('all');
     const [editingSubActionId, setEditingSubActionId] = useState<string | null>(null);
     const [markingAsUsed, setMarkingAsUsed] = useState<Record<string, boolean>>({});
+    const [resolvedTypeMap, setResolvedTypeMap] = useState<Record<string, string>>({});
+    const [voteStandingsMap, setVoteStandingsMap] = useState<Record<string, { id: string; name: string; votes: number; rank: number }[]>>({});
 
     // Group contributions tab
     const [individualTab, setIndividualTab] = useState<'actions' | 'contributions'>('actions');
@@ -581,6 +591,37 @@ const ActionsByAccountPage = () => {
             fetchMyContributions();
         }
     }, [accountMode, individualTab, fetchMyContributions]);
+
+    useEffect(() => {
+        if (!purchasedActions.length) return;
+        const token = getToken();
+        if (!token) return;
+        const headers = { Authorization: `Bearer ${token}` };
+        const uniqueIds = Array.from(
+            new Set(
+                purchasedActions.map(i => i.metadata?.actionId || i.actionId).filter(Boolean) as string[]
+            )
+        );
+        Promise.allSettled(
+            uniqueIds.map(async (actionId) => {
+                const res = await axios.get(`${baseUrl}/actions/${actionId}`, { headers }).catch(() => null);
+                const action = res?.data?.data || res?.data;
+                if (!action) return;
+                setResolvedTypeMap(prev => ({ ...prev, [actionId]: action.type }));
+                if (action.type === 'vote') {
+                    const subRes = await axios.get(`${baseUrl}/actions/${actionId}/sub-actions`, { headers }).catch(() => null);
+                    const subs: any[] = subRes?.data?.data || subRes?.data || [];
+                    if (Array.isArray(subs)) {
+                        const standings = subs
+                            .filter((s: any) => s.isActive !== false)
+                            .sort((a: any, b: any) => Number(b.metadata?.votes ?? 0) - Number(a.metadata?.votes ?? 0))
+                            .map((s: any, idx: number) => ({ id: s.id, name: s.name, votes: Number(s.metadata?.votes ?? 0), rank: idx + 1 }));
+                        setVoteStandingsMap(prev => ({ ...prev, [actionId]: standings }));
+                    }
+                }
+            })
+        );
+    }, [purchasedActions, getToken]);
 
     const pageTitle = useMemo(() => {
         if (isLoggedInAsOrganization && isViewingAnotherUser && accountMode === 'individual') {
@@ -826,6 +867,7 @@ const ActionsByAccountPage = () => {
     const handleWizardCompleted = () => {
         setWizardOpen(false);
         setEditingActionId(null);
+        setPreSelectedType(null);
         if (effectiveUserId) {
             fetchData(effectiveUserId);
         }
@@ -834,6 +876,7 @@ const ActionsByAccountPage = () => {
     const handleWizardClose = () => {
         setWizardOpen(false);
         setEditingActionId(null);
+        setPreSelectedType(null);
     };
 
     // Handler for organizations to mark a QR object as used
@@ -1034,120 +1077,223 @@ const ActionsByAccountPage = () => {
                         </p>
                     </div>
                 ) : (
-                    <div className="grid gap-6 md:grid-cols-2">
-                    {filteredPurchasedActions.map((item) => (
-                        <div
-                            key={item.id}
-                            className="bg-white dark:bg-darkBg-card rounded-3xl border border-emerald-50 dark:border-darkBorder-light shadow-lg shadow-emerald-100/40 dark:shadow-none p-6 relative overflow-hidden"
-                        >
-                        <div className="flex items-start justify-between gap-4">
-                            <div>
-                                <p className="text-xs uppercase tracking-[0.2em] text-emerald-500 dark:text-brand-green font-semibold mb-2">
-                                    {item.type || 'QR Object'}
-                                </p>
-                                <h3 className="text-2xl font-bold text-[#00313A] dark:text-white leading-tight">
-                                    {item.metadata?.actionName || 'Unnamed Action'}
-                                </h3>
-                                {item.metadata?.subActionName && (
-                                    <p className="text-sm text-[#00313A]/70 dark:text-gray-300 font-medium mt-1">
-                                        {item.metadata.subActionName}
-                                    </p>
-                                )}
-                            </div>
-                            <span
-                                className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${
-                                    isQRObjectExpired(item)
-                                        ? statusClasses['expired']
-                                        : statusClasses[item.status?.toLowerCase()] ||
-                                    'bg-gray-100 dark:bg-darkBg-interactive text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-darkBorder-light'
-                                }`}
-                            >
-                                {isQRObjectExpired(item) ? 'Expired' : item.status || 'unknown'}
+                    <div className="grid gap-4 md:grid-cols-2">
+                    {filteredPurchasedActions.map((item) => {
+                        const actionId = item.metadata?.actionId || item.actionId || '';
+                        const orgId = item.metadata?.organizationId || item.organizationId || '';
+                        const resolvedType = actionId ? (resolvedTypeMap[actionId] ?? item.type ?? 'ticket') : (item.type ?? 'ticket');
+                        const isExpiredItem = isQRObjectExpired(item);
+                        const cover = item.coverImage || item.metadata?.coverImage;
+
+                        const TYPE_CONFIG: Record<string, { icon: string; label: string; accent: string; accentBg: string; border: string; btnBg: string }> = {
+                            ticket:     { icon: '🎟️', label: 'Ticket',        accent: 'text-emerald-600 dark:text-emerald-400', accentBg: 'bg-emerald-50 dark:bg-emerald-900/20', border: 'border-emerald-100 dark:border-emerald-800/40', btnBg: 'bg-[#00B512] hover:bg-[#00a010]' },
+                            vote:       { icon: '🗳️', label: 'Vote Receipt',  accent: 'text-orange-600 dark:text-orange-400',   accentBg: 'bg-orange-50 dark:bg-orange-900/10',   border: 'border-orange-100 dark:border-orange-800/40', btnBg: 'bg-orange-500 hover:bg-orange-600' },
+                            transport:  { icon: '🚌', label: 'Transport Pass', accent: 'text-blue-600 dark:text-blue-400',       accentBg: 'bg-blue-50 dark:bg-blue-900/10',       border: 'border-blue-100 dark:border-blue-800/40',    btnBg: 'bg-blue-500 hover:bg-blue-600' },
+                            service:    { icon: '🛠️', label: 'Service',        accent: 'text-violet-600 dark:text-violet-400',   accentBg: 'bg-violet-50 dark:bg-violet-900/10',   border: 'border-violet-100 dark:border-violet-800/40', btnBg: 'bg-violet-500 hover:bg-violet-600' },
+                            booking:    { icon: '📅', label: 'Booking',        accent: 'text-cyan-600 dark:text-cyan-400',       accentBg: 'bg-cyan-50 dark:bg-cyan-900/10',       border: 'border-cyan-100 dark:border-cyan-800/40',    btnBg: 'bg-cyan-500 hover:bg-cyan-600' },
+                            membership: { icon: '🏅', label: 'Membership',     accent: 'text-amber-600 dark:text-amber-400',     accentBg: 'bg-amber-50 dark:bg-amber-900/10',     border: 'border-amber-100 dark:border-amber-800/40',  btnBg: 'bg-amber-500 hover:bg-amber-600' },
+                        };
+                        const cfg = TYPE_CONFIG[resolvedType] ?? TYPE_CONFIG.ticket;
+
+                        const statusBadge = (
+                            <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold capitalize flex-shrink-0 ${
+                                isExpiredItem ? statusClasses['expired'] :
+                                statusClasses[item.status?.toLowerCase()] ||
+                                'bg-gray-100 dark:bg-darkBg-interactive text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-darkBorder-light'
+                            }`}>
+                                {isExpiredItem ? 'Expired' : item.status || 'unknown'}
                             </span>
-                        </div>
+                        );
 
-                        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-[#00313A] dark:text-gray-200">
-                            <div className="flex flex-col gap-1">
-                                <span className="text-xs font-semibold text-[#00B512] uppercase tracking-widest">Issued</span>
-                                <span className="font-medium">{formatDate(item.issuedAt || item.createdAt)}</span>
-                            </div>
-                            <div className="flex flex-col gap-1">
-                                <span className="text-xs font-semibold text-[#00B512] uppercase tracking-widest">
-                                    Valid Until
-                                </span>
-                                <span className="font-medium">{formatDate(item.validUntil)}</span>
-                            </div>
-                            <div className="flex flex-col gap-1">
-                                <span className="text-xs font-semibold text-[#00B512] uppercase tracking-widest">Quantity</span>
-                                <span className="font-medium">{item.metadata?.quantity ?? 1}</span>
-                            </div>
-                            {item.metadata?.seatType && (
-                                <div className="flex flex-col gap-1">
-                                    <span className="text-xs font-semibold text-[#00B512] uppercase tracking-widest">Seat</span>
-                                    <span className="font-medium capitalize">{item.metadata.seatType}</span>
-                                </div>
-                            )}
-                        </div>
+                        // ── VOTE RECEIPT CARD ────────────────────────────────
+                        if (resolvedType === 'vote') {
+                            const standings = voteStandingsMap[actionId] ?? [];
+                            const myCandidate = item.metadata?.subActionName || '';
+                            const myFromStandings = standings.find(s => s.name.toLowerCase() === myCandidate.toLowerCase());
+                            const myRank = myFromStandings?.rank ?? item.metadata?.rank ?? item.metadata?.candidateRank ?? null;
+                            const myRankLabel = myRank != null ? toOrdinal(myRank) : null;
+                            const placeEmoji = (r: number) => r === 1 ? '🥇' : r === 2 ? '🥈' : r === 3 ? '🥉' : `${r}.`;
+                            const myRankColor = myRank === 1 ? 'text-yellow-600 dark:text-yellow-400' : myRank === 2 ? 'text-gray-500 dark:text-gray-300' : myRank === 3 ? 'text-amber-600 dark:text-amber-500' : 'text-blue-600 dark:text-blue-400';
+                            const actionName = item.metadata?.actionName || 'Vote';
 
-                        {Array.isArray(item.metadata?.benefits) && item.metadata.benefits.length > 0 ? (
-                            <div className="mt-5">
-                                <p className="text-xs font-semibold text-[#00B512] dark:text-brand-green uppercase tracking-widest mb-2">Benefits</p>
-                                <ul className="space-y-1 text-sm text-[#00313A]/80 dark:text-gray-300">
-                                    {item.metadata.benefits.map((benefit) => (
-                                        <li key={`${item.id}-${benefit}`} className="flex items-center gap-2">
-                                            <CheckCircle2 className="w-4 h-4 text-[#00B512] dark:text-brand-green" />
-                                            <span>{benefit}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        ) : null}
+                            return (
+                                <div key={item.id} className={`bg-white dark:bg-darkBg-card rounded-3xl border ${cfg.border} shadow-md overflow-hidden`}>
+                                    {/* Header strip */}
+                                    <div className={`${cfg.accentBg} px-5 py-4 flex items-center gap-3`}>
+                                        <div className="w-11 h-11 rounded-full bg-white dark:bg-darkBg-card flex items-center justify-center shadow-sm flex-shrink-0 overflow-hidden">
+                                            {cover
+                                                ? <img src={cover} alt={actionName} className="w-11 h-11 object-cover" />
+                                                : <span className="text-xl">{cfg.icon}</span>
+                                            }
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className={`text-[10px] font-bold uppercase tracking-widest ${cfg.accent}`}>{cfg.label}</p>
+                                            <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{actionName}</p>
+                                        </div>
+                                        {statusBadge}
+                                    </div>
 
-                        {item.qrCodeData && (
-                            <div className="mt-6 bg-[#f4fff9] dark:bg-darkBg-interactive border border-[#00B512]/10 dark:border-darkBorder-light rounded-2xl p-4 flex flex-col sm:flex-row items-center gap-4">
-                                <div className="p-2 bg-white dark:bg-darkBg-main rounded-xl border border-[#00B512]/20 dark:border-darkBorder-medium shadow-inner">
-                                    <img
-                                        src={item.qrCodeData}
-                                        alt={`${item.metadata?.actionName || 'Action'} QR`}
-                                        className="w-28 h-28 object-contain"
-                                    />
-                                </div>
-                                <div className="flex-1 text-sm text-[#00313A]/80 dark:text-gray-300">
-                                    <p className="font-semibold text-[#00313A] dark:text-white">Show this QR code to redeem your action.</p>
-                                    <p className="mt-1">
-                                        {item.usedAt
-                                            ? `Used ${formatDate(item.usedAt)}`
-                                            : 'Not used yet. Keep it safe for event day.'}
-                                    </p>
-                                    <div className="flex flex-wrap gap-2 mt-3">
-                                        <button
-                                            onClick={() => handleDownloadTicket(item)}
-                                            className="inline-flex items-center gap-2 px-3 py-2 rounded-full bg-[#00B512] text-white text-xs font-semibold shadow hover:bg-[#00a010]"
-                                        >
-                                            <Download size={16} />
-                                            Download Ticket (PDF)
-                                        </button>
-                                        {/* Show Mark as Used button for organizations viewing another user's QR objects */}
-                                        {isLoggedInAsOrganization && isViewingAnotherUser && item.status?.toLowerCase() !== 'used' && (
+                                    <div className="p-5 space-y-4">
+                                        {/* My choice */}
+                                        {myCandidate && (
+                                            <div className="bg-orange-50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/30 rounded-2xl p-3.5">
+                                                <p className="text-[10px] font-semibold text-orange-400 uppercase tracking-wider mb-1.5">Your Vote</p>
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <p className="font-bold text-orange-600 dark:text-orange-400 text-sm">{myCandidate}</p>
+                                                    {myRankLabel && (
+                                                        <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full bg-white dark:bg-darkBg-card border border-orange-200 dark:border-orange-800/40 ${myRankColor}`}>
+                                                            {myRankLabel} place
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Standings */}
+                                        {standings.length > 0 && (
+                                            <div>
+                                                <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Standings</p>
+                                                <div className="space-y-1.5">
+                                                    {standings.slice(0, 3).map((s, i) => {
+                                                        const isMe = myCandidate && s.name.toLowerCase() === myCandidate.toLowerCase();
+                                                        return (
+                                                            <div key={s.id} className={`flex items-center gap-2.5 px-3 py-2 rounded-xl ${isMe ? 'bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-800/30' : 'bg-gray-50 dark:bg-darkBg-interactive'}`}>
+                                                                <span className="text-base w-6 text-center leading-none">{placeEmoji(i + 1)}</span>
+                                                                <span className={`flex-1 text-sm truncate ${isMe ? 'font-bold text-orange-600 dark:text-orange-400' : 'font-medium text-gray-700 dark:text-gray-200'}`}>{s.name}</span>
+                                                                {s.votes > 0 && <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">{s.votes} votes</span>}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* View voting page */}
+                                        {actionId && orgId && (
                                             <button
-                                                onClick={() => handleMarkQRObjectAsUsed(item.id)}
-                                                disabled={markingAsUsed[item.id]}
-                                                className="inline-flex items-center gap-2 px-3 py-2 rounded-full bg-purple-600 text-white text-xs font-semibold shadow hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                onClick={() => router.push(`/welcome/${orgId}/action/${actionId}`)}
+                                                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-full border-2 border-orange-400 dark:border-orange-600 text-orange-600 dark:text-orange-400 text-sm font-semibold hover:bg-orange-50 dark:hover:bg-orange-900/10 transition-colors"
                                             >
-                                                {markingAsUsed[item.id] ? (
-                                                    <Loader2 size={16} className="animate-spin" />
-                                                ) : (
-                                                    <Check size={16} />
-                                                )}
-                                                Mark as Used
+                                                View Live Standings
+                                                <ArrowRight size={14} />
                                             </button>
                                         )}
                                     </div>
                                 </div>
+                            );
+                        }
+
+                        // ── TICKET / TRANSPORT / SERVICE / BOOKING / MEMBERSHIP ──
+                        const actionName = item.metadata?.actionName || 'Unnamed Action';
+                        const tier = item.metadata?.subActionName;
+
+                        return (
+                            <div key={item.id} className={`bg-white dark:bg-darkBg-card rounded-3xl border ${cfg.border} shadow-md overflow-hidden`}>
+                                {/* Cover image */}
+                                {cover && (
+                                    <div className="h-28 overflow-hidden relative">
+                                        <img src={cover} alt={actionName} className="w-full h-full object-cover" />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                                        <div className="absolute bottom-3 left-4 right-4 flex items-end justify-between gap-2">
+                                            <div className="min-w-0">
+                                                <p className="text-[10px] font-bold uppercase tracking-widest text-white/80">{cfg.icon} {cfg.label}</p>
+                                                <p className="text-sm font-bold text-white truncate leading-tight">{actionName}</p>
+                                                {tier && <p className="text-xs text-white/70 truncate">{tier}</p>}
+                                            </div>
+                                            {statusBadge}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Header (no cover) */}
+                                {!cover && (
+                                    <div className={`${cfg.accentBg} px-5 py-4 flex items-center gap-3`}>
+                                        <div className="w-10 h-10 rounded-xl bg-white dark:bg-darkBg-card flex items-center justify-center shadow-sm flex-shrink-0">
+                                            <span className="text-xl">{cfg.icon}</span>
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className={`text-[10px] font-bold uppercase tracking-widest ${cfg.accent}`}>{cfg.label}</p>
+                                            <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{actionName}</p>
+                                            {tier && <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{tier}</p>}
+                                        </div>
+                                        {statusBadge}
+                                    </div>
+                                )}
+
+                                <div className="px-5 pt-4 pb-5 space-y-4">
+                                    {/* Details grid */}
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <p className={`text-[10px] font-bold uppercase tracking-wider mb-0.5 ${cfg.accent}`}>Issued</p>
+                                            <p className="text-xs font-medium text-gray-700 dark:text-gray-200">{formatDate(item.issuedAt || item.createdAt)}</p>
+                                        </div>
+                                        <div>
+                                            <p className={`text-[10px] font-bold uppercase tracking-wider mb-0.5 ${cfg.accent}`}>Valid Until</p>
+                                            <p className="text-xs font-medium text-gray-700 dark:text-gray-200">{formatDate(item.validUntil)}</p>
+                                        </div>
+                                        {(item.metadata?.quantity ?? 1) > 1 && (
+                                            <div>
+                                                <p className={`text-[10px] font-bold uppercase tracking-wider mb-0.5 ${cfg.accent}`}>Qty</p>
+                                                <p className="text-xs font-medium text-gray-700 dark:text-gray-200">{item.metadata?.quantity}</p>
+                                            </div>
+                                        )}
+                                        {item.metadata?.seatType && (
+                                            <div>
+                                                <p className={`text-[10px] font-bold uppercase tracking-wider mb-0.5 ${cfg.accent}`}>Seat</p>
+                                                <p className="text-xs font-medium text-gray-700 dark:text-gray-200 capitalize">{item.metadata.seatType}</p>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Benefits */}
+                                    {Array.isArray(item.metadata?.benefits) && item.metadata.benefits.length > 0 && (
+                                        <div>
+                                            <p className={`text-[10px] font-bold uppercase tracking-wider mb-1.5 ${cfg.accent}`}>Benefits</p>
+                                            <ul className="space-y-1">
+                                                {item.metadata.benefits.map((b: string) => (
+                                                    <li key={b} className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-300">
+                                                        <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0 text-emerald-500" />{b}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+
+                                    {/* QR + actions */}
+                                    {item.qrCodeData && (
+                                        <div className={`${cfg.accentBg} border ${cfg.border} rounded-2xl p-4 flex items-center gap-4`}>
+                                            <div className="p-1.5 bg-white dark:bg-darkBg-main rounded-xl shadow-sm flex-shrink-0">
+                                                <img src={item.qrCodeData} alt="QR" className="w-20 h-20 object-contain" />
+                                            </div>
+                                            <div className="flex-1 min-w-0 space-y-2">
+                                                <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">
+                                                    {item.usedAt ? `Used ${formatDate(item.usedAt)}` : 'Show at entry to redeem'}
+                                                </p>
+                                                <div className="flex flex-col gap-1.5">
+                                                    <button
+                                                        onClick={() => handleDownloadTicket(item)}
+                                                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white text-xs font-semibold shadow ${cfg.btnBg}`}
+                                                    >
+                                                        <Download size={12} /> Download PDF
+                                                    </button>
+                                                    {isLoggedInAsOrganization && isViewingAnotherUser && item.status?.toLowerCase() !== 'used' && (
+                                                        <button
+                                                            onClick={() => handleMarkQRObjectAsUsed(item.id)}
+                                                            disabled={!!markingAsUsed[item.id]}
+                                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-600 text-white text-xs font-semibold shadow hover:bg-purple-700 disabled:opacity-50"
+                                                        >
+                                                            {markingAsUsed[item.id] ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                                                            Mark as Used
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        )}
-                    </div>
-                ))}
+                        );
+                    })}
                     </div>
                 )}
             </div>
@@ -1179,63 +1325,132 @@ const ActionsByAccountPage = () => {
         const filteredActions = getFilteredOrganizationActions();
 
         return (
-            <div className="space-y-4">
-                {/* Filter and Action Buttons - Always Visible */}
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="flex flex-wrap gap-4 items-center">
-                        <div>
-                            <label className="block text-xs font-semibold text-[#00313A] dark:text-white uppercase mb-2">Status</label>
-                            <div className="flex flex-wrap gap-2">
-                                {[
-                                    { value: 'all', label: 'All' },
-                                    { value: 'published', label: 'Published' },
-                                    { value: 'draft', label: 'Draft' },
-                                    { value: 'archived', label: 'Archived' }
-                                ].map(filter => {
-                                    let count = 0;
-                                    if (filter.value === 'all') {
-                                        count = organizationActions.length;
-                                    } else if (filter.value === 'archived') {
-                                        count = organizationActions.filter(action => action.status === 'archived' || isActionExpired(action)).length;
-                                    } else {
-                                        count = organizationActions.filter(action => action.status === filter.value && !isActionExpired(action)).length;
-                                    }
-                                    return (
-                                        <button
-                                            key={filter.value}
-                                            onClick={() => setStatusFilter(filter.value as 'all' | 'draft' | 'published' | 'archived')}
-                                            className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
-                                                statusFilter === filter.value
-                                                    ? 'bg-[#00B512] text-white shadow'
-                                                    : 'border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-interactive dark:text-white text-[#00313A] hover:bg-gray-50 dark:hover:bg-darkBg-card'
-                                            }`}
-                                        >
-                                            {`${filter.label} (${count})`}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    </div>
-                    <div className="flex justify-end gap-3">
+            <div className="space-y-5">
+                {/* Create New Action */}
+                <div>
+                    <p className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-3 flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5" />
+                        Create new action
+                    </p>
+                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+                        {/* Ticket */}
                         <button
-                            onClick={() => setQrValidatorOpen(true)}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-[#00B512] to-[#1fd331] text-white text-sm font-semibold shadow hover:shadow-lg transition-all"
+                            onClick={() => { setPreSelectedType('ticket'); setEditingActionId(null); setWizardOpen(true); }}
+                            className="group relative flex flex-col items-center gap-2 pt-5 pb-3 px-3 rounded-2xl border-2 border-dashed border-emerald-200 dark:border-emerald-800/60 hover:border-emerald-400 dark:hover:border-emerald-500 hover:bg-emerald-50/60 dark:hover:bg-emerald-900/20 transition-all duration-200"
                         >
-                            <Scan className="w-4 h-4" />
-                            Scan QR Code
+                            <span className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500 text-white shadow-sm shadow-emerald-300/50 group-hover:scale-110 transition-transform duration-200">
+                                <Plus className="w-3.5 h-3.5" strokeWidth={3} />
+                            </span>
+                            <span className="text-2xl group-hover:scale-110 transition-transform duration-200">🎟️</span>
+                            <span className="text-xs font-bold text-gray-700 dark:text-gray-200 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">Ticket</span>
+                            <span className="text-[10px] text-gray-400 dark:text-gray-500">Events & entry</span>
                         </button>
+
+                        {/* Transport */}
                         <button
-                            onClick={() => {
-                                setEditingActionId(null);
-                                setWizardOpen(true);
-                            }}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#00B512] text-white text-sm font-semibold shadow hover:bg-[#009a0f] transition-colors"
+                            onClick={() => { setPreSelectedType('transport'); setEditingActionId(null); setWizardOpen(true); }}
+                            className="group relative flex flex-col items-center gap-2 pt-5 pb-3 px-3 rounded-2xl border-2 border-dashed border-blue-200 dark:border-blue-800/60 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-blue-50/60 dark:hover:bg-blue-900/20 transition-all duration-200"
                         >
-                            <Sparkles className="w-4 h-4" />
-                            Create New Action
+                            <span className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center justify-center w-6 h-6 rounded-full bg-blue-500 text-white shadow-sm shadow-blue-300/50 group-hover:scale-110 transition-transform duration-200">
+                                <Plus className="w-3.5 h-3.5" strokeWidth={3} />
+                            </span>
+                            <span className="text-2xl group-hover:scale-110 transition-transform duration-200">🚌</span>
+                            <span className="text-xs font-bold text-gray-700 dark:text-gray-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">Transport</span>
+                            <span className="text-[10px] text-gray-400 dark:text-gray-500">Routes & fares</span>
+                        </button>
+
+                        {/* Service */}
+                        <button
+                            onClick={() => { setPreSelectedType('service'); setEditingActionId(null); setWizardOpen(true); }}
+                            className="group relative flex flex-col items-center gap-2 pt-5 pb-3 px-3 rounded-2xl border-2 border-dashed border-violet-200 dark:border-violet-800/60 hover:border-violet-400 dark:hover:border-violet-500 hover:bg-violet-50/60 dark:hover:bg-violet-900/20 transition-all duration-200"
+                        >
+                            <span className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center justify-center w-6 h-6 rounded-full bg-violet-500 text-white shadow-sm shadow-violet-300/50 group-hover:scale-110 transition-transform duration-200">
+                                <Plus className="w-3.5 h-3.5" strokeWidth={3} />
+                            </span>
+                            <span className="text-2xl group-hover:scale-110 transition-transform duration-200">🛠️</span>
+                            <span className="text-xs font-bold text-gray-700 dark:text-gray-200 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">Service</span>
+                            <span className="text-[10px] text-gray-400 dark:text-gray-500">Packages & work</span>
+                        </button>
+
+                        {/* Vote */}
+                        <button
+                            onClick={() => { setPreSelectedType('vote'); setEditingActionId(null); setWizardOpen(true); }}
+                            className="group relative flex flex-col items-center gap-2 pt-5 pb-3 px-3 rounded-2xl border-2 border-dashed border-orange-200 dark:border-orange-800/60 hover:border-orange-400 dark:hover:border-orange-500 hover:bg-orange-50/60 dark:hover:bg-orange-900/20 transition-all duration-200"
+                        >
+                            <span className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center justify-center w-6 h-6 rounded-full bg-orange-500 text-white shadow-sm shadow-orange-300/50 group-hover:scale-110 transition-transform duration-200">
+                                <Plus className="w-3.5 h-3.5" strokeWidth={3} />
+                            </span>
+                            <span className="text-2xl group-hover:scale-110 transition-transform duration-200">🗳️</span>
+                            <span className="text-xs font-bold text-gray-700 dark:text-gray-200 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">Vote</span>
+                            <span className="text-[10px] text-gray-400 dark:text-gray-500">Polls & elections</span>
+                        </button>
+
+                        {/* Booking */}
+                        <button
+                            onClick={() => { setPreSelectedType('booking'); setEditingActionId(null); setWizardOpen(true); }}
+                            className="group relative flex flex-col items-center gap-2 pt-5 pb-3 px-3 rounded-2xl border-2 border-dashed border-cyan-200 dark:border-cyan-800/60 hover:border-cyan-400 dark:hover:border-cyan-500 hover:bg-cyan-50/60 dark:hover:bg-cyan-900/20 transition-all duration-200"
+                        >
+                            <span className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center justify-center w-6 h-6 rounded-full bg-cyan-500 text-white shadow-sm shadow-cyan-300/50 group-hover:scale-110 transition-transform duration-200">
+                                <Plus className="w-3.5 h-3.5" strokeWidth={3} />
+                            </span>
+                            <span className="text-2xl group-hover:scale-110 transition-transform duration-200">📅</span>
+                            <span className="text-xs font-bold text-gray-700 dark:text-gray-200 group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">Booking</span>
+                            <span className="text-[10px] text-gray-400 dark:text-gray-500">Reservations</span>
+                        </button>
+
+                        {/* Membership */}
+                        <button
+                            onClick={() => { setPreSelectedType('membership'); setEditingActionId(null); setWizardOpen(true); }}
+                            className="group relative flex flex-col items-center gap-2 pt-5 pb-3 px-3 rounded-2xl border-2 border-dashed border-amber-200 dark:border-amber-800/60 hover:border-amber-400 dark:hover:border-amber-500 hover:bg-amber-50/60 dark:hover:bg-amber-900/20 transition-all duration-200"
+                        >
+                            <span className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center justify-center w-6 h-6 rounded-full bg-amber-500 text-white shadow-sm shadow-amber-300/50 group-hover:scale-110 transition-transform duration-200">
+                                <Plus className="w-3.5 h-3.5" strokeWidth={3} />
+                            </span>
+                            <span className="text-2xl group-hover:scale-110 transition-transform duration-200">🏅</span>
+                            <span className="text-xs font-bold text-gray-700 dark:text-gray-200 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">Membership</span>
+                            <span className="text-[10px] text-gray-400 dark:text-gray-500">Plans & tiers</span>
                         </button>
                     </div>
+                </div>
+
+                {/* Status filter + Scan QR */}
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-2 flex-wrap">
+                        {[
+                            { value: 'all', label: 'All' },
+                            { value: 'published', label: 'Published' },
+                            { value: 'draft', label: 'Draft' },
+                            { value: 'archived', label: 'Archived' },
+                        ].map(filter => {
+                            let count = 0;
+                            if (filter.value === 'all') count = organizationActions.length;
+                            else if (filter.value === 'archived') count = organizationActions.filter(a => a.status === 'archived' || isActionExpired(a)).length;
+                            else count = organizationActions.filter(a => a.status === filter.value && !isActionExpired(a)).length;
+                            return (
+                                <button
+                                    key={filter.value}
+                                    onClick={() => setStatusFilter(filter.value as 'all' | 'draft' | 'published' | 'archived')}
+                                    className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                                        statusFilter === filter.value
+                                            ? 'bg-[#00B512] text-white shadow-sm shadow-emerald-300/40 dark:shadow-emerald-900/40'
+                                            : 'border border-gray-200 dark:border-darkBorder-light text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-darkBorder-medium hover:bg-gray-50 dark:hover:bg-darkBg-interactive'
+                                    }`}
+                                >
+                                    {filter.label}
+                                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${statusFilter === filter.value ? 'bg-white/20' : 'bg-gray-100 dark:bg-darkBg-interactive text-gray-500 dark:text-gray-400'}`}>
+                                        {count}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                    <button
+                        onClick={() => setQrValidatorOpen(true)}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-[#00B512] to-[#1fd331] text-white text-xs font-semibold shadow-sm hover:shadow-md hover:shadow-emerald-300/30 transition-all"
+                    >
+                        <Scan className="w-3.5 h-3.5" />
+                        Scan QR Code
+                    </button>
                 </div>
 
                 {/* Content Section - Empty or Actions Grid */}
@@ -1245,20 +1460,9 @@ const ActionsByAccountPage = () => {
                             <Ticket className="w-5 h-5" />
                             <span>No actions published yet</span>
                         </div>
-                        <p className="text-gray-600 dark:text-gray-300 max-w-md mx-auto mb-6">
-                            Create your first action to start accepting payments or issuing tickets. They will appear here in the same
-                            layout visitors see on your welcome page.
+                        <p className="text-gray-600 dark:text-gray-300 max-w-md mx-auto">
+                            Select an action type above to get started. Your published actions will appear here in the same layout visitors see on your welcome page.
                         </p>
-                        <button
-                            onClick={() => {
-                                setEditingActionId(null);
-                                setWizardOpen(true);
-                            }}
-                            className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#00B512] text-white text-sm font-semibold shadow hover:bg-[#009a0f] transition-colors"
-                        >
-                            <Sparkles className="w-4 h-4" />
-                            Create Your First Action
-                        </button>
                     </div>
                 ) : filteredActions.length === 0 ? (
                     <div className="bg-white dark:bg-darkBg-card border border-blue-100 dark:border-darkBorder-light rounded-3xl p-8 text-center shadow-sm">
@@ -1720,6 +1924,7 @@ const ActionsByAccountPage = () => {
                         organizationId={effectiveUserId}
                         onCompleted={handleWizardCompleted}
                         editingActionId={editingActionId}
+                        preSelectedType={preSelectedType}
                     />
                     <QRObjectValidator
                         isOpen={qrValidatorOpen}

@@ -1,8 +1,95 @@
 'use client';
 import React, { useState, useMemo } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { ExternalLink, Loader2, QrCode, Search, Users, X } from 'lucide-react';
+import { ArrowDownUp, ExternalLink, LayoutGrid, List, Loader2, QrCode, Search, TrendingUp, Users, X } from 'lucide-react';
 import { ModalProps, SubAction } from './types';
+
+type SortMode = 'votes-desc' | 'votes-asc' | 'newest' | 'oldest' | 'trending' | 'custom';
+type ViewMode = 'grid' | 'list';
+
+const voteSortOptions: { value: SortMode; label: string; description: string }[] = [
+  { value: 'votes-desc', label: 'Highest votes', description: 'Most voted candidates first' },
+  { value: 'votes-asc', label: 'Lowest votes', description: 'Least voted candidates first' },
+  { value: 'newest', label: 'Newest first', description: 'Recently added candidates first' },
+  { value: 'oldest', label: 'Oldest first', description: 'Earlier candidates first' },
+  { value: 'trending', label: 'Trending', description: 'Vote momentum first' },
+  { value: 'custom', label: 'Custom rank', description: 'Sort order and rank fallback' },
+];
+
+function getCandidateVotes(candidate: SubAction) {
+  return Number(candidate.metadata?.votes ?? 0);
+}
+
+function getCandidateRank(candidate: SubAction) {
+  return Number(candidate.metadata?.rank ?? Number.MAX_SAFE_INTEGER);
+}
+
+function getCandidateAgeScore(candidate: SubAction) {
+  const createdAt = Date.parse(candidate.createdAt);
+  if (Number.isNaN(createdAt)) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  return Date.now() - createdAt;
+}
+
+function getVoteMomentum(candidate: SubAction) {
+  const ageHours = Math.max(getCandidateAgeScore(candidate) / 3_600_000, 1);
+  return getCandidateVotes(candidate) / ageHours;
+}
+
+function getTrendLabel(candidate: SubAction) {
+  const momentum = getVoteMomentum(candidate);
+
+  if (momentum >= 10) {
+    return 'Surging';
+  }
+
+  if (momentum >= 4) {
+    return 'Trending';
+  }
+
+  if (momentum >= 1) {
+    return 'Rising';
+  }
+
+  return 'Steady';
+}
+
+function compareCandidates(a: SubAction, b: SubAction, sortMode: SortMode) {
+  const votesA = getCandidateVotes(a);
+  const votesB = getCandidateVotes(b);
+  const rankA = getCandidateRank(a);
+  const rankB = getCandidateRank(b);
+  const sortOrderA = a.sortOrder ?? Number.MAX_SAFE_INTEGER;
+  const sortOrderB = b.sortOrder ?? Number.MAX_SAFE_INTEGER;
+  const createdAtA = Date.parse(a.createdAt) || 0;
+  const createdAtB = Date.parse(b.createdAt) || 0;
+  const trendA = votesA / Math.max(getCandidateAgeScore(a) / 3_600_000, 1);
+  const trendB = votesB / Math.max(getCandidateAgeScore(b) / 3_600_000, 1);
+
+  if (sortMode === 'votes-desc') {
+    return votesB - votesA || rankA - rankB || sortOrderA - sortOrderB || createdAtB - createdAtA || a.name.localeCompare(b.name);
+  }
+
+  if (sortMode === 'votes-asc') {
+    return votesA - votesB || rankA - rankB || sortOrderA - sortOrderB || createdAtA - createdAtB || a.name.localeCompare(b.name);
+  }
+
+  if (sortMode === 'newest') {
+    return createdAtB - createdAtA || votesB - votesA || rankA - rankB || sortOrderA - sortOrderB || a.name.localeCompare(b.name);
+  }
+
+  if (sortMode === 'oldest') {
+    return createdAtA - createdAtB || votesB - votesA || rankA - rankB || sortOrderA - sortOrderB || a.name.localeCompare(b.name);
+  }
+
+  if (sortMode === 'trending') {
+    return trendB - trendA || votesB - votesA || rankA - rankB || sortOrderA - sortOrderB || createdAtB - createdAtA || a.name.localeCompare(b.name);
+  }
+
+  return sortOrderA - sortOrderB || rankA - rankB || votesB - votesA || createdAtA - createdAtB || a.name.localeCompare(b.name);
+}
 
 export function VoteModal({
   action,
@@ -16,7 +103,10 @@ export function VoteModal({
 }: ModalProps) {
   const [selectedCandidate, setSelectedCandidate] = useState<SubAction | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filter, setFilter] = useState<'all' | 'top' | 'new'>('all');
+  const [filter, setFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [sortMode, setSortMode] = useState<SortMode>('votes-desc');
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [pinnedCandidateIds, setPinnedCandidateIds] = useState<string[]>([]);
   const [expandedMore, setExpandedMore] = useState<Record<string, boolean>>({});
 
   const activeSubActions = useMemo(
@@ -25,15 +115,34 @@ export function VoteModal({
   );
 
   const filteredCandidates = useMemo(() => {
-    let list = activeSubActions;
+    let list = filter === 'active' ? activeSubActions : subActions;
     if (searchQuery) {
       list = list.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()));
     }
-    if (filter === 'top') {
-      list = [...list].sort((a, b) => (b.metadata?.votes || 0) - (a.metadata?.votes || 0));
+    if (filter === 'inactive') {
+      list = list.filter(s => !s.isActive);
     }
-    return list;
-  }, [activeSubActions, searchQuery, filter]);
+    return [...list].sort((a, b) => compareCandidates(a, b, sortMode));
+  }, [activeSubActions, subActions, searchQuery, filter, sortMode]);
+
+  const pinnedCandidates = useMemo(
+    () => pinnedCandidateIds.map(candidateId => subActions.find(candidate => candidate.id === candidateId)).filter(Boolean) as SubAction[],
+    [subActions, pinnedCandidateIds]
+  );
+
+  const togglePinnedCandidate = (candidateId: string) => {
+    setPinnedCandidateIds(prev => {
+      if (prev.includes(candidateId)) {
+        return prev.filter(id => id !== candidateId);
+      }
+
+      if (prev.length >= 3) {
+        return [...prev.slice(1), candidateId];
+      }
+
+      return [...prev, candidateId];
+    });
+  };
 
   const handleVote = (candidate: SubAction) => {
     onDirectPurchase(candidate, { quantity: 1, buyerData: {} });
@@ -109,6 +218,43 @@ export function VoteModal({
               </p>
             )}
 
+            <div className="flex items-center justify-between gap-3">
+              <div className="inline-flex items-center gap-2 rounded-xl border border-[#1e2d40] bg-[#111927] p-1">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('grid')}
+                  aria-pressed={viewMode === 'grid'}
+                  aria-label="Grid view"
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    viewMode === 'grid'
+                      ? 'bg-[#1a3a5c] text-[#60a5fa]'
+                      : 'text-[#8da0b3] hover:text-[#f0f4f8]'
+                  }`}
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                  Grid
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('list')}
+                  aria-pressed={viewMode === 'list'}
+                  aria-label="List view"
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    viewMode === 'list'
+                      ? 'bg-[#1a3a5c] text-[#60a5fa]'
+                      : 'text-[#8da0b3] hover:text-[#f0f4f8]'
+                  }`}
+                >
+                  <List className="w-3.5 h-3.5" />
+                  List
+                </button>
+              </div>
+              <div className="inline-flex items-center gap-1.5 text-xs text-[#4a6278]">
+                <TrendingUp className="w-3.5 h-3.5" />
+                Sort by votes
+              </div>
+            </div>
+
             {/* Quick-pick: 2-line pills */}
             {activeSubActions.length > 0 && (
               <div className="flex flex-wrap gap-2">
@@ -133,7 +279,11 @@ export function VoteModal({
 
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#4a6278]" />
+              <label className="sr-only" htmlFor="vote-candidate-search">
+                Search candidates
+              </label>
               <input
+                id="vote-candidate-search"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder="Search candidate..."
@@ -141,10 +291,12 @@ export function VoteModal({
               />
             </div>
 
-            <div className="flex gap-2">
-              {(['all', 'top', 'new'] as const).map(f => (
+            <div className="flex flex-wrap gap-2">
+              {(['all', 'active', 'inactive'] as const).map(f => (
                 <button
                   key={f}
+                  type="button"
+                  aria-pressed={filter === f}
                   onClick={() => setFilter(f)}
                   className={`px-4 py-1.5 rounded-lg text-xs font-semibold capitalize transition-colors border ${
                     filter === f
@@ -152,10 +304,89 @@ export function VoteModal({
                       : 'bg-[#111927] border-[#1e2d40] text-[#8da0b3] hover:text-[#f0f4f8]'
                   }`}
                 >
-                  {f === 'all' ? 'All' : f === 'top' ? 'Top' : 'New'}
+                  {f === 'all' ? 'All' : f === 'active' ? 'Active' : 'Inactive'}
                 </button>
               ))}
             </div>
+
+            <div className="flex flex-wrap gap-2">
+              {voteSortOptions.map(option => (
+                <button
+                  key={option.value}
+                  type="button"
+                  aria-pressed={sortMode === option.value}
+                  title={option.description}
+                  onClick={() => setSortMode(option.value)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border ${
+                    sortMode === option.value
+                      ? 'bg-[#1a3a5c] border-[#3b82f6] text-[#60a5fa]'
+                      : 'bg-[#111927] border-[#1e2d40] text-[#8da0b3] hover:text-[#f0f4f8]'
+                  }`}
+                >
+                  <ArrowDownUp className="w-3.5 h-3.5" />
+                  {option.label}
+                </button>
+              ))}
+            </div>
+
+            {pinnedCandidates.length > 0 && (
+              <div className="rounded-2xl border border-[#1e2d40] bg-[#0d1525] p-4">
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <div>
+                    <p className="text-[#f0f4f8] text-sm font-semibold">Pinned comparison</p>
+                    <p className="text-[#4a6278] text-xs">Compare up to 3 candidates side by side</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPinnedCandidateIds([])}
+                    className="text-xs text-[#8da0b3] hover:text-[#f0f4f8] transition-colors"
+                  >
+                    Clear all
+                  </button>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {pinnedCandidates.map(candidate => {
+                    const votes = candidate.metadata?.votes;
+                    const rank = candidate.metadata?.rank;
+                    const trend = getTrendLabel(candidate);
+
+                    return (
+                      <div key={candidate.id} className="rounded-xl border border-[#1e2d40] bg-[#111927] p-3">
+                        <div className="flex items-start justify-between gap-3 mb-2">
+                          <div className="min-w-0">
+                            <p className="text-[#f0f4f8] text-sm font-semibold truncate">{candidate.name}</p>
+                            <p className="text-[#4a6278] text-xs">{trend}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => togglePinnedCandidate(candidate.id)}
+                            className="text-[#8da0b3] hover:text-[#f0f4f8] transition-colors text-xs"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-center">
+                          <div className="rounded-lg bg-[#0d1525] px-2 py-2">
+                            <p className="text-[#4a6278] text-[10px] uppercase tracking-wide">Votes</p>
+                            <p className="text-[#f0f4f8] text-sm font-bold">
+                              {votes !== undefined ? Number(votes).toLocaleString() : '—'}
+                            </p>
+                          </div>
+                          <div className="rounded-lg bg-[#0d1525] px-2 py-2">
+                            <p className="text-[#4a6278] text-[10px] uppercase tracking-wide">Rank</p>
+                            <p className="text-[#f0f4f8] text-sm font-bold">{rank !== undefined ? `#${rank}` : '—'}</p>
+                          </div>
+                          <div className="rounded-lg bg-[#0d1525] px-2 py-2">
+                            <p className="text-[#4a6278] text-[10px] uppercase tracking-wide">Trend</p>
+                            <p className="text-[#f0f4f8] text-sm font-bold">{trend}</p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -171,7 +402,7 @@ export function VoteModal({
               <p className="text-[#4a6278] text-sm">No candidates found</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 gap-4' : 'space-y-4'}>
               {filteredCandidates.map(candidate => {
                 const isSelected = selectedCandidate?.id === candidate.id;
                 const votes = candidate.metadata?.votes;
@@ -179,6 +410,9 @@ export function VoteModal({
                 const zone = candidate.metadata?.zone;
                 const badge = candidate.metadata?.badge;
                 const candidateNum = candidate.metadata?.candidateNumber;
+                const trend = getTrendLabel(candidate);
+                const momentum = getVoteMomentum(candidate);
+                const isPinned = pinnedCandidateIds.includes(candidate.id);
                 const hasStats = votes !== undefined || rank !== undefined || zone;
                 const isMoreExpanded = expandedMore[candidate.id];
 
@@ -191,32 +425,122 @@ export function VoteModal({
                         : 'bg-[#111927] border-[#1e2d40] hover:border-[#2a3d54]'
                     }`}
                   >
-                    {/* Avatar + name */}
-                    <div className="flex items-center gap-3 p-4 pb-3">
-                      <div className="w-[72px] h-[72px] rounded-full border-2 border-[#1e2d40] overflow-hidden flex-shrink-0 bg-[#0d1525]">
-                        {candidate.coverImage ? (
-                          <img src={candidate.coverImage} alt={candidate.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Users className="w-7 h-7 text-[#4a6278]" />
+                    {viewMode === 'grid' ? (
+                      <>
+                        <div className="flex items-center gap-3 p-4 pb-3">
+                          <div className="w-[72px] h-[72px] rounded-full border-2 border-[#1e2d40] overflow-hidden flex-shrink-0 bg-[#0d1525]">
+                            {candidate.coverImage ? (
+                              <img src={candidate.coverImage} alt={candidate.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <Users className="w-7 h-7 text-[#4a6278]" />
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-[#f0f4f8] font-bold">{candidate.name}</h4>
-                        {candidateNum && (
-                          <p className="text-[#4a6278] text-xs mt-0.5">Candidate #{candidateNum}</p>
-                        )}
-                        {badge && (
-                          <span className="inline-block bg-[#1a2c3d] text-[#5b8aaa] rounded-md px-2 py-0.5 text-xs mt-1">
-                            {badge}
-                          </span>
-                        )}
-                      </div>
-                    </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <h4 className="text-[#f0f4f8] font-bold truncate">{candidate.name}</h4>
+                              <button
+                                type="button"
+                                onClick={() => togglePinnedCandidate(candidate.id)}
+                                className={`text-[10px] font-semibold px-2 py-1 rounded-md border transition-colors ${
+                                  isPinned
+                                    ? 'bg-[#1a3a5c] border-[#3b82f6] text-[#60a5fa]'
+                                    : 'bg-transparent border-[#1e2d40] text-[#8da0b3] hover:text-[#f0f4f8]'
+                                }`}
+                              >
+                                {isPinned ? 'Pinned' : 'Pin'}
+                              </button>
+                            </div>
+                            {candidateNum && (
+                              <p className="text-[#4a6278] text-xs mt-0.5">Candidate #{candidateNum}</p>
+                            )}
+                            <div className="mt-1 flex flex-wrap gap-1.5">
+                              {badge && (
+                                <span className="inline-block bg-[#1a2c3d] text-[#5b8aaa] rounded-md px-2 py-0.5 text-xs">
+                                  {badge}
+                                </span>
+                              )}
+                              <span className="inline-block bg-[#16283a] text-[#7fb0ff] rounded-md px-2 py-0.5 text-xs">
+                                {trend}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
 
-                    {candidate.description && (
-                      <p className="text-[#8da0b3] text-sm px-4 pb-3 leading-relaxed">{candidate.description}</p>
+                        {candidate.description && (
+                          <p className="text-[#8da0b3] text-sm px-4 pb-3 leading-relaxed">{candidate.description}</p>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-start gap-4 p-4">
+                          <div className="w-[72px] h-[72px] rounded-2xl border border-[#1e2d40] overflow-hidden flex-shrink-0 bg-[#0d1525]">
+                            {candidate.coverImage ? (
+                              <img src={candidate.coverImage} alt={candidate.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <Users className="w-8 h-8 text-[#4a6278]" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0 space-y-1.5">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h4 className="text-[#f0f4f8] font-bold text-base truncate">{candidate.name}</h4>
+                                  {candidateNum && (
+                                    <span className="text-[#4a6278] text-xs">Candidate #{candidateNum}</span>
+                                  )}
+                                </div>
+                                {candidate.description && (
+                                  <p className="text-[#8da0b3] text-sm leading-relaxed mt-1">{candidate.description}</p>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => togglePinnedCandidate(candidate.id)}
+                                className={`shrink-0 text-[10px] font-semibold px-2 py-1 rounded-md border transition-colors ${
+                                  isPinned
+                                    ? 'bg-[#1a3a5c] border-[#3b82f6] text-[#60a5fa]'
+                                    : 'bg-transparent border-[#1e2d40] text-[#8da0b3] hover:text-[#f0f4f8]'
+                                }`}
+                              >
+                                {isPinned ? 'Pinned' : 'Pin'}
+                              </button>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5 pt-1">
+                              {badge && (
+                                <span className="inline-block bg-[#1a2c3d] text-[#5b8aaa] rounded-md px-2 py-0.5 text-xs">
+                                  {badge}
+                                </span>
+                              )}
+                              <span className="inline-block bg-[#16283a] text-[#7fb0ff] rounded-md px-2 py-0.5 text-xs">
+                                {trend}
+                              </span>
+                              <span className="inline-block bg-[#0d1525] border border-[#1e2d40] text-[#8da0b3] rounded-md px-2 py-0.5 text-xs">
+                                {momentum.toFixed(1)}/hr
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 border-t border-[#1e2d40] bg-[#0d1525]">
+                          <div className="px-3 py-2 text-center border-r border-[#1e2d40]">
+                            <p className="text-[#4a6278] text-[10px] uppercase tracking-wide mb-0.5">Votes</p>
+                            <p className="text-[#f0f4f8] text-sm font-bold">
+                              {votes !== undefined ? Number(votes).toLocaleString() : '—'}
+                            </p>
+                          </div>
+                          <div className="px-3 py-2 text-center border-r border-[#1e2d40]">
+                            <p className="text-[#4a6278] text-[10px] uppercase tracking-wide mb-0.5">Rank</p>
+                            <p className="text-[#f0f4f8] text-sm font-bold">{rank !== undefined ? `#${rank}` : '—'}</p>
+                          </div>
+                          <div className="px-3 py-2 text-center">
+                            <p className="text-[#4a6278] text-[10px] uppercase tracking-wide mb-0.5">Trend</p>
+                            <p className="text-[#f0f4f8] text-sm font-bold">{trend}</p>
+                          </div>
+                        </div>
+                      </>
                     )}
 
                     {candidate.dedicatedQrCodeData && (
@@ -272,6 +596,7 @@ export function VoteModal({
 
                     <div className="flex gap-2 px-4 pb-4">
                       <button
+                        type="button"
                         onClick={() => handleSelect(candidate)}
                         className={`flex-1 py-2.5 rounded-xl text-sm font-semibold border transition-colors ${
                           isSelected
@@ -282,6 +607,7 @@ export function VoteModal({
                         {isSelected ? 'Selected' : 'Select'}
                       </button>
                       <button
+                        type="button"
                         onClick={() => handleVote(candidate)}
                         disabled={purchasing[candidate.id]}
                         className="flex-1 py-2.5 rounded-xl bg-[#3b82f6] hover:bg-[#2563eb] disabled:opacity-40 text-white text-sm font-bold transition-colors flex items-center justify-center gap-1.5"
@@ -299,10 +625,13 @@ export function VoteModal({
 
                     {/* More about this candidate */}
                     <button
+                      type="button"
                       onClick={() => setExpandedMore(prev => ({ ...prev, [candidate.id]: !prev[candidate.id] }))}
                       className="w-full text-left px-4 py-3 border-t border-[#1e2d40] hover:bg-[#0d1525] transition-colors"
                     >
-                      <p className="text-[#f0f4f8] text-sm font-semibold">More about this candidate</p>
+                      <p className="text-[#f0f4f8] text-sm font-semibold">
+                        {isMoreExpanded ? 'Hide details' : 'More about this candidate'}
+                      </p>
                     </button>
                     {isMoreExpanded && (
                       <div className="px-4 pb-4">
