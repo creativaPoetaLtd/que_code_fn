@@ -371,11 +371,11 @@ export const RecentActions = ({ userId }: RecentActionsProps) => {
             const valid = items.filter(i => i.status?.toLowerCase() === 'valid');
 
             // Fetch action types + standings for all unique action IDs in parallel
-            const uniqueActionIds = [
-              ...new Set(
+            const uniqueActionIds = Array.from(
+              new Set(
                 valid.map(i => i.metadata?.actionId || i.actionId).filter(Boolean) as string[]
-              ),
-            ];
+              )
+            );
 
             const actionTypeMap: Record<string, string> = {};
             const actionOrgMap: Record<string, string> = {};
