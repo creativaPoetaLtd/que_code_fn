@@ -22,6 +22,8 @@ import {
     ChevronRight,
     Lock,
     ArrowRight,
+    Plus,
+    Globe2,
 } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import Navigation from '@/components/Navigation';
@@ -38,7 +40,9 @@ import { Button } from '@/components/ui/button';
 import jsPDF from 'jspdf';
 import ActionWizardModal from '@/components/ActionPage/ActionWizardModal';
 import QRObjectValidator from '@/components/ActionPage/QRObjectValidator';
-import { createSubAction, updateSubAction, getMyGroupContributions, contributeToGroup, closeGroupContribution, extendGroupContributionDeadline } from '@/helpers/api';
+import { createSubAction, updateSubAction, getMyGroupContributions, contributeToGroup, closeGroupContribution, extendGroupContributionDeadline, getMyPublicContributions } from '@/helpers/api';
+import CreatePublicContributionModal from '@/components/contributions/CreatePublicContributionModal';
+import { PublicContributionCard, PublicContributionData } from '@/components/contributions/PublicContributionCard';
 import socketService from '@/services/socketService';
 import { getCurrentUserId } from '@/utils/tokenUtils';
 import { formatDistanceToNow } from 'date-fns';
@@ -439,16 +443,22 @@ const ActionsByAccountPage = () => {
     const [markingAsUsed, setMarkingAsUsed] = useState<Record<string, boolean>>({});
 
     // Group contributions tab
-    const [individualTab, setIndividualTab] = useState<'actions' | 'contributions'>('actions');
+    const [individualTab, setIndividualTab] = useState<'actions' | 'contributions' | 'campaigns'>('actions');
     const [filterGroupId, setFilterGroupId] = useState<string | null>(null);
     const [myContributions, setMyContributions] = useState<MyContribution[]>([]);
     const [contributionsLoading, setContributionsLoading] = useState(false);
     const currentUserId = React.useMemo(() => getCurrentUserId(), []);
 
+    // Public campaigns tab
+    const [myPublicContributions, setMyPublicContributions] = useState<PublicContributionData[]>([]);
+    const [publicContributionsLoading, setPublicContributionsLoading] = useState(false);
+    const [createCampaignOpen, setCreateCampaignOpen] = useState(false);
+
     useEffect(() => {
         if (typeof window === 'undefined') return;
         const params = new URLSearchParams(window.location.search);
         if (params.get('tab') === 'contributions') setIndividualTab('contributions');
+        if (params.get('tab') === 'campaigns') setIndividualTab('campaigns');
         setFilterGroupId(params.get('group'));
     }, []);
 
@@ -576,11 +586,29 @@ const ActionsByAccountPage = () => {
         }
     }, []);
 
+    const fetchMyPublicContributions = useCallback(async () => {
+        setPublicContributionsLoading(true);
+        try {
+            const res = await getMyPublicContributions();
+            setMyPublicContributions(res?.data?.data || res?.data || []);
+        } catch {
+            // silently fail
+        } finally {
+            setPublicContributionsLoading(false);
+        }
+    }, []);
+
     useEffect(() => {
         if (accountMode === 'individual' && individualTab === 'contributions') {
             fetchMyContributions();
         }
     }, [accountMode, individualTab, fetchMyContributions]);
+
+    useEffect(() => {
+        if (accountMode === 'individual' && individualTab === 'campaigns') {
+            fetchMyPublicContributions();
+        }
+    }, [accountMode, individualTab, fetchMyPublicContributions]);
 
     const pageTitle = useMemo(() => {
         if (isLoggedInAsOrganization && isViewingAnotherUser && accountMode === 'individual') {
@@ -1449,12 +1477,29 @@ const ActionsByAccountPage = () => {
                                 </span>
                             )}
                         </button>
+                        <button
+                            onClick={() => setIndividualTab('campaigns')}
+                            className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-5 py-2 rounded-full text-sm font-semibold transition-colors ${
+                                individualTab === 'campaigns'
+                                    ? 'bg-[#00B512] text-white shadow'
+                                    : 'border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-interactive dark:text-white text-[#00313A] hover:bg-gray-50 dark:hover:bg-darkBg-card'
+                            }`}
+                        >
+                            <Globe2 size={14} />
+                            My Campaigns
+                            {myPublicContributions.filter((c) => c.status === 'active').length > 0 && (
+                                <span className="bg-[#00B512] border border-white text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+                                    {myPublicContributions.filter((c) => c.status === 'active').length}
+                                </span>
+                            )}
+                        </button>
                     </div>
                 )}
 
-                {individualTab === 'actions' || isViewingAnotherUser
-                    ? renderPurchasedActions()
-                    : contributionsLoading
+                {(individualTab === 'actions' || isViewingAnotherUser) && renderPurchasedActions()}
+
+                {individualTab === 'contributions' && !isViewingAnotherUser && (
+                    contributionsLoading
                     ? (
                         <div className="flex flex-col items-center justify-center py-20">
                             <Loader2 className="w-8 h-8 animate-spin text-[#00B512]" />
@@ -1497,7 +1542,69 @@ const ActionsByAccountPage = () => {
                             )}
                         </div>
                     )
-                }
+                )}
+
+                {individualTab === 'campaigns' && !isViewingAnotherUser && (
+                    publicContributionsLoading
+                    ? (
+                        <div className="flex flex-col items-center justify-center py-20">
+                            <Loader2 className="w-8 h-8 animate-spin text-[#00B512]" />
+                            <p className="mt-3 text-sm text-gray-500">Loading campaigns…</p>
+                        </div>
+                    )
+                    : (
+                        <>
+                            <div className="flex items-center justify-between mb-2">
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    {myPublicContributions.length} campaign{myPublicContributions.length !== 1 ? 's' : ''}
+                                </p>
+                                <button
+                                    onClick={() => setCreateCampaignOpen(true)}
+                                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold bg-[#00B512] hover:bg-[#009a0f] text-white transition-colors shadow-sm"
+                                >
+                                    <Plus size={14} />
+                                    New Campaign
+                                </button>
+                            </div>
+                            {myPublicContributions.length === 0
+                            ? (
+                                <div className="bg-white dark:bg-darkBg-card border border-emerald-100 dark:border-darkBorder-light rounded-3xl p-8 text-center shadow-sm">
+                                    <div className="flex justify-center mb-3">
+                                        <div className="p-4 rounded-full bg-[#00B512]/10">
+                                            <Globe2 className="w-6 h-6 text-[#00B512]" />
+                                        </div>
+                                    </div>
+                                    <p className="font-semibold text-[#00313A] dark:text-white mb-1">No campaigns yet</p>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">
+                                        Create a public contribution campaign and share it with anyone via link or QR code.
+                                    </p>
+                                    <button
+                                        onClick={() => setCreateCampaignOpen(true)}
+                                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold bg-[#00B512] hover:bg-[#009a0f] text-white transition-colors shadow-sm"
+                                    >
+                                        <Plus size={14} />
+                                        Create Campaign
+                                    </button>
+                                </div>
+                            )
+                            : (
+                                <div className="grid gap-4 md:grid-cols-2">
+                                    {myPublicContributions.map((c) => (
+                                        <PublicContributionCard
+                                            key={c.id}
+                                            data={c}
+                                            onUpdated={(patch) =>
+                                                setMyPublicContributions((prev) =>
+                                                    prev.map((item) => item.id === c.id ? { ...item, ...patch } : item)
+                                                )
+                                            }
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </>
+                    )
+                )}
             </div>
         );
     };
@@ -1743,6 +1850,12 @@ const ActionsByAccountPage = () => {
                     organizationId={tokenUserId}
                 />
             )}
+
+            <CreatePublicContributionModal
+                isOpen={createCampaignOpen}
+                onClose={() => setCreateCampaignOpen(false)}
+                onCreated={fetchMyPublicContributions}
+            />
         </div>
     );
 };

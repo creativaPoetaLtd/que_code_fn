@@ -699,6 +699,67 @@ class SocketService {
         }
     }
 
+    // ── Public contribution real-time events ──────────────────────────────────
+    onPublicContributionUpdated(callback: (data: {
+        contributionId: string;
+        collectedAmount: number;
+        contributorCount: number;
+        status: string;
+        payerId: string;
+        payerName: string;
+        amount: number;
+    }) => void) {
+        if (this.socket) this.socket.on("public_contribution_updated", callback)
+    }
+
+    offPublicContributionUpdated(callback?: (data: any) => void) {
+        if (this.socket) {
+            callback ? this.socket.off("public_contribution_updated", callback) : this.socket.off("public_contribution_updated")
+        }
+    }
+
+    onPublicContributionCompleted(callback: (data: {
+        contributionId: string;
+        title: string;
+        goalAmount: number;
+        collectedAmount: number;
+    }) => void) {
+        if (this.socket) this.socket.on("public_contribution_completed", callback)
+    }
+
+    offPublicContributionCompleted(callback?: (data: any) => void) {
+        if (this.socket) {
+            callback ? this.socket.off("public_contribution_completed", callback) : this.socket.off("public_contribution_completed")
+        }
+    }
+
+    onPublicContributionClosed(callback: (data: {
+        contributionId: string;
+        status: string;
+    }) => void) {
+        if (this.socket) this.socket.on("public_contribution_closed", callback)
+    }
+
+    offPublicContributionClosed(callback?: (data: any) => void) {
+        if (this.socket) {
+            callback ? this.socket.off("public_contribution_closed", callback) : this.socket.off("public_contribution_closed")
+        }
+    }
+
+    onPublicContributionDisbursed(callback: (data: {
+        contributionId: string;
+        amount: number;
+        creatorId: string;
+    }) => void) {
+        if (this.socket) this.socket.on("public_contribution_disbursed", callback)
+    }
+
+    offPublicContributionDisbursed(callback?: (data: any) => void) {
+        if (this.socket) {
+            callback ? this.socket.off("public_contribution_disbursed", callback) : this.socket.off("public_contribution_disbursed")
+        }
+    }
+
     getSocket() {
         return this.socket
     }
