@@ -2,8 +2,8 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    Modal,
-    Steps,
+    ConfigProvider,
+    theme as antdTheme,
     Form,
     Input,
     Select,
@@ -13,11 +13,10 @@ import {
     Button,
     message,
     Tag,
-    List,
-    Space,
     Typography,
 } from 'antd';
 import { DeleteOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons';
+import { X, Loader2, Check } from 'lucide-react';
 import dayjs from 'dayjs';
 import { Upload } from 'antd';
 import {
@@ -47,6 +46,7 @@ interface ActionWizardModalProps {
     organizationId: string;
     onCompleted: () => void;
     editingActionId?: string | null;
+    preSelectedType?: string | null;
 }
 
 const allStepItems = [
@@ -61,15 +61,9 @@ const validTypes = [
     'ticket',
     'transport',
     'service',
-    'subscription',
-    'payment',
-    'donation',
     'vote',
     'booking',
-    'license',
     'membership',
-    'rental',
-    'group',
 ];
 
 // Dynamic form configuration based on action type
@@ -185,6 +179,153 @@ const actionTypeConfig: Record<string, {
             shortDescription: 'Group description',
             description: 'About the group and its purpose',
         },
+    },
+};
+
+const defaultLabels = {
+    builderTitle: 'Action Builder',
+    wizardTitle: 'Multi-step Action Wizard',
+    wizardDescription: 'Guide your organization through every detail, from basics to publish.',
+    nameLabel: 'Action Name',
+    shortDescLabel: 'Short Description',
+    descLabel: 'Full Description',
+    subAction: { singular: 'Sub-action', plural: 'Sub-actions' },
+    stepA: { title: 'Identity', description: 'Type & basics' },
+    stepB: { title: 'Pricing', description: 'Currency & price' },
+};
+
+const actionTypeLabels: Record<string, Partial<typeof defaultLabels>> = {
+    ticket: {
+        builderTitle: 'Ticket Builder',
+        wizardTitle: 'Create a Ticket',
+        wizardDescription: 'Set up your event ticket — name, pricing tiers, availability, and more.',
+        nameLabel: 'Event Name',
+        shortDescLabel: 'Event Tagline',
+        descLabel: 'Full Event Details',
+        subAction: { singular: 'Ticket Tier', plural: 'Ticket Tiers' },
+        stepA: { title: 'Event Details', description: 'Name & media' },
+        stepB: { title: 'Ticket Pricing', description: 'Price & tiers' },
+    },
+    transport: {
+        builderTitle: 'Transport Builder',
+        wizardTitle: 'Create a Transport Route',
+        wizardDescription: 'Define your route, fare structure, and seat classes.',
+        nameLabel: 'Route Name',
+        shortDescLabel: 'Route Summary',
+        descLabel: 'Route Details',
+        subAction: { singular: 'Seat Class', plural: 'Seat Classes' },
+        stepA: { title: 'Route Info', description: 'Name & media' },
+        stepB: { title: 'Fare Details', description: 'Currency & fare' },
+    },
+    service: {
+        builderTitle: 'Service Builder',
+        wizardTitle: 'Create a Service',
+        wizardDescription: 'Describe your service, packages, and how clients can book or pay.',
+        nameLabel: 'Service Name',
+        shortDescLabel: 'Service Tagline',
+        descLabel: 'Service Details',
+        subAction: { singular: 'Service Package', plural: 'Service Packages' },
+        stepA: { title: 'Service Details', description: 'Name & media' },
+        stepB: { title: 'Service Pricing', description: 'Currency & price' },
+    },
+    subscription: {
+        builderTitle: 'Subscription Builder',
+        wizardTitle: 'Create a Subscription Plan',
+        wizardDescription: "Set up recurring plans — define tiers, benefits, and billing details.",
+        nameLabel: 'Plan Name',
+        shortDescLabel: 'Plan Summary',
+        descLabel: "What's Included",
+        subAction: { singular: 'Subscription Tier', plural: 'Subscription Tiers' },
+        stepA: { title: 'Plan Details', description: 'Name & media' },
+        stepB: { title: 'Plan Pricing', description: 'Currency & tiers' },
+    },
+    payment: {
+        builderTitle: 'Payment Builder',
+        wizardTitle: 'Create a Payment',
+        wizardDescription: 'Configure a payment link — purpose, amount, and collection details.',
+        nameLabel: 'Payment Title',
+        shortDescLabel: 'Payment Purpose',
+        descLabel: 'Additional Details',
+        subAction: { singular: 'Payment Option', plural: 'Payment Options' },
+        stepA: { title: 'Payment Details', description: 'Title & purpose' },
+        stepB: { title: 'Payment Config', description: 'Currency & amount' },
+    },
+    donation: {
+        builderTitle: 'Donation Builder',
+        wizardTitle: 'Create a Donation Campaign',
+        wizardDescription: 'Tell your story, set giving levels, and start collecting donations.',
+        nameLabel: 'Campaign Name',
+        shortDescLabel: 'Campaign Tagline',
+        descLabel: 'Campaign Story',
+        subAction: { singular: 'Giving Level', plural: 'Giving Levels' },
+        stepA: { title: 'Campaign Details', description: 'Name & media' },
+        stepB: { title: 'Donation Config', description: 'Currency & amounts' },
+    },
+    vote: {
+        builderTitle: 'Vote Builder',
+        wizardTitle: 'Create a Vote',
+        wizardDescription: 'Set up a poll or election — add contestants and configure voting rules.',
+        nameLabel: 'Vote Title',
+        shortDescLabel: 'What Are People Voting On?',
+        descLabel: 'Vote Details',
+        subAction: { singular: 'Contestant', plural: 'Contestants' },
+        stepA: { title: 'Vote Details', description: 'Title & context' },
+        stepB: { title: 'Voting Cost', description: 'Currency & price' },
+    },
+    booking: {
+        builderTitle: 'Booking Builder',
+        wizardTitle: 'Create a Booking',
+        wizardDescription: 'Configure what can be booked, availability windows, and pricing.',
+        nameLabel: 'Booking Name',
+        shortDescLabel: 'What Can Be Booked?',
+        descLabel: 'Booking Conditions',
+        subAction: { singular: 'Booking Option', plural: 'Booking Options' },
+        stepA: { title: 'Booking Details', description: 'Name & media' },
+        stepB: { title: 'Booking Pricing', description: 'Currency & price' },
+    },
+    license: {
+        builderTitle: 'License Builder',
+        wizardTitle: 'Create a License',
+        wizardDescription: 'Define license tiers, terms, and how they are issued to buyers.',
+        nameLabel: 'License Name',
+        shortDescLabel: 'License Summary',
+        descLabel: 'Terms & Conditions',
+        subAction: { singular: 'License Tier', plural: 'License Tiers' },
+        stepA: { title: 'License Details', description: 'Name & terms' },
+        stepB: { title: 'License Pricing', description: 'Currency & price' },
+    },
+    membership: {
+        builderTitle: 'Membership Builder',
+        wizardTitle: 'Create a Membership',
+        wizardDescription: 'Build membership plans with benefits, tiers, and renewal settings.',
+        nameLabel: 'Membership Name',
+        shortDescLabel: 'Member Benefits',
+        descLabel: 'Full Membership Details',
+        subAction: { singular: 'Membership Plan', plural: 'Membership Plans' },
+        stepA: { title: 'Membership Details', description: 'Name & media' },
+        stepB: { title: 'Membership Pricing', description: 'Currency & tiers' },
+    },
+    rental: {
+        builderTitle: 'Rental Builder',
+        wizardTitle: 'Create a Rental',
+        wizardDescription: 'List what can be rented, set pricing options, and define rental terms.',
+        nameLabel: 'Rental Name',
+        shortDescLabel: 'What Can Be Rented?',
+        descLabel: 'Rental Terms',
+        subAction: { singular: 'Rental Option', plural: 'Rental Options' },
+        stepA: { title: 'Rental Details', description: 'Name & media' },
+        stepB: { title: 'Rental Pricing', description: 'Currency & price' },
+    },
+    group: {
+        builderTitle: 'Group Builder',
+        wizardTitle: 'Create a Group',
+        wizardDescription: 'Set up a community group — membership tiers, fees, and group details.',
+        nameLabel: 'Group Name',
+        shortDescLabel: 'Group Summary',
+        descLabel: 'About the Group',
+        subAction: { singular: 'Membership Tier', plural: 'Membership Tiers' },
+        stepA: { title: 'Group Details', description: 'Name & media' },
+        stepB: { title: 'Group Pricing', description: 'Currency & fees' },
     },
 };
 
@@ -465,7 +606,7 @@ const KeyValueInput: React.FC<KeyValueInputProps> = ({ value, onChange, placehol
     );
 };
 
-const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, organizationId, onCompleted, editingActionId }) => {
+const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, organizationId, onCompleted, editingActionId, preSelectedType }) => {
     const [currentStep, setCurrentStep] = useState(0);
     const [form] = Form.useForm();
     const [subActionForm] = Form.useForm();
@@ -487,10 +628,12 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
     const [pricingMode, setPricingMode] = useState<string>('fixed');
     const [availabilityMode, setAvailabilityMode] = useState<string>('always');
 
-    const subActionLabel = useMemo(() => {
-        if (selectedType === 'vote') return { singular: 'Contestant', plural: 'Contestants' };
-        return { singular: 'Sub-action', plural: 'Sub-actions' };
+    const currentLabels = useMemo(() => {
+        const overrides = selectedType ? (actionTypeLabels[selectedType] ?? {}) : {};
+        return { ...defaultLabels, ...overrides };
     }, [selectedType]);
+
+    const subActionLabel = useMemo(() => currentLabels.subAction, [currentLabels]);
 
     // Filter steps based on pricing mode - show subActions for tiered and pay_what_you_want pricing
     const stepItems = useMemo(() => {
@@ -505,9 +648,15 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                 if (step.key === 'subActions') {
                     return { ...step, title: subActionLabel.plural, description: subActionLabel.plural };
                 }
+                if (step.key === 'stepA') {
+                    return { ...step, title: currentLabels.stepA.title, description: currentLabels.stepA.description };
+                }
+                if (step.key === 'stepB') {
+                    return { ...step, title: currentLabels.stepB.title, description: currentLabels.stepB.description };
+                }
                 return step;
             });
-    }, [pricingMode, subActionLabel]);
+    }, [pricingMode, subActionLabel, currentLabels]);
 
     const stepKey = useMemo(() => stepItems[currentStep]?.key, [currentStep, stepItems]);
     const isLastStep = currentStep === stepItems.length - 1;
@@ -570,11 +719,12 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                     description: existingAction.description || '',
                     dedicatedQrCode: existingAction.dedicatedQrCode || '',
                 });
-                // Set preview if cover image exists
                 if (existingAction.coverImage) {
                     setCoverImagePreview(existingAction.coverImage);
                 }
-                
+            } else if (preSelectedType) {
+                setSelectedType(preSelectedType);
+                form.setFieldValue('type', preSelectedType);
             } else {
                 setSelectedType(undefined);
             }
@@ -597,7 +747,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                 eventWindow: starts && ends ? [starts, ends] : starts ? [starts] : undefined,
                 startDateOnly: starts && !ends ? starts : undefined,
                 timezone: existingAction?.availability?.timezone || 'Africa/Kigali',
-                // userQuota: existingAction?.availability?.userQuota ?? null,
+                userVoteLimit: existingAction?.availability?.userQuota ?? null,
                 // visibilityMode: existingAction?.visibility?.mode || 'public',
                 buyerFields: existingAction?.buyerFields || [],
                 refundPolicy: existingAction?.policy?.refund || '',
@@ -635,8 +785,11 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
             setExistingAction(null);
             setActionId(null);
             setActionNameForSubActions('');
+            if (preSelectedType) {
+                setSelectedType(preSelectedType);
+            }
         }
-    }, [editingActionId, open]);
+    }, [editingActionId, open, preSelectedType]);
 
     const loadSubActions = useCallback(async () => {
         if (!actionId) return;
@@ -996,6 +1149,11 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                     availability = {};
                 }
                 
+                // Add vote-specific quota to availability
+                if (selectedType === 'vote' && values.userVoteLimit) {
+                    availability.userQuota = values.userVoteLimit;
+                }
+
                 // Update availability
                 await updateActionStepD(actionId as string, {
                     availability,
@@ -1088,20 +1246,28 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
             case 'stepA':
                 return (
                     <Form form={form} layout="vertical" className="grid gap-4 md:grid-cols-2">
-                        <Form.Item name="type" label="Action Type" rules={[{ required: true, message: 'Select an action type' }]}>
-                            <Select 
-                                placeholder="Select type" 
-                                onChange={(value) => setSelectedType(value)}
-                                options={validTypes.map((type) => ({ 
-                                    label: actionTypeConfig[type].label, 
-                                    value: type 
-                                }))}
-                            />
-                        </Form.Item>
+                        {(preSelectedType && !editingActionId) ? (
+                            <div className="md:col-span-2 flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-50 dark:bg-darkBg-interactive border border-gray-200 dark:border-darkBorder-light">
+                                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Type:</span>
+                                <span className="font-semibold text-[#00313A] dark:text-white capitalize">{actionTypeConfig[preSelectedType]?.label || preSelectedType}</span>
+                                <Form.Item name="type" hidden initialValue={preSelectedType}><Input /></Form.Item>
+                            </div>
+                        ) : (
+                            <Form.Item name="type" label="Action Type" rules={[{ required: true, message: 'Select an action type' }]}>
+                                <Select
+                                    placeholder="Select type"
+                                    onChange={(value) => setSelectedType(value)}
+                                    options={validTypes.map((type) => ({
+                                        label: actionTypeConfig[type].label,
+                                        value: type
+                                    }))}
+                                />
+                            </Form.Item>
+                        )}
                         <Form.Item
                             name="name"
-                            label="Action Name"
-                            rules={[{ required: true, message: 'Provide an action name' }]}
+                            label={currentLabels.nameLabel}
+                            rules={[{ required: true, message: `Provide a ${currentLabels.nameLabel.toLowerCase()}` }]}
                         >
                             <Input 
                                 placeholder={selectedType ? actionTypeConfig[selectedType]?.placeholders?.name || 'Enter action name' : 'Enter action name'}
@@ -1189,13 +1355,13 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                         )}
                         
                         {selectedType && actionTypeConfig[selectedType]?.showFields?.includes('shortDescription') && (
-                            <Form.Item name="shortDescription" label="Short Description" className="md:col-span-2">
+                            <Form.Item name="shortDescription" label={currentLabels.shortDescLabel} className="md:col-span-2">
                                 <Input placeholder={actionTypeConfig[selectedType]?.placeholders?.shortDescription || 'Quick headline for this action'} />
                             </Form.Item>
                         )}
-                        
+
                         {selectedType && actionTypeConfig[selectedType]?.showFields?.includes('description') && (
-                            <Form.Item name="description" label="Full Description" className="md:col-span-2">
+                            <Form.Item name="description" label={currentLabels.descLabel} className="md:col-span-2">
                                 <TextArea rows={4} placeholder={actionTypeConfig[selectedType]?.placeholders?.description || 'Tell supporters what this action is about'} />
                             </Form.Item>
                         )}
@@ -1270,7 +1436,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                                     <button
                                         type="button"
                                         onClick={() => setShowFixedMetadata(!showFixedMetadata)}
-                                        className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium mb-3"
+                                        className="flex items-center gap-2 text-xs font-semibold text-[#4a6278] hover:text-[#8da0b3] uppercase tracking-wide mb-3 transition-colors"
                                     >
                                         <span>{showFixedMetadata ? '▼' : '▶'}</span>
                                         Extra Metadata (Optional)
@@ -1392,7 +1558,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                                 <button
                                     type="button"
                                     onClick={() => setShowSubActionMetadata(!showSubActionMetadata)}
-                                    className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium mb-3"
+                                    className="flex items-center gap-2 text-xs font-semibold text-[#4a6278] hover:text-[#8da0b3] uppercase tracking-wide mb-3 transition-colors"
                                 >
                                     <span>{showSubActionMetadata ? '▼' : '▶'}</span>
                                     Extra Metadata (Optional)
@@ -1412,71 +1578,65 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                             </Form.Item>
                         </Form>
                         <div className="flex justify-end">
-                            <Button icon={<PlusOutlined />} type="primary" onClick={handleAddSubAction} loading={loading}>
+                            <button
+                                type="button"
+                                onClick={handleAddSubAction}
+                                disabled={loading}
+                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#3b82f6] hover:bg-[#2563eb] disabled:opacity-40 text-white text-sm font-bold transition-colors"
+                            >
+                                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlusOutlined />}
                                 Add {subActionLabel.singular}
-                            </Button>
+                            </button>
                         </div>
-                        <div className="space-y-4">
-                            <Typography.Title level={5} className="!text-[#00313A]">
+                        <div className="space-y-3">
+                            <p className="text-[11px] font-bold text-[#4a6278] uppercase tracking-widest">
                                 Added {subActionLabel.plural} ({subActions.length})
-                            </Typography.Title>
+                            </p>
                             {subActions.length > 0 ? (
-                                <div className="space-y-4">
+                                <div className="space-y-2">
                                     {subActions.map((item, index) => (
                                         <div
                                             key={item.id}
-                                            className="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 border border-emerald-200 dark:border-emerald-700 rounded-2xl p-6"
+                                            className="bg-[#111927] border border-[#1e2d40] rounded-xl p-4 flex items-start gap-3"
                                         >
-                                            <div className="flex items-start justify-between gap-4 mb-4">
-                                                <div>
-                                                    <h4 className="text-lg font-semibold text-[#00313A]">
-                                                        {index + 1}. {item.name}
-                                                    </h4>
-                                                </div>
-                                                <Button
-                                                    type="primary"
-                                                    danger
-                                                    size="small"
-                                                    icon={<DeleteOutlined />}
-                                                    onClick={() => handleDeleteSubAction(item.id)}
-                                                >
-                                                    Remove
-                                                </Button>
+                                            <div className="w-7 h-7 rounded-full bg-[#1a3a5c] border border-[#3b82f6]/40 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                                <span className="text-[11px] font-bold text-[#60a5fa]">{index + 1}</span>
                                             </div>
-
-                                            <div className="grid gap-3 md:grid-cols-2 text-sm">
-                                                {pricingMode !== 'pay_what_you_want' && (
-                                                    <div className="bg-white dark:bg-darkBg-card rounded-lg p-3 border border-emerald-100 dark:border-emerald-700">
-                                                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Price</p>
-                                                        <p className="font-bold text-[#00B512]">{Number(item.price).toLocaleString()} RWF</p>
-                                                    </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-[#f0f4f8] font-semibold text-sm truncate">{item.name}</p>
+                                                {item.description && (
+                                                    <p className="text-[#8da0b3] text-xs mt-0.5 line-clamp-1">{item.description}</p>
                                                 )}
-                                                {shouldAskStock && item.stock && (
-                                                    <div className="bg-white dark:bg-darkBg-card rounded-lg p-3 border border-emerald-100 dark:border-emerald-700">
-                                                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Stock</p>
-                                                        <p className="font-semibold">{item.stock} available</p>
-                                                    </div>
-                                                )}
-                                                {item.metadata?.seatType && (
-                                                    <div className="bg-white dark:bg-darkBg-card rounded-lg p-3 border border-emerald-100 dark:border-emerald-700">
-                                                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Seat/Zone</p>
-                                                        <p className="font-semibold capitalize">{item.metadata.seatType}</p>
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            {item.description && (
-                                                <div className="mt-3 bg-white dark:bg-darkBg-card rounded-lg p-3 border border-emerald-100 dark:border-emerald-700">
-                                                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Description</p>
-                                                    <p className="text-sm text-[#00313A] dark:text-gray-300">{item.description}</p>
+                                                <div className="flex flex-wrap gap-2 mt-2">
+                                                    {pricingMode !== 'pay_what_you_want' && (
+                                                        <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-900/20 border border-emerald-700/30 px-2 py-0.5 rounded-full">
+                                                            {Number(item.price).toLocaleString()} RWF
+                                                        </span>
+                                                    )}
+                                                    {shouldAskStock && item.stock != null && (
+                                                        <span className="text-[11px] text-[#8da0b3] bg-[#0d1117] border border-[#1e2d40] px-2 py-0.5 rounded-full">
+                                                            {item.stock} in stock
+                                                        </span>
+                                                    )}
+                                                    {item.metadata?.seatType && (
+                                                        <span className="text-[11px] text-[#8da0b3] bg-[#0d1117] border border-[#1e2d40] px-2 py-0.5 rounded-full capitalize">
+                                                            {item.metadata.seatType}
+                                                        </span>
+                                                    )}
                                                 </div>
-                                            )}
+                                            </div>
+                                            <button
+                                                onClick={() => handleDeleteSubAction(item.id)}
+                                                className="w-7 h-7 rounded-lg bg-[#0d1117] border border-red-500/20 flex items-center justify-center text-red-400 hover:bg-red-500/10 transition-colors flex-shrink-0"
+                                            >
+                                                <DeleteOutlined style={{ fontSize: 12 }} />
+                                            </button>
                                         </div>
                                     ))}
                                 </div>
                             ) : (
-                                <div className="text-center py-8 text-gray-400">
-                                    <p>No {subActionLabel.plural.toLowerCase()} added yet. Add one using the form above.</p>
+                                <div className="text-center py-8 bg-[#111927] border border-dashed border-[#1e2d40] rounded-xl">
+                                    <p className="text-[#4a6278] text-sm">No {subActionLabel.plural.toLowerCase()} yet — add one above.</p>
                                 </div>
                             )}
                         </div>
@@ -1484,10 +1644,10 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                 );
             case 'configuration':
                 return (
-                    <Form form={form} layout="vertical" className="space-y-6">
+                    <Form form={form} layout="vertical" className="space-y-5">
                         {/* Availability Section */}
-                        <div className="border-b pb-6">
-                            <h3 className="text-base font-semibold mb-4">Availability</h3>
+                        <div className="border-b border-[#1e2d40] pb-5">
+                            <h3 className="text-sm font-bold text-[#4a6278] uppercase tracking-widest mb-3">Availability</h3>
                             <div className="grid gap-4 md:grid-cols-2">
                                 <Form.Item 
                                     name="availabilityMode" 
@@ -1550,6 +1710,26 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                             </div>
                         </div>
 
+                        {/* Vote Limits Section */}
+                        {selectedType === 'vote' && (
+                            <div className="border-b border-[#1e2d40] pb-5">
+                                <h3 className="text-sm font-bold text-[#4a6278] uppercase tracking-widest mb-3">Voting Rules</h3>
+                                <div className="grid gap-4 md:grid-cols-2">
+                                    <Form.Item
+                                        name="userVoteLimit"
+                                        label="Max Votes Per User"
+                                        tooltip="Maximum number of times a single user can vote. Leave empty for unlimited."
+                                    >
+                                        <InputNumber
+                                            min={1}
+                                            className="w-full"
+                                            placeholder="Unlimited if empty"
+                                        />
+                                    </Form.Item>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Visibility Section */}
                         {/* <div className="border-b pb-6">
                             <h3 className="text-base font-semibold mb-4">Visibility</h3>
@@ -1561,19 +1741,19 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                         </div> */}
 
                         {/* Buyer Information Section */}
-                        <div className="border-b pb-6">
-                            <h3 className="text-base font-semibold mb-4">Buyer Information</h3>
+                        <div className="border-b border-[#1e2d40] pb-5">
+                            <h3 className="text-sm font-bold text-[#4a6278] uppercase tracking-widest mb-3">Buyer Information</h3>
                             <Form.Item name="buyerFields" label="Collect Buyer Fields">
                                 <Select mode="multiple" options={buyerFieldOptions} placeholder="Select required fields" />
                             </Form.Item>
                         </div>
 
                         {/* Policies Section */}
-                        <div className="border-b pb-6">
+                        <div className="border-b border-[#1e2d40] pb-5">
                             <button
                                 type="button"
                                 onClick={() => setShowPolicies(!showPolicies)}
-                                className="flex items-center gap-2 text-lg font-semibold mb-4 text-blue-600 hover:text-blue-700"
+                                className="flex items-center gap-2 text-sm font-bold text-[#4a6278] uppercase tracking-widest mb-3 hover:text-[#8da0b3] transition-colors"
                             >
                                 <span>{showPolicies ? '▼' : '▶'}</span>
                                 Policies (Optional)
@@ -1595,7 +1775,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
 
                         {/* Fulfillment Section */}
                         <div>
-                            <h3 className="text-base font-semibold mb-4">Fulfillment</h3>
+                            <h3 className="text-sm font-bold text-[#4a6278] uppercase tracking-widest mb-3">Fulfillment</h3>
                             <div className="space-y-4">
                                 <Form.Item name="postPurchaseMessage" label="Post Purchase Message">
                                     <TextArea rows={3} placeholder="Message shown after successful purchase" />
@@ -1606,66 +1786,56 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                 );
             case 'publish':
                 return (
-                    <Form form={form} layout="vertical" className="space-y-6">
-                        <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 mb-4">
-                            <p className="text-sm text-emerald-800">
-                                Review your action details before publishing. You can publish now or keep it as draft.
+                    <Form form={form} layout="vertical" className="space-y-5">
+                        <div className="bg-[#1a3a5c]/30 border border-[#3b82f6]/30 rounded-xl p-4">
+                            <p className="text-sm text-[#60a5fa]">
+                                Review your action details before publishing. You can publish now or save as draft.
                             </p>
                         </div>
 
                         {/* Identity Review */}
-                        <div className="border-b pb-6">
-                            <h3 className="text-base font-semibold mb-4">Identity</h3>
-                            <div className="grid gap-4 md:grid-cols-2 text-sm">
-                                <div>
-                                    <p className="text-gray-600">Type</p>
-                                    <p className="font-semibold text-gray-900">{form.getFieldValue('type') || existingAction?.type || '-'}</p>
+                        <div className="border-b border-[#1e2d40] pb-5">
+                            <h3 className="text-sm font-bold text-[#4a6278] uppercase tracking-widest mb-3">{currentLabels.stepA.title}</h3>
+                            <div className="grid grid-cols-2 gap-px bg-[#1e2d40] rounded-xl overflow-hidden text-sm">
+                                <div className="bg-[#111927] px-4 py-3">
+                                    <p className="text-[10px] text-[#4a6278] uppercase tracking-wide mb-1">Type</p>
+                                    <p className="font-semibold text-[#f0f4f8] capitalize">{actionTypeLabels[form.getFieldValue('type') || existingAction?.type || '']?.builderTitle?.replace(' Builder', '') || form.getFieldValue('type') || existingAction?.type || '-'}</p>
                                 </div>
-                                <div>
-                                    <p className="text-gray-600">Name</p>
-                                    <p className="font-semibold text-gray-900">{form.getFieldValue('name') || existingAction?.name || '-'}</p>
+                                <div className="bg-[#111927] px-4 py-3">
+                                    <p className="text-[10px] text-[#4a6278] uppercase tracking-wide mb-1">{currentLabels.nameLabel}</p>
+                                    <p className="font-semibold text-[#f0f4f8]">{form.getFieldValue('name') || existingAction?.name || '-'}</p>
                                 </div>
-                                {(form.getFieldValue('slug') || existingAction?.slug) && (
-                                    <div>
-                                        <p className="text-gray-600">Slug</p>
-                                        <p className="font-semibold text-gray-900">{form.getFieldValue('slug') || existingAction?.slug}</p>
+                                {(form.getFieldValue('displayLayout') || existingAction?.displayLayout) && (
+                                    <div className="bg-[#111927] px-4 py-3">
+                                        <p className="text-[10px] text-[#4a6278] uppercase tracking-wide mb-1">Layout</p>
+                                        <p className="font-semibold text-[#f0f4f8] capitalize">{form.getFieldValue('displayLayout') || existingAction?.displayLayout}</p>
                                     </div>
                                 )}
-                                <div>
-                                    <p className="text-gray-600">Display Layout</p>
-                                    <p className="font-semibold text-gray-900 capitalize">{form.getFieldValue('displayLayout') || existingAction?.displayLayout || '-'}</p>
-                                </div>
                                 {(form.getFieldValue('shortDescription') || existingAction?.shortDescription) && (
-                                    <div className="md:col-span-2">
-                                        <p className="text-gray-600">Short Description</p>
-                                        <p className="font-semibold text-gray-900">{form.getFieldValue('shortDescription') || existingAction?.shortDescription}</p>
-                                    </div>
-                                )}
-                                {(form.getFieldValue('description') || existingAction?.description) && (
-                                    <div className="md:col-span-2">
-                                        <p className="text-gray-600">Full Description</p>
-                                        <p className="font-semibold text-gray-900 whitespace-pre-wrap">{form.getFieldValue('description') || existingAction?.description}</p>
+                                    <div className="bg-[#111927] px-4 py-3 col-span-2">
+                                        <p className="text-[10px] text-[#4a6278] uppercase tracking-wide mb-1">{currentLabels.shortDescLabel}</p>
+                                        <p className="text-[#8da0b3] text-sm">{form.getFieldValue('shortDescription') || existingAction?.shortDescription}</p>
                                     </div>
                                 )}
                             </div>
                         </div>
 
                         {/* Pricing Review */}
-                        <div className="border-b pb-6">
-                            <h3 className="text-base font-semibold mb-4">Pricing</h3>
-                            <div className="grid gap-4 md:grid-cols-2 text-sm">
-                                <div>
-                                    <p className="text-gray-600">Pricing Mode</p>
-                                    <p className="font-semibold text-gray-900 capitalize">{form.getFieldValue('pricingMode') || existingAction?.pricing?.mode || '-'}</p>
+                        <div className="border-b border-[#1e2d40] pb-5">
+                            <h3 className="text-sm font-bold text-[#4a6278] uppercase tracking-widest mb-3">{currentLabels.stepB.title}</h3>
+                            <div className="grid grid-cols-2 gap-px bg-[#1e2d40] rounded-xl overflow-hidden text-sm">
+                                <div className="bg-[#111927] px-4 py-3">
+                                    <p className="text-[10px] text-[#4a6278] uppercase tracking-wide mb-1">Pricing Mode</p>
+                                    <p className="font-semibold text-[#f0f4f8] capitalize">{form.getFieldValue('pricingMode') || existingAction?.pricing?.mode || '-'}</p>
                                 </div>
-                                <div>
-                                    <p className="text-gray-600">Currency</p>
-                                    <p className="font-semibold text-gray-900">{form.getFieldValue('currency') || existingAction?.currency || '-'}</p>
+                                <div className="bg-[#111927] px-4 py-3">
+                                    <p className="text-[10px] text-[#4a6278] uppercase tracking-wide mb-1">Currency</p>
+                                    <p className="font-semibold text-[#f0f4f8]">{form.getFieldValue('currency') || existingAction?.currency || '-'}</p>
                                 </div>
-                                {((form.getFieldValue('amount') !== undefined && form.getFieldValue('amount') !== 0) || (existingAction?.pricing?.amount)) && (
-                                    <div>
-                                        <p className="text-gray-600">Default Amount</p>
-                                        <p className="font-semibold text-gray-900">{Number(form.getFieldValue('amount') ?? existingAction?.pricing?.amount).toLocaleString()} {form.getFieldValue('currency') || existingAction?.currency}</p>
+                                {((form.getFieldValue('amount') !== undefined && form.getFieldValue('amount') !== 0) || existingAction?.pricing?.amount) && (
+                                    <div className="bg-[#111927] px-4 py-3 col-span-2">
+                                        <p className="text-[10px] text-[#4a6278] uppercase tracking-wide mb-1">Amount</p>
+                                        <p className="font-bold text-emerald-400">{Number(form.getFieldValue('amount') ?? existingAction?.pricing?.amount).toLocaleString()} {form.getFieldValue('currency') || existingAction?.currency}</p>
                                     </div>
                                 )}
                             </div>
@@ -1673,18 +1843,14 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
 
                         {/* Sub-actions Review */}
                         {subActions.length > 0 && (
-                            <div className="border-b pb-6">
-                                <h3 className="text-base font-semibold mb-4">{subActionLabel.plural} ({subActions.length})</h3>
-                                <div className="space-y-3">
-                                    {subActions.map((item) => (
-                                        <div key={item.id} className="p-3 bg-gray-50 rounded-lg">
-                                            <div className="flex justify-between items-start">
-                                                <div>
-                                                    <p className="font-semibold text-gray-900">{item.name}</p>
-                                                    {item.description && <p className="text-sm text-gray-600">{item.description}</p>}
-                                                </div>
-                                                <Tag color="green">{Number(item.price).toLocaleString()} RWF</Tag>
-                                            </div>
+                            <div className="border-b border-[#1e2d40] pb-5">
+                                <h3 className="text-sm font-bold text-[#4a6278] uppercase tracking-widest mb-3">{subActionLabel.plural} ({subActions.length})</h3>
+                                <div className="space-y-2">
+                                    {subActions.map((item, idx) => (
+                                        <div key={item.id} className="flex items-center gap-3 px-4 py-3 bg-[#111927] border border-[#1e2d40] rounded-xl">
+                                            <span className="text-[11px] font-bold text-[#4a6278] w-5">{idx + 1}</span>
+                                            <span className="text-[#f0f4f8] text-sm font-semibold flex-1 truncate">{item.name}</span>
+                                            <span className="text-emerald-400 text-xs font-semibold">{Number(item.price).toLocaleString()} RWF</span>
                                         </div>
                                     ))}
                                 </div>
@@ -1692,64 +1858,42 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                         )}
 
                         {/* Configuration Review */}
-                        <div className="border-b pb-6">
-                            <h3 className="text-base font-semibold mb-4">Configuration</h3>
-                            <div className="space-y-4 text-sm">
+                        <div className="border-b border-[#1e2d40] pb-5">
+                            <h3 className="text-sm font-bold text-[#4a6278] uppercase tracking-widest mb-3">Configuration</h3>
+                            <div className="space-y-2 text-sm">
                                 {(form.getFieldValue('eventWindow') || (existingAction?.availability?.startsAt && existingAction?.availability?.endsAt)) && (
-                                    <div>
-                                        <p className="text-gray-600">Event Window</p>
-                                        <p className="font-semibold text-gray-900">
-                                            {form.getFieldValue('eventWindow')?.[0]?.format('MMM DD, YYYY HH:mm') || dayjs(existingAction?.availability?.startsAt).format('MMM DD, YYYY HH:mm')} - {form.getFieldValue('eventWindow')?.[1]?.format('MMM DD, YYYY HH:mm') || dayjs(existingAction?.availability?.endsAt).format('MMM DD, YYYY HH:mm')}
+                                    <div className="px-4 py-3 bg-[#111927] border border-[#1e2d40] rounded-xl">
+                                        <p className="text-[10px] text-[#4a6278] uppercase tracking-wide mb-1">Event Window</p>
+                                        <p className="text-[#f0f4f8] font-semibold text-xs">
+                                            {form.getFieldValue('eventWindow')?.[0]?.format('MMM DD, YYYY HH:mm') || dayjs(existingAction?.availability?.startsAt).format('MMM DD, YYYY HH:mm')}
+                                            {' → '}
+                                            {form.getFieldValue('eventWindow')?.[1]?.format('MMM DD, YYYY HH:mm') || dayjs(existingAction?.availability?.endsAt).format('MMM DD, YYYY HH:mm')}
                                         </p>
                                     </div>
                                 )}
-                                {(form.getFieldValue('timezone') || existingAction?.availability?.timezone) && (
-                                    <div>
-                                        <p className="text-gray-600">Timezone</p>
-                                        <p className="font-semibold text-gray-900">{form.getFieldValue('timezone') || existingAction?.availability?.timezone}</p>
+                                {selectedType === 'vote' && (form.getFieldValue('userVoteLimit') || existingAction?.availability?.userQuota) && (
+                                    <div className="px-4 py-3 bg-[#111927] border border-[#1e2d40] rounded-xl">
+                                        <p className="text-[10px] text-[#4a6278] uppercase tracking-wide mb-1">Max Votes / User</p>
+                                        <p className="text-[#f0f4f8] font-semibold">{form.getFieldValue('userVoteLimit') || existingAction?.availability?.userQuota}</p>
                                     </div>
                                 )}
-                                {(form.getFieldValue('visibilityMode') || existingAction?.visibility?.mode) && (
-                                    <div>
-                                        <p className="text-gray-600">Visibility</p>
-                                        <p className="font-semibold text-gray-900 capitalize">{form.getFieldValue('visibilityMode') || existingAction?.visibility?.mode}</p>
-                                    </div>
-                                )}
-                                {((form.getFieldValue('buyerFields') && form.getFieldValue('buyerFields').length > 0) || (existingAction?.buyerFields && existingAction?.buyerFields.length > 0)) && (
-                                    <div>
-                                        <p className="text-gray-600">Buyer Fields Required</p>
-                                        <p className="font-semibold text-gray-900">{(form.getFieldValue('buyerFields') || existingAction?.buyerFields || []).join(', ')}</p>
-                                    </div>
-                                )}
-                                {(form.getFieldValue('refundPolicy') || existingAction?.policy?.refund) && (
-                                    <div>
-                                        <p className="text-gray-600">Refund Policy</p>
-                                        <p className="font-semibold text-gray-900 whitespace-pre-wrap">{form.getFieldValue('refundPolicy') || existingAction?.policy?.refund}</p>
-                                    </div>
-                                )}
-                                {(form.getFieldValue('cancellationPolicy') || existingAction?.policy?.cancellation) && (
-                                    <div>
-                                        <p className="text-gray-600">Cancellation Policy</p>
-                                        <p className="font-semibold text-gray-900 whitespace-pre-wrap">{form.getFieldValue('cancellationPolicy') || existingAction?.policy?.cancellation}</p>
-                                    </div>
-                                )}
-                                {(form.getFieldValue('postPurchaseMessage') || existingAction?.fulfillment?.postPurchaseMessage) && (
-                                    <div>
-                                        <p className="text-gray-600">Post Purchase Message</p>
-                                        <p className="font-semibold text-gray-900 whitespace-pre-wrap">{form.getFieldValue('postPurchaseMessage') || existingAction?.fulfillment?.postPurchaseMessage}</p>
+                                {((form.getFieldValue('buyerFields')?.length > 0) || existingAction?.buyerFields?.length > 0) && (
+                                    <div className="px-4 py-3 bg-[#111927] border border-[#1e2d40] rounded-xl">
+                                        <p className="text-[10px] text-[#4a6278] uppercase tracking-wide mb-1">Buyer Fields</p>
+                                        <p className="text-[#f0f4f8] font-semibold">{(form.getFieldValue('buyerFields') || existingAction?.buyerFields || []).join(', ')}</p>
                                     </div>
                                 )}
                             </div>
                         </div>
 
-                        {/* Publish Section */}
+                        {/* Publish Status */}
                         <div>
-                            <h3 className="text-base font-semibold mb-4">Publish Status</h3>
-                            <Form.Item name="status" label="Action Status" rules={[{ required: true, message: 'Choose a status' }]}>
+                            <h3 className="text-sm font-bold text-[#4a6278] uppercase tracking-widest mb-3">Publish Status</h3>
+                            <Form.Item name="status" rules={[{ required: true, message: 'Choose a status' }]}>
                                 <Select
                                     options={[
-                                        { label: 'Publish now', value: 'published' },
-                                        { label: 'Save as draft', value: 'draft' },
+                                        { label: '🟢 Publish now — go live immediately', value: 'published' },
+                                        { label: '📝 Save as draft — finish later', value: 'draft' },
                                     ]}
                                 />
                             </Form.Item>
@@ -1761,44 +1905,102 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
         }
     };
 
+    if (!open) return null;
+
     return (
-        <Modal
-            open={open}
-            onCancel={handleClose}
-            footer={null}
-            width={1400}
-            destroyOnClose
-            className="action-wizard-modal"
-        >
-            <div className="space-y-6">
-                <div>
-                    <p className="text-sm font-semibold text-[#00B512] uppercase tracking-[0.2em]">Action Builder</p>
-                    <h2 className="text-2xl font-bold text-[#00313A] mt-1">Multi-step Action Wizard</h2>
-                    <p className="text-sm text-[#00313A]/70">Guide your organization through every detail, from basics to publish.</p>
-                </div>
-                <Steps
-                    current={currentStep}
-                    responsive
-                    items={stepItems.map((step, index) => ({
-                        key: step.key,
-                        title: step.title,
-                        description: step.description,
-                        status: index < currentStep ? 'finish' : index === currentStep ? 'process' : 'wait',
-                    }))}
-                />
-                <div className="bg-white rounded-3xl border border-gray-100 shadow-inner p-6">{renderStepContent()}</div>
-                <div className="flex items-center justify-between">
-                    <Button onClick={() => setCurrentStep((prev) => Math.max(prev - 1, 0))} disabled={currentStep === 0}>
-                        Back
-                    </Button>
-                    <div className="flex items-center gap-3">
-                        <Button type="primary" loading={loading} onClick={handleNext}>
-                            {isLastStep ? 'Finish' : 'Save & Continue'}
-                        </Button>
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+            <ConfigProvider
+                theme={{
+                    algorithm: antdTheme.darkAlgorithm,
+                    token: {
+                        colorBgContainer: '#111927',
+                        colorBgElevated: '#1e2d40',
+                        colorBorder: '#1e2d40',
+                        colorText: '#f0f4f8',
+                        colorTextSecondary: '#8da0b3',
+                        colorTextPlaceholder: '#4a6278',
+                        colorPrimary: '#3b82f6',
+                        borderRadius: 10,
+                    },
+                }}
+            >
+                <div className="relative bg-[#0d1117] border border-[#1e2d40] rounded-2xl w-full max-w-3xl max-h-[92vh] flex flex-col shadow-2xl shadow-black/60 overflow-hidden">
+
+                    {/* Header */}
+                    <div className="flex items-start justify-between px-6 py-5 border-b border-[#1e2d40] flex-shrink-0">
+                        <div>
+                            <p className="text-[11px] font-bold text-[#3b82f6] uppercase tracking-widest mb-1">{currentLabels.builderTitle}</p>
+                            <h2 className="text-xl font-bold text-[#f0f4f8] leading-tight">{currentLabels.wizardTitle}</h2>
+                            <p className="text-[#8da0b3] text-sm mt-0.5">{currentLabels.wizardDescription}</p>
+                        </div>
+                        <button
+                            onClick={handleClose}
+                            className="w-8 h-8 rounded-lg bg-[#111927] border border-[#1e2d40] flex items-center justify-center text-[#8da0b3] hover:text-[#f0f4f8] transition-colors flex-shrink-0 mt-0.5"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    </div>
+
+                    {/* Step indicator */}
+                    <div className="px-6 py-3 border-b border-[#1e2d40] flex-shrink-0 overflow-x-auto">
+                        <div className="flex items-center gap-1 min-w-max">
+                            {stepItems.map((step, index) => (
+                                <React.Fragment key={step.key}>
+                                    <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg flex-shrink-0 border transition-colors ${
+                                        index === currentStep
+                                            ? 'bg-[#1a3a5c] border-[#3b82f6]/60'
+                                            : index < currentStep
+                                            ? 'bg-emerald-900/20 border-emerald-700/30'
+                                            : 'bg-[#111927] border-[#1e2d40]'
+                                    }`}>
+                                        <span className={`w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center flex-shrink-0 ${
+                                            index < currentStep
+                                                ? 'bg-emerald-500 text-white'
+                                                : index === currentStep
+                                                ? 'bg-[#3b82f6] text-white'
+                                                : 'bg-[#1e2d40] text-[#4a6278]'
+                                        }`}>
+                                            {index < currentStep ? <Check className="w-2.5 h-2.5" strokeWidth={3} /> : index + 1}
+                                        </span>
+                                        <span className={`text-[11px] font-semibold ${
+                                            index === currentStep ? 'text-[#60a5fa]' :
+                                            index < currentStep ? 'text-emerald-400' : 'text-[#4a6278]'
+                                        }`}>{step.title}</span>
+                                    </div>
+                                    {index < stepItems.length - 1 && (
+                                        <div className={`h-px w-3 flex-shrink-0 ${index < currentStep ? 'bg-emerald-600/50' : 'bg-[#1e2d40]'}`} />
+                                    )}
+                                </React.Fragment>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Scrollable form content */}
+                    <div className="flex-1 overflow-y-auto px-6 py-5 min-h-0">
+                        {renderStepContent()}
+                    </div>
+
+                    {/* Footer */}
+                    <div className="flex items-center justify-between px-6 py-4 border-t border-[#1e2d40] bg-[#0d1117] flex-shrink-0">
+                        <button
+                            onClick={() => setCurrentStep(prev => Math.max(prev - 1, 0))}
+                            disabled={currentStep === 0}
+                            className="px-4 py-2 rounded-xl bg-[#111927] border border-[#1e2d40] text-[#8da0b3] text-sm font-semibold disabled:opacity-30 hover:text-[#f0f4f8] hover:border-[#2a3d54] transition-colors"
+                        >
+                            Back
+                        </button>
+                        <button
+                            onClick={handleNext}
+                            disabled={loading}
+                            className="px-5 py-2.5 rounded-xl bg-[#3b82f6] hover:bg-[#2563eb] disabled:opacity-40 text-white text-sm font-bold flex items-center gap-2 transition-colors shadow-lg shadow-blue-900/30"
+                        >
+                            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                            {isLastStep ? 'Publish' : 'Save & Continue →'}
+                        </button>
                     </div>
                 </div>
-            </div>
-        </Modal>
+            </ConfigProvider>
+        </div>
     );
 };
 
