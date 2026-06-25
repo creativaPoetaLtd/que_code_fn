@@ -614,6 +614,7 @@ export function PublicContributionCard({ data, onUpdated, isAuthenticated = true
                 </div>
                 {showQR && (
                   <div className="flex justify-center pt-1">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(shareLink)}`}
                       alt="QR Code"
@@ -632,7 +633,7 @@ export function PublicContributionCard({ data, onUpdated, isAuthenticated = true
         {step === "confirm_close" && (
           <div className="border-t border-gray-100 dark:border-darkBorder-light pt-3 mt-1 space-y-2">
             <p className="text-xs text-gray-600 dark:text-gray-300 font-medium">
-              Close this campaign? People won't be able to contribute after this.
+              Close this campaign? People won&apos;t be able to contribute after this.
             </p>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" className="flex-1 h-7 text-[11px]" onClick={() => setStep("idle")}>

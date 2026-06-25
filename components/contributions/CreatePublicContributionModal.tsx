@@ -371,7 +371,7 @@ export default function CreatePublicContributionModal({ isOpen, onClose, onCreat
                       : "bg-white dark:bg-darkBg-interactive text-gray-600 dark:text-gray-400"
                   }`}
                 >
-                  Hold — I'll withdraw later
+                  Hold — I&apos;ll withdraw later
                 </button>
                 <button
                   type="button"
