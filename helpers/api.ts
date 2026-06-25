@@ -436,3 +436,51 @@ export const closeGroupContribution = (groupId: string, contributionId: string) 
 
 export const extendGroupContributionDeadline = (groupId: string, contributionId: string, deadline: string) =>
   axios.patch(`${baseUrl}/groups/${groupId}/contributions/${contributionId}/extend`, { deadline }, { headers: getAuthHeaders() });
+
+// Public (standalone) contributions
+export const createPublicContribution = (payload: {
+  title: string;
+  note?: string;
+  goalAmount?: number;
+  type: "fixed" | "flexible";
+  amountPerMember?: number;
+  minimumAmount?: number;
+  deadline?: string;
+  visibilityMode?: "all" | "creator_only";
+  disbursementPolicy?: "hold" | "auto";
+}) =>
+  apiPost("/public-contributions", payload);
+
+export const getPublicContribution = (contributionId: string) =>
+  apiGet(`/public-contributions/${contributionId}`);
+
+export const getMyPublicContributions = () =>
+  apiGet("/public-contributions/");
+
+export const contributeToPublic = (contributionId: string, amount: number, pin: string) =>
+  axios.post(
+    `${baseUrl}/public-contributions/${contributionId}/pay`,
+    { amount, pin },
+    { headers: getAuthHeaders() }
+  );
+
+export const closePublicContribution = (contributionId: string) =>
+  axios.patch(
+    `${baseUrl}/public-contributions/${contributionId}/close`,
+    {},
+    { headers: getAuthHeaders() }
+  );
+
+export const extendPublicContributionDeadline = (contributionId: string, deadline: string) =>
+  axios.patch(
+    `${baseUrl}/public-contributions/${contributionId}/extend`,
+    { deadline },
+    { headers: getAuthHeaders() }
+  );
+
+export const withdrawPublicContribution = (contributionId: string) =>
+  axios.post(
+    `${baseUrl}/public-contributions/${contributionId}/withdraw`,
+    {},
+    { headers: getAuthHeaders() }
+  );

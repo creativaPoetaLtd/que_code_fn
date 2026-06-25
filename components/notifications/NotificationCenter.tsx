@@ -169,6 +169,18 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
             case 'CHAT_USER_ADDED':
             case 'chat_user_added':
                 return <UserPlus className="h-4 w-4 text-green-500" />
+
+            // Public contribution notifications
+            case 'PUBLIC_CONTRIBUTION_RECEIVED':
+            case 'public_contribution_received':
+                return <HandCoins className="h-4 w-4 text-[#00B512]" />
+            case 'PUBLIC_CONTRIBUTION_COMPLETED':
+            case 'public_contribution_completed':
+                return <Check className="h-4 w-4 text-green-500" />
+            case 'PUBLIC_CONTRIBUTION_CLOSED':
+            case 'public_contribution_closed':
+                return <ShieldAlert className="h-4 w-4 text-orange-500" />
+
             default:
                 return <Bell className="h-4 w-4 text-gray-500" />
         }

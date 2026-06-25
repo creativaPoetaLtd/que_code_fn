@@ -1,6 +1,6 @@
 {
   "parser": "@typescript-eslint/parser",
-  "extends": [],
+  "extends": ["next/core-web-vitals"],
   "rules": {
     "no-console": ["error", { "allow": ["error","warn"] }]
   },
