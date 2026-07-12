@@ -12,6 +12,8 @@ import {
   Target,
   ShieldAlert,
   CalendarPlus,
+  Wallet,
+  Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,10 +23,13 @@ import {
   getGroupContribution,
   closeGroupContribution,
   extendGroupContributionDeadline,
+  withdrawGroupContribution,
+  listGroupContributors,
 } from "@/helpers/api";
 import { getCurrentUserId } from "@/utils/tokenUtils";
 import { toast } from "@/hooks/use-toast";
 import socketService from "@/services/socketService";
+import { EditContributionModal } from "@/components/contributions/EditContributionModal";
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -87,18 +92,25 @@ export function GroupContributionCard({ data, isMe, chatId }: Props) {
   const [hasPaid, setHasPaid] = React.useState(false);
   const [loadingCheck, setLoadingCheck] = React.useState(true);
 
-  // contribution flow
   type Step =
     | "idle"
     | "enter_amount"
     | "enter_pin"
     | "loading"
     | "confirm_close"
-    | "extend_date";
+    | "extend_date"
+    | "confirm_withdraw";
   const [step, setStep] = React.useState<Step>("idle");
   const [customAmount, setCustomAmount] = React.useState("");
   const [pin, setPin] = React.useState("");
   const [newDeadline, setNewDeadline] = React.useState("");
+  const [showEditModal, setShowEditModal] = React.useState(false);
+  const [showContributors, setShowContributors] = React.useState(false);
+  const [contributors, setContributors] = React.useState<Array<{
+    payerId: string; amount: number;
+    payer?: { firstName: string; lastName: string };
+  }>>([]);
+  const [localData, setLocalData] = React.useState(data);
 
   // ── on mount: fetch fresh state to know if user already paid ──────────────
   React.useEffect(() => {
@@ -291,6 +303,35 @@ export function GroupContributionCard({ data, isMe, chatId }: Props) {
       });
       setStep("extend_date");
     }
+  };
+
+  // ── admin: withdraw funds ─────────────────────────────────────────────────
+  const handleWithdraw = async () => {
+    setStep("loading");
+    try {
+      const res = await withdrawGroupContribution(data.groupId, data.contributionId);
+      const withdrawn = res?.data?.data?.withdrawn;
+      toast({ description: `${fmt(withdrawn, data.currency)} withdrawn to your wallet!` });
+      setStep("idle");
+    } catch (err: any) {
+      toast({ variant: "destructive", description: err?.response?.data?.message || "Withdrawal failed" });
+      setStep("idle");
+    }
+  };
+
+  // ── admin: load contributors ──────────────────────────────────────────────
+  const handleToggleContributors = async () => {
+    if (showContributors) {
+      setShowContributors(false);
+      return;
+    }
+    try {
+      const res = await listGroupContributors(data.groupId, data.contributionId);
+      setContributors(res?.data?.data ?? []);
+    } catch {
+      // silently fail — show empty list
+    }
+    setShowContributors(true);
   };
 
   // ── render ────────────────────────────────────────────────────────────────
@@ -540,7 +581,7 @@ export function GroupContributionCard({ data, isMe, chatId }: Props) {
           </div>
         )}
 
-        {/* ── admin controls (only shown to campaign creator) ── */}
+        {/* ── admin controls ── */}
         {isMe && (isActive || localStatus === "expired") && step === "idle" && (
           <div className="border-t border-gray-100 dark:border-darkBorder-light pt-3 mt-1 space-y-2">
             <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">
@@ -565,7 +606,27 @@ export function GroupContributionCard({ data, isMe, chatId }: Props) {
               >
                 <CalendarPlus size={11} className="mr-1" /> Extend
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 h-7 text-[11px] text-brand-green dark:text-brand-gold border-brand-green/30 dark:border-brand-gold/30 hover:bg-brand-green/5 dark:hover:bg-brand-gold/5"
+                onClick={() => setShowEditModal(true)}
+              >
+                <Pencil size={11} className="mr-1" /> Edit
+              </Button>
             </div>
+            {/* Withdraw — hold policy + funds collected */}
+            {localData.disbursementPolicy === "hold" && localCollected > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full h-7 text-[11px] text-brand-green dark:text-brand-gold border-brand-green/30 dark:border-brand-gold/30 hover:bg-brand-green/5 dark:hover:bg-brand-gold/5"
+                onClick={() => setStep("confirm_withdraw")}
+              >
+                <Wallet size={11} className="mr-1" />
+                Withdraw {fmt(localCollected, data.currency)}
+              </Button>
+            )}
           </div>
         )}
 
@@ -573,22 +634,13 @@ export function GroupContributionCard({ data, isMe, chatId }: Props) {
         {step === "confirm_close" && (
           <div className="border-t border-gray-100 dark:border-darkBorder-light pt-3 mt-1 space-y-2">
             <p className="text-xs text-gray-600 dark:text-gray-300 font-medium">
-              Close this campaign? Members won't be able to contribute after this.
+              Close this campaign? Members won&apos;t be able to contribute after this.
             </p>
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1 h-7 text-[11px]"
-                onClick={() => setStep("idle")}
-              >
+              <Button variant="outline" size="sm" className="flex-1 h-7 text-[11px]" onClick={() => setStep("idle")}>
                 Cancel
               </Button>
-              <Button
-                size="sm"
-                className="flex-1 h-7 text-[11px] bg-red-500 hover:bg-red-600 text-white"
-                onClick={handleClose}
-              >
+              <Button size="sm" className="flex-1 h-7 text-[11px] bg-red-500 hover:bg-red-600 text-white" onClick={handleClose}>
                 Yes, Close
               </Button>
             </div>
@@ -608,25 +660,85 @@ export function GroupContributionCard({ data, isMe, chatId }: Props) {
               autoFocus
             />
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1 h-7 text-[11px]"
-                onClick={() => { setStep("idle"); setNewDeadline(""); }}
-              >
+              <Button variant="outline" size="sm" className="flex-1 h-7 text-[11px]" onClick={() => { setStep("idle"); setNewDeadline(""); }}>
                 Cancel
               </Button>
-              <Button
-                size="sm"
-                className="flex-1 h-7 text-[11px] bg-brand-green dark:bg-brand-gold text-white dark:text-darkBg-main hover:opacity-90"
-                onClick={handleExtend}
-              >
+              <Button size="sm" className="flex-1 h-7 text-[11px] bg-brand-green dark:bg-brand-gold text-white dark:text-darkBg-main hover:opacity-90" onClick={handleExtend}>
                 Extend
               </Button>
             </div>
           </div>
         )}
+
+        {/* confirm withdraw */}
+        {step === "confirm_withdraw" && (
+          <div className="border-t border-gray-100 dark:border-darkBorder-light pt-3 mt-1 space-y-2">
+            <p className="text-xs text-gray-600 dark:text-gray-300 font-medium">
+              Withdraw {fmt(localCollected, data.currency)} to your personal wallet?
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="flex-1 h-7 text-[11px]" onClick={() => setStep("idle")}>
+                Cancel
+              </Button>
+              <Button size="sm" className="flex-1 h-7 text-[11px] bg-brand-green dark:bg-brand-gold text-white dark:text-darkBg-main hover:opacity-90" onClick={handleWithdraw}>
+                Withdraw
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* contributors list — shown to admin when step is idle */}
+        {isMe && localCount > 0 && step === "idle" && (
+          <div className="border-t border-gray-100 dark:border-darkBorder-light pt-3 mt-1">
+            <button
+              onClick={handleToggleContributors}
+              className="w-full flex items-center justify-between text-[11px] font-semibold text-gray-500 dark:text-gray-400 hover:text-brand-green dark:hover:text-brand-gold transition-colors"
+            >
+              <span className="flex items-center gap-1.5">
+                <Users size={12} />
+                {localCount} contributor{localCount !== 1 ? "s" : ""}
+              </span>
+              <span className="text-[10px]">{showContributors ? "▲ hide" : "▼ show"}</span>
+            </button>
+            {showContributors && (
+              <div className="mt-2 space-y-1.5">
+                {contributors.length === 0 ? (
+                  <p className="text-[11px] text-gray-400 dark:text-gray-500">No data available</p>
+                ) : (
+                  contributors.map((c, i) => (
+                    <div key={i} className="flex items-center justify-between text-[11px]">
+                      <span className="text-gray-600 dark:text-gray-300">
+                        {c.payer ? `${c.payer.firstName} ${c.payer.lastName}` : "Anonymous"}
+                      </span>
+                      <span className="font-semibold text-brand-green dark:text-brand-gold">
+                        {fmt(Number(c.amount), data.currency)}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Edit modal */}
+      <EditContributionModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        variant="group"
+        contributionId={data.contributionId}
+        groupId={data.groupId}
+        initial={{
+          title: localData.title,
+          note: localData.note,
+          goalAmount: localData.goalAmount,
+          visibilityMode: localData.visibilityMode,
+          disbursementPolicy: localData.disbursementPolicy ?? "hold",
+          contributionType: localData.contributionType,
+        }}
+        onSaved={(patch) => setLocalData((prev) => ({ ...prev, ...patch }))}
+      />
     </div>
   );
 }

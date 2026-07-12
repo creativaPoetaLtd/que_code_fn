@@ -19,6 +19,7 @@ import {
     CheckCircle,
     Ban,
     CalendarClock,
+    ChevronLeft,
     ChevronRight,
     Lock,
     ArrowRight,
@@ -205,6 +206,61 @@ function ContributeFlow({ contribution, onSuccess }: { contribution: MyContribut
     return <div className="flex items-center gap-2 text-xs text-gray-500"><Loader2 size={13} className="animate-spin" /> Processing…</div>;
 }
 
+function useScrollRow() {
+    const ref = React.useRef<HTMLDivElement>(null);
+    const [canLeft, setCanLeft] = React.useState(false);
+    const [canRight, setCanRight] = React.useState(true);
+
+    const update = React.useCallback(() => {
+        const el = ref.current;
+        if (!el) return;
+        setCanLeft(el.scrollLeft > 4);
+        setCanRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+    }, []);
+
+    React.useEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        update();
+        const t1 = setTimeout(update, 80);
+        const t2 = setTimeout(update, 400);
+        el.addEventListener('scroll', update, { passive: true });
+        window.addEventListener('resize', update);
+        return () => {
+            clearTimeout(t1);
+            clearTimeout(t2);
+            el.removeEventListener('scroll', update);
+            window.removeEventListener('resize', update);
+        };
+    }, [update]);
+
+    const scroll = React.useCallback((dir: 'left' | 'right') => {
+        ref.current?.scrollBy({ left: dir === 'right' ? 320 : -320, behavior: 'smooth' });
+        setTimeout(update, 380);
+    }, [update]);
+
+    return { ref, canLeft, canRight, scroll };
+}
+
+function ScrollBtns({ s }: { s: ReturnType<typeof useScrollRow> }) {
+    const btn = (active: boolean) =>
+        `w-6 h-6 rounded-full border flex items-center justify-center transition-all ${
+            active
+                ? 'border-gray-300 dark:border-darkBorder-light text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-darkBg-interactive cursor-pointer'
+                : 'border-gray-200 dark:border-darkBorder-light text-gray-300 dark:text-gray-600 pointer-events-none'
+        }`;
+    return (
+        <div className="flex items-center gap-1">
+            <button onClick={() => s.scroll('left')} disabled={!s.canLeft} className={btn(s.canLeft)}>
+                <ChevronLeft size={12} />
+            </button>
+            <button onClick={() => s.scroll('right')} disabled={!s.canRight} className={btn(s.canRight)}>
+                <ChevronRight size={12} />
+            </button>
+        </div>
+    );
+}
+
 function ContributionCard({ contribution: initial, currentUserId }: { contribution: MyContribution; currentUserId: string }) {
     const [c, setC] = useState(initial);
     const [expanded, setExpanded] = useState(false);
@@ -273,7 +329,7 @@ function ContributionCard({ contribution: initial, currentUserId }: { contributi
     const showPayments = expanded && c.payments && c.payments.length > 0 && (c.isAdmin || c.visibilityMode === 'all');
 
     return (
-        <div className="bg-white dark:bg-darkBg-card rounded-3xl border border-emerald-50 dark:border-darkBorder-light shadow-lg shadow-emerald-100/40 dark:shadow-none p-6">
+        <div className="h-full bg-white dark:bg-darkBg-card rounded-3xl border border-emerald-50 dark:border-darkBorder-light shadow-lg shadow-emerald-100/40 dark:shadow-none p-6">
             <div className="flex items-start justify-between gap-3 mb-4">
                 <div className="flex items-center gap-3">
                     <div className={`p-2 rounded-full ${c.status === 'completed' ? 'bg-green-100 dark:bg-green-900/30' : c.status === 'active' ? 'bg-[#00B512]/10' : 'bg-gray-100 dark:bg-gray-800'}`}>
@@ -451,8 +507,6 @@ const ActionsByAccountPage = () => {
     const [resolvedTypeMap, setResolvedTypeMap] = useState<Record<string, string>>({});
     const [voteStandingsMap, setVoteStandingsMap] = useState<Record<string, { id: string; name: string; votes: number; rank: number }[]>>({});
 
-    // Group contributions tab
-    const [individualTab, setIndividualTab] = useState<'actions' | 'contributions' | 'campaigns'>('actions');
     const [filterGroupId, setFilterGroupId] = useState<string | null>(null);
     const [myContributions, setMyContributions] = useState<MyContribution[]>([]);
     const [contributionsLoading, setContributionsLoading] = useState(false);
@@ -462,12 +516,16 @@ const ActionsByAccountPage = () => {
     const [myPublicContributions, setMyPublicContributions] = useState<PublicContributionData[]>([]);
     const [publicContributionsLoading, setPublicContributionsLoading] = useState(false);
     const [createCampaignOpen, setCreateCampaignOpen] = useState(false);
+    const [contributionsFilter, setContributionsFilter] = useState<'all' | 'active' | 'history'>('all');
+    const [campaignsFilter, setCampaignsFilter] = useState<'all' | 'active' | 'closed'>('all');
+
+    const actionsScroll = useScrollRow();
+    const contributionsScroll = useScrollRow();
+    const campaignsScroll = useScrollRow();
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
         const params = new URLSearchParams(window.location.search);
-        if (params.get('tab') === 'contributions') setIndividualTab('contributions');
-        if (params.get('tab') === 'campaigns') setIndividualTab('campaigns');
         setFilterGroupId(params.get('group'));
     }, []);
 
@@ -608,16 +666,11 @@ const ActionsByAccountPage = () => {
     }, []);
 
     useEffect(() => {
-        if (accountMode === 'individual' && individualTab === 'contributions') {
+        if (accountMode === 'individual' && !isViewingAnotherUser) {
             fetchMyContributions();
-        }
-    }, [accountMode, individualTab, fetchMyContributions]);
-
-    useEffect(() => {
-        if (accountMode === 'individual' && individualTab === 'campaigns') {
             fetchMyPublicContributions();
         }
-    }, [accountMode, individualTab, fetchMyPublicContributions]);
+    }, [accountMode, isViewingAnotherUser, fetchMyContributions, fetchMyPublicContributions]);
 
     useEffect(() => {
         if (!purchasedActions.length) return;
@@ -1018,16 +1071,15 @@ const ActionsByAccountPage = () => {
 
         if (!purchasedActions.length) {
             return (
-                <div className="bg-white dark:bg-darkBg-card border border-emerald-100 dark:border-darkBorder-light rounded-3xl p-8 text-center shadow-sm">
-                    <div className="flex items-center justify-center gap-2 text-emerald-600 dark:text-brand-green font-semibold mb-2">
-                        <Ticket className="w-5 h-5" />
-                        <span>{isLoggedInAsOrganization && isViewingAnotherUser ? 'No matching QR objects' : 'No purchases yet'}</span>
-                    </div>
-                    <p className="text-gray-600 dark:text-gray-300 max-w-md mx-auto">
-                        {isLoggedInAsOrganization && isViewingAnotherUser 
+                <div className="bg-white dark:bg-darkBg-card border border-emerald-100 dark:border-darkBorder-light rounded-2xl p-8 text-center shadow-sm">
+                    <div className="text-4xl mb-3">🎟️</div>
+                    <p className="font-semibold text-[#00313A] dark:text-white mb-1">
+                        {isLoggedInAsOrganization && isViewingAnotherUser ? 'No QR objects found' : 'No tickets yet'}
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 max-w-xs mx-auto">
+                        {isLoggedInAsOrganization && isViewingAnotherUser
                             ? 'This user has not purchased any tickets or actions from your organization.'
-                            : 'When you buy tickets or actions, they will appear here with instant access to their QR codes.'
-                        }
+                            : 'When you buy tickets or actions, they appear here with instant QR code access.'}
                     </p>
                 </div>
             );
@@ -1035,35 +1087,6 @@ const ActionsByAccountPage = () => {
 
         return (
             <div className="space-y-4">
-                {/* Filter Buttons - Always Visible */}
-                <div className="flex flex-wrap gap-4 items-center">
-                    <div>
-                        <label className="block text-xs font-semibold text-[#00313A] dark:text-white uppercase mb-2">Filter</label>
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => setPurchasedActionsFilter('all')}
-                                className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
-                                    purchasedActionsFilter === 'all'
-                                        ? 'bg-[#00B512] text-white shadow'
-                                        : 'border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-interactive dark:text-white text-[#00313A] hover:bg-gray-50 dark:hover:bg-darkBg-card'
-                                }`}
-                            >
-                                Valid ({purchasedActions.filter(item => !item.status?.toLowerCase().includes('used') && (!item.validUntil || new Date(item.validUntil) >= new Date())).length})
-                            </button>
-                            <button
-                                onClick={() => setPurchasedActionsFilter('archive')}
-                                className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
-                                    purchasedActionsFilter === 'archive'
-                                        ? 'bg-[#00B512] text-white shadow'
-                                        : 'border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-interactive dark:text-white text-[#00313A] hover:bg-gray-50 dark:hover:bg-darkBg-card'
-                                }`}
-                            >
-                                Archive ({purchasedActions.filter(item => item.status?.toLowerCase().includes('used') || (item.validUntil && new Date(item.validUntil) < new Date())).length})
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
                 {/* Toolbar for organizations viewing user's QR objects */}
                 {isLoggedInAsOrganization && isViewingAnotherUser && (
                     <div className="flex flex-wrap gap-3 items-center justify-between bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-2xl p-4">
@@ -1084,27 +1107,27 @@ const ActionsByAccountPage = () => {
 
                 {/* Content Section - Empty or Grid */}
                 {filteredPurchasedActions.length === 0 ? (
-                    <div className="bg-white dark:bg-darkBg-card border border-emerald-100 dark:border-darkBorder-light rounded-3xl p-8 text-center shadow-sm">
-                        <div className="flex items-center justify-center gap-2 text-emerald-600 dark:text-brand-green font-semibold mb-2">
-                            <Ticket className="w-5 h-5" />
-                            <span>
-                                {purchasedActionsFilter === 'archive'
-                                    ? 'No archived or expired items'
-                                    : isLoggedInAsOrganization && isViewingAnotherUser
-                                    ? 'No valid QR objects'
-                                    : 'No valid purchases yet'}
-                            </span>
+                    <div className="bg-white dark:bg-darkBg-card border border-emerald-100 dark:border-darkBorder-light rounded-2xl p-6 text-center shadow-sm">
+                        <div className="text-3xl mb-2">
+                            {purchasedActionsFilter === 'archive' ? '📦' : '🎟️'}
                         </div>
-                        <p className="text-gray-600 dark:text-gray-300 max-w-md mx-auto">
+                        <p className="font-semibold text-[#00313A] dark:text-white mb-1 text-sm">
                             {purchasedActionsFilter === 'archive'
-                                ? 'Your used and expired items will appear here.'
+                                ? 'No archived items'
                                 : isLoggedInAsOrganization && isViewingAnotherUser
-                                ? 'This user has not purchased any valid tickets or actions from your organization.'
-                                : 'When you buy tickets or actions, they will appear here with instant access to their QR codes.'}
+                                ? 'No valid QR objects'
+                                : 'Nothing valid right now'}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 max-w-xs mx-auto">
+                            {purchasedActionsFilter === 'archive'
+                                ? 'Used and expired items will show up here once you have some.'
+                                : isLoggedInAsOrganization && isViewingAnotherUser
+                                ? 'This user has no active tickets or actions from your organization.'
+                                : 'Switch to Archive to see past items, or buy tickets to add new ones.'}
                         </p>
                     </div>
                 ) : (
-                    <div className="grid gap-4 md:grid-cols-2">
+                    <div ref={actionsScroll.ref} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide items-stretch">
                     {filteredPurchasedActions.map((item) => {
                         const actionId = item.metadata?.actionId || item.actionId || '';
                         const orgId = item.metadata?.organizationId || item.organizationId || '';
@@ -1144,7 +1167,7 @@ const ActionsByAccountPage = () => {
                             const actionName = item.metadata?.actionName || 'Vote';
 
                             return (
-                                <div key={item.id} className={`bg-white dark:bg-darkBg-card rounded-3xl border ${cfg.border} shadow-md overflow-hidden`}>
+                                <div key={item.id} className={`w-80 flex-shrink-0 bg-white dark:bg-darkBg-card rounded-3xl border ${cfg.border} shadow-md overflow-hidden`}>
                                     {/* Header strip */}
                                     <div className={`${cfg.accentBg} px-5 py-4 flex items-center gap-3`}>
                                         <div className="w-11 h-11 rounded-full bg-white dark:bg-darkBg-card flex items-center justify-center shadow-sm flex-shrink-0 overflow-hidden">
@@ -1215,7 +1238,7 @@ const ActionsByAccountPage = () => {
                         const tier = item.metadata?.subActionName;
 
                         return (
-                            <div key={item.id} className={`bg-white dark:bg-darkBg-card rounded-3xl border ${cfg.border} shadow-md overflow-hidden`}>
+                            <div key={item.id} className={`w-80 flex-shrink-0 bg-white dark:bg-darkBg-card rounded-3xl border ${cfg.border} shadow-md overflow-hidden`}>
                                 {/* Cover image */}
                                 {cover && (
                                     <div className="h-28 overflow-hidden relative">
@@ -1642,159 +1665,173 @@ const ActionsByAccountPage = () => {
             return renderOrganizationActions();
         }
 
-        // Individual: show tabs for My Actions and Group Contributions
-        const visibleContributions = filterGroupId
+        // Individual: 3 horizontal scroll rows
+        const allVisibleContributions = filterGroupId
             ? myContributions.filter((c) => c.groupId === filterGroupId)
             : myContributions;
-        const activeContributions = visibleContributions.filter((c) => c.status === 'active');
-        const historyContributions = visibleContributions.filter((c) => c.status !== 'active');
+        const visibleContributions =
+            contributionsFilter === 'active' ? allVisibleContributions.filter((c) => c.status === 'active')
+            : contributionsFilter === 'history' ? allVisibleContributions.filter((c) => c.status !== 'active')
+            : allVisibleContributions;
+        const activeContributions = allVisibleContributions.filter((c) => c.status === 'active');
+
+        const allCampaigns = myPublicContributions;
+        const visibleCampaigns =
+            campaignsFilter === 'active' ? allCampaigns.filter((c) => c.status === 'active')
+            : campaignsFilter === 'closed' ? allCampaigns.filter((c) => c.status !== 'active')
+            : allCampaigns;
+        const activeCampaigns = allCampaigns.filter((c) => c.status === 'active');
 
         return (
-            <div className="space-y-4">
-                {/* Tab switcher — only show when not viewing another user */}
+            <div className="space-y-8">
+                {/* ── ROW 1: My Actions ── */}
+                <div>
+                    <div className="flex items-center gap-3 mb-3">
+                        <Ticket size={16} className="text-[#00B512]" />
+                        <span className="text-sm font-bold text-[#00313A] dark:text-white uppercase tracking-widest">My Actions</span>
+                        <span className="text-xs text-gray-400 dark:text-gray-500">{purchasedActions.length}</span>
+                        <div className="flex items-center gap-2 ml-auto">
+                            <button
+                                onClick={() => setPurchasedActionsFilter('all')}
+                                className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+                                    purchasedActionsFilter === 'all'
+                                        ? 'bg-[#00B512] text-white'
+                                        : 'border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-interactive dark:text-white text-[#00313A]'
+                                }`}
+                            >
+                                Valid
+                            </button>
+                            <button
+                                onClick={() => setPurchasedActionsFilter('archive')}
+                                className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+                                    purchasedActionsFilter === 'archive'
+                                        ? 'bg-[#00B512] text-white'
+                                        : 'border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-interactive dark:text-white text-[#00313A]'
+                                }`}
+                            >
+                                Archive
+                            </button>
+                            <ScrollBtns s={actionsScroll} />
+                        </div>
+                    </div>
+                    {renderPurchasedActions()}
+                </div>
+
+                {/* ── ROW 2: Group Contributions ── */}
                 {!isViewingAnotherUser && (
-                    <div className="flex flex-wrap gap-2">
-                        <button
-                            onClick={() => setIndividualTab('actions')}
-                            className={`flex-1 sm:flex-none justify-center px-5 py-2 rounded-full text-sm font-semibold transition-colors ${
-                                individualTab === 'actions'
-                                    ? 'bg-[#00B512] text-white shadow'
-                                    : 'border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-interactive dark:text-white text-[#00313A] hover:bg-gray-50 dark:hover:bg-darkBg-card'
-                            }`}
-                        >
-                            My Actions
-                        </button>
-                        <button
-                            onClick={() => setIndividualTab('contributions')}
-                            className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-5 py-2 rounded-full text-sm font-semibold transition-colors ${
-                                individualTab === 'contributions'
-                                    ? 'bg-[#00B512] text-white shadow'
-                                    : 'border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-interactive dark:text-white text-[#00313A] hover:bg-gray-50 dark:hover:bg-darkBg-card'
-                            }`}
-                        >
-                            <Target size={14} />
-                            Group Contributions
+                    <div>
+                        <div className="flex items-center gap-3 mb-3">
+                            <Target size={16} className="text-amber-500" />
+                            <span className="text-sm font-bold text-[#00313A] dark:text-white uppercase tracking-widest">Group Contributions</span>
+                            <span className="text-xs text-gray-400 dark:text-gray-500">{visibleContributions.length}</span>
                             {activeContributions.length > 0 && (
                                 <span className="bg-amber-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
-                                    {activeContributions.length}
+                                    {activeContributions.length} active
                                 </span>
                             )}
-                        </button>
-                        <button
-                            onClick={() => setIndividualTab('campaigns')}
-                            className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-5 py-2 rounded-full text-sm font-semibold transition-colors ${
-                                individualTab === 'campaigns'
-                                    ? 'bg-[#00B512] text-white shadow'
-                                    : 'border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-interactive dark:text-white text-[#00313A] hover:bg-gray-50 dark:hover:bg-darkBg-card'
-                            }`}
-                        >
-                            <Globe2 size={14} />
-                            My Campaigns
-                            {myPublicContributions.filter((c) => c.status === 'active').length > 0 && (
-                                <span className="bg-[#00B512] border border-white text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
-                                    {myPublicContributions.filter((c) => c.status === 'active').length}
-                                </span>
-                            )}
-                        </button>
+                            <div className="ml-auto flex items-center gap-1.5">
+                                {(['all', 'active', 'history'] as const).map((f) => (
+                                    <button key={f} onClick={() => setContributionsFilter(f)}
+                                        className={`px-2.5 py-1 rounded-full text-[11px] font-semibold capitalize transition-colors ${
+                                            contributionsFilter === f
+                                                ? 'bg-amber-400 text-white'
+                                                : 'border border-gray-200 dark:border-darkBorder-light text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-darkBg-interactive'
+                                        }`}
+                                    >{f}</button>
+                                ))}
+                                <ScrollBtns s={contributionsScroll} />
+                            </div>
+                        </div>
+                        {contributionsLoading ? (
+                            <div className="flex items-center gap-3 py-8 text-sm text-gray-500">
+                                <Loader2 className="w-5 h-5 animate-spin text-[#00B512]" />
+                                Loading contributions…
+                            </div>
+                        ) : allVisibleContributions.length === 0 ? (
+                            <div className="bg-white dark:bg-darkBg-card border border-amber-50 dark:border-darkBorder-light rounded-2xl p-8 text-center shadow-sm">
+                                <div className="text-4xl mb-3">🎯</div>
+                                <p className="font-semibold text-[#00313A] dark:text-white mb-1">No group campaigns</p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 max-w-xs mx-auto">
+                                    When a group admin starts a contribution campaign in your chat, it'll show up here.
+                                </p>
+                            </div>
+                        ) : visibleContributions.length === 0 ? (
+                            <div className="py-6 text-center text-sm text-gray-400 dark:text-gray-500">
+                                No {contributionsFilter === 'history' ? 'past' : 'active'} contributions
+                            </div>
+                        ) : (
+                            <div ref={contributionsScroll.ref} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide items-stretch">
+                                {visibleContributions.map((c) => (
+                                    <div key={c.id} className="w-80 flex-shrink-0">
+                                        <ContributionCard contribution={c} currentUserId={currentUserId || ''} />
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
 
-                {(individualTab === 'actions' || isViewingAnotherUser) && renderPurchasedActions()}
-
-                {individualTab === 'contributions' && !isViewingAnotherUser && (
-                    contributionsLoading
-                    ? (
-                        <div className="flex flex-col items-center justify-center py-20">
-                            <Loader2 className="w-8 h-8 animate-spin text-[#00B512]" />
-                            <p className="mt-3 text-sm text-gray-500">Loading contributions…</p>
-                        </div>
-                    )
-                    : visibleContributions.length === 0
-                    ? (
-                        <div className="bg-white dark:bg-darkBg-card border border-emerald-100 dark:border-darkBorder-light rounded-3xl p-8 text-center shadow-sm">
-                            <div className="flex justify-center mb-3">
-                                <div className="p-4 rounded-full bg-[#00B512]/10">
-                                    <Target className="w-6 h-6 text-[#00B512]" />
-                                </div>
-                            </div>
-                            <p className="font-semibold text-[#00313A] dark:text-white mb-1">No contribution campaigns yet</p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">Group admins can create campaigns from the group chat.</p>
-                        </div>
-                    )
-                    : (
-                        <div className="space-y-6">
-                            {activeContributions.length > 0 && (
-                                <div>
-                                    <p className="text-xs font-semibold text-[#00313A] dark:text-white uppercase tracking-widest mb-3">Active</p>
-                                    <div className="grid gap-4 md:grid-cols-2">
-                                        {activeContributions.map((c) => (
-                                            <ContributionCard key={c.id} contribution={c} currentUserId={currentUserId || ''} />
-                                        ))}
-                                    </div>
-                                </div>
+                {/* ── ROW 3: Public Campaigns ── */}
+                {!isViewingAnotherUser && (
+                    <div>
+                        <div className="flex items-center gap-3 mb-3">
+                            <Globe2 size={16} className="text-[#00B512]" />
+                            <span className="text-sm font-bold text-[#00313A] dark:text-white uppercase tracking-widest">My Campaigns</span>
+                            <span className="text-xs text-gray-400 dark:text-gray-500">{visibleCampaigns.length}</span>
+                            {activeCampaigns.length > 0 && (
+                                <span className="bg-[#00B512] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+                                    {activeCampaigns.length} active
+                                </span>
                             )}
-                            {historyContributions.length > 0 && (
-                                <div>
-                                    <p className="text-xs font-semibold text-[#00313A] dark:text-white uppercase tracking-widest mb-3">History</p>
-                                    <div className="grid gap-4 md:grid-cols-2">
-                                        {historyContributions.map((c) => (
-                                            <ContributionCard key={c.id} contribution={c} currentUserId={currentUserId || ''} />
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )
-                )}
-
-                {individualTab === 'campaigns' && !isViewingAnotherUser && (
-                    publicContributionsLoading
-                    ? (
-                        <div className="flex flex-col items-center justify-center py-20">
-                            <Loader2 className="w-8 h-8 animate-spin text-[#00B512]" />
-                            <p className="mt-3 text-sm text-gray-500">Loading campaigns…</p>
-                        </div>
-                    )
-                    : (
-                        <>
-                            <div className="flex items-center justify-between mb-2">
-                                <p className="text-xs text-gray-500 dark:text-gray-400">
-                                    {myPublicContributions.length} campaign{myPublicContributions.length !== 1 ? 's' : ''}
-                                </p>
+                            <div className="ml-auto flex items-center gap-1.5">
+                                {(['all', 'active', 'closed'] as const).map((f) => (
+                                    <button key={f} onClick={() => setCampaignsFilter(f)}
+                                        className={`px-2.5 py-1 rounded-full text-[11px] font-semibold capitalize transition-colors ${
+                                            campaignsFilter === f
+                                                ? 'bg-[#00B512] text-white'
+                                                : 'border border-gray-200 dark:border-darkBorder-light text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-darkBg-interactive'
+                                        }`}
+                                    >{f}</button>
+                                ))}
+                                <ScrollBtns s={campaignsScroll} />
                                 <button
                                     onClick={() => setCreateCampaignOpen(true)}
-                                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold bg-[#00B512] hover:bg-[#009a0f] text-white transition-colors shadow-sm"
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-[#00B512] hover:bg-[#009a0f] text-white transition-colors"
                                 >
-                                    <Plus size={14} />
+                                    <Plus size={12} />
                                     New Campaign
                                 </button>
                             </div>
-                            {myPublicContributions.length === 0
-                            ? (
-                                <div className="bg-white dark:bg-darkBg-card border border-emerald-100 dark:border-darkBorder-light rounded-3xl p-8 text-center shadow-sm">
-                                    <div className="flex justify-center mb-3">
-                                        <div className="p-4 rounded-full bg-[#00B512]/10">
-                                            <Globe2 className="w-6 h-6 text-[#00B512]" />
-                                        </div>
-                                    </div>
-                                    <p className="font-semibold text-[#00313A] dark:text-white mb-1">No campaigns yet</p>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">
-                                        Create a public contribution campaign and share it with anyone via link or QR code.
-                                    </p>
-                                    <button
-                                        onClick={() => setCreateCampaignOpen(true)}
-                                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold bg-[#00B512] hover:bg-[#009a0f] text-white transition-colors shadow-sm"
-                                    >
-                                        <Plus size={14} />
-                                        Create Campaign
-                                    </button>
-                                </div>
-                            )
-                            : (
-                                <div className="grid gap-4 md:grid-cols-2">
-                                    {myPublicContributions.map((c) => (
+                        </div>
+                        {publicContributionsLoading ? (
+                            <div className="flex items-center gap-3 py-8 text-sm text-gray-500">
+                                <Loader2 className="w-5 h-5 animate-spin text-[#00B512]" />
+                                Loading campaigns…
+                            </div>
+                        ) : allCampaigns.length === 0 ? (
+                            <div className="bg-white dark:bg-darkBg-card border border-emerald-100 dark:border-darkBorder-light rounded-2xl p-8 text-center shadow-sm">
+                                <div className="text-4xl mb-3">🌍</div>
+                                <p className="font-semibold text-[#00313A] dark:text-white mb-1">No campaigns yet</p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 max-w-xs mx-auto mb-5">
+                                    Start a campaign, share a link, and collect contributions from anyone — no group needed.
+                                </p>
+                                <button
+                                    onClick={() => setCreateCampaignOpen(true)}
+                                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold bg-[#00B512] hover:bg-[#009a0f] text-white transition-colors shadow-sm"
+                                >
+                                    <Plus size={14} />
+                                    Create your first campaign
+                                </button>
+                            </div>
+                        ) : visibleCampaigns.length === 0 ? (
+                            <div className="py-6 text-center text-sm text-gray-400 dark:text-gray-500">
+                                No {campaignsFilter === 'closed' ? 'closed' : 'active'} campaigns
+                            </div>
+                        ) : (
+                            <div ref={campaignsScroll.ref} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide items-stretch">
+                                {visibleCampaigns.map((c) => (
+                                    <div key={c.id} className="w-80 flex-shrink-0">
                                         <PublicContributionCard
-                                            key={c.id}
                                             data={c}
                                             onUpdated={(patch) =>
                                                 setMyPublicContributions((prev) =>
@@ -1802,11 +1839,11 @@ const ActionsByAccountPage = () => {
                                                 )
                                             }
                                         />
-                                    ))}
-                                </div>
-                            )}
-                        </>
-                    )
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 )}
             </div>
         );
@@ -1819,7 +1856,7 @@ const ActionsByAccountPage = () => {
 
             {/* Main Content */}
             <main className={cn(
-                "flex-1 flex flex-col p-4 md:p-8 transition-all duration-300",
+                "flex-1 min-w-0 flex flex-col p-4 md:p-8 transition-all duration-300",
                 isExpanded ? "lg:ml-64" : "lg:ml-20"
             )}>
                 <div className="flex-1 overflow-y-auto pb-24 lg:pb-8">

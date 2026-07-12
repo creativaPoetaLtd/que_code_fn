@@ -431,11 +431,31 @@ export const getGroupContribution = (groupId: string, contributionId: string) =>
 export const contributeToGroup = (groupId: string, contributionId: string, amount: number, pin: string) =>
   axios.post(`${baseUrl}/groups/${groupId}/contributions/${contributionId}/pay`, { amount, pin }, { headers: getAuthHeaders() });
 
+export const updateGroupContribution = (
+  groupId: string,
+  contributionId: string,
+  payload: {
+    title?: string;
+    note?: string | null;
+    goalAmount?: number | null;
+    visibilityMode?: "all" | "admin_only";
+    disbursementPolicy?: "hold" | "auto";
+    disbursementRecipientId?: string | null;
+  }
+) =>
+  axios.patch(`${baseUrl}/groups/${groupId}/contributions/${contributionId}`, payload, { headers: getAuthHeaders() });
+
 export const closeGroupContribution = (groupId: string, contributionId: string) =>
   axios.patch(`${baseUrl}/groups/${groupId}/contributions/${contributionId}/close`, {}, { headers: getAuthHeaders() });
 
 export const extendGroupContributionDeadline = (groupId: string, contributionId: string, deadline: string) =>
   axios.patch(`${baseUrl}/groups/${groupId}/contributions/${contributionId}/extend`, { deadline }, { headers: getAuthHeaders() });
+
+export const withdrawGroupContribution = (groupId: string, contributionId: string) =>
+  axios.post(`${baseUrl}/groups/${groupId}/contributions/${contributionId}/withdraw`, {}, { headers: getAuthHeaders() });
+
+export const listGroupContributors = (groupId: string, contributionId: string) =>
+  apiGet(`/groups/${groupId}/contributions/${contributionId}/contributors`);
 
 // Public (standalone) contributions
 export const createPublicContribution = (payload: {
@@ -484,3 +504,33 @@ export const withdrawPublicContribution = (contributionId: string) =>
     {},
     { headers: getAuthHeaders() }
   );
+
+export const updatePublicContribution = (
+  contributionId: string,
+  payload: {
+    title?: string;
+    note?: string | null;
+    goalAmount?: number | null;
+    visibilityMode?: "all" | "creator_only";
+    disbursementPolicy?: "hold" | "auto";
+  }
+) =>
+  axios.patch(`${baseUrl}/public-contributions/${contributionId}`, payload, { headers: getAuthHeaders() });
+
+export const listPublicContributors = (contributionId: string) =>
+  apiGet(`/public-contributions/${contributionId}/contributors`);
+
+export const createCampaignGroup = (
+  contributionId: string,
+  payload: { name: string; description?: string; isOpen: boolean }
+) =>
+  axios.post(`${baseUrl}/public-contributions/${contributionId}/group`, payload, { headers: getAuthHeaders() });
+
+export const getCampaignGroup = (contributionId: string) =>
+  apiGet(`/public-contributions/${contributionId}/group`);
+
+export const joinCampaignGroup = (contributionId: string) =>
+  apiPost(`/public-contributions/${contributionId}/join-group`, {});
+
+export const getContributionByGroup = (groupId: string) =>
+  apiGet(`/public-contributions/by-group/${groupId}`);

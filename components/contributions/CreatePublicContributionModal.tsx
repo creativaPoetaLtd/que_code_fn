@@ -10,19 +10,10 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import {
-  Target,
-  Loader2,
-  Eye,
-  EyeOff,
-  Copy,
-  Check,
-  Share2,
-  QrCode,
-} from "lucide-react";
+import { Target, Loader2, Copy, Check, Share2, QrCode, Users } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { createPublicContribution } from "@/helpers/api";
-import Input from "../ui/Input-ant";
+import { createPublicContribution, createCampaignGroup } from "@/helpers/api";
+import { ContributionFormFields, ContributionFormValues } from "./ContributionFormFields";
 
 interface Props {
   isOpen: boolean;
@@ -31,53 +22,41 @@ interface Props {
 }
 
 type Step = "form" | "share";
-type ContributionType = "fixed" | "flexible";
-type VisibilityMode = "all" | "creator_only";
+
+const emptyForm: ContributionFormValues = {
+  title: "", note: "", goalAmount: "", contributionType: "fixed",
+  amountPerMember: "", minimumAmount: "", deadline: "",
+  visibilityMode: "all", disbursementPolicy: "hold", disbursementRecipientId: "",
+};
 
 export default function CreatePublicContributionModal({ isOpen, onClose, onCreated }: Props) {
   const [step, setStep] = useState<Step>("form");
-
-  // form state
-  const [title, setTitle] = useState("");
-  const [note, setNote] = useState("");
-  const [goalAmount, setGoalAmount] = useState("");
-  const [contributionType, setContributionType] = useState<ContributionType>("fixed");
-  const [amountPerMember, setAmountPerMember] = useState("");
-  const [minimumAmount, setMinimumAmount] = useState("");
-  const [deadline, setDeadline] = useState("");
-  const [visibilityMode, setVisibilityMode] = useState<VisibilityMode>("all");
-  const [disbursementPolicy, setDisbursementPolicy] = useState<"hold" | "auto">("hold");
+  const [form, setForm] = useState<ContributionFormValues>(emptyForm);
+  const [createGroup, setCreateGroup] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // share state
   const [shareLink, setShareLink] = useState("");
+  const [contributionId, setContributionId] = useState("");
   const [copied, setCopied] = useState(false);
   const [showQR, setShowQR] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setStep("form");
-      setTitle("");
-      setNote("");
-      setGoalAmount("");
-      setContributionType("fixed");
-      setAmountPerMember("");
-      setMinimumAmount("");
-      setDeadline("");
-      setVisibilityMode("all");
-      setDisbursementPolicy("hold");
+      setForm(emptyForm);
+      setCreateGroup(false);
       setShareLink("");
+      setContributionId("");
       setCopied(false);
       setShowQR(false);
     }
   }, [isOpen]);
 
   const validate = () => {
-    if (!title.trim()) {
+    if (!form.title.trim()) {
       toast({ variant: "destructive", description: "Campaign title is required" });
       return false;
     }
-    if (contributionType === "fixed" && (!amountPerMember || Number(amountPerMember) <= 0)) {
+    if (form.contributionType === "fixed" && (!form.amountPerMember || Number(form.amountPerMember) <= 0)) {
       toast({ variant: "destructive", description: "Enter the amount per person" });
       return false;
     }
@@ -89,29 +68,42 @@ export default function CreatePublicContributionModal({ isOpen, onClose, onCreat
     setIsSubmitting(true);
     try {
       const payload = {
-        title: title.trim(),
-        note: note.trim() || undefined,
-        ...(goalAmount ? { goalAmount: Number(goalAmount) } : {}),
-        type: contributionType,
-        visibilityMode,
-        disbursementPolicy,
-        ...(contributionType === "fixed" && amountPerMember
-          ? { amountPerMember: Number(amountPerMember) }
+        title: form.title.trim(),
+        note: form.note.trim() || undefined,
+        ...(form.goalAmount ? { goalAmount: Number(form.goalAmount) } : {}),
+        type: form.contributionType,
+        visibilityMode: form.visibilityMode as "all" | "creator_only",
+        disbursementPolicy: form.disbursementPolicy,
+        ...(form.contributionType === "fixed" && form.amountPerMember
+          ? { amountPerMember: Number(form.amountPerMember) }
           : {}),
-        ...(contributionType === "flexible" && minimumAmount
-          ? { minimumAmount: Number(minimumAmount) }
+        ...(form.contributionType === "flexible" && form.minimumAmount
+          ? { minimumAmount: Number(form.minimumAmount) }
           : {}),
-        ...(deadline ? { deadline: new Date(deadline).toISOString() } : {}),
+        ...(form.deadline ? { deadline: new Date(form.deadline).toISOString() } : {}),
       };
 
       const res = await createPublicContribution(payload);
       const contribution = res?.data?.data;
       if (!contribution?.id) throw new Error("No contribution ID returned");
 
+      if (createGroup) {
+        try {
+          await createCampaignGroup(contribution.id, {
+            name: form.title.trim(),
+            description: "",
+            isOpen: true,
+          });
+        } catch {
+          toast({ variant: "destructive", description: "Campaign created but community group setup failed." });
+        }
+      }
+
       const link = `${window.location.origin}/contribute/${contribution.id}`;
       setShareLink(link);
+      setContributionId(contribution.id);
       setStep("share");
-      toast({ description: `Campaign "${title}" created!` });
+      toast({ description: `Campaign "${form.title}" created!` });
       onCreated?.();
     } catch (error: any) {
       toast({
@@ -167,231 +159,39 @@ export default function CreatePublicContributionModal({ isOpen, onClose, onCreat
         {/* ─── FORM STEP ─── */}
         {step === "form" && (
           <div className="py-2 space-y-4">
-            {/* Title */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Campaign Title <span className="text-red-500">*</span>
-              </label>
-              <Input
-                placeholder="e.g. Trip to Musanze"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                disabled={isSubmitting}
-                className="dark:bg-darkBg-interactive dark:border-darkBorder-light dark:text-white"
-              />
-            </div>
+            <ContributionFormFields
+              variant="public"
+              values={form}
+              onChange={(patch) => setForm((v) => ({ ...v, ...patch }))}
+              disabled={isSubmitting}
+            />
 
-            {/* Note */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Note (Optional)
-              </label>
-              <Input
-                placeholder="What is the money for?"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                disabled={isSubmitting}
-                className="dark:bg-darkBg-interactive dark:border-darkBorder-light dark:text-white"
-              />
-            </div>
-
-            {/* Goal amount */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Goal Amount (RWF) <span className="text-gray-400">(Optional)</span>
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 flex items-center pl-3">
-                  <span className="text-xs font-bold text-gray-500 dark:text-gray-400">RWF</span>
-                </div>
-                <Input
-                  type="number"
-                  min={0}
-                  placeholder="0"
-                  className="pl-12 dark:bg-darkBg-interactive dark:border-darkBorder-light dark:text-white"
-                  value={goalAmount}
-                  onChange={(e) => setGoalAmount(e.target.value)}
-                  disabled={isSubmitting}
-                />
-              </div>
-            </div>
-
-            {/* Contribution type */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Contribution Type
-              </label>
-              <div className="flex rounded-lg border border-gray-200 dark:border-darkBorder-light overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setContributionType("fixed")}
-                  disabled={isSubmitting}
-                  className={`flex-1 py-2 text-xs font-medium transition-colors ${
-                    contributionType === "fixed"
-                      ? "bg-brand-green dark:bg-brand-gold text-white dark:text-darkBg-main"
-                      : "bg-white dark:bg-darkBg-interactive text-gray-600 dark:text-gray-400"
-                  }`}
-                >
-                  Fixed per person
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setContributionType("flexible")}
-                  disabled={isSubmitting}
-                  className={`flex-1 py-2 text-xs font-medium transition-colors ${
-                    contributionType === "flexible"
-                      ? "bg-brand-green dark:bg-brand-gold text-white dark:text-darkBg-main"
-                      : "bg-white dark:bg-darkBg-interactive text-gray-600 dark:text-gray-400"
-                  }`}
-                >
-                  Flexible amount
-                </button>
-              </div>
-            </div>
-
-            {contributionType === "fixed" && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Amount per Person (RWF) <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 flex items-center pl-3">
-                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400">RWF</span>
-                  </div>
-                  <Input
-                    type="number"
-                    min={0}
-                    placeholder="0"
-                    className="pl-12 dark:bg-darkBg-interactive dark:border-darkBorder-light dark:text-white"
-                    value={amountPerMember}
-                    onChange={(e) => setAmountPerMember(e.target.value)}
-                    disabled={isSubmitting}
-                  />
-                </div>
-              </div>
-            )}
-
-            {contributionType === "flexible" && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Minimum Amount (Optional)
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 flex items-center pl-3">
-                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400">RWF</span>
-                  </div>
-                  <Input
-                    type="number"
-                    min={0}
-                    placeholder="No minimum"
-                    className="pl-12 dark:bg-darkBg-interactive dark:border-darkBorder-light dark:text-white"
-                    value={minimumAmount}
-                    onChange={(e) => setMinimumAmount(e.target.value)}
-                    disabled={isSubmitting}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Deadline */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Deadline (Optional)
-              </label>
-              <Input
-                type="date"
-                min={new Date().toISOString().split("T")[0]}
-                value={deadline}
-                onChange={(e) => setDeadline(e.target.value)}
-                disabled={isSubmitting}
-                className="dark:bg-darkBg-interactive dark:border-darkBorder-light dark:text-white"
-              />
-            </div>
-
-            {/* Visibility toggle */}
+            {/* Community group toggle */}
             <button
               type="button"
-              onClick={() => setVisibilityMode((v) => (v === "all" ? "creator_only" : "all"))}
+              onClick={() => setCreateGroup((v) => !v)}
               disabled={isSubmitting}
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg border transition-colors ${
-                visibilityMode === "all"
-                  ? "bg-brand-green/10 dark:bg-brand-gold/10 border-brand-green/30 dark:border-brand-gold/30"
-                  : "bg-gray-50 dark:bg-darkBg-interactive border-gray-200 dark:border-darkBorder-light"
-              }`}
+              className="flex items-center justify-between w-full border border-gray-200 dark:border-darkBorder-light rounded-xl p-4"
             >
               <div className="flex items-center gap-2">
-                {visibilityMode === "all" ? (
-                  <Eye size={15} className="text-brand-green dark:text-brand-gold" />
-                ) : (
-                  <EyeOff size={15} className="text-gray-400" />
-                )}
+                <Users size={16} className="text-brand-green dark:text-brand-gold" />
                 <div className="text-left">
-                  <p
-                    className={`text-sm font-medium ${
-                      visibilityMode === "all"
-                        ? "text-brand-green dark:text-brand-gold"
-                        : "text-gray-700 dark:text-gray-300"
-                    }`}
-                  >
-                    {visibilityMode === "all" ? "Contributors visible to all" : "Contributors visible to you only"}
-                  </p>
-                  <p className="text-xs text-gray-400">
-                    {visibilityMode === "all"
-                      ? "Anyone with the link can see who has paid"
-                      : "Only you can see the contributor list"}
-                  </p>
+                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200">Create a community group</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Contributors can join and stay connected</p>
                 </div>
               </div>
               <div
-                className={`w-9 h-5 rounded-full transition-colors relative ${
-                  visibilityMode === "all" ? "bg-brand-green dark:bg-brand-gold" : "bg-gray-300 dark:bg-gray-600"
-                }`}
+                className={`w-10 h-5 rounded-full transition-colors flex-shrink-0 ${
+                  createGroup ? "bg-brand-green dark:bg-brand-gold" : "bg-gray-200 dark:bg-darkBg-interactive"
+                } flex items-center px-0.5`}
               >
                 <div
-                  className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                    visibilityMode === "all" ? "translate-x-4" : "translate-x-0.5"
+                  className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                    createGroup ? "translate-x-5" : "translate-x-0"
                   }`}
                 />
               </div>
             </button>
-
-            {/* Disbursement policy */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                What happens to the money?
-              </label>
-              <div className="flex rounded-lg border border-gray-200 dark:border-darkBorder-light overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setDisbursementPolicy("hold")}
-                  disabled={isSubmitting}
-                  className={`flex-1 py-2 text-xs font-medium transition-colors ${
-                    disbursementPolicy === "hold"
-                      ? "bg-brand-green dark:bg-brand-gold text-white dark:text-darkBg-main"
-                      : "bg-white dark:bg-darkBg-interactive text-gray-600 dark:text-gray-400"
-                  }`}
-                >
-                  Hold — I&apos;ll withdraw later
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDisbursementPolicy("auto")}
-                  disabled={isSubmitting}
-                  className={`flex-1 py-2 text-xs font-medium transition-colors ${
-                    disbursementPolicy === "auto"
-                      ? "bg-brand-green dark:bg-brand-gold text-white dark:text-darkBg-main"
-                      : "bg-white dark:bg-darkBg-interactive text-gray-600 dark:text-gray-400"
-                  }`}
-                >
-                  Auto — transfer on goal
-                </button>
-              </div>
-              <p className="text-[11px] text-gray-400 mt-1 px-1">
-                {disbursementPolicy === "hold"
-                  ? "Funds stay in the campaign wallet until you withdraw them."
-                  : "Funds transfer to your wallet automatically when the goal is reached or the campaign is closed."}
-              </p>
-            </div>
           </div>
         )}
 
@@ -469,7 +269,7 @@ export default function CreatePublicContributionModal({ isOpen, onClose, onCreat
               </Button>
               <Button
                 onClick={handleSubmit}
-                disabled={!title || isSubmitting}
+                disabled={!form.title || isSubmitting}
                 className="w-full sm:w-auto bg-brand-green dark:bg-brand-gold hover:opacity-90 text-white dark:text-darkBg-main min-w-[140px]"
               >
                 {isSubmitting ? (

@@ -149,24 +149,17 @@ export default function ChatPageClean() {
   }, []);
 
   useEffect(() => {
-    if (!requestedChatId || conversations.length === 0) {
-      return;
-    }
-
-    if (selectedChat?.id === requestedChatId && activeChat === requestedChatId) {
-      return;
-    }
+    if (!requestedChatId || conversations.length === 0) return;
 
     const requestedConversation = conversations.find(
       (conversation) => conversation.id === requestedChatId,
     );
 
-    if (!requestedConversation) {
-      return;
-    }
+    if (!requestedConversation) return;
 
     handleConversationSelect(requestedConversation);
-  }, [requestedChatId, conversations, selectedChat?.id, activeChat]);
+    setRequestedChatId(null);
+  }, [requestedChatId, conversations]);
 
   // Clear activeChat when navigating away from chat page
   useEffect(() => {

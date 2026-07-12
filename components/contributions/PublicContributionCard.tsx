@@ -17,6 +17,9 @@ import {
   Copy,
   Check,
   QrCode,
+  Pencil,
+  Globe,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,10 +29,13 @@ import {
   closePublicContribution,
   extendPublicContributionDeadline,
   withdrawPublicContribution,
+  joinCampaignGroup,
+  createCampaignGroup,
 } from "@/helpers/api";
 import { toast } from "@/hooks/use-toast";
 import socketService from "@/services/socketService";
 import { useRouter } from "next/navigation";
+import { EditContributionModal } from "./EditContributionModal";
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
@@ -53,6 +59,8 @@ export interface PublicContributionData {
   myPayment?: { amount: number } | null;
   payments?: Array<{ payerId: string; amount: number; payer?: { firstName: string; lastName: string } }>;
   creator?: { id: string; firstName: string; lastName: string };
+  linkedGroupId?: string | null;
+  allowContributorJoin?: boolean;
 }
 
 interface Props {
@@ -93,7 +101,8 @@ export function PublicContributionCard({ data, onUpdated, isAuthenticated = true
     | "loading"
     | "confirm_close"
     | "extend_date"
-    | "confirm_withdraw";
+    | "confirm_withdraw"
+    | "join_group_prompt";
   const [step, setStep] = React.useState<Step>("idle");
   const [customAmount, setCustomAmount] = React.useState("");
   const [pin, setPin] = React.useState("");
@@ -102,6 +111,10 @@ export function PublicContributionCard({ data, onUpdated, isAuthenticated = true
   const [copied, setCopied] = React.useState(false);
   const [showQR, setShowQR] = React.useState(false);
   const [showContributors, setShowContributors] = React.useState(false);
+  const [showEditModal, setShowEditModal] = React.useState(false);
+  const [localData, setLocalData] = React.useState(data);
+  const [linkedGroupId, setLinkedGroupId] = React.useState(data.linkedGroupId ?? null);
+  const [joinStatus, setJoinStatus] = React.useState<"none" | "pending" | "joined">("none");
 
   const router = useRouter();
 
@@ -226,7 +239,8 @@ export function PublicContributionCard({ data, onUpdated, isAuthenticated = true
     try {
       const amount = getAmount();
       const res = await contributeToPublic(data.id, amount, pin);
-      const updated = res?.data?.data?.contribution;
+      const resData = res?.data?.data;
+      const updated = resData?.contribution;
       toast({ description: "Contribution successful!" });
       setHasPaid(true);
       if (updated) {
@@ -234,13 +248,50 @@ export function PublicContributionCard({ data, onUpdated, isAuthenticated = true
         setLocalStatus(updated.status);
         onUpdated?.({ collectedAmount: Number(updated.collectedAmount), status: updated.status });
       }
-      setStep("idle");
       setPin("");
       setCustomAmount("");
+      if (resData?.canJoinGroup && joinStatus === "none") {
+        setStep("join_group_prompt");
+      } else {
+        setStep("idle");
+      }
     } catch (err: any) {
       const msg = err?.response?.data?.message || "Contribution failed. Try again.";
       toast({ variant: "destructive", description: msg });
       setStep(data.type === "flexible" ? "enter_amount" : "enter_pin");
+    }
+  };
+
+  const handleJoinGroup = async () => {
+    setStep("loading");
+    try {
+      const res = await joinCampaignGroup(data.id);
+      const status = res?.data?.data?.status;
+      setJoinStatus(status === "active" ? "joined" : "pending");
+      toast({ description: res?.data?.message || "Join request sent!" });
+      setStep("idle");
+    } catch (err: any) {
+      toast({ variant: "destructive", description: err?.response?.data?.message || "Failed to join group" });
+      setStep("idle");
+    }
+  };
+
+  const handleCreateGroup = async () => {
+    setStep("loading");
+    try {
+      const res = await createCampaignGroup(data.id, {
+        name: data.title,
+        description: "",
+        isOpen: true,
+      });
+      const group = res?.data?.data;
+      setLinkedGroupId(group?.id ?? null);
+      setLocalData((prev) => ({ ...prev, linkedGroupId: group?.id }));
+      toast({ description: "Community group created!" });
+      setStep("idle");
+    } catch (err: any) {
+      toast({ variant: "destructive", description: err?.response?.data?.message || "Failed to create group" });
+      setStep("idle");
     }
   };
 
@@ -297,7 +348,7 @@ export function PublicContributionCard({ data, onUpdated, isAuthenticated = true
   };
 
   return (
-    <div className="w-full max-w-sm rounded-2xl overflow-hidden shadow border border-gray-100 dark:border-darkBorder-light bg-white dark:bg-darkBg-card">
+    <div className="h-full w-full max-w-sm rounded-2xl overflow-hidden shadow border border-gray-100 dark:border-darkBorder-light bg-white dark:bg-darkBg-card">
       {/* accent strip */}
       <div
         className={
@@ -559,6 +610,14 @@ export function PublicContributionCard({ data, onUpdated, isAuthenticated = true
               >
                 <CalendarPlus size={11} className="mr-1" /> Extend
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 h-7 text-[11px] text-brand-green dark:text-brand-gold border-brand-green/30 dark:border-brand-gold/30 hover:bg-brand-green/5 dark:hover:bg-brand-gold/5"
+                onClick={() => setShowEditModal(true)}
+              >
+                <Pencil size={11} className="mr-1" /> Edit
+              </Button>
             </div>
             {/* Withdraw button (hold policy only, some funds collected) */}
             {data.disbursementPolicy === "hold" && localCollected > 0 && (
@@ -571,6 +630,25 @@ export function PublicContributionCard({ data, onUpdated, isAuthenticated = true
                 <Wallet size={11} className="mr-1" />
                 Withdraw {fmt(localCollected, data.currency)}
               </Button>
+            )}
+
+            {/* Community group row */}
+            {!linkedGroupId ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full h-7 text-[11px] text-brand-green dark:text-brand-gold border-brand-green/30 dark:border-brand-gold/30 hover:bg-brand-green/5 dark:hover:bg-brand-gold/5"
+                onClick={handleCreateGroup}
+              >
+                <Users size={11} className="mr-1" /> Create Community Group
+              </Button>
+            ) : (
+              <button
+                onClick={() => router.push(`/groups/${linkedGroupId}`)}
+                className="w-full flex items-center justify-center gap-1.5 h-7 rounded-md text-[11px] font-medium text-brand-green dark:text-brand-gold hover:bg-brand-green/5 dark:hover:bg-brand-gold/5 transition-colors border border-brand-green/30 dark:border-brand-gold/30"
+              >
+                <Globe size={11} /> View Community Group <ExternalLink size={10} />
+              </button>
             )}
 
             {/* Share row */}
@@ -698,6 +776,28 @@ export function PublicContributionCard({ data, onUpdated, isAuthenticated = true
           </div>
         )}
 
+        {/* join group prompt (shown after successful contribution) */}
+        {step === "join_group_prompt" && (
+          <div className="border-t border-gray-100 dark:border-darkBorder-light pt-3 mt-1 space-y-2">
+            <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-1.5">
+              <Users size={13} className="text-brand-green dark:text-brand-gold" />
+              Join the community group?
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="flex-1 h-7 text-[11px]" onClick={() => setStep("idle")}>
+                Skip
+              </Button>
+              <Button
+                size="sm"
+                className="flex-1 h-7 text-[11px] bg-brand-green dark:bg-brand-gold text-white dark:text-darkBg-main hover:opacity-90"
+                onClick={handleJoinGroup}
+              >
+                Join
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* ── contributor list ── */}
         {data.payments && data.payments.length > 0 && data.isCreator && step === "idle" && (
           <div className="border-t border-gray-100 dark:border-darkBorder-light pt-3 mt-1">
@@ -728,6 +828,28 @@ export function PublicContributionCard({ data, onUpdated, isAuthenticated = true
           </div>
         )}
       </div>
+
+      {/* Edit modal */}
+      <EditContributionModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        variant="public"
+        contributionId={data.id}
+        hasLinkedGroup={!!linkedGroupId}
+        initial={{
+          title: localData.title,
+          note: localData.note,
+          goalAmount: localData.goalAmount,
+          visibilityMode: localData.visibilityMode,
+          disbursementPolicy: localData.disbursementPolicy,
+          contributionType: localData.type,
+          allowContributorJoin: localData.allowContributorJoin,
+        }}
+        onSaved={(patch) => {
+          setLocalData((prev) => ({ ...prev, ...patch }));
+          onUpdated?.(patch);
+        }}
+      />
     </div>
   );
 }
