@@ -1823,7 +1823,7 @@ const ActionsByAccountPage = () => {
                                 <div className="text-4xl mb-3">🎯</div>
                                 <p className="font-semibold text-[#00313A] dark:text-white mb-1">No group campaigns</p>
                                 <p className="text-sm text-gray-500 dark:text-gray-400 max-w-xs mx-auto">
-                                    When a group admin starts a contribution campaign in your chat, it'll show up here.
+                                    When a group admin starts a contribution campaign in your chat, it&apos;ll show up here.
                                 </p>
                             </div>
                         ) : visibleContributions.length === 0 ? (

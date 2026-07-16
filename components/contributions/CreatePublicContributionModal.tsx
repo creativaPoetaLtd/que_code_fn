@@ -126,7 +126,7 @@ export default function CreatePublicContributionModal({ isOpen, onClose, onCreat
   const handleNativeShare = async () => {
     if (navigator.share) {
       try {
-        await navigator.share({ title, text: `Contribute to "${title}"`, url: shareLink });
+        await navigator.share({ title: form.title, text: `Contribute to "${form.title}"`, url: shareLink });
       } catch {
         // user cancelled
       }

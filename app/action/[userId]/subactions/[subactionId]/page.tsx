@@ -680,7 +680,7 @@ export default function SubActionDetailPage() {
                     {/* Benefits */}
                     {benefitsList.length > 0 && (
                         <section className="bg-[#111927] border border-[#1e2d40] rounded-2xl p-5">
-                            <p className="text-[#8da0b3] text-[10px] font-bold uppercase tracking-widest mb-3">What's included</p>
+                            <p className="text-[#8da0b3] text-[10px] font-bold uppercase tracking-widest mb-3">What&apos;s included</p>
                             <ul className="space-y-2.5">
                                 {benefitsList.map((b: string, i: number) => (
                                     <li key={i} className="flex items-center gap-3 text-sm text-[#c4d4e0]">
