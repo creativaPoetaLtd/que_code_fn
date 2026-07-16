@@ -36,6 +36,10 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button as CustomButton } from '@/components/ui/button';
+import ImageCarousel from '@/components/ui/image-carousel';
+import SocialLinksRow from '@/components/ui/social-links';
+import ShareQrDialog from '@/components/ui/share-qr-dialog';
+import type { SocialLinks } from '@/types/action.types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -84,10 +88,11 @@ interface SubAction {
   stock: number | null;
   stockReserved: number;
   variants: Record<string, any>;
-  metadata: Record<string, any>;
+  metadata: Record<string, any> & { socialLinks?: SocialLinks };
   isActive: boolean;
   sortOrder: number;
   coverImage?: string | null;
+  images?: string[];
   dedicatedQrCodeData?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -734,6 +739,7 @@ function VoteContent({
   const [sortMode, setSortMode] = useState<SortMode>('votes-desc');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [pinnedCandidateIds, setPinnedCandidateIds] = useState<string[]>([]);
+  const [shareCandidate, setShareCandidate] = useState<SubAction | null>(null);
   const filteredCandidates = useMemo(() => {
     let list = activeSubActions;
     if (searchQuery) list = list.filter((s: SubAction) => s.name.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -960,22 +966,26 @@ function VoteContent({
                       : 'border-[#1e2d40] bg-[#111927] hover:border-[#2a3d54] hover:shadow-md hover:shadow-black/30'
                   }`}
                 >
-                  {/* Photo */}
+                  {/* Photos — cover first, then the gallery, as a carousel */}
                   <div className="relative h-44 bg-[#0d1525] flex-shrink-0">
-                    {candidate.coverImage ? (
-                      <img src={candidate.coverImage} alt={candidate.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#1a2c3d] to-[#0d1525]">
-                        <Users className="w-12 h-12 text-[#1e2d40]" />
-                      </div>
-                    )}
+                    <ImageCarousel
+                      images={[candidate.coverImage, ...(candidate.images ?? [])]}
+                      alt={candidate.name}
+                      className="w-full h-full"
+                      hideCounter
+                      fallback={
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#1a2c3d] to-[#0d1525]">
+                          <Users className="w-12 h-12 text-[#1e2d40]" />
+                        </div>
+                      }
+                    />
                     {rank !== undefined && (
-                      <div className="absolute top-2.5 left-2.5 bg-black/60 backdrop-blur-sm text-white text-xs font-bold px-2 py-1 rounded-lg">
+                      <div className="absolute top-2.5 left-2.5 bg-black/60 backdrop-blur-sm text-white text-xs font-bold px-2 py-1 rounded-lg pointer-events-none">
                         #{rank}
                       </div>
                     )}
                     {votes !== undefined && (
-                      <div className="absolute top-2.5 right-2.5 bg-[#3b82f6]/90 backdrop-blur-sm text-white text-xs font-bold px-2.5 py-1 rounded-lg">
+                      <div className="absolute top-2.5 right-2.5 bg-[#3b82f6]/90 backdrop-blur-sm text-white text-xs font-bold px-2.5 py-1 rounded-lg pointer-events-none">
                         {Number(votes).toLocaleString()} votes
                       </div>
                     )}
@@ -984,25 +994,35 @@ function VoteContent({
                   {/* Info */}
                   <div className="p-4 flex flex-col gap-3 flex-1">
                     <div>
-                      <h4 className="text-[#f0f4f8] font-bold text-base leading-tight">{candidate.name}</h4>
+                      <div className="flex items-start justify-between gap-2">
+                        <h4 className="text-[#f0f4f8] font-bold text-base leading-tight">{candidate.name}</h4>
+                        <SocialLinksRow links={candidate.metadata?.socialLinks} className="flex-shrink-0" />
+                      </div>
                       {candidateNum && <p className="text-[#4a6278] text-xs mt-0.5">Candidate #{candidateNum}</p>}
                       {candidate.description && (
                         <p className="text-[#8da0b3] text-xs mt-1.5 line-clamp-2 leading-relaxed">{candidate.description}</p>
                       )}
                     </div>
 
-                    {candidate.dedicatedQrCodeData && (
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setShareCandidate(candidate)}
+                        className="inline-flex items-center gap-1.5 text-xs text-[#8da0b3] hover:text-[#60a5fa] transition-colors"
+                      >
+                        <QrCode className="w-3.5 h-3.5" />
+                        Share QR
+                      </button>
                       <a
                         href={`/action/${action.id}/subactions/${candidate.id}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-xs text-[#4a6278] hover:text-[#60a5fa] transition-colors"
+                        className="inline-flex items-center gap-1.5 text-xs text-[#8da0b3] hover:text-[#60a5fa] transition-colors"
                       >
-                        <QrCode className="w-3.5 h-3.5" />
-                        View QR & profile
+                        View profile
                         <ExternalLink className="w-3 h-3" />
                       </a>
-                    )}
+                    </div>
 
                     {purchaseError[candidate.id] && (
                       <p className="text-red-400 text-xs bg-red-500/10 border border-red-500/20 px-2.5 py-1.5 rounded-lg">
@@ -1056,9 +1076,13 @@ function VoteContent({
                   </span>
 
                   {/* Avatar */}
-                  <div className="w-10 h-10 rounded-full overflow-hidden border border-[#1e2d40] flex-shrink-0 bg-[#0d1525]">
-                    {candidate.coverImage ? (
-                      <img src={candidate.coverImage} alt={candidate.name} className="w-full h-full object-cover" />
+                  <div className="relative w-10 h-10 rounded-full overflow-hidden border border-[#1e2d40] flex-shrink-0 bg-[#0d1525]">
+                    {candidate.coverImage || candidate.images?.length ? (
+                      <img
+                        src={candidate.coverImage || candidate.images![0]}
+                        alt={candidate.name}
+                        className="w-full h-full object-cover"
+                      />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <Users className="w-4 h-4 text-[#4a6278]" />
@@ -1068,7 +1092,10 @@ function VoteContent({
 
                   {/* Name + description */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-[#f0f4f8] font-semibold text-sm truncate">{candidate.name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-[#f0f4f8] font-semibold text-sm truncate">{candidate.name}</p>
+                      <SocialLinksRow links={candidate.metadata?.socialLinks} className="flex-shrink-0" />
+                    </div>
                     {candidate.description && (
                       <p className="text-[#4a6278] text-xs truncate mt-0.5">{candidate.description}</p>
                     )}
@@ -1088,17 +1115,15 @@ function VoteContent({
 
                   {/* Actions */}
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    {candidate.dedicatedQrCodeData && (
-                      <a
-                        href={`/action/${action.id}/subactions/${candidate.id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-1.5 rounded-lg border border-[#1e2d40] text-[#4a6278] hover:text-[#60a5fa] hover:border-[#3b82f6] transition-colors"
-                        title="View QR"
-                      >
-                        <QrCode className="w-3.5 h-3.5" />
-                      </a>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => setShareCandidate(candidate)}
+                      className="p-1.5 rounded-lg border border-[#1e2d40] text-[#8da0b3] hover:text-[#60a5fa] hover:border-[#3b82f6] transition-colors"
+                      title={`Share ${candidate.name}`}
+                      aria-label={`Share ${candidate.name}`}
+                    >
+                      <QrCode className="w-3.5 h-3.5" />
+                    </button>
                     <button
                       onClick={() => setSelectedCandidate((prev: SubAction | null) => prev?.id === candidate.id ? null : candidate)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
@@ -1130,8 +1155,12 @@ function VoteContent({
         <div className="fixed bottom-0 left-0 right-0 bg-[#0d1117]/95 backdrop-blur-md border-t border-[#1e2d40] px-4 sm:px-6 py-3 z-30">
           <div className="max-w-2xl mx-auto flex items-center gap-4">
             <div className="w-9 h-9 rounded-full overflow-hidden border border-[#3b82f6] flex-shrink-0 bg-[#0d1525]">
-              {selectedCandidate.coverImage ? (
-                <img src={selectedCandidate.coverImage} alt={selectedCandidate.name} className="w-full h-full object-cover" />
+              {selectedCandidate.coverImage || selectedCandidate.images?.length ? (
+                <img
+                  src={selectedCandidate.coverImage || selectedCandidate.images![0]}
+                  alt={selectedCandidate.name}
+                  className="w-full h-full object-cover"
+                />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
                   <Users className="w-4 h-4 text-[#4a6278]" />
@@ -1158,6 +1187,22 @@ function VoteContent({
             </button>
           </div>
         </div>
+      )}
+
+      {/* ── Per-contestant QR / share ── */}
+      {shareCandidate && (
+        <ShareQrDialog
+          open={Boolean(shareCandidate)}
+          onOpenChange={(next) => { if (!next) setShareCandidate(null); }}
+          name={shareCandidate.name}
+          subtitle={
+            shareCandidate.metadata?.candidateNumber
+              ? `Candidate #${shareCandidate.metadata.candidateNumber}`
+              : action.name
+          }
+          url={`/action/${action.id}/subactions/${shareCandidate.id}`}
+          qrCodeData={shareCandidate.dedicatedQrCodeData}
+        />
       )}
     </>
   );
@@ -1271,10 +1316,13 @@ function TicketContent({
                     qty > 0 ? 'bg-[#111927] border-[#3b82f6]' : 'bg-[#111927] border-[#1e2d40] hover:border-[#2a3d54]'
                   }`}
                 >
-                  {subAction.coverImage && (
+                  {(subAction.coverImage || subAction.images?.length) && (
                     <div className="relative h-32 w-full">
-                      <img src={subAction.coverImage} alt={subAction.name} className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#111927]/90 to-transparent" />
+                      <ImageCarousel
+                        images={[subAction.coverImage, ...(subAction.images ?? [])]}
+                        alt={subAction.name}
+                        className="w-full h-full"
+                      />
                     </div>
                   )}
                   <div className="p-5">
@@ -1516,10 +1564,13 @@ function BookingContent({
 
               return (
                 <div key={subAction.id} className="rounded-xl border border-[#1e2d40] bg-[#111927] overflow-hidden">
-                  {subAction.coverImage && (
+                  {(subAction.coverImage || subAction.images?.length) && (
                     <div className="relative h-32 w-full">
-                      <img src={subAction.coverImage} alt={subAction.name} className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#111927]/90 to-transparent" />
+                      <ImageCarousel
+                        images={[subAction.coverImage, ...(subAction.images ?? [])]}
+                        alt={subAction.name}
+                        className="w-full h-full"
+                      />
                     </div>
                   )}
                   <div className="p-5">
