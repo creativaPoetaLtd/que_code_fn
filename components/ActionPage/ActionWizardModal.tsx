@@ -15,7 +15,7 @@ import {
     Tag,
     Typography,
 } from 'antd';
-import { DeleteOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons';
+import { DeleteOutlined, EditOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons';
 import { X, Loader2, Check } from 'lucide-react';
 import dayjs from 'dayjs';
 import { Upload } from 'antd';
@@ -24,6 +24,7 @@ import {
     createActionStepAWithFormData,
     updateActionStepB,
     createSubAction,
+    updateSubAction,
     updateActionStepD,
     updateActionStepE,
     updateActionStepF,
@@ -37,6 +38,8 @@ import {
     updateActionWithFormData,
 } from '@/helpers/api';
 import type { SubActionSummary } from '@/types/action.types';
+import SocialLinksRow from '@/components/ui/social-links';
+import { parseMetadata } from '@/utils/subActionMetadata';
 
 const { TextArea } = Input;
 
@@ -606,6 +609,148 @@ const KeyValueInput: React.FC<KeyValueInputProps> = ({ value, onChange, placehol
     );
 };
 
+const MAX_GALLERY_IMAGES = 6;
+
+interface GalleryImageInputProps {
+    /** Already-hosted URLs (edit mode) */
+    urls: string[];
+    /** Newly picked files pending upload */
+    files: File[];
+    previews: string[];
+    onAddFiles: (files: File[]) => void;
+    onRemoveUrl: (url: string) => void;
+    onRemoveFile: (index: number) => void;
+}
+
+const GalleryImageInput: React.FC<GalleryImageInputProps> = ({
+    urls,
+    files,
+    previews,
+    onAddFiles,
+    onRemoveUrl,
+    onRemoveFile,
+}) => {
+    const total = urls.length + files.length;
+    const remaining = MAX_GALLERY_IMAGES - total;
+
+    const tile = 'group relative aspect-square rounded-xl overflow-hidden border border-[#1e2d40] bg-[#0d1117]';
+    const removeBtn =
+        'absolute top-1.5 right-1.5 w-6 h-6 rounded-lg bg-black/70 backdrop-blur-sm border border-white/10 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity hover:bg-red-500/90';
+
+    return (
+        <div className="space-y-3">
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
+                {urls.map((url, index) => (
+                    <div key={url} className={tile}>
+                        <img src={url} alt={`Gallery ${index + 1}`} className="w-full h-full object-cover" />
+                        <button type="button" onClick={() => onRemoveUrl(url)} className={removeBtn} aria-label="Remove image">
+                            <X className="w-3 h-3" />
+                        </button>
+                    </div>
+                ))}
+                {files.map((file, index) => (
+                    <div key={`${file.name}-${index}`} className={tile}>
+                        {previews[index] ? (
+                            <img src={previews[index]} alt={file.name} className="w-full h-full object-cover" />
+                        ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                                <Loader2 className="w-4 h-4 text-[#4a6278] animate-spin" />
+                            </div>
+                        )}
+                        <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-blue-500/90 text-white text-[9px] font-bold uppercase tracking-wide">
+                            New
+                        </span>
+                        <button type="button" onClick={() => onRemoveFile(index)} className={removeBtn} aria-label="Remove image">
+                            <X className="w-3 h-3" />
+                        </button>
+                    </div>
+                ))}
+
+                {remaining > 0 && (
+                    <Upload
+                        accept="image/*"
+                        multiple
+                        showUploadList={false}
+                        beforeUpload={(_file, fileList) => {
+                            // antd calls beforeUpload once per file; take the batch on the first call
+                            if (_file === fileList[0]) {
+                                onAddFiles(fileList.slice(0, remaining) as unknown as File[]);
+                            }
+                            return false;
+                        }}
+                    >
+                        <div className="aspect-square w-full rounded-xl border border-dashed border-[#2a3d54] bg-[#0f1822] flex flex-col items-center justify-center gap-1 text-[#4a6278] hover:border-[#3b82f6] hover:text-[#60a5fa] transition-colors cursor-pointer">
+                            <PlusOutlined />
+                            <span className="text-[10px] font-semibold">Add</span>
+                        </div>
+                    </Upload>
+                )}
+            </div>
+            <p className="text-xs text-[#4a6278]">
+                {total > 0
+                    ? `${total} of ${MAX_GALLERY_IMAGES} images — shown as a carousel on the public page.`
+                    : `Add up to ${MAX_GALLERY_IMAGES} images to show as a carousel on the public page.`}
+            </p>
+        </div>
+    );
+};
+
+interface PricingModeOption {
+    label: string;
+    value: string;
+    description: string;
+}
+
+interface PricingModeCardsProps {
+    value?: string;
+    onChange?: (value: string) => void;
+    onAfterChange?: (value: string) => void;
+    options: PricingModeOption[];
+    disabled?: boolean;
+}
+
+const PricingModeCards: React.FC<PricingModeCardsProps> = ({ value, onChange, onAfterChange, options, disabled }) => {
+    return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {options.map((opt) => {
+                const selected = value === opt.value;
+                return (
+                    <button
+                        key={opt.value}
+                        type="button"
+                        disabled={disabled}
+                        onClick={() => {
+                            if (disabled) return;
+                            onChange?.(opt.value);
+                            onAfterChange?.(opt.value);
+                        }}
+                        className={[
+                            'relative text-left rounded-xl border p-4 transition-all',
+                            'focus:outline-none focus:ring-2 focus:ring-emerald-400/40',
+                            selected
+                                ? 'border-emerald-400 bg-emerald-400/10 shadow-[0_0_0_1px_rgba(52,211,153,0.4)]'
+                                : 'border-[#2a3b4d] bg-[#0f1822] hover:border-[#4a6278]',
+                            disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer',
+                        ].join(' ')}
+                    >
+                        {selected && (
+                            <span className="absolute top-3 right-3 inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-400 text-[#0f1822]">
+                                <Check className="w-3 h-3" strokeWidth={3} />
+                            </span>
+                        )}
+                        <p className={`font-semibold mb-1 ${selected ? 'text-emerald-300' : 'text-[#f0f4f8]'}`}>
+                            {opt.label}
+                        </p>
+                        <p className="text-xs text-[#8da0b3] leading-relaxed">
+                            {opt.description}
+                        </p>
+                    </button>
+                );
+            })}
+        </div>
+    );
+};
+
 const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, organizationId, onCompleted, editingActionId, preSelectedType }) => {
     const [currentStep, setCurrentStep] = useState(0);
     const [form] = Form.useForm();
@@ -623,6 +768,10 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
     const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
     const [subActionCoverImageFile, setSubActionCoverImageFile] = useState<File | null>(null);
     const [subActionCoverImagePreview, setSubActionCoverImagePreview] = useState<string | null>(null);
+    const [galleryFiles, setGalleryFiles] = useState<File[]>([]);
+    const [galleryPreviews, setGalleryPreviews] = useState<string[]>([]);
+    const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
+    const [editingSubActionId, setEditingSubActionId] = useState<string | null>(null);
     const [selectedType, setSelectedType] = useState<string | undefined>(undefined);
     const [actionNameForSubActions, setActionNameForSubActions] = useState<string>('');
     const [pricingMode, setPricingMode] = useState<string>('fixed');
@@ -684,11 +833,49 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
         setCoverImagePreview(null);
         setSubActionCoverImageFile(null);
         setSubActionCoverImagePreview(null);
+        setGalleryFiles([]);
+        setGalleryPreviews([]);
+        setGalleryUrls([]);
+        setEditingSubActionId(null);
         setSelectedType(undefined);
         setActionNameForSubActions('');
         setPricingMode('fixed');
         setAvailabilityMode('always');
     }, [form, subActionForm]);
+
+    // Clear the sub-action form back to "add new" state
+    const resetSubActionForm = useCallback(() => {
+        subActionForm.resetFields();
+        setEditingSubActionId(null);
+        setSubActionCoverImageFile(null);
+        setSubActionCoverImagePreview(null);
+        setGalleryFiles([]);
+        setGalleryPreviews([]);
+        setGalleryUrls([]);
+        if (pricingMode === 'pay_what_you_want' && actionNameForSubActions) {
+            subActionForm.setFieldValue('name', actionNameForSubActions);
+        }
+    }, [subActionForm, pricingMode, actionNameForSubActions]);
+
+    const addGalleryFiles = useCallback((files: File[]) => {
+        setGalleryFiles((prev) => [...prev, ...files].slice(0, MAX_GALLERY_IMAGES));
+        files.forEach((file) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setGalleryPreviews((prev) => [...prev, reader.result as string]);
+            };
+            reader.readAsDataURL(file);
+        });
+    }, []);
+
+    const removeGalleryFile = useCallback((index: number) => {
+        setGalleryFiles((prev) => prev.filter((_, i) => i !== index));
+        setGalleryPreviews((prev) => prev.filter((_, i) => i !== index));
+    }, []);
+
+    const removeGalleryUrl = useCallback((url: string) => {
+        setGalleryUrls((prev) => prev.filter((item) => item !== url));
+    }, []);
 
     useEffect(() => {
         if (!open) {
@@ -698,10 +885,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
 
     useEffect(() => {
         if (stepKey === 'subActions') {
-            subActionForm.resetFields();
-            if (pricingMode === 'pay_what_you_want' && actionNameForSubActions) {
-                subActionForm.setFieldValue('name', actionNameForSubActions);
-            }
+            resetSubActionForm();
             return;
         }
         form.resetFields();
@@ -812,7 +996,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
         }
     }, [actionId, loadSubActions]);
 
-    const handleAddSubAction = async (): Promise<boolean> => {
+    const handleSaveSubAction = async (): Promise<boolean> => {
         if (!actionId) {
             message.error(`Complete steps A & B before adding ${subActionLabel.plural.toLowerCase()}.`);
             return false;
@@ -884,20 +1068,32 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                 }
             }
             
-            const payload = {
+            // Contestant social profiles (vote only) — sent as metadata, normalized server-side
+            if (selectedType === 'vote') {
+                const socialLinks: Record<string, string> = {};
+                if (values.instagram?.trim()) socialLinks.instagram = values.instagram.trim();
+                if (values.x?.trim()) socialLinks.x = values.x.trim();
+                metadataObj.socialLinks = socialLinks;
+            }
+
+            const payload: Record<string, any> = {
                 name: values.name,
                 description: values.description || null,
                 price,
                 stock,
                 metadata: Object.keys(metadataObj).length > 0 ? metadataObj : {},
-                sortOrder: nextSubActionSortOrder,
+                // The gallery URLs kept after edits; freshly picked files are appended server-side
+                images: galleryUrls,
             };
-            
+            if (!editingSubActionId) {
+                payload.sortOrder = nextSubActionSortOrder;
+            }
+
             // Final validation - ensure no NaN values in numeric fields
             if (isNaN(payload.price)) {
                 throw new Error('Invalid numeric values detected');
             }
-            
+
             // Clean payload - remove any undefined or NaN values
             const cleanPayload: Record<string, any> = {};
             Object.keys(payload).forEach(key => {
@@ -920,9 +1116,12 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                 // It's a URL string
                 cleanPayload.coverImage = values.coverImage;
             }
-                        
-            // If there's a file, use FormData, otherwise use regular payload
-            if (subActionCoverImageFile) {
+
+            const hasFiles = Boolean(subActionCoverImageFile) || galleryFiles.length > 0;
+
+            // If there are files, use FormData, otherwise use regular payload
+            let requestBody: FormData | Record<string, any> = cleanPayload;
+            if (hasFiles) {
                 const formData = new FormData();
                 Object.keys(cleanPayload).forEach(key => {
                     const value = cleanPayload[key];
@@ -934,20 +1133,22 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                         }
                     }
                 });
-                formData.append('coverImage', subActionCoverImageFile);
-                
-                await createSubAction(actionId, formData);
+                if (subActionCoverImageFile) {
+                    formData.append('coverImage', subActionCoverImageFile);
+                }
+                galleryFiles.forEach((file) => formData.append('images', file));
+                requestBody = formData;
+            }
+
+            if (editingSubActionId) {
+                await updateSubAction(editingSubActionId, requestBody as Record<string, any>);
+                message.success(`${subActionLabel.singular} updated`);
             } else {
-                await createSubAction(actionId, cleanPayload);
+                await createSubAction(actionId, requestBody as Record<string, any>);
+                message.success(`${subActionLabel.singular} added`);
             }
-            
-            message.success(`${subActionLabel.singular} added`);
-            subActionForm.resetFields();
-            if (pricingMode === 'pay_what_you_want' && actionNameForSubActions) {
-                subActionForm.setFieldValue('name', actionNameForSubActions);
-            }
-            setSubActionCoverImageFile(null);
-            setSubActionCoverImagePreview(null);
+
+            resetSubActionForm();
             await loadSubActions();
             return true;
         } catch (err: any) {
@@ -955,12 +1156,41 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                 return false;
             }
             console.error(err);
-            const errorMsg = err?.response?.data?.message || err?.message || 'Failed to add sub-action';
+            const errorMsg = err?.response?.data?.message || err?.message || 'Failed to save sub-action';
             message.error(errorMsg);
             return false;
         } finally {
             setLoading(false);
         }
+    };
+
+    // Load an existing sub-action into the form for editing
+    const handleEditSubAction = (item: SubActionSummary) => {
+        // Legacy rows may store metadata as a JSON string — spreading one would spread its characters
+        const metadata = parseMetadata(item.metadata);
+        const { seatType, socialLinks, ...customMetadata } = metadata;
+
+        setEditingSubActionId(item.id);
+        setSubActionCoverImageFile(null);
+        setSubActionCoverImagePreview(item.coverImage || null);
+        setGalleryFiles([]);
+        setGalleryPreviews([]);
+        setGalleryUrls(item.images || []);
+        if (Object.keys(customMetadata).length > 0) {
+            setShowSubActionMetadata(true);
+        }
+
+        subActionForm.setFieldsValue({
+            name: item.name,
+            description: item.description || '',
+            price: item.price !== undefined && item.price !== null ? Number(item.price) : undefined,
+            stock: item.stock ?? undefined,
+            seatType: seatType || undefined,
+            coverImage: item.coverImage || '',
+            metadata: Object.keys(customMetadata).length > 0 ? JSON.stringify(customMetadata) : undefined,
+            instagram: socialLinks?.instagram || '',
+            x: socialLinks?.x || '',
+        });
     };
 
     const handleDeleteSubAction = async (subActionId: string) => {
@@ -1074,33 +1304,41 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                     taxProfileId: values.taxProfileId || null,
                 });
                 
-                // Auto-create sub-action for Fixed pricing
+                // Auto-create or update sub-action for Fixed/Free pricing
                 if (effectivePricingMode === 'fixed' || effectivePricingMode === 'free') {
                     const actionName = actionNameForSubActions || form.getFieldValue('name');
-                    const autoSubActionPayload = {
+                    const parsedMetadata = (values.subActionMetadata && values.subActionMetadata.trim().length)
+                        ? (() => {
+                              try {
+                                  return JSON.parse(values.subActionMetadata);
+                              } catch {
+                                  return {};
+                              }
+                          })()
+                        : {};
+                    const existing = subActions[0];
+                    const basePayload = {
                         name: actionName,
                         description: values.subActionDescription || null,
                         price: effectivePricingMode === 'fixed' ? (values.amount ?? 0) : 0,
                         stock: values.subActionStock ?? null,
                         metadata: {
                             seatType: values.subActionSeatType || undefined,
-                            ...((values.subActionMetadata && values.subActionMetadata.trim().length)
-                                ? (() => {
-                                      try {
-                                          return JSON.parse(values.subActionMetadata);
-                                      } catch {
-                                          return {};
-                                      }
-                                  })()
-                                : {}),
+                            ...parsedMetadata,
                         },
-                        sortOrder: nextSubActionSortOrder,
                     };
                     try {
-                        await createSubAction(actionId as string, autoSubActionPayload);
+                        if (existing) {
+                            await updateSubAction(existing.id, basePayload);
+                        } else {
+                            await createSubAction(actionId as string, {
+                                ...basePayload,
+                                sortOrder: nextSubActionSortOrder,
+                            });
+                        }
                         await loadSubActions();
                     } catch (err) {
-                        console.error('Failed to create auto sub-action:', err);
+                        console.error('Failed to upsert auto sub-action:', err);
                     }
                 }
                 
@@ -1113,7 +1351,7 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
             if (key === 'subActions') {
                 const pendingSubActionName = subActionForm.getFieldValue('name');
                 if (pendingSubActionName && String(pendingSubActionName).trim().length > 0) {
-                    const added = await handleAddSubAction();
+                    const added = await handleSaveSubAction();
                     if (!added) {
                         return;
                     }
@@ -1252,6 +1490,13 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                                 <span className="font-semibold text-[#00313A] dark:text-white capitalize">{actionTypeConfig[preSelectedType]?.label || preSelectedType}</span>
                                 <Form.Item name="type" hidden initialValue={preSelectedType}><Input /></Form.Item>
                             </div>
+                        ) : isEditingExisting && selectedType ? (
+                            <div className="md:col-span-2 flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-50 dark:bg-darkBg-interactive border border-gray-200 dark:border-darkBorder-light">
+                                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Type:</span>
+                                <span className="font-semibold text-[#00313A] dark:text-white capitalize">{actionTypeConfig[selectedType]?.label || selectedType}</span>
+                                <span className="ml-auto text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Cannot be changed</span>
+                                <Form.Item name="type" hidden><Input /></Form.Item>
+                            </div>
                         ) : (
                             <Form.Item name="type" label="Action Type" rules={[{ required: true, message: 'Select an action type' }]}>
                                 <Select
@@ -1371,18 +1616,24 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
             case 'stepB':
                 return (
                     <Form form={form} layout="vertical" className="grid gap-4 md:grid-cols-2">
-                        <Form.Item name="pricingMode" label="Pricing Mode" rules={[{ required: true, message: 'Select a pricing mode' }]}>
-                            <Select
-                                onChange={(value) => setPricingMode(value)}
-                                disabled={selectedType === 'vote'}
+                        <Form.Item
+                            name="pricingMode"
+                            label="Pricing Mode"
+                            rules={[{ required: true, message: 'Select a pricing mode' }]}
+                            extra={isEditingExisting && existingAction?.status === 'published' ? 'Pricing mode is locked once the action is published.' : undefined}
+                            className="md:col-span-2"
+                        >
+                            <PricingModeCards
+                                disabled={selectedType === 'vote' || (isEditingExisting && existingAction?.status === 'published')}
                                 options={selectedType === 'vote'
-                                    ? [{ label: 'Tiered - Create multiple sub-actions', value: 'tiered' }]
+                                    ? [{ label: 'Tiered', value: 'tiered', description: 'Create multiple sub-actions' }]
                                     : [
-                                        { label: 'Fixed - Creates one sub-action automatically', value: 'fixed' },
-                                        { label: 'Tiered - Create multiple sub-actions', value: 'tiered' },
-                                        { label: 'Free - No charge required', value: 'free' },
-                                        { label: 'Pay what you want - Let buyers decide', value: 'pay_what_you_want' },
+                                        { label: 'Fixed', value: 'fixed', description: 'Creates one sub-action automatically' },
+                                        { label: 'Tiered', value: 'tiered', description: 'Create multiple sub-actions' },
+                                        { label: 'Free', value: 'free', description: 'No charge required' },
+                                        { label: 'Pay what you want', value: 'pay_what_you_want', description: 'Let buyers decide' },
                                     ]}
+                                onAfterChange={(value) => setPricingMode(value)}
                             />
                         </Form.Item>
                         {(pricingMode === 'fixed' || pricingMode === 'tiered' || pricingMode === 'pay_what_you_want') && (
@@ -1460,7 +1711,29 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                 );
             case 'subActions':
                 return (
-                    <div className="space-y-4">
+                    <div className="space-y-5">
+                        <div className="rounded-2xl border border-[#1e2d40] bg-[#111927] p-5">
+                            <div className="flex items-center justify-between mb-4">
+                                <div>
+                                    <p className="text-[11px] font-bold text-[#3b82f6] uppercase tracking-widest">
+                                        {editingSubActionId ? `Editing ${subActionLabel.singular}` : `New ${subActionLabel.singular}`}
+                                    </p>
+                                    <p className="text-[#8da0b3] text-xs mt-0.5">
+                                        {editingSubActionId
+                                            ? 'Update the details below, then save your changes.'
+                                            : `Fill in the details and add as many ${subActionLabel.plural.toLowerCase()} as you need.`}
+                                    </p>
+                                </div>
+                                {editingSubActionId && (
+                                    <button
+                                        type="button"
+                                        onClick={resetSubActionForm}
+                                        className="px-3 py-1.5 rounded-lg border border-[#1e2d40] text-[#8da0b3] text-xs font-semibold hover:text-[#f0f4f8] hover:border-[#2a3d54] transition-colors"
+                                    >
+                                        Cancel edit
+                                    </button>
+                                )}
+                            </div>
                         <Form form={subActionForm} layout="vertical" className="grid gap-4 md:grid-cols-2">
                             <Form.Item name="name" label={`${subActionLabel.singular} Name`} rules={[{ required: true, message: 'Provide a name' }]}>
                                 <Input placeholder={selectedType && actionTypeConfig[selectedType]?.placeholders?.name ? `e.g., ${actionTypeConfig[selectedType]?.placeholders?.name}` : "VIP Ticket"} />
@@ -1554,6 +1827,36 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                                 </div>
                             </Form.Item>
 
+                            <Form.Item
+                                label={selectedType === 'vote' ? 'Photo Gallery (Optional)' : 'Gallery Images (Optional)'}
+                                tooltip="Extra images shown as a swipeable carousel on the public page"
+                                className="md:col-span-2"
+                            >
+                                <GalleryImageInput
+                                    urls={galleryUrls}
+                                    files={galleryFiles}
+                                    previews={galleryPreviews}
+                                    onAddFiles={addGalleryFiles}
+                                    onRemoveUrl={removeGalleryUrl}
+                                    onRemoveFile={removeGalleryFile}
+                                />
+                            </Form.Item>
+
+                            {selectedType === 'vote' && (
+                                <>
+                                    <div className="md:col-span-2 -mb-1">
+                                        <p className="text-[11px] font-bold text-[#4a6278] uppercase tracking-widest">Social Profiles (Optional)</p>
+                                        <p className="text-[#4a6278] text-xs mt-0.5">Enter a handle or full profile URL — shown on the contestant card.</p>
+                                    </div>
+                                    <Form.Item name="instagram" label="Instagram">
+                                        <Input prefix={<span className="text-[#4a6278]">@</span>} placeholder="username or instagram.com/username" />
+                                    </Form.Item>
+                                    <Form.Item name="x" label="X (Twitter)">
+                                        <Input prefix={<span className="text-[#4a6278]">@</span>} placeholder="username or x.com/username" />
+                                    </Form.Item>
+                                </>
+                            )}
+
                             <div className="md:col-span-2">
                                 <button
                                     type="button"
@@ -1577,62 +1880,120 @@ const ActionWizardModal: React.FC<ActionWizardModalProps> = ({ open, onClose, or
                                 <TextArea rows={3} placeholder="What makes this tier special?" />
                             </Form.Item>
                         </Form>
-                        <div className="flex justify-end">
-                            <button
-                                type="button"
-                                onClick={handleAddSubAction}
-                                disabled={loading}
-                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#3b82f6] hover:bg-[#2563eb] disabled:opacity-40 text-white text-sm font-bold transition-colors"
-                            >
-                                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlusOutlined />}
-                                Add {subActionLabel.singular}
-                            </button>
+                            <div className="flex justify-end gap-2 pt-1">
+                                {editingSubActionId && (
+                                    <button
+                                        type="button"
+                                        onClick={resetSubActionForm}
+                                        disabled={loading}
+                                        className="px-4 py-2.5 rounded-xl border border-[#1e2d40] text-[#8da0b3] text-sm font-semibold hover:text-[#f0f4f8] hover:border-[#2a3d54] transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={handleSaveSubAction}
+                                    disabled={loading}
+                                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#3b82f6] hover:bg-[#2563eb] disabled:opacity-40 text-white text-sm font-bold transition-colors shadow-lg shadow-blue-900/30"
+                                >
+                                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : editingSubActionId ? <Check className="w-4 h-4" /> : <PlusOutlined />}
+                                    {editingSubActionId ? 'Save changes' : `Add ${subActionLabel.singular}`}
+                                </button>
+                            </div>
                         </div>
+
                         <div className="space-y-3">
                             <p className="text-[11px] font-bold text-[#4a6278] uppercase tracking-widest">
                                 Added {subActionLabel.plural} ({subActions.length})
                             </p>
                             {subActions.length > 0 ? (
                                 <div className="space-y-2">
-                                    {subActions.map((item, index) => (
-                                        <div
-                                            key={item.id}
-                                            className="bg-[#111927] border border-[#1e2d40] rounded-xl p-4 flex items-start gap-3"
-                                        >
-                                            <div className="w-7 h-7 rounded-full bg-[#1a3a5c] border border-[#3b82f6]/40 flex items-center justify-center flex-shrink-0 mt-0.5">
-                                                <span className="text-[11px] font-bold text-[#60a5fa]">{index + 1}</span>
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-[#f0f4f8] font-semibold text-sm truncate">{item.name}</p>
-                                                {item.description && (
-                                                    <p className="text-[#8da0b3] text-xs mt-0.5 line-clamp-1">{item.description}</p>
+                                    {subActions.map((item, index) => {
+                                        const isEditingItem = editingSubActionId === item.id;
+                                        const galleryCount = item.images?.length ?? 0;
+                                        const socialLinks = item.metadata?.socialLinks;
+
+                                        return (
+                                            <div
+                                                key={item.id}
+                                                className={`border rounded-xl p-3.5 flex items-start gap-3 transition-colors ${
+                                                    isEditingItem
+                                                        ? 'bg-[#0f1e30] border-[#3b82f6]'
+                                                        : 'bg-[#111927] border-[#1e2d40] hover:border-[#2a3d54]'
+                                                }`}
+                                            >
+                                                {/* Thumbnail, falling back to the index badge */}
+                                                {item.coverImage || galleryCount > 0 ? (
+                                                    <div className="relative w-12 h-12 rounded-lg overflow-hidden border border-[#1e2d40] flex-shrink-0 bg-[#0d1117]">
+                                                        <img
+                                                            src={item.coverImage || item.images![0]}
+                                                            alt={item.name}
+                                                            className="w-full h-full object-cover"
+                                                        />
+                                                        {galleryCount > 0 && (
+                                                            <span className="absolute bottom-0 right-0 px-1 rounded-tl-md bg-black/75 text-white text-[9px] font-bold tabular-nums">
+                                                                +{galleryCount}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <div className="w-12 h-12 rounded-lg bg-[#1a3a5c] border border-[#3b82f6]/40 flex items-center justify-center flex-shrink-0">
+                                                        <span className="text-[11px] font-bold text-[#60a5fa]">{index + 1}</span>
+                                                    </div>
                                                 )}
-                                                <div className="flex flex-wrap gap-2 mt-2">
-                                                    {pricingMode !== 'pay_what_you_want' && (
-                                                        <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-900/20 border border-emerald-700/30 px-2 py-0.5 rounded-full">
-                                                            {Number(item.price).toLocaleString()} RWF
-                                                        </span>
+
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-[#f0f4f8] font-semibold text-sm truncate">{item.name}</p>
+                                                    {item.description && (
+                                                        <p className="text-[#8da0b3] text-xs mt-0.5 line-clamp-1">{item.description}</p>
                                                     )}
-                                                    {shouldAskStock && item.stock != null && (
-                                                        <span className="text-[11px] text-[#8da0b3] bg-[#0d1117] border border-[#1e2d40] px-2 py-0.5 rounded-full">
-                                                            {item.stock} in stock
-                                                        </span>
-                                                    )}
-                                                    {item.metadata?.seatType && (
-                                                        <span className="text-[11px] text-[#8da0b3] bg-[#0d1117] border border-[#1e2d40] px-2 py-0.5 rounded-full capitalize">
-                                                            {item.metadata.seatType}
-                                                        </span>
-                                                    )}
+                                                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                                                        {pricingMode !== 'pay_what_you_want' && (
+                                                            <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-900/20 border border-emerald-700/30 px-2 py-0.5 rounded-full">
+                                                                {Number(item.price).toLocaleString()} RWF
+                                                            </span>
+                                                        )}
+                                                        {shouldAskStock && item.stock != null && (
+                                                            <span className="text-[11px] text-[#8da0b3] bg-[#0d1117] border border-[#1e2d40] px-2 py-0.5 rounded-full">
+                                                                {item.stock} in stock
+                                                            </span>
+                                                        )}
+                                                        {item.metadata?.seatType && (
+                                                            <span className="text-[11px] text-[#8da0b3] bg-[#0d1117] border border-[#1e2d40] px-2 py-0.5 rounded-full capitalize">
+                                                                {item.metadata.seatType}
+                                                            </span>
+                                                        )}
+                                                        {galleryCount > 0 && (
+                                                            <span className="text-[11px] text-[#8da0b3] bg-[#0d1117] border border-[#1e2d40] px-2 py-0.5 rounded-full">
+                                                                {galleryCount} {galleryCount === 1 ? 'photo' : 'photos'}
+                                                            </span>
+                                                        )}
+                                                        <SocialLinksRow links={socialLinks} />
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleEditSubAction(item)}
+                                                        aria-label={`Edit ${item.name}`}
+                                                        className="w-7 h-7 rounded-lg bg-[#0d1117] border border-[#1e2d40] flex items-center justify-center text-[#8da0b3] hover:text-[#60a5fa] hover:border-[#3b82f6] transition-colors"
+                                                    >
+                                                        <EditOutlined style={{ fontSize: 12 }} />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleDeleteSubAction(item.id)}
+                                                        aria-label={`Delete ${item.name}`}
+                                                        className="w-7 h-7 rounded-lg bg-[#0d1117] border border-red-500/20 flex items-center justify-center text-red-400 hover:bg-red-500/10 transition-colors"
+                                                    >
+                                                        <DeleteOutlined style={{ fontSize: 12 }} />
+                                                    </button>
                                                 </div>
                                             </div>
-                                            <button
-                                                onClick={() => handleDeleteSubAction(item.id)}
-                                                className="w-7 h-7 rounded-lg bg-[#0d1117] border border-red-500/20 flex items-center justify-center text-red-400 hover:bg-red-500/10 transition-colors flex-shrink-0"
-                                            >
-                                                <DeleteOutlined style={{ fontSize: 12 }} />
-                                            </button>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             ) : (
                                 <div className="text-center py-8 bg-[#111927] border border-dashed border-[#1e2d40] rounded-xl">

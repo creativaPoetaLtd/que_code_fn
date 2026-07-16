@@ -3,6 +3,8 @@ import React, { useState, useMemo } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { ArrowDownUp, ExternalLink, LayoutGrid, List, Loader2, QrCode, Search, TrendingUp, Users, X } from 'lucide-react';
 import { ModalProps, SubAction } from './types';
+import ImageCarousel from '@/components/ui/image-carousel';
+import SocialLinksRow from '@/components/ui/social-links';
 
 type SortMode = 'votes-desc' | 'votes-asc' | 'newest' | 'oldest' | 'trending' | 'custom';
 type ViewMode = 'grid' | 'list';
@@ -428,9 +430,13 @@ export function VoteModal({
                     {viewMode === 'grid' ? (
                       <>
                         <div className="flex items-center gap-3 p-4 pb-3">
-                          <div className="w-[72px] h-[72px] rounded-full border-2 border-[#1e2d40] overflow-hidden flex-shrink-0 bg-[#0d1525]">
-                            {candidate.coverImage ? (
-                              <img src={candidate.coverImage} alt={candidate.name} className="w-full h-full object-cover" />
+                          <div className="relative w-[72px] h-[72px] rounded-full border-2 border-[#1e2d40] overflow-hidden flex-shrink-0 bg-[#0d1525]">
+                            {candidate.coverImage || candidate.images?.length ? (
+                              <img
+                                src={candidate.coverImage || candidate.images![0]}
+                                alt={candidate.name}
+                                className="w-full h-full object-cover"
+                              />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center">
                                 <Users className="w-7 h-7 text-[#4a6278]" />
@@ -455,7 +461,7 @@ export function VoteModal({
                             {candidateNum && (
                               <p className="text-[#4a6278] text-xs mt-0.5">Candidate #{candidateNum}</p>
                             )}
-                            <div className="mt-1 flex flex-wrap gap-1.5">
+                            <div className="mt-1 flex flex-wrap items-center gap-1.5">
                               {badge && (
                                 <span className="inline-block bg-[#1a2c3d] text-[#5b8aaa] rounded-md px-2 py-0.5 text-xs">
                                   {badge}
@@ -464,6 +470,7 @@ export function VoteModal({
                               <span className="inline-block bg-[#16283a] text-[#7fb0ff] rounded-md px-2 py-0.5 text-xs">
                                 {trend}
                               </span>
+                              <SocialLinksRow links={candidate.metadata?.socialLinks} />
                             </div>
                           </div>
                         </div>
@@ -476,13 +483,17 @@ export function VoteModal({
                       <>
                         <div className="flex items-start gap-4 p-4">
                           <div className="w-[72px] h-[72px] rounded-2xl border border-[#1e2d40] overflow-hidden flex-shrink-0 bg-[#0d1525]">
-                            {candidate.coverImage ? (
-                              <img src={candidate.coverImage} alt={candidate.name} className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <Users className="w-8 h-8 text-[#4a6278]" />
-                              </div>
-                            )}
+                            <ImageCarousel
+                              images={[candidate.coverImage, ...(candidate.images ?? [])]}
+                              alt={candidate.name}
+                              className="w-full h-full"
+                              compact
+                              fallback={
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <Users className="w-8 h-8 text-[#4a6278]" />
+                                </div>
+                              }
+                            />
                           </div>
                           <div className="flex-1 min-w-0 space-y-1.5">
                             <div className="flex items-start justify-between gap-3">
@@ -492,6 +503,7 @@ export function VoteModal({
                                   {candidateNum && (
                                     <span className="text-[#4a6278] text-xs">Candidate #{candidateNum}</span>
                                   )}
+                                  <SocialLinksRow links={candidate.metadata?.socialLinks} />
                                 </div>
                                 {candidate.description && (
                                   <p className="text-[#8da0b3] text-sm leading-relaxed mt-1">{candidate.description}</p>

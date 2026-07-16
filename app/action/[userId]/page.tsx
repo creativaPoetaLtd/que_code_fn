@@ -25,6 +25,10 @@ import {
     ArrowRight,
     Plus,
     Globe2,
+    Eye,
+    Pencil,
+    Send,
+    ArrowLeftRight,
 } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import Navigation from '@/components/Navigation';
@@ -41,12 +45,21 @@ import { Button } from '@/components/ui/button';
 import jsPDF from 'jspdf';
 import ActionWizardModal from '@/components/ActionPage/ActionWizardModal';
 import QRObjectValidator from '@/components/ActionPage/QRObjectValidator';
+import TransferTicketModal from '@/components/ActionPage/TransferTicketModal';
 import { createSubAction, updateSubAction, getMyGroupContributions, contributeToGroup, closeGroupContribution, extendGroupContributionDeadline, getMyPublicContributions } from '@/helpers/api';
 import CreatePublicContributionModal from '@/components/contributions/CreatePublicContributionModal';
 import { PublicContributionCard, PublicContributionData } from '@/components/contributions/PublicContributionCard';
 import socketService from '@/services/socketService';
 import { getCurrentUserId } from '@/utils/tokenUtils';
 import { formatDistanceToNow } from 'date-fns';
+
+interface TransferRecord {
+    fromId: string;
+    fromName: string;
+    toId: string;
+    toName: string;
+    at: string;
+}
 
 interface QrObject {
     id: string;
@@ -60,6 +73,7 @@ interface QrObject {
         coverImage?: string;
         actionId?: string;
         organizationId?: string;
+        transferHistory?: TransferRecord[];
         [key: string]: any;
     };
     status: string;
@@ -71,6 +85,7 @@ interface QrObject {
     createdAt?: string;
     updatedAt?: string;
     actionId?: string;
+    actionPurchaseId?: string;
     organizationId?: string;
 }
 
@@ -504,6 +519,7 @@ const ActionsByAccountPage = () => {
     const [purchasedActionsFilter, setPurchasedActionsFilter] = useState<'all' | 'archive'>('all');
     const [editingSubActionId, setEditingSubActionId] = useState<string | null>(null);
     const [markingAsUsed, setMarkingAsUsed] = useState<Record<string, boolean>>({});
+    const [transferTarget, setTransferTarget] = useState<QrObject | null>(null);
     const [resolvedTypeMap, setResolvedTypeMap] = useState<Record<string, string>>({});
     const [voteStandingsMap, setVoteStandingsMap] = useState<Record<string, { id: string; name: string; votes: number; rank: number }[]>>({});
 
@@ -1236,6 +1252,7 @@ const ActionsByAccountPage = () => {
                         // ── TICKET / TRANSPORT / SERVICE / BOOKING / MEMBERSHIP ──
                         const actionName = item.metadata?.actionName || 'Unnamed Action';
                         const tier = item.metadata?.subActionName;
+                        const lastTransfer = item.metadata?.transferHistory?.[item.metadata.transferHistory.length - 1];
 
                         return (
                             <div key={item.id} className={`w-80 flex-shrink-0 bg-white dark:bg-darkBg-card rounded-3xl border ${cfg.border} shadow-md overflow-hidden`}>
@@ -1271,6 +1288,18 @@ const ActionsByAccountPage = () => {
                                 )}
 
                                 <div className="px-5 pt-4 pb-5 space-y-4">
+                                    {/* Transfer trail — this ticket changed hands */}
+                                    {lastTransfer && (
+                                        <div className="flex items-center gap-2 text-xs bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-xl px-3 py-2 text-blue-600 dark:text-blue-400">
+                                            <ArrowLeftRight className="w-3.5 h-3.5 flex-shrink-0" />
+                                            <span className="truncate">
+                                                {!isViewingAnotherUser
+                                                    ? `Received from ${lastTransfer.fromName}`
+                                                    : `Transferred from ${lastTransfer.fromName} to ${lastTransfer.toName}`}
+                                            </span>
+                                        </div>
+                                    )}
+
                                     {/* Details grid */}
                                     <div className="grid grid-cols-2 gap-3">
                                         <div>
@@ -1326,6 +1355,18 @@ const ActionsByAccountPage = () => {
                                                     >
                                                         <Download size={12} /> Download PDF
                                                     </button>
+                                                    {/* Owner can hand a still-valid ticket to a contact */}
+                                                    {!isViewingAnotherUser
+                                                        && item.actionPurchaseId
+                                                        && !isExpiredItem
+                                                        && item.status?.toLowerCase() === 'valid' && (
+                                                        <button
+                                                            onClick={() => setTransferTarget(item)}
+                                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-300 dark:border-darkBorder-light text-gray-700 dark:text-gray-200 text-xs font-semibold hover:border-[#00B512] hover:text-[#00B512] transition-colors"
+                                                        >
+                                                            <Send size={12} /> Transfer
+                                                        </button>
+                                                    )}
                                                     {isLoggedInAsOrganization && isViewingAnotherUser && item.status?.toLowerCase() !== 'used' && (
                                                         <button
                                                             onClick={() => handleMarkQRObjectAsUsed(item.id)}
@@ -1586,8 +1627,8 @@ const ActionsByAccountPage = () => {
                                     </div>
                                 )}
                             </div>
-                            {action.status === 'draft' && (
-                                <div className="mt-4">
+                            <div className="mt-4 flex flex-wrap items-center gap-2">
+                                {(action.status === 'draft' || action.status === 'published') && (
                                     <span
                                         role="button"
                                         tabIndex={0}
@@ -1606,11 +1647,41 @@ const ActionsByAccountPage = () => {
                                         }}
                                         className="inline-flex items-center gap-2 px-3 py-2 rounded-full border border-[#00B512] dark:border-brand-green text-[#00B512] dark:text-brand-green text-xs font-semibold hover:bg-[#00B512] dark:hover:bg-brand-green hover:text-white transition-colors cursor-pointer"
                                     >
-                                        <Sparkles className="w-4 h-4" />
-                                        Continue Setup
+                                        {action.status === 'draft' ? (
+                                            <>
+                                                <Sparkles className="w-4 h-4" />
+                                                Continue Setup
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Pencil className="w-4 h-4" />
+                                                Edit action
+                                            </>
+                                        )}
                                     </span>
-                                </div>
-                            )}
+                                )}
+                                {effectiveUserId && (
+                                    <span
+                                        role="button"
+                                        tabIndex={0}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            router.push(`/welcome/${effectiveUserId}/action/${action.id}`);
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                router.push(`/welcome/${effectiveUserId}/action/${action.id}`);
+                                            }
+                                        }}
+                                        className="inline-flex items-center gap-2 px-3 py-2 rounded-full border border-[#00B512] dark:border-brand-green text-[#00B512] dark:text-brand-green text-xs font-semibold hover:bg-[#00B512] dark:hover:bg-brand-green hover:text-white transition-colors cursor-pointer"
+                                    >
+                                        <Eye className="w-4 h-4" />
+                                        Preview action
+                                    </span>
+                                )}
+                            </div>
                         </button>
                     ))}
                     </div>
@@ -1752,7 +1823,7 @@ const ActionsByAccountPage = () => {
                                 <div className="text-4xl mb-3">🎯</div>
                                 <p className="font-semibold text-[#00313A] dark:text-white mb-1">No group campaigns</p>
                                 <p className="text-sm text-gray-500 dark:text-gray-400 max-w-xs mx-auto">
-                                    When a group admin starts a contribution campaign in your chat, it'll show up here.
+                                    When a group admin starts a contribution campaign in your chat, it&apos;ll show up here.
                                 </p>
                             </div>
                         ) : visibleContributions.length === 0 ? (
@@ -1865,13 +1936,25 @@ const ActionsByAccountPage = () => {
                     <section className="mt-6 space-y-6">
                         <div className="bg-white dark:bg-darkBg-card rounded-3xl border border-white/40 dark:border-darkBorder-light shadow-md shadow-emerald-50 dark:shadow-none p-6 relative overflow-hidden">
                             <div className="absolute -top-10 -right-10 w-32 h-32 bg-[#00B512]/10 dark:bg-[#00B512]/20 rounded-full blur-3xl" />
-                            <div className="relative z-10">
-                                <p className="inline-flex items-center gap-2 text-sm font-semibold text-[#00B512] dark:text-brand-green">
-                                    <Sparkles className="w-4 h-4" />
-                                    Actions Center
-                                </p>
-                                <h1 className="text-2xl md:text-3xl font-bold text-[#00313A] dark:text-white mt-2">{pageTitle}</h1>
-                                <p className="text-[#00313A]/70 dark:text-gray-300 mt-2 max-w-2xl">{pageDescription}</p>
+                            <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                <div>
+                                    <p className="inline-flex items-center gap-2 text-sm font-semibold text-[#00B512] dark:text-brand-green">
+                                        <Sparkles className="w-4 h-4" />
+                                        Actions Center
+                                    </p>
+                                    <h1 className="text-2xl md:text-3xl font-bold text-[#00313A] dark:text-white mt-2">{pageTitle}</h1>
+                                    <p className="text-[#00313A]/70 dark:text-gray-300 mt-2 max-w-2xl">{pageDescription}</p>
+                                </div>
+                                {accountMode === 'organization' && effectiveUserId && (
+                                    <button
+                                        type="button"
+                                        onClick={() => router.push(`/welcome/${effectiveUserId}`)}
+                                        className="self-start inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#00B512] text-white text-sm font-semibold shadow hover:bg-[#009a0f] transition-colors"
+                                    >
+                                        <Eye className="w-4 h-4" />
+                                        Preview welcome page
+                                    </button>
+                                )}
                             </div>
                         </div>
 
@@ -2097,6 +2180,21 @@ const ActionsByAccountPage = () => {
                 onClose={() => setCreateCampaignOpen(false)}
                 onCreated={fetchMyPublicContributions}
             />
+
+            {/* Transfer a purchased ticket to a contact */}
+            {transferTarget && tokenUserId && (
+                <TransferTicketModal
+                    open={Boolean(transferTarget)}
+                    onClose={() => setTransferTarget(null)}
+                    purchaseId={transferTarget.actionPurchaseId as string}
+                    ticketName={transferTarget.metadata?.actionName || 'this ticket'}
+                    senderId={tokenUserId}
+                    onTransferred={() => {
+                        setTransferTarget(null);
+                        if (effectiveUserId) fetchData(effectiveUserId);
+                    }}
+                />
+            )}
         </div>
     );
 };

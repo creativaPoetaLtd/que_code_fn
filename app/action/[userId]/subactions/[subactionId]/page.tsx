@@ -18,10 +18,13 @@ import {
     Clock,
     Edit2,
     ExternalLink,
+    Link as LinkIcon,
     Loader2,
+    Maximize2,
     Package,
     QrCode,
     Save,
+    Share2,
     ShoppingCart,
     Trash2,
     Users,
@@ -29,6 +32,12 @@ import {
     X,
 } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import ImageCarousel from '@/components/ui/image-carousel';
+import ImageLightbox from '@/components/ui/image-lightbox';
+import ShareQrDialog from '@/components/ui/share-qr-dialog';
+import SocialLinksRow from '@/components/ui/social-links';
+import type { SocialLinks } from '@/types/action.types';
+import { parseMetadata } from '@/utils/subActionMetadata';
 
 interface SubAction {
     id: string;
@@ -39,10 +48,11 @@ interface SubAction {
     stock?: number;
     stockReserved?: number;
     variants?: Record<string, any>;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, any> & { socialLinks?: SocialLinks };
     isActive?: boolean;
     sortOrder?: number;
     coverImage?: string;
+    images?: string[];
     dedicatedQrCodeData?: string;
     createdAt?: string;
     updatedAt?: string;
@@ -70,6 +80,22 @@ const formatDate = (date?: string) => {
     if (!date) return 'N/A';
     return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 };
+
+// Metadata is free-form JSON, so arrays and objects have to be rendered readably
+const formatMetaValue = (value: unknown): string => {
+    if (value === null || value === undefined || value === '') return '—';
+    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+    if (Array.isArray(value)) return value.map(formatMetaValue).join(', ');
+    if (typeof value === 'object') {
+        return Object.entries(value as Record<string, unknown>)
+            .map(([k, v]) => `${k}: ${formatMetaValue(v)}`)
+            .join(' · ');
+    }
+    return String(value);
+};
+
+const editFieldClass =
+    'w-full bg-[#0d1525] border border-[#1e2d40] focus:border-[#3b82f6] rounded-xl px-4 py-2.5 text-sm text-[#f0f4f8] placeholder:text-[#4a6278] outline-none transition-colors';
 
 const ctaLabel = (type?: string) => {
     switch (type) {
@@ -119,6 +145,19 @@ export default function SubActionDetailPage() {
     const [isPurchaseSuccessOpen, setIsPurchaseSuccessOpen] = useState(false);
     const [showPurchaseForm, setShowPurchaseForm] = useState(false);
     const [detailsExpanded, setDetailsExpanded] = useState(false);
+    const [heroScrolledPast, setHeroScrolledPast] = useState(false);
+    const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+    const [siblings, setSiblings] = useState<SubAction[]>([]);
+    const [copied, setCopied] = useState(false);
+    const [showShareQr, setShowShareQr] = useState(false);
+
+    // The sticky bar only shows the title once the hero title has scrolled out of view
+    useEffect(() => {
+        const onScroll = () => setHeroScrolledPast(window.scrollY > 220);
+        onScroll();
+        window.addEventListener('scroll', onScroll, { passive: true });
+        return () => window.removeEventListener('scroll', onScroll);
+    }, []);
 
     const isOwner = actionId === tokenUserId && accountType === 'organization';
 
@@ -132,14 +171,25 @@ export default function SubActionDetailPage() {
             const subRes = await axios.get(`${baseUrl}/sub-actions/${subactionId}`, { headers });
             const found: SubAction = subRes.data?.data || subRes.data;
             if (!found) { setError('Not found'); setLoading(false); return; }
-            if (found.metadata && typeof found.metadata === 'string') {
-                try { found.metadata = JSON.parse(found.metadata); } catch { found.metadata = {}; }
-            }
+            found.metadata = parseMetadata(found.metadata);
             const actionRes = await axios.get(`${baseUrl}/actions/${found.actionId}`, { headers });
             const foundAction: ParentAction = actionRes.data?.data || actionRes.data;
             setSubAction(found);
             setParentAction(foundAction);
             setEditFormData(found);
+
+            // Siblings power the share-of-vote bar and the leader gap; a failure here is not fatal
+            try {
+                const siblingRes = await axios.get(`${baseUrl}/actions/${found.actionId}/sub-actions`, { headers });
+                const list: SubAction[] = siblingRes.data?.data ?? [];
+                setSiblings(
+                    Array.isArray(list)
+                        ? list.map(item => ({ ...item, metadata: parseMetadata(item.metadata) }))
+                        : []
+                );
+            } catch {
+                setSiblings([]);
+            }
         } catch (err: any) {
             setError(err?.response?.data?.message || err?.message || 'Failed to load');
         } finally {
@@ -258,7 +308,7 @@ export default function SubActionDetailPage() {
         const cfg = configs[field] || { label: field, type: 'text', placeholder: `Enter ${field}` };
         return (
             <div key={field} className="space-y-1.5">
-                <label className="text-xs font-semibold text-[#4a6278] flex items-center gap-1">
+                <label className="text-xs font-semibold text-[#8da0b3] flex items-center gap-1">
                     {cfg.label}{isRequired && <span className="text-red-400">*</span>}
                 </label>
                 {field === 'notes' ? (
@@ -286,7 +336,7 @@ export default function SubActionDetailPage() {
     if (loading) {
         return (
             <div className="min-h-screen bg-[#0d1117] flex items-center justify-center">
-                <Loader2 className="w-10 h-10 text-[#4a6278] animate-spin" />
+                <Loader2 className="w-10 h-10 text-[#8da0b3] animate-spin" />
             </div>
         );
     }
@@ -319,8 +369,48 @@ export default function SubActionDetailPage() {
 
     const benefitsList: string[] = subAction.metadata?.benefits || subAction.metadata?.highlights || [];
     const metaEntries = Object.entries(subAction.metadata || {}).filter(
-        ([k]) => !['benefits', 'highlights', 'extendedDescription'].includes(k)
+        ([k]) =>
+            !['benefits', 'highlights', 'extendedDescription', 'socialLinks'].includes(k) &&
+            // Numeric top-level keys are never meaningful metadata — they are character-spread artifacts
+            !/^\d+$/.test(k)
     );
+
+    // The sub-action's own photos; the parent cover is only a fallback, never an extra slide
+    const ownImages = [subAction.coverImage, ...(subAction.images ?? [])].filter(Boolean) as string[];
+    const heroImages = ownImages.length > 0 ? ownImages : [parentAction.coverImage].filter(Boolean) as string[];
+
+    // Vote standing, derived from the sibling contestants
+    const isVote = parentAction.type === 'vote';
+    const voteCount = Number(subAction.metadata?.votes ?? 0);
+    const rank = subAction.metadata?.rank !== undefined ? Number(subAction.metadata.rank) : null;
+    const siblingVotes = siblings.map(s => Number(s.metadata?.votes ?? 0));
+    const totalVotes = siblingVotes.reduce((sum, v) => sum + v, 0);
+    const leaderVotes = siblingVotes.length ? Math.max(...siblingVotes) : voteCount;
+    const voteShare = totalVotes > 0 ? (voteCount / totalVotes) * 100 : null;
+    const votesBehindLeader = Math.max(leaderVotes - voteCount, 0);
+    const otherContestants = siblings.filter(s => s.id !== subAction.id);
+
+    const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+
+    const handleCopyLink = async () => {
+        try {
+            await navigator.clipboard.writeText(shareUrl);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch {
+            toast({ title: 'Could not copy', description: 'Copy the link from your address bar.' });
+        }
+    };
+
+    const handleNativeShare = async () => {
+        if (!navigator.share) return handleCopyLink();
+        try {
+            await navigator.share({ title: subAction.name, text: `Support ${subAction.name}`, url: shareUrl });
+        } catch {
+            // The user dismissed the share sheet — nothing to report
+        }
+    };
+
 
     return (
         <div className="min-h-screen bg-[#0d1117]">
@@ -333,9 +423,17 @@ export default function SubActionDetailPage() {
                 >
                     <ArrowLeft className="w-4 h-4" />
                 </button>
+                {/* The hero already shows the name; the bar only takes it over once the hero is gone */}
                 <div className="flex-1 min-w-0">
-                    <p className="text-[#4a6278] text-[11px] truncate leading-none mb-0.5">{parentAction.name}</p>
-                    <h1 className="text-[#f0f4f8] font-bold text-sm truncate leading-none">{subAction.name}</h1>
+                    <p className="text-[#8da0b3] text-[11px] truncate leading-none">{parentAction.name}</p>
+                    <h1
+                        className={`text-[#f0f4f8] font-bold text-sm truncate leading-none transition-all duration-200 ${
+                            heroScrolledPast ? 'opacity-100 mt-0.5 max-h-5' : 'opacity-0 max-h-0'
+                        }`}
+                        aria-hidden={!heroScrolledPast}
+                    >
+                        {subAction.name}
+                    </h1>
                 </div>
                 {isOwner && !isEditing && (
                     <div className="flex items-center gap-2">
@@ -359,14 +457,19 @@ export default function SubActionDetailPage() {
 
             <div className="max-w-2xl mx-auto pb-32">
 
-                {/* ── Hero ── */}
-                <div className="relative w-full h-64 sm:h-80 overflow-hidden">
-                    {(subAction.coverImage || parentAction.coverImage) ? (
-                        <img src={subAction.coverImage || parentAction.coverImage!} alt={subAction.name} className="w-full h-full object-cover" />
-                    ) : (
-                        <div className="absolute inset-0 bg-gradient-to-br from-[#1a3a5c] via-[#111927] to-[#0d1117]" />
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#0d1117] via-[#0d1117]/60 to-transparent" />
+                {/* ── Hero — the photos are the content, so they get the room ── */}
+                <div className="relative w-full h-80 sm:h-[26rem] overflow-hidden">
+                    <ImageCarousel
+                        images={heroImages}
+                        alt={subAction.name}
+                        className="w-full h-full"
+                        dotsAlign="right"
+                        fallback={
+                            <div className="absolute inset-0 bg-gradient-to-br from-[#1a3a5c] via-[#111927] to-[#0d1117]" />
+                        }
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0d1117] via-[#0d1117]/60 to-transparent pointer-events-none" />
+
 
                     {/* Badges top-left */}
                     <div className="absolute top-4 left-4 flex flex-wrap gap-2">
@@ -382,66 +485,107 @@ export default function SubActionDetailPage() {
                         )}
                     </div>
 
-                    {/* Stock badge top-right */}
-                    {stock != null && (
-                        <div className="absolute top-4 right-4 bg-black/50 backdrop-blur-sm text-white/70 text-[11px] px-2.5 py-1 rounded-full border border-white/10">
-                            {stock} available
-                        </div>
-                    )}
-
-                    {/* Title bottom */}
-                    <div className="absolute bottom-0 left-0 right-0 px-5 pb-5">
-                        {isEditing && editFormData ? (
-                            <input
-                                value={editFormData.name}
-                                onChange={e => setEditFormData({ ...editFormData, name: e.target.value })}
-                                className="text-2xl font-bold bg-transparent border-b-2 border-[#3b82f6] text-white outline-none w-full"
-                            />
-                        ) : (
-                            <h2 className="text-white font-bold text-2xl sm:text-3xl leading-tight drop-shadow-lg">{subAction.name}</h2>
+                    {/* Stock + fullscreen photos, stacked so they never collide */}
+                    <div className="absolute z-20 top-4 right-4 flex flex-col items-end gap-2">
+                        {stock != null && (
+                            <div className="bg-black/50 backdrop-blur-sm text-white/70 text-[11px] px-2.5 py-1 rounded-full border border-white/10">
+                                {stock} available
+                            </div>
                         )}
-                        {!isEditing && (subAction.description || parentAction.shortDescription) && (
-                            <p className="text-white/60 text-sm mt-1 line-clamp-1">
+                        {heroImages.length > 0 && (
+                            <button
+                                type="button"
+                                onClick={() => setLightboxIndex(0)}
+                                aria-label="View photos fullscreen"
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/50 backdrop-blur-md border border-white/15 text-white text-[11px] font-semibold hover:bg-black/70 transition-colors"
+                            >
+                                <Maximize2 className="w-3 h-3" />
+                                {heroImages.length > 1 ? `${heroImages.length} photos` : 'View photo'}
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Title bottom — editing happens in the panel below, never on top of the photo */}
+                    <div className="absolute bottom-0 left-0 right-0 px-5 pb-5 pr-20">
+                        <h2 className="text-white font-bold text-2xl sm:text-3xl leading-tight drop-shadow-lg">{subAction.name}</h2>
+                        {(subAction.description || parentAction.shortDescription) && (
+                            <p className="text-white/75 text-sm mt-1 line-clamp-1 drop-shadow">
                                 {subAction.description || parentAction.shortDescription}
                             </p>
                         )}
+                        <SocialLinksRow
+                            links={subAction.metadata?.socialLinks}
+                            variant="chip"
+                            className="mt-2.5"
+                        />
                     </div>
                 </div>
 
-                {/* ── Price + stats strip ── */}
-                <div className="flex items-stretch gap-px bg-[#1e2d40] border-b border-[#1e2d40] overflow-hidden">
-                    <div className="flex-1 bg-[#0d1117] px-5 py-4">
-                        <p className="text-[#4a6278] text-[10px] font-bold uppercase tracking-widest mb-1">
-                            {isPWYW ? 'Pay what you want' : 'Price'}
-                        </p>
-                        {isEditing && editFormData && !isPWYW ? (
-                            <input
-                                type="number" step="0.01"
-                                value={editFormData.price}
-                                onChange={e => setEditFormData({ ...editFormData, price: parseFloat(e.target.value) })}
-                                className="text-xl font-bold bg-transparent border-b border-[#3b82f6] text-white outline-none w-full"
-                            />
-                        ) : (
+                {/* ── Thumbnail strip ── */}
+                {heroImages.length > 1 && (
+                    <div className="flex gap-2 overflow-x-auto px-4 sm:px-6 py-3 border-b border-[#1e2d40]">
+                        {heroImages.map((image, i) => (
+                            <button
+                                key={image}
+                                type="button"
+                                onClick={() => setLightboxIndex(i)}
+                                aria-label={`Open photo ${i + 1} fullscreen`}
+                                className="relative w-16 h-16 rounded-xl overflow-hidden border border-[#1e2d40] hover:border-[#3b82f6] flex-shrink-0 transition-colors"
+                            >
+                                <img src={image} alt="" className="w-full h-full object-cover" />
+                            </button>
+                        ))}
+                    </div>
+                )}
+
+                {/* ── Stats strip — on a vote, the tally leads and the price is a footnote ── */}
+                <div className="grid grid-cols-2 sm:flex sm:items-stretch gap-px bg-[#1e2d40] border-b border-[#1e2d40]">
+                    {isVote ? (
+                        <>
+                            <div className="col-span-2 sm:flex-1 bg-[#0d1117] px-5 py-4">
+                                <p className="text-[#8da0b3] text-[10px] font-bold uppercase tracking-widest mb-1">Votes</p>
+                                <p className="text-[#60a5fa] font-bold text-3xl tabular-nums">{voteCount.toLocaleString()}</p>
+                                {voteShare === null && (
+                                    <p className="text-[#8da0b3] text-xs mt-1.5">
+                                        No votes cast yet — be the first.
+                                    </p>
+                                )}
+                                {voteShare !== null && (
+                                    <div className="mt-2.5">
+                                        <div className="h-1.5 rounded-full bg-[#1e2d40] overflow-hidden">
+                                            <div
+                                                className="h-full rounded-full bg-gradient-to-r from-[#3b82f6] to-[#60a5fa] transition-all duration-500"
+                                                style={{ width: `${Math.max(voteShare, 2)}%` }}
+                                            />
+                                        </div>
+                                        <p className="text-[#8da0b3] text-xs mt-1.5">
+                                            {voteShare.toFixed(1)}% of all votes cast
+                                            {votesBehindLeader > 0 && ` · ${votesBehindLeader.toLocaleString()} behind the leader`}
+                                            {votesBehindLeader === 0 && voteCount > 0 && ' · leading'}
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                            {rank !== null && (
+                                <div className="bg-[#0d1117] px-5 py-4 sm:text-center">
+                                    <p className="text-[#8da0b3] text-[10px] font-bold uppercase tracking-widest mb-1">Rank</p>
+                                    <p className="text-white font-bold text-3xl tabular-nums">#{rank}</p>
+                                </div>
+                            )}
+                        </>
+                    ) : (
+                        <div className="col-span-2 sm:flex-1 bg-[#0d1117] px-5 py-4">
+                            <p className="text-[#8da0b3] text-[10px] font-bold uppercase tracking-widest mb-1">
+                                {isPWYW ? 'Pay what you want' : 'Price'}
+                            </p>
                             <p className="text-white font-bold text-xl">
                                 {isPWYW ? 'Open price' : `${parentAction.currency || ''} ${Number(subAction.price).toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
                             </p>
-                        )}
-                    </div>
-                    {subAction.metadata?.votes !== undefined && (
-                        <div className="bg-[#0d1117] px-5 py-4 text-center">
-                            <p className="text-[#4a6278] text-[10px] font-bold uppercase tracking-widest mb-1">Votes</p>
-                            <p className="text-[#60a5fa] font-bold text-xl">{Number(subAction.metadata.votes).toLocaleString()}</p>
-                        </div>
-                    )}
-                    {subAction.metadata?.rank !== undefined && (
-                        <div className="bg-[#0d1117] px-5 py-4 text-center">
-                            <p className="text-[#4a6278] text-[10px] font-bold uppercase tracking-widest mb-1">Rank</p>
-                            <p className="text-white font-bold text-xl">#{subAction.metadata.rank}</p>
                         </div>
                     )}
                     {isOwner && subAction.wallet && (
-                        <div className="bg-[#0d1117] px-5 py-4 text-center">
-                            <p className="text-[#4a6278] text-[10px] font-bold uppercase tracking-widest mb-1">Balance</p>
+                        <div className="bg-[#0d1117] px-5 py-4 sm:text-center">
+                            <p className="text-[#8da0b3] text-[10px] font-bold uppercase tracking-widest mb-1">Raised</p>
                             <p className="text-emerald-400 font-bold text-xl">{subAction.wallet.balance.toLocaleString()}</p>
                         </div>
                     )}
@@ -450,28 +594,93 @@ export default function SubActionDetailPage() {
                 {/* ── Content sections ── */}
                 <div className="px-4 sm:px-6 pt-5 space-y-4">
 
-                    {/* Description */}
-                    <section>
-                        <p className="text-[#4a6278] text-[10px] font-bold uppercase tracking-widest mb-2">About</p>
-                        {isEditing && editFormData ? (
-                            <textarea
-                                value={editFormData.description || ''}
-                                onChange={e => setEditFormData({ ...editFormData, description: e.target.value })}
-                                rows={4}
-                                placeholder="Add a description..."
-                                className="w-full bg-[#111927] border border-[#1e2d40] focus:border-[#3b82f6] rounded-xl px-4 py-3 text-sm text-[#f0f4f8] placeholder:text-[#4a6278] outline-none resize-none transition-colors"
-                            />
-                        ) : (
-                            <p className="text-[#8da0b3] text-sm leading-relaxed">
-                                {subAction.description || parentAction.description || parentAction.shortDescription || 'No description provided.'}
+                    {/* Owner edit panel — every editable field lives here, not scattered across the page */}
+                    {isEditing && editFormData && (
+                        <section className="bg-[#111927] border border-[#3b82f6]/40 rounded-2xl p-5 space-y-4">
+                            <div className="flex items-center gap-2">
+                                <Edit2 className="w-3.5 h-3.5 text-[#60a5fa]" />
+                                <p className="text-[#f0f4f8] font-semibold text-sm">Edit details</p>
+                            </div>
+
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <div className="sm:col-span-2">
+                                    <label htmlFor="edit-name" className="text-[#8da0b3] text-xs font-semibold mb-1.5 block">Name</label>
+                                    <input
+                                        id="edit-name"
+                                        value={editFormData.name}
+                                        onChange={e => setEditFormData({ ...editFormData, name: e.target.value })}
+                                        className={editFieldClass}
+                                    />
+                                </div>
+
+                                {!isPWYW && (
+                                    <div>
+                                        <label htmlFor="edit-price" className="text-[#8da0b3] text-xs font-semibold mb-1.5 block">
+                                            Price ({parentAction.currency || 'RWF'})
+                                        </label>
+                                        <input
+                                            id="edit-price"
+                                            type="number" step="0.01" min="0"
+                                            value={editFormData.price}
+                                            onChange={e => setEditFormData({ ...editFormData, price: parseFloat(e.target.value) })}
+                                            className={editFieldClass}
+                                        />
+                                    </div>
+                                )}
+
+                                <div>
+                                    <label htmlFor="edit-stock" className="text-[#8da0b3] text-xs font-semibold mb-1.5 block">Stock</label>
+                                    <input
+                                        id="edit-stock"
+                                        type="number" min="0"
+                                        value={editFormData.stock ?? ''}
+                                        onChange={e => setEditFormData({ ...editFormData, stock: e.target.value ? parseInt(e.target.value) : undefined })}
+                                        placeholder="Unlimited"
+                                        className={editFieldClass}
+                                    />
+                                </div>
+
+                                <div className="sm:col-span-2">
+                                    <label htmlFor="edit-description" className="text-[#8da0b3] text-xs font-semibold mb-1.5 block">Description</label>
+                                    <textarea
+                                        id="edit-description"
+                                        value={editFormData.description || ''}
+                                        onChange={e => setEditFormData({ ...editFormData, description: e.target.value })}
+                                        rows={4}
+                                        placeholder="Add a description..."
+                                        className={`${editFieldClass} resize-none`}
+                                    />
+                                </div>
+                            </div>
+
+                            <p className="text-[#8da0b3] text-xs">
+                                Photos and social links are managed from the action builder.
                             </p>
-                        )}
-                    </section>
+                        </section>
+                    )}
+
+                    {/* Description — the primary thing a visitor reads about this contestant */}
+                    {!isEditing && (
+                        <section className="bg-[#111927] border border-[#1e2d40] rounded-2xl p-5 sm:p-6">
+                            <p className="text-[#60a5fa] text-[10px] font-bold uppercase tracking-widest mb-2.5">
+                                About {subAction.name}
+                            </p>
+                            {subAction.description ? (
+                                <p className="text-[#e2e9f0] text-[15px] sm:text-base leading-relaxed whitespace-pre-line">
+                                    {subAction.description}
+                                </p>
+                            ) : (
+                                <p className="text-[#8da0b3] text-sm leading-relaxed italic">
+                                    {parentAction.description || parentAction.shortDescription || 'No description provided yet.'}
+                                </p>
+                            )}
+                        </section>
+                    )}
 
                     {/* Benefits */}
                     {benefitsList.length > 0 && (
                         <section className="bg-[#111927] border border-[#1e2d40] rounded-2xl p-5">
-                            <p className="text-[#4a6278] text-[10px] font-bold uppercase tracking-widest mb-3">What's included</p>
+                            <p className="text-[#8da0b3] text-[10px] font-bold uppercase tracking-widest mb-3">What&apos;s included</p>
                             <ul className="space-y-2.5">
                                 {benefitsList.map((b: string, i: number) => (
                                     <li key={i} className="flex items-center gap-3 text-sm text-[#c4d4e0]">
@@ -485,33 +694,36 @@ export default function SubActionDetailPage() {
                         </section>
                     )}
 
-                    {/* QR code */}
-                    {subAction.dedicatedQrCodeData && (
-                        <section className="bg-[#111927] border border-[#1e2d40] rounded-2xl p-5">
-                            <div className="flex items-center gap-2 mb-4">
-                                <QrCode className="w-4 h-4 text-[#3b82f6]" />
-                                <p className="text-[#f0f4f8] font-semibold text-sm">Your QR Code</p>
-                                <p className="text-[#4a6278] text-xs ml-auto">Scan to share</p>
-                            </div>
-                            <div className="flex flex-col sm:flex-row items-center gap-5">
-                                <div className="bg-white rounded-2xl p-3 shadow-lg shadow-black/40 flex-shrink-0">
-                                    <img src={subAction.dedicatedQrCodeData} alt="QR Code" className="w-36 h-36 block" />
-                                </div>
-                                <div className="flex-1 space-y-3 w-full">
-                                    <p className="text-[#8da0b3] text-sm">Share this QR code to promote your profile or allow others to find and vote for you.</p>
-                                    <a
-                                        href={`/action/${actionId}/subactions/${subAction.id}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#1a3a5c] border border-[#3b82f6]/50 text-[#60a5fa] text-sm font-semibold hover:bg-[#1e4a72] hover:border-[#3b82f6] transition-colors"
-                                    >
-                                        <ExternalLink className="w-3.5 h-3.5" />
-                                        Open public link
-                                    </a>
-                                </div>
-                            </div>
-                        </section>
-                    )}
+                    {/* Share — the QR pointed at this very page, so it is now a small action, not a billboard */}
+                    <div className="flex flex-wrap items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={handleNativeShare}
+                            className="flex-1 min-w-[8rem] inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#111927] border border-[#1e2d40] text-[#f0f4f8] text-sm font-semibold hover:border-[#3b82f6] transition-colors"
+                        >
+                            <Share2 className="w-3.5 h-3.5" />
+                            Share
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleCopyLink}
+                            className="flex-1 min-w-[8rem] inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#111927] border border-[#1e2d40] text-[#8da0b3] text-sm font-semibold hover:text-[#f0f4f8] hover:border-[#3b82f6] transition-colors"
+                        >
+                            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <LinkIcon className="w-3.5 h-3.5" />}
+                            {copied ? 'Link copied' : 'Copy link'}
+                        </button>
+                        {subAction.dedicatedQrCodeData && (
+                            <button
+                                type="button"
+                                onClick={() => setShowShareQr(true)}
+                                title="Show QR code for posters, flyers and reposts"
+                                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#111927] border border-[#1e2d40] text-[#8da0b3] text-sm font-semibold hover:text-[#f0f4f8] hover:border-[#3b82f6] transition-colors"
+                            >
+                                <QrCode className="w-3.5 h-3.5" />
+                                QR
+                            </button>
+                        )}
+                    </div>
 
                     {/* Details accordion */}
                     {metaEntries.length > 0 && (
@@ -521,38 +733,18 @@ export default function SubActionDetailPage() {
                                 className="w-full flex items-center justify-between px-5 py-4 bg-[#111927] hover:bg-[#131f2e] transition-colors"
                             >
                                 <span className="text-[#f0f4f8] text-sm font-semibold">Details</span>
-                                {detailsExpanded ? <ChevronUp className="w-4 h-4 text-[#4a6278]" /> : <ChevronDown className="w-4 h-4 text-[#4a6278]" />}
+                                {detailsExpanded ? <ChevronUp className="w-4 h-4 text-[#8da0b3]" /> : <ChevronDown className="w-4 h-4 text-[#8da0b3]" />}
                             </button>
                             {detailsExpanded && (
                                 <div className="grid grid-cols-2 gap-px bg-[#1e2d40]">
                                     {metaEntries.map(([k, v]) => (
                                         <div key={k} className="bg-[#0d1117] px-4 py-3">
-                                            <p className="text-[#4a6278] text-[10px] uppercase tracking-wide mb-1 capitalize">{k.replace(/([A-Z])/g, ' $1')}</p>
-                                            <p className="text-[#f0f4f8] text-xs font-semibold truncate">{String(v)}</p>
+                                            <p className="text-[#8da0b3] text-[10px] uppercase tracking-wide mb-1 capitalize">{k.replace(/([A-Z])/g, ' $1')}</p>
+                                            <p className="text-[#f0f4f8] text-xs font-semibold break-words">{formatMetaValue(v)}</p>
                                         </div>
                                     ))}
                                 </div>
                             )}
-                        </section>
-                    )}
-
-                    {/* Timestamps */}
-                    <div className="flex items-center gap-4 text-xs text-[#4a6278] pb-2">
-                        <span className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" />Added {formatDate(subAction.createdAt)}</span>
-                        <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" />Updated {formatDate(subAction.updatedAt)}</span>
-                    </div>
-
-                    {/* Stock edit (owner) */}
-                    {isEditing && editFormData && (
-                        <section className="bg-[#111927] border border-[#1e2d40] rounded-2xl p-5">
-                            <p className="text-[#4a6278] text-[10px] font-bold uppercase tracking-widest mb-3">Stock</p>
-                            <input
-                                type="number" min="0"
-                                value={editFormData.stock ?? ''}
-                                onChange={e => setEditFormData({ ...editFormData, stock: e.target.value ? parseInt(e.target.value) : undefined })}
-                                placeholder="Unlimited"
-                                className="w-full bg-[#0d1525] border border-[#1e2d40] focus:border-[#3b82f6] rounded-xl px-4 py-2.5 text-sm text-[#f0f4f8] placeholder:text-[#4a6278] outline-none transition-colors"
-                            />
                         </section>
                     )}
 
@@ -562,10 +754,18 @@ export default function SubActionDetailPage() {
                             {!showPurchaseForm ? (
                                 <button
                                     onClick={() => setShowPurchaseForm(true)}
-                                    className="w-full py-4 rounded-2xl bg-[#3b82f6] hover:bg-[#2563eb] text-white font-bold text-sm transition-colors flex items-center justify-center gap-2 shadow-lg shadow-blue-900/30"
+                                    className="w-full py-4 rounded-2xl bg-[#3b82f6] hover:bg-[#2563eb] text-white font-bold transition-colors flex flex-col items-center justify-center gap-0.5 shadow-lg shadow-blue-900/30"
                                 >
-                                    <ShoppingCart className="w-4 h-4" />
-                                    {ctaLabel(parentAction.type)}
+                                    <span className="flex items-center gap-2 text-sm">
+                                        <ShoppingCart className="w-4 h-4" />
+                                        {ctaLabel(parentAction.type)}
+                                    </span>
+                                    {!isPWYW && (
+                                        <span className="text-white/70 text-xs font-medium">
+                                            {parentAction.currency || 'RWF'} {Number(subAction.price).toLocaleString()}
+                                            {isVote ? ' per vote' : ' each'}
+                                        </span>
+                                    )}
                                 </button>
                             ) : (
                                 <div className="bg-[#111927] border border-[#1e2d40] rounded-2xl overflow-hidden">
@@ -580,7 +780,7 @@ export default function SubActionDetailPage() {
                                     </div>
                                     <div className="p-5 space-y-5">
                                         <div>
-                                            <label className="text-[#4a6278] text-xs font-semibold mb-2 block">
+                                            <label className="text-[#8da0b3] text-xs font-semibold mb-2 block">
                                                 Quantity {maxQty < 999 && <span className="font-normal opacity-60">(max {maxQty})</span>}
                                             </label>
                                             <div className="flex items-center gap-3">
@@ -591,24 +791,24 @@ export default function SubActionDetailPage() {
                                         </div>
                                         {isPWYW && (
                                             <div>
-                                                <label className="text-[#4a6278] text-xs font-semibold mb-2 block">Your amount ({parentAction.currency})</label>
+                                                <label className="text-[#8da0b3] text-xs font-semibold mb-2 block">Your amount ({parentAction.currency})</label>
                                                 <input type="number" min="0" step="0.01" value={customAmount} onChange={e => { setCustomAmount(e.target.value); setPurchaseError(null); }} placeholder="Enter amount" className="w-full bg-[#0d1525] border border-[#1e2d40] focus:border-[#3b82f6] rounded-xl px-4 py-2.5 text-sm text-[#f0f4f8] placeholder:text-[#4a6278] outline-none transition-colors" />
                                             </div>
                                         )}
                                         <div className="space-y-3">
-                                            <p className="text-[#4a6278] text-[10px] font-bold uppercase tracking-widest">Your information</p>
+                                            <p className="text-[#8da0b3] text-[10px] font-bold uppercase tracking-widest">Your information</p>
                                             {(parentAction.buyerFields?.length ? parentAction.buyerFields : ['fullName', 'email', 'phone']).map(f =>
                                                 renderBuyerField(f, buyerData[f] || '', f !== 'notes')
                                             )}
                                         </div>
                                         <div className="bg-[#0d1525] border border-[#1e2d40] rounded-xl p-4 flex items-center justify-between">
                                             <div>
-                                                <p className="text-[#4a6278] text-xs mb-0.5">Total</p>
+                                                <p className="text-[#8da0b3] text-xs mb-0.5">Total</p>
                                                 <p className="text-white font-bold text-lg">
                                                     {isPWYW && !customAmount ? '—' : `${parentAction.currency || ''} ${totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
                                                 </p>
                                             </div>
-                                            <p className="text-[#4a6278] text-xs text-right">
+                                            <p className="text-[#8da0b3] text-xs text-right">
                                                 {purchaseQuantity} × {isPWYW ? `${parentAction.currency} ${parseFloat(customAmount || '0').toFixed(2)}` : `${parentAction.currency} ${Number(subAction.price).toFixed(2)}`}
                                             </p>
                                         </div>
@@ -623,8 +823,74 @@ export default function SubActionDetailPage() {
                             )}
                         </div>
                     )}
+
+                    {/* Other contestants — keeps the page from being a dead end */}
+                    {isVote && otherContestants.length > 0 && (
+                        <section className="pt-1">
+                            <p className="text-[#8da0b3] text-[10px] font-bold uppercase tracking-widest mb-3">
+                                Other {parentAction.name ? 'contestants' : 'options'}
+                            </p>
+                            <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
+                                {otherContestants.map(other => {
+                                    const photo = other.coverImage || other.images?.[0];
+                                    return (
+                                        <a
+                                            key={other.id}
+                                            href={`/action/${actionId}/subactions/${other.id}`}
+                                            className="group w-32 flex-shrink-0 rounded-xl border border-[#1e2d40] bg-[#111927] overflow-hidden hover:border-[#3b82f6] transition-colors"
+                                        >
+                                            <div className="h-24 bg-[#0d1525]">
+                                                {photo ? (
+                                                    <img src={photo} alt="" className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center">
+                                                        <Users className="w-6 h-6 text-[#1e2d40]" />
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="p-2.5">
+                                                <p className="text-[#f0f4f8] text-xs font-semibold truncate group-hover:text-[#60a5fa] transition-colors">
+                                                    {other.name}
+                                                </p>
+                                                <p className="text-[#8da0b3] text-[11px] mt-0.5 tabular-nums">
+                                                    {Number(other.metadata?.votes ?? 0).toLocaleString()} votes
+                                                </p>
+                                            </div>
+                                        </a>
+                                    );
+                                })}
+                            </div>
+                        </section>
+                    )}
+
+                    {/* Timestamps — record-keeping, so they sit below the primary action */}
+                    <div className="flex items-center gap-4 text-xs text-[#8da0b3] pt-2">
+                        <span className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" />Added {formatDate(subAction.createdAt)}</span>
+                        <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" />Updated {formatDate(subAction.updatedAt)}</span>
+                    </div>
                 </div>
             </div>
+
+            {/* ── QR / share dialog ── */}
+            <ShareQrDialog
+                open={showShareQr}
+                onOpenChange={setShowShareQr}
+                name={subAction.name}
+                subtitle={parentAction.name}
+                url={`/action/${actionId}/subactions/${subAction.id}`}
+                qrCodeData={subAction.dedicatedQrCodeData}
+            />
+
+            {/* ── Fullscreen photo viewer ── */}
+            {lightboxIndex !== null && heroImages.length > 0 && (
+                <ImageLightbox
+                    images={heroImages}
+                    index={lightboxIndex}
+                    alt={subAction.name}
+                    onClose={() => setLightboxIndex(null)}
+                    onIndexChange={setLightboxIndex}
+                />
+            )}
 
             {/* ── Delete confirm dialog ───────────────────────────────────────── */}
             <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
@@ -677,7 +943,7 @@ export default function SubActionDetailPage() {
 
                                 {purchaseResult.description && (
                                     <div className="bg-[#111927] border border-[#1e2d40] rounded-xl p-4">
-                                        <p className="text-xs font-semibold text-[#4a6278] uppercase tracking-wide mb-1.5">Summary</p>
+                                        <p className="text-xs font-semibold text-[#8da0b3] uppercase tracking-wide mb-1.5">Summary</p>
                                         <p className="text-sm text-[#8da0b3]">{purchaseResult.description}</p>
                                     </div>
                                 )}
@@ -691,7 +957,7 @@ export default function SubActionDetailPage() {
 
                                 {parentAction.fulfillment?.postPurchaseMessage && (
                                     <div className="bg-[#111927] border border-[#1e2d40] rounded-xl p-4">
-                                        <p className="text-xs font-semibold text-[#4a6278] uppercase tracking-wide mb-1.5">Message from Organizer</p>
+                                        <p className="text-xs font-semibold text-[#8da0b3] uppercase tracking-wide mb-1.5">Message from Organizer</p>
                                         <p className="text-sm text-[#8da0b3]">{parentAction.fulfillment.postPurchaseMessage}</p>
                                     </div>
                                 )}
@@ -702,7 +968,7 @@ export default function SubActionDetailPage() {
                                         <div className="bg-white rounded-xl p-3">
                                             <img src={purchaseResult.qrCodeData} alt="QR Code" className="w-40 h-40 block" />
                                         </div>
-                                        <p className="text-xs text-[#4a6278] text-center">Show this to confirm your entry</p>
+                                        <p className="text-xs text-[#8da0b3] text-center">Show this to confirm your entry</p>
                                     </div>
                                 )}
                             </div>
