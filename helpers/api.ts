@@ -397,11 +397,13 @@ export const getSubActions = (actionId: string) => apiGet(`/actions/${actionId}/
 export const getGroupById = (groupId: string) =>
   axios.get(`${baseUrl}/groups/${groupId}`, { headers: getAuthHeaders() });
 
-export const transferActionPurchase = (
-  purchaseId: string,
-  recipientId: string,
-  senderId: string
-) => apiPost(`/action-purchases/${purchaseId}/transfer`, { recipientId, senderId });
+export const transferActionPurchase = (purchaseId: string, recipientId: string) =>
+  apiPost(`/action-purchases/${purchaseId}/transfer`, { recipientId });
+
+export const getUserById = (userId: string) => apiGet(`/users/${userId}`);
+
+export const getOrganizationById = (organizationId: string) =>
+  apiGet(`/organizations/${organizationId}`);
 
 export const getGroupWallet = (groupId: string) =>
   apiGet(`/groups/${groupId}/wallet`);
