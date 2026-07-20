@@ -87,22 +87,22 @@ export default function MediaUploadModal({
             case 'document':
                 return <FileText className="h-16 w-16 text-gray-600 dark:text-gray-400" />
             default:
-                return <FileText className="h-16 w-16 text-gray-400" />
+                return <FileText className="h-16 w-16 text-gray-400 dark:text-gray-500" />
         }
     }
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 overflow-hidden">
+            <div className="bg-white dark:bg-darkBg-card rounded-lg shadow-xl w-full max-w-2xl mx-4 overflow-hidden">
                 {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b">
-                    <h2 className="text-lg font-semibold">Upload Media</h2>
+                <div className="flex items-center justify-between p-4 border-b dark:border-darkBorder-light">
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Upload Media</h2>
                     <Button
                         variant="ghost"
                         size="icon"
                         onClick={handleClose}
                         disabled={uploading}
-                        className="h-8 w-8"
+                        className="h-8 w-8 dark:text-gray-300 dark:hover:bg-darkBg-interactive"
                     >
                         <X className="h-4 w-4" />
                     </Button>
@@ -116,17 +116,17 @@ export default function MediaUploadModal({
                             onClick={() => fileInputRef.current?.click()}
                         >
                             <div className="flex flex-col items-center gap-4">
-                                <div className="h-16 w-16 rounded-full bg-gray-100 flex items-center justify-center">
-                                    <ImageIcon className="h-8 w-8 text-gray-400" />
+                                <div className="h-16 w-16 rounded-full bg-gray-100 dark:bg-darkBg-interactive flex items-center justify-center">
+                                    <ImageIcon className="h-8 w-8 text-gray-400 dark:text-gray-500" />
                                 </div>
                                 <div>
-                                    <p className="text-lg font-medium text-gray-700">
+                                    <p className="text-lg font-medium text-gray-700 dark:text-gray-200">
                                         Click to upload media
                                     </p>
-                                    <p className="text-sm text-gray-500 mt-1">
+                                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                                         Images, videos, audio, or documents
                                     </p>
-                                    <p className="text-xs text-gray-400 mt-2">
+                                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
                                         Max size: Images (10MB), Videos (100MB), Audio (20MB), Documents (50MB)
                                     </p>
                                 </div>
@@ -142,7 +142,7 @@ export default function MediaUploadModal({
                     ) : (
                         <div className="space-y-4">
                             {/* Preview */}
-                            <div className="relative bg-gray-50 rounded-lg overflow-hidden">
+                            <div className="relative bg-gray-50 dark:bg-darkBg-interactive rounded-lg overflow-hidden">
                                 {previewUrl && getFileType(selectedFile.type) === 'image' ? (
                                     <img
                                         src={previewUrl}
@@ -158,10 +158,10 @@ export default function MediaUploadModal({
                                 ) : (
                                     <div className="flex flex-col items-center justify-center p-12">
                                         {getFileIcon()}
-                                        <p className="mt-4 font-medium text-gray-700">
+                                        <p className="mt-4 font-medium text-gray-700 dark:text-gray-200">
                                             {selectedFile.name}
                                         </p>
-                                        <p className="text-sm text-gray-500">
+                                        <p className="text-sm text-gray-500 dark:text-gray-400">
                                             {formatFileSize(selectedFile.size)}
                                         </p>
                                     </div>
@@ -170,18 +170,18 @@ export default function MediaUploadModal({
                                 {/* Upload Progress */}
                                 {uploading && (
                                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                                        <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4">
+                                        <div className="bg-white dark:bg-darkBg-card rounded-lg p-6 max-w-sm w-full mx-4">
                                             <div className="flex items-center gap-3 mb-3">
                                                 <Loader2 className="h-5 w-5 animate-spin text-brand-green dark:text-brand-gold" />
-                                                <span className="font-medium">Uploading...</span>
+                                                <span className="font-medium text-gray-900 dark:text-white">Uploading...</span>
                                             </div>
-                                            <div className="w-full bg-gray-200 rounded-full h-2">
+                                            <div className="w-full bg-gray-200 dark:bg-darkBg-interactive rounded-full h-2">
                                                 <div
                                                     className="bg-brand-green dark:bg-brand-gold h-2 rounded-full transition-all duration-300"
                                                     style={{ width: `${uploadProgress}%` }}
                                                 />
                                             </div>
-                                            <p className="text-sm text-gray-500 text-center mt-2">
+                                            <p className="text-sm text-gray-500 dark:text-gray-400 text-center mt-2">
                                                 {uploadProgress}%
                                             </p>
                                         </div>
@@ -191,21 +191,21 @@ export default function MediaUploadModal({
 
                             {/* Caption Input */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                     Caption (optional)
                                 </label>
                                 <textarea
                                     value={caption}
                                     onChange={(e) => setCaption(e.target.value)}
                                     placeholder="Add a caption..."
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00B512] resize-none"
+                                    className="w-full px-3 py-2 border border-gray-300 dark:border-darkBorder-light rounded-lg bg-white dark:bg-darkBg-interactive text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#00B512] resize-none"
                                     rows={3}
                                     disabled={uploading}
                                 />
                             </div>
 
                             {/* File Info */}
-                            <div className="flex items-center justify-between text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
+                            <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-darkBg-interactive p-3 rounded-lg">
                                 <span className="font-medium">{selectedFile.name}</span>
                                 <span>{formatFileSize(selectedFile.size)}</span>
                             </div>
@@ -231,7 +231,7 @@ export default function MediaUploadModal({
 
                 {/* Footer */}
                 {selectedFile && (
-                    <div className="flex items-center justify-end gap-3 p-4 border-t bg-gray-50">
+                    <div className="flex items-center justify-end gap-3 p-4 border-t dark:border-darkBorder-light bg-gray-50 dark:bg-darkBg-interactive">
                         <Button
                             variant="outline"
                             onClick={handleClose}

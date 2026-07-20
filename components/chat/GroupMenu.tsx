@@ -30,15 +30,15 @@ export default function GroupMenu({ group, isActiveMember, onManageAction }: Gro
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-8 w-8 p-0 opacity-60 group-hover:opacity-100 transition-opacity hover:bg-gray-100"
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 opacity-60 group-hover:opacity-100 transition-opacity hover:bg-gray-100 dark:hover:bg-darkBg-interactive"
                 >
                     <MoreVertical size={16} />
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 shadow-lg border-gray-200">
+            <DropdownMenuContent align="end" className="w-56 shadow-lg border-gray-200 dark:border-darkBorder-light">
                                 <DropdownMenuItem onClick={() => onManageAction("info", group)}>
                     <Info size={16} className="text-green-500" />
                     Group Info
@@ -48,7 +48,7 @@ export default function GroupMenu({ group, isActiveMember, onManageAction }: Gro
                     <>
                         <DropdownMenuItem 
                             onClick={() => onManageAction("invite", group)}
-                            className="flex items-center gap-3 py-2.5 cursor-pointer hover:bg-gray-50"
+                            className="flex items-center gap-3 py-2.5 cursor-pointer"
                         >
                             <UserPlus size={16} className="text-green-500" />
                             <span>Invite Members</span>
@@ -58,7 +58,7 @@ export default function GroupMenu({ group, isActiveMember, onManageAction }: Gro
                         
                         <DropdownMenuItem 
                             onClick={() => onManageAction("mute", group)}
-                            className="flex items-center gap-3 py-2.5 cursor-pointer hover:bg-gray-50"
+                            className="flex items-center gap-3 py-2.5 cursor-pointer"
                         >
                             <BellOff size={16} className="text-orange-500" />
                             <span>Mute Notifications</span>
@@ -66,7 +66,7 @@ export default function GroupMenu({ group, isActiveMember, onManageAction }: Gro
                         
                         <DropdownMenuItem 
                             onClick={() => onManageAction("unmute", group)}
-                            className="flex items-center gap-3 py-2.5 cursor-pointer hover:bg-gray-50"
+                            className="flex items-center gap-3 py-2.5 cursor-pointer"
                         >
                             <Bell size={16} className="text-green-500" />
                             <span>Unmute Notifications</span>
@@ -110,9 +110,9 @@ export default function GroupMenu({ group, isActiveMember, onManageAction }: Gro
                 {!isActiveMember && (
                     <DropdownMenuItem 
                         onClick={() => onManageAction("view", group)}
-                        className="flex items-center gap-3 py-2.5 cursor-pointer hover:bg-gray-50"
+                        className="flex items-center gap-3 py-2.5 cursor-pointer"
                     >
-                        <Eye size={16} className="text-gray-500" />
+                        <Eye size={16} className="text-gray-500 dark:text-gray-400" />
                         <span>View Group</span>
                     </DropdownMenuItem>
                 )}

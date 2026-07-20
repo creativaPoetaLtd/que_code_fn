@@ -109,14 +109,14 @@ export default function RequestsPage() {
 
         return (
             <Card className="p-4 mb-3 hover:shadow-md transition-all border-gray-100 dark:border-darkBorder-light bg-white dark:bg-darkBg-card">
-                <div className="flex items-center justify-between gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
                     <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <UserAvatar 
+                        <UserAvatar
                             profileImage={(otherParty as any)?.profile?.profileImage || otherParty?.profile?.avatar}
                             firstName={otherParty?.firstName}
                             lastName={otherParty?.lastName}
                             userId={otherParty?.id}
-                            className="h-10 w-10 flex-shrink-0" 
+                            className="h-10 w-10 flex-shrink-0"
                         />
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
@@ -136,9 +136,9 @@ export default function RequestsPage() {
                             </p>
                         </div>
                     </div>
-                    
-                    <div className="text-right flex flex-col items-end gap-2">
-                        <div className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-1">
+
+                    <div className="flex flex-col items-stretch sm:items-end gap-2 sm:flex-shrink-0">
+                        <div className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-1 whitespace-nowrap sm:self-end">
                             {type === 'received' ? (
                                 <ArrowDownLeft size={16} className="text-red-500" />
                             ) : (
@@ -146,21 +146,21 @@ export default function RequestsPage() {
                             )}
                             {request.amount.toLocaleString()} {request.currency}
                         </div>
-                        
+
                         {type === 'received' && isPending && (
                             <div className="flex items-center gap-2">
-                                <Button 
-                                    size="sm" 
+                                <Button
+                                    size="sm"
                                     variant="outline"
-                                    className="h-8"
+                                    className="h-8 flex-1 sm:flex-none"
                                     disabled={processingRequestId === request.id}
                                     onClick={() => handleDeclineRequest(request.id)}
                                 >
                                     Decline
                                 </Button>
-                                <Button 
-                                    size="sm" 
-                                    className={`${accent.solidDark} text-white h-8`}
+                                <Button
+                                    size="sm"
+                                    className={`${accent.solidDark} text-white h-8 flex-1 sm:flex-none`}
                                     onClick={() => router.push(`/home/transfer/amount?requestId=${request.id}`)}
                                 >
                                     Pay Now

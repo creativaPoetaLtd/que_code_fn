@@ -148,7 +148,7 @@ export default function EnhancedMessageInput({
     }, [])
 
     return (
-        <div className="bg-white p-3 sm:p-4 border-t border-gray-200 shadow-sm flex-shrink-0">
+        <div className="bg-white dark:bg-darkBg-card p-3 sm:p-4 border-t border-gray-200 dark:border-darkBorder-light shadow-sm flex-shrink-0">
             <div className="flex items-center gap-1 sm:gap-2">
                 {/* Attachments area */}
                 <div className="relative" ref={dropdownRef}>
@@ -157,10 +157,10 @@ export default function EnhancedMessageInput({
                         size="icon"
                         onClick={() => setShowOptions(!showOptions)}
                         disabled={disabled}
-                        className={`transition-all duration-300 h-8 w-8 sm:h-10 sm:w-10 ${showOptions ? "bg-gray-100" : ""}`}
+                        className={`transition-all duration-300 h-8 w-8 sm:h-10 sm:w-10 ${showOptions ? "bg-gray-100 dark:bg-darkBg-interactive" : ""}`}
                         aria-label="Attachments"
                     >
-                        <Paperclip size={16} className="sm:size-20 text-gray-500" />
+                        <Paperclip size={16} className="sm:size-20 text-gray-500 dark:text-gray-400" />
                     </Button>
 
                     <OptionsDropdown isOpen={showOptions} onOptionSelect={handleOptionSelect} />
@@ -170,11 +170,11 @@ export default function EnhancedMessageInput({
                     variant="ghost"
                     size="icon"
                     disabled={disabled}
-                    className="hover:bg-gray-100 transition-colors h-8 w-8 sm:h-10 sm:w-10"
+                    className="hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors h-8 w-8 sm:h-10 sm:w-10"
                     aria-label="Add image"
                     onClick={() => handleOptionSelect("gallery")}
                 >
-                    <ImageIcon size={16} className="sm:size-20 text-gray-500" />
+                    <ImageIcon size={16} className="sm:size-20 text-gray-500 dark:text-gray-400" />
                 </Button>
 
                 {/* Input Field */}
@@ -185,7 +185,7 @@ export default function EnhancedMessageInput({
                         onChange={handleInputChange}
                         onKeyDown={handleKeyDown}
                         disabled={disabled}
-                        className="rounded-full bg-gray-100 border-0 py-1.5 sm:py-2 px-3 sm:px-4 focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-opacity-50 transition-all pr-8 sm:pr-10 text-sm disabled:opacity-50"
+                        className="rounded-full bg-gray-100 dark:bg-darkBg-interactive dark:text-white border-0 py-1.5 sm:py-2 px-3 sm:px-4 focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-opacity-50 transition-all pr-8 sm:pr-10 text-sm disabled:opacity-50"
                     />
                     <Button
                         variant="ghost"
@@ -194,7 +194,7 @@ export default function EnhancedMessageInput({
                         className="absolute right-1 top-1/2 transform -translate-y-1/2 hover:bg-transparent border-0 h-6 w-6 sm:h-8 sm:w-8"
                         aria-label="Emoji"
                     >
-                        <Smile size={16} className="sm:size-18 text-gray-500" />
+                        <Smile size={16} className="sm:size-18 text-gray-500 dark:text-gray-400" />
                     </Button>
                 </div>
 
@@ -206,7 +206,7 @@ export default function EnhancedMessageInput({
                     className={`h-8 w-8 sm:h-10 sm:w-10 rounded-full transition-all duration-200 ${
                         messageText.trim() && !disabled
                             ? "bg-green-500 hover:bg-green-600 text-white shadow-md hover:shadow-lg"
-                            : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                            : "bg-gray-200 dark:bg-darkBg-interactive text-gray-400 dark:text-gray-500 cursor-not-allowed"
                     }`}
                     aria-label="Send message"
                 >
@@ -216,7 +216,7 @@ export default function EnhancedMessageInput({
 
             {/* Typing indicator */}
             {isTyping && (
-                <div className="text-xs text-gray-500 mt-2 px-2">
+                <div className="text-xs text-gray-500 dark:text-gray-400 mt-2 px-2">
                     Typing...
                 </div>
             )}

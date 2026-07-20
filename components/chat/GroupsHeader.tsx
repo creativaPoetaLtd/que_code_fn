@@ -45,7 +45,7 @@ export default function GroupsHeader({ groupsCount, searchTerm, onSearchChange }
             {/* Search and Filters */}
             <div className="flex flex-col sm:flex-row gap-4">
                 <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" size={18} />
                     <Input
                         placeholder="Search groups by name or description..."
                         className="pl-10 h-11 border-gray-200 dark:border-darkBorder-light focus:border-brand-green dark:focus:border-brand-gold focus:ring-brand-green/20 dark:focus:ring-brand-gold/20"
@@ -56,7 +56,7 @@ export default function GroupsHeader({ groupsCount, searchTerm, onSearchChange }
 
                 <Button
                     variant="outline"
-                    className="border-gray-200 text-gray-600 hover:bg-gray-50 h-11 px-4"
+                    className="border-gray-200 dark:border-darkBorder-light text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-darkBg-interactive h-11 px-4"
                 >
                     <Filter size={18} className="mr-2" />
                     Filters

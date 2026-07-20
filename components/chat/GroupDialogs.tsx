@@ -54,19 +54,19 @@ export default function GroupDialogs({
                 <AlertDialogContent className="max-w-md">
                     <AlertDialogHeader>
                         <div className="flex items-center gap-3 mb-2">
-                            <div className="p-2 bg-orange-100 rounded-full">
-                                <LogOut size={20} className="text-orange-600" />
+                            <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-full">
+                                <LogOut size={20} className="text-orange-600 dark:text-orange-400" />
                             </div>
                             <AlertDialogTitle className="text-xl">Leave Group</AlertDialogTitle>
                         </div>
-                        <AlertDialogDescription className="text-gray-600 leading-relaxed">
-                            Are you sure you want to leave <span className="font-medium">"{getGroupName(leaveDialog.groupId)}"</span>? 
+                        <AlertDialogDescription className="text-gray-600 dark:text-gray-400 leading-relaxed">
+                            Are you sure you want to leave <span className="font-medium">"{getGroupName(leaveDialog.groupId)}"</span>?
                             <br /><br />
                             You won't be able to see new messages unless someone adds you back to the group.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter className="gap-3">
-                        <AlertDialogCancel className="border-gray-200 text-gray-600 hover:bg-gray-50">
+                        <AlertDialogCancel className="border-gray-200 dark:border-darkBorder-light text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-darkBg-interactive">
                             Cancel
                         </AlertDialogCancel>
                         <AlertDialogAction
@@ -99,19 +99,19 @@ export default function GroupDialogs({
                 <AlertDialogContent className="max-w-md">
                     <AlertDialogHeader>
                         <div className="flex items-center gap-3 mb-2">
-                            <div className="p-2 bg-red-100 rounded-full">
-                                <Trash2 size={20} className="text-red-600" />
+                            <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-full">
+                                <Trash2 size={20} className="text-red-600 dark:text-red-400" />
                             </div>
                             <AlertDialogTitle className="text-xl">Delete Group</AlertDialogTitle>
                         </div>
-                        <AlertDialogDescription className="text-gray-600 leading-relaxed">
+                        <AlertDialogDescription className="text-gray-600 dark:text-gray-400 leading-relaxed">
                             Are you sure you want to permanently delete <span className="font-medium">"{getGroupName(deleteDialog.groupId)}"</span>?
                             <br /><br />
-                            <span className="text-red-600 font-medium">This action cannot be undone.</span> All group data, messages, and member information will be permanently removed.
+                            <span className="text-red-600 dark:text-red-400 font-medium">This action cannot be undone.</span> All group data, messages, and member information will be permanently removed.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter className="gap-3">
-                        <AlertDialogCancel className="border-gray-200 text-gray-600 hover:bg-gray-50">
+                        <AlertDialogCancel className="border-gray-200 dark:border-darkBorder-light text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-darkBg-interactive">
                             Cancel
                         </AlertDialogCancel>
                         <AlertDialogAction

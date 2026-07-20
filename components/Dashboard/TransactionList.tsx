@@ -1,6 +1,6 @@
 import React, { Suspense, useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
-import { Search, Download, RefreshCcw, MessageCircle } from 'lucide-react';
+import { Search, Download, RefreshCcw, MessageCircle, Users, Target } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Transaction } from '@/types/dashboard';
 import { UserAvatar } from '@/components/UserAvatar';
@@ -17,6 +17,45 @@ interface TransactionListProps {
   transactions?: Transaction[];
   toolbarInHeader?: boolean;
 }
+
+// Renders a person/org avatar as before, or a group/campaign icon badge when
+// the counterparty is a group or public-contribution wallet (which has no
+// user profile to show).
+const CounterpartyAvatar = ({
+  type,
+  name,
+  userId,
+  profileImage,
+}: {
+  type: 'user' | 'organization' | 'group' | 'campaign';
+  name: string;
+  userId?: string;
+  profileImage?: string;
+}) => {
+  if (type === 'group' || type === 'campaign') {
+    return (
+      <div className="h-10 w-10 shrink-0 rounded-full overflow-hidden bg-brand-green/10 dark:bg-brand-gold/10 flex items-center justify-center">
+        {profileImage ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={profileImage} alt={name} className="h-full w-full object-cover" />
+        ) : type === 'group' ? (
+          <Users size={18} className="text-brand-green dark:text-brand-gold" />
+        ) : (
+          <Target size={18} className="text-brand-green dark:text-brand-gold" />
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <UserAvatar
+      userId={userId}
+      profileImage={profileImage}
+      firstName={name.split(' ')[0]}
+      lastName={name.split(' ')[1] || ''}
+    />
+  );
+};
 
 const TransactionListInner = ({ transactions: propTransactions, toolbarInHeader = false }: TransactionListProps) => {
   const { getToken } = useAuthToken();
@@ -151,30 +190,41 @@ const TransactionListInner = ({ transactions: propTransactions, toolbarInHeader 
     const transactionFee = Number(transaction.fee) || 0;
     const amount = isOutgoing ? -(transactionAmount + transactionFee) : transactionAmount;
 
-    // Get the counterparty user info
-    let counterpartyName = 'Unknown User';
+    // Get the counterparty info — a counterparty can be a person, an
+    // organization, a group (in-chat contribution), or a campaign (public
+    // contribution) wallet, since money can move into any of those.
+    let counterpartyName = '';
     let counterpartyEmail = '';
     let counterpartyProfileImage: string | undefined = undefined;
+    let counterpartyType: 'user' | 'organization' | 'group' | 'campaign' = 'user';
 
-    if (isOutgoing && transaction.receiverWallet?.user) {
-      // Outgoing: show receiver info
-      const user = transaction.receiverWallet.user;
+    const counterpartyWallet = isOutgoing ? transaction.receiverWallet : transaction.senderWallet;
+
+    if (counterpartyWallet?.user) {
+      const user = counterpartyWallet.user;
       counterpartyName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
       counterpartyEmail = user.email || '';
       counterpartyProfileImage = user.profile?.profileImage;
-    } else if (!isOutgoing && transaction.senderWallet?.user) {
-      // Incoming: show sender info
-      const user = transaction.senderWallet.user;
-      counterpartyName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
-      counterpartyEmail = user.email || '';
-      counterpartyProfileImage = user.profile?.profileImage;
+      counterpartyType = 'user';
+    } else if (counterpartyWallet?.organization) {
+      counterpartyName = counterpartyWallet.organization.name || '';
+      counterpartyEmail = counterpartyWallet.organization.email || '';
+      counterpartyProfileImage = counterpartyWallet.organization.profile?.profileImage;
+      counterpartyType = 'organization';
+    } else if (counterpartyWallet?.group) {
+      counterpartyName = counterpartyWallet.group.name || '';
+      counterpartyProfileImage = counterpartyWallet.group.profilePictureUrl || undefined;
+      counterpartyType = 'group';
+    } else if (counterpartyWallet?.publicContribution) {
+      counterpartyName = counterpartyWallet.publicContribution.title || '';
+      counterpartyType = 'campaign';
     }
 
     if (!counterpartyName || counterpartyName === '') {
       counterpartyName = transaction.description || (isOutgoing ? 'Money Sent' : 'Money Received');
     }
 
-    return { amount, counterpartyName, counterpartyEmail, counterpartyProfileImage, isOutgoing };
+    return { amount, counterpartyName, counterpartyEmail, counterpartyProfileImage, counterpartyType, isOutgoing };
   };
 
   useEffect(() => {
@@ -384,7 +434,7 @@ const TransactionListInner = ({ transactions: propTransactions, toolbarInHeader 
           </thead>
           <tbody>
             {filteredTransactions.map((transaction) => {
-              const { amount, counterpartyName, counterpartyEmail, counterpartyProfileImage, isOutgoing } = getTransactionDisplayInfo(transaction);
+              const { amount, counterpartyName, counterpartyEmail, counterpartyProfileImage, counterpartyType, isOutgoing } = getTransactionDisplayInfo(transaction);
               const isSelected = selectedTransactions.has(transaction.id);
               const sourceLabel = transaction.senderSubActionId ? 'Sub-Action Wallet' : 'Wallet';
               const destinationLabel = (transaction.resolvedReceiverWalletId || transaction.receiverWalletId) ? 'Wallet' : 'Account';
@@ -401,11 +451,11 @@ const TransactionListInner = ({ transactions: propTransactions, toolbarInHeader 
                   <td className="py-4 px-4 text-sm font-medium text-gray-900 dark:text-gray-100">{transaction.referenceId}</td>
                   <td className="py-4 px-4">
                     <div className="flex items-center gap-3">
-                      <UserAvatar
+                      <CounterpartyAvatar
+                        type={counterpartyType}
+                        name={counterpartyName}
                         userId={(isOutgoing ? transaction.receiverWallet?.userId : transaction.senderWallet?.userId) ?? undefined}
                         profileImage={counterpartyProfileImage}
-                        firstName={counterpartyName.split(' ')[0]}
-                        lastName={counterpartyName.split(' ')[1] || ''}
                       />
                       <div className="flex flex-col">
                         <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{counterpartyName}</div>
@@ -481,7 +531,7 @@ const TransactionListInner = ({ transactions: propTransactions, toolbarInHeader 
           <span className="text-sm text-gray-600 dark:text-gray-400">Select all</span>
         </div>
         {filteredTransactions.map((transaction) => {
-          const { amount, counterpartyName, counterpartyEmail, counterpartyProfileImage, isOutgoing } = getTransactionDisplayInfo(transaction);
+          const { amount, counterpartyName, counterpartyEmail, counterpartyProfileImage, counterpartyType, isOutgoing } = getTransactionDisplayInfo(transaction);
           const isSelected = selectedTransactions.has(transaction.id);
           return (
             <div key={transaction.id} className="border border-gray-200 dark:border-darkBorder-light rounded-lg p-4 bg-gray-50 dark:bg-darkBg-interactive">
@@ -493,12 +543,12 @@ const TransactionListInner = ({ transactions: propTransactions, toolbarInHeader 
                     onChange={(e) => handleSelectTransaction(transaction.id, e.target.checked)}
                     className="w-4 h-4 shrink-0 rounded border-gray-300 dark:border-darkBorder-light dark:bg-darkBg-input"
                   />
-                    <UserAvatar
+                    <CounterpartyAvatar
+                      type={counterpartyType}
+                      name={counterpartyName}
                       userId={(isOutgoing ? transaction.receiverWallet?.userId : transaction.senderWallet?.userId) ?? undefined}
-                    profileImage={counterpartyProfileImage}
-                    firstName={counterpartyName.split(' ')[0]}
-                    lastName={counterpartyName.split(' ')[1] || ''}
-                  />
+                      profileImage={counterpartyProfileImage}
+                    />
                   <div className="min-w-0">
                     <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{counterpartyName}</div>
                     <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{counterpartyEmail}</div>

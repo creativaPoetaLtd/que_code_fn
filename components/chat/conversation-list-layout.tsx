@@ -152,7 +152,7 @@ export default function ConversationListLayout({
       </div>
 
       {/* Content Area */}
-      <div className='flex-1 overflow-y-auto'>
+      <div className='flex-1 overflow-y-auto mobile-bottom-padding'>
         {activeFilter === 'groups' ? (
           // Groups-specific rendering
           groupsLoading ? (

@@ -436,8 +436,8 @@ export const getGroupContributions = (groupId: string) =>
 export const getGroupContribution = (groupId: string, contributionId: string) =>
   apiGet(`/groups/${groupId}/contributions/${contributionId}`);
 
-export const contributeToGroup = (groupId: string, contributionId: string, amount: number, pin: string) =>
-  axios.post(`${baseUrl}/groups/${groupId}/contributions/${contributionId}/pay`, { amount, pin }, { headers: getAuthHeaders() });
+export const contributeToGroup = (groupId: string, contributionId: string, amount: number, pin: string, isAnonymous?: boolean) =>
+  axios.post(`${baseUrl}/groups/${groupId}/contributions/${contributionId}/pay`, { amount, pin, isAnonymous }, { headers: getAuthHeaders() });
 
 export const updateGroupContribution = (
   groupId: string,
@@ -485,10 +485,10 @@ export const getPublicContribution = (contributionId: string) =>
 export const getMyPublicContributions = () =>
   apiGet("/public-contributions/");
 
-export const contributeToPublic = (contributionId: string, amount: number, pin: string) =>
+export const contributeToPublic = (contributionId: string, amount: number, pin: string, isAnonymous?: boolean) =>
   axios.post(
     `${baseUrl}/public-contributions/${contributionId}/pay`,
-    { amount, pin },
+    { amount, pin, isAnonymous },
     { headers: getAuthHeaders() }
   );
 
@@ -542,3 +542,10 @@ export const joinCampaignGroup = (contributionId: string) =>
 
 export const getContributionByGroup = (groupId: string) =>
   apiGet(`/public-contributions/by-group/${groupId}`);
+
+export const updateGroupPrivacy = (groupId: string, isOpen: boolean) =>
+  axios.put(
+    `${baseUrl}/groups/${groupId}`,
+    { privacyType: isOpen ? "public" : "require_approval" },
+    { headers: getAuthHeaders() }
+  );

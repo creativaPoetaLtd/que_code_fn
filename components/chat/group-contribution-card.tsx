@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   contributeToGroup,
   getGroupContribution,
@@ -103,6 +104,7 @@ export function GroupContributionCard({ data, isMe, chatId }: Props) {
   const [step, setStep] = React.useState<Step>("idle");
   const [customAmount, setCustomAmount] = React.useState("");
   const [pin, setPin] = React.useState("");
+  const [isAnonymous, setIsAnonymous] = React.useState(false);
   const [newDeadline, setNewDeadline] = React.useState("");
   const [showEditModal, setShowEditModal] = React.useState(false);
   const [showContributors, setShowContributors] = React.useState(false);
@@ -236,7 +238,8 @@ export function GroupContributionCard({ data, isMe, chatId }: Props) {
         data.groupId,
         data.contributionId,
         amount,
-        pin
+        pin,
+        isAnonymous
       );
       toast({ description: "Contribution successful!" });
       setHasPaid(true);
@@ -247,6 +250,7 @@ export function GroupContributionCard({ data, isMe, chatId }: Props) {
       setStep("idle");
       setPin("");
       setCustomAmount("");
+      setIsAnonymous(false);
     } catch (err: any) {
       const msg =
         err?.response?.data?.message || "Contribution failed. Try again.";
@@ -261,6 +265,7 @@ export function GroupContributionCard({ data, isMe, chatId }: Props) {
     setStep("idle");
     setPin("");
     setCustomAmount("");
+    setIsAnonymous(false);
   };
 
   // ── admin: close campaign ────────────────────────────────────────────────
@@ -553,6 +558,13 @@ export function GroupContributionCard({ data, isMe, chatId }: Props) {
               className="h-8 text-sm tracking-widest"
               autoFocus
             />
+            <label className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 cursor-pointer select-none">
+              <Checkbox
+                checked={isAnonymous}
+                onCheckedChange={(checked) => setIsAnonymous(checked === true)}
+              />
+              Contribute anonymously
+            </label>
             <div className="flex gap-2">
               <Button
                 variant="outline"

@@ -159,6 +159,7 @@ function ContributeFlow({ contribution, onSuccess }: { contribution: MyContribut
     const [step, setStep] = useState<Step>('idle');
     const [amount, setAmount] = useState('');
     const [pin, setPin] = useState('');
+    const [isAnonymous, setIsAnonymous] = useState(false);
 
     const fixedAmount = Number(contribution.amountPerMember);
 
@@ -170,16 +171,16 @@ function ContributeFlow({ contribution, onSuccess }: { contribution: MyContribut
         }
         setStep('loading');
         try {
-            await contributeToGroup(contribution.groupId, contribution.id, payAmount, pin);
+            await contributeToGroup(contribution.groupId, contribution.id, payAmount, pin, isAnonymous);
             onSuccess(payAmount);
-            setStep('idle'); setPin(''); setAmount('');
+            setStep('idle'); setPin(''); setAmount(''); setIsAnonymous(false);
         } catch (err: any) {
             alert(err?.response?.data?.message || 'Contribution failed');
             setStep(contribution.type === 'fixed' ? 'enter_pin' : 'enter_amount');
         }
     };
 
-    const cancel = () => { setStep('idle'); setPin(''); setAmount(''); };
+    const cancel = () => { setStep('idle'); setPin(''); setAmount(''); setIsAnonymous(false); };
 
     if (step === 'idle') return (
         <Button size="sm" className="h-8 text-xs bg-[#00B512] hover:bg-[#009a0f] text-white"
@@ -204,16 +205,22 @@ function ContributeFlow({ contribution, onSuccess }: { contribution: MyContribut
     );
 
     if (step === 'enter_pin') return (
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
-            <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1 text-xs text-gray-500"><Lock size={11} /><span>PIN</span></div>
-                <Input type="password" inputMode="numeric" maxLength={4} placeholder="••••"
-                    value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                    className="h-8 text-xs w-full sm:w-20 min-w-0 tracking-widest" autoFocus />
-            </div>
-            <div className="flex gap-2">
-                <Button size="sm" variant="outline" className="h-8 text-xs flex-1 sm:flex-none" onClick={cancel}>Cancel</Button>
-                <Button size="sm" className="h-8 text-xs flex-1 sm:flex-none bg-[#00B512] hover:bg-[#009a0f] text-white" onClick={handlePay}>Pay</Button>
+        <div className="flex flex-col gap-2 w-full">
+            <label className="flex items-center gap-1.5 text-[11px] text-gray-500 cursor-pointer select-none">
+                <input type="checkbox" checked={isAnonymous} onChange={(e) => setIsAnonymous(e.target.checked)} className="h-3 w-3" />
+                Contribute anonymously
+            </label>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
+                <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 text-xs text-gray-500"><Lock size={11} /><span>PIN</span></div>
+                    <Input type="password" inputMode="numeric" maxLength={4} placeholder="••••"
+                        value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                        className="h-8 text-xs w-full sm:w-20 min-w-0 tracking-widest" autoFocus />
+                </div>
+                <div className="flex gap-2">
+                    <Button size="sm" variant="outline" className="h-8 text-xs flex-1 sm:flex-none" onClick={cancel}>Cancel</Button>
+                    <Button size="sm" className="h-8 text-xs flex-1 sm:flex-none bg-[#00B512] hover:bg-[#009a0f] text-white" onClick={handlePay}>Pay</Button>
+                </div>
             </div>
         </div>
     );
@@ -287,7 +294,7 @@ function ContributionCard({ contribution: initial, currentUserId }: { contributi
     const progress = goal > 0 ? Math.min((collected / goal) * 100, 100) : 0;
     const isActive = c.status === 'active';
     const hasPaid = !!c.myPayment;
-    const canContribute = isActive && !hasPaid;
+    const canContribute = isActive;
     const isDeadlinePast = c.deadline && new Date(c.deadline) < new Date();
 
     useEffect(() => {
@@ -1845,7 +1852,7 @@ const ActionsByAccountPage = () => {
                 {/* ── ROW 3: Public Campaigns ── */}
                 {!isViewingAnotherUser && (
                     <div>
-                        <div className="flex items-center gap-3 mb-3">
+                        <div className="flex flex-wrap items-center gap-3 mb-3">
                             <Globe2 size={16} className="text-[#00B512]" />
                             <span className="text-sm font-bold text-[#00313A] dark:text-white uppercase tracking-widest">My Campaigns</span>
                             <span className="text-xs text-gray-400 dark:text-gray-500">{visibleCampaigns.length}</span>
@@ -1854,7 +1861,7 @@ const ActionsByAccountPage = () => {
                                     {activeCampaigns.length} active
                                 </span>
                             )}
-                            <div className="ml-auto flex items-center gap-1.5">
+                            <div className="w-full sm:w-auto sm:ml-auto flex flex-wrap items-center gap-1.5">
                                 {(['all', 'active', 'closed'] as const).map((f) => (
                                     <button key={f} onClick={() => setCampaignsFilter(f)}
                                         className={`px-2.5 py-1 rounded-full text-[11px] font-semibold capitalize transition-colors ${
@@ -1867,7 +1874,7 @@ const ActionsByAccountPage = () => {
                                 <ScrollBtns s={campaignsScroll} />
                                 <button
                                     onClick={() => setCreateCampaignOpen(true)}
-                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-[#00B512] hover:bg-[#009a0f] text-white transition-colors"
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-[#00B512] hover:bg-[#009a0f] text-white transition-colors whitespace-nowrap"
                                 >
                                     <Plus size={12} />
                                     New Campaign

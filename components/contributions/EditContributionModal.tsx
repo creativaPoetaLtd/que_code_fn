@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Pencil, Loader2, Users } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { updateGroupContribution, updatePublicContribution } from "@/helpers/api";
+import { updateGroupContribution, updatePublicContribution, getCampaignGroup, updateGroupPrivacy } from "@/helpers/api";
 import { ContributionFormFields, ContributionFormValues } from "./ContributionFormFields";
 
 interface AdminMember {
@@ -57,6 +57,24 @@ export function EditContributionModal({
   const [allowContributorJoin, setAllowContributorJoin] = useState(
     initial.allowContributorJoin ?? false
   );
+  const [linkedGroup, setLinkedGroup] = useState<{ id: string; isOpen: boolean } | null>(null);
+  const [groupIsOpen, setGroupIsOpen] = useState(true);
+
+  useEffect(() => {
+    if (isOpen && variant === "public" && hasLinkedGroup) {
+      getCampaignGroup(contributionId)
+        .then((res) => {
+          const group = res?.data?.data;
+          if (group?.id) {
+            setLinkedGroup({ id: group.id, isOpen: !!group.isOpen });
+            setGroupIsOpen(!!group.isOpen);
+          }
+        })
+        .catch(() => {
+          // non-fatal: fall back to no group-privacy control
+        });
+    }
+  }, [isOpen, variant, hasLinkedGroup, contributionId]);
   const [values, setValues] = useState<ContributionFormValues>(() => ({
     title: initial.title,
     note: initial.note ?? "",
@@ -121,6 +139,9 @@ export function EditContributionModal({
       } else {
         if (hasLinkedGroup) payload.allowContributorJoin = allowContributorJoin;
         await updatePublicContribution(contributionId, payload);
+        if (linkedGroup && groupIsOpen !== linkedGroup.isOpen) {
+          await updateGroupPrivacy(linkedGroup.id, groupIsOpen);
+        }
       }
 
       toast({ description: "Campaign updated successfully" });
@@ -189,6 +210,42 @@ export function EditContributionModal({
                   />
                 </div>
               </button>
+
+              {linkedGroup && (
+                <div className="mt-3 pt-3 border-t border-gray-200 dark:border-darkBorder-light space-y-2">
+                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Who can join the group?</p>
+                  <button
+                    type="button"
+                    onClick={() => setGroupIsOpen(true)}
+                    disabled={isSubmitting}
+                    className={`w-full flex items-start gap-2 text-left rounded-lg p-2.5 border ${
+                      groupIsOpen
+                        ? "border-brand-green dark:border-brand-gold bg-brand-green/5 dark:bg-brand-gold/5"
+                        : "border-gray-200 dark:border-darkBorder-light"
+                    }`}
+                  >
+                    <div className="text-sm">
+                      <p className="font-medium text-gray-800 dark:text-gray-200">Anyone can join</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500">Contributors join instantly, no approval needed</p>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGroupIsOpen(false)}
+                    disabled={isSubmitting}
+                    className={`w-full flex items-start gap-2 text-left rounded-lg p-2.5 border ${
+                      !groupIsOpen
+                        ? "border-brand-green dark:border-brand-gold bg-brand-green/5 dark:bg-brand-gold/5"
+                        : "border-gray-200 dark:border-darkBorder-light"
+                    }`}
+                  >
+                    <div className="text-sm">
+                      <p className="font-medium text-gray-800 dark:text-gray-200">Require approval</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500">You approve each join request before they can access the group</p>
+                    </div>
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
