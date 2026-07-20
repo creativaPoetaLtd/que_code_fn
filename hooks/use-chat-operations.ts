@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useAuthToken } from '@/hooks/use-auth-token';
 import { useChat } from '@/context/ChatContext';
 import {
@@ -158,13 +158,7 @@ export function useChatOperations(): UseChatOperationsReturn {
         useJoinGroupChatMutation();
     const [deleteChat] = useDeleteChatMutation();
 
-    const [activeChat, setActiveChat] = useState<string | null>(
-        contextActiveChat
-    );
-
-    useEffect(() => {
-        setActiveChat(contextActiveChat);
-    }, [contextActiveChat]);
+    const activeChat = contextActiveChat;
 
     useEffect(() => {
         if (isConnected && initializeEncryption) {

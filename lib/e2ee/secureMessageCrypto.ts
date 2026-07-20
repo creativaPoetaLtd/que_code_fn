@@ -192,6 +192,15 @@ const verifySignedPreKey = async (bundle: PublicSecureDeviceBundle) => {
   );
 };
 
+const pickOneTimePreKey = (preKeys: PublicSecureDeviceBundle["oneTimePreKeys"]) => {
+  if (!preKeys.length) {
+    return null;
+  }
+
+  const randomIndex = window.crypto.getRandomValues(new Uint32Array(1))[0] % preKeys.length;
+  return preKeys[randomIndex];
+};
+
 export const encryptSecureTextForRecipients = async ({
   content,
   senderUserId,
@@ -243,7 +252,9 @@ export const encryptSecureTextForRecipients = async ({
       ["deriveBits"],
     );
     const selectedOneTimePreKey =
-      recipientDevice.userId === senderUserId ? null : recipientDevice.oneTimePreKeys[0] || null;
+      recipientDevice.userId === senderUserId
+        ? null
+        : pickOneTimePreKey(recipientDevice.oneTimePreKeys);
     const recipientPublicKey = await importExchangePublicKey(
       selectedOneTimePreKey?.publicKey || recipientDevice.bundle.signedPreKeyPublic,
     );

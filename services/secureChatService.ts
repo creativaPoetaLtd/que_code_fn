@@ -15,6 +15,11 @@ import type {
 
 const bundleCache = new Map<string, { cachedAt: number; devices: PublicSecureDeviceBundle[] }>();
 const BUNDLE_CACHE_TTL_MS = 60 * 1000;
+const STALE_PREKEY_RETRY_STEPS = [
+  { delayMs: 0, forceRefresh: false, useOneTimePreKeys: true },
+  { delayMs: 250, forceRefresh: true, useOneTimePreKeys: true },
+  { delayMs: 750, forceRefresh: true, useOneTimePreKeys: false },
+];
 
 const isValidBase64UrlCoordinate = (value: unknown) =>
   typeof value === "string" && value.length >= 43 && value.length <= 44;
@@ -154,6 +159,55 @@ const isUnavailableOneTimePreKeyError = (error: unknown) =>
   error instanceof Error &&
   (error.message.includes("unavailable one-time pre-key") ||
     error.message.includes("already consumed"));
+
+const wait = (delayMs: number) =>
+  new Promise<void>((resolve) => {
+    window.setTimeout(resolve, delayMs);
+  });
+
+const withoutOneTimePreKeys = (devices: PublicSecureDeviceBundle[]) =>
+  devices.map((device) => ({
+    ...device,
+    oneTimePreKeys: [],
+  }));
+
+const sendWithStalePreKeyRetry = async <T>({
+  attempt,
+  cacheKeys,
+}: {
+  attempt: (options: { forceRefresh: boolean; useOneTimePreKeys: boolean }) => Promise<T>;
+  cacheKeys: string[];
+}) => {
+  let lastError: unknown;
+
+  for (const step of STALE_PREKEY_RETRY_STEPS) {
+    if (step.forceRefresh) {
+      for (const cacheKey of cacheKeys) {
+        bundleCache.delete(cacheKey);
+      }
+    }
+
+    if (step.delayMs > 0) {
+      await wait(step.delayMs);
+    }
+
+    try {
+      return await attempt({
+        forceRefresh: step.forceRefresh,
+        useOneTimePreKeys: step.useOneTimePreKeys,
+      });
+    } catch (error) {
+      if (!isUnavailableOneTimePreKeyError(error)) {
+        throw error;
+      }
+      lastError = error;
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("Secure chat request failed after refreshing device bundles");
+};
 
 export const fetchSecureDeviceIdentitySummaries = async ({
   token,
@@ -404,17 +458,26 @@ export const sendSecureTextMessage = async ({
   const state = await getSecureDeviceState(token, userId);
   const recipientUserId = getConversationRecipient(conversation, userId);
 
-  const sendAttempt = async (forceRefresh: boolean) => {
+  const sendAttempt = async ({
+    forceRefresh,
+    useOneTimePreKeys,
+  }: {
+    forceRefresh: boolean;
+    useOneTimePreKeys: boolean;
+  }) => {
     const [senderDevices, recipientDevices] = await Promise.all([
       fetchPublicDeviceBundles(token, userId, { forceRefresh }),
       fetchPublicDeviceBundles(token, recipientUserId, { forceRefresh }),
     ]);
+    const targetDevices = useOneTimePreKeys
+      ? [...senderDevices, ...recipientDevices]
+      : withoutOneTimePreKeys([...senderDevices, ...recipientDevices]);
 
     const { recipientPayloads } = await encryptSecureTextForRecipients({
       content,
       senderUserId: userId,
       senderState: state,
-      recipientDevices: [...senderDevices, ...recipientDevices],
+      recipientDevices: targetDevices,
     });
 
     return fetchJson(`${getApiBaseUrl()}/e2ee/chats/${chatId}/messages`, {
@@ -432,18 +495,10 @@ export const sendSecureTextMessage = async ({
     });
   };
 
-  let payload: any;
-  try {
-    payload = await sendAttempt(false);
-  } catch (error) {
-    if (!isUnavailableOneTimePreKeyError(error)) {
-      throw error;
-    }
-
-    bundleCache.delete(`bundles:${userId}`);
-    bundleCache.delete(`bundles:${recipientUserId}`);
-    payload = await sendAttempt(true);
-  }
+  const payload = await sendWithStalePreKeyRetry({
+    attempt: sendAttempt,
+    cacheKeys: [`bundles:${userId}`, `bundles:${recipientUserId}`],
+  });
 
   bundleCache.delete(`bundles:${userId}`);
   bundleCache.delete(`bundles:${recipientUserId}`);
@@ -515,16 +570,25 @@ export const sendSecureMediaMessage = async ({
     originalSize: encryptedMedia.originalSize,
     caption: caption || "",
   });
-  const sendAttempt = async (forceRefresh: boolean) => {
+  const sendAttempt = async ({
+    forceRefresh,
+    useOneTimePreKeys,
+  }: {
+    forceRefresh: boolean;
+    useOneTimePreKeys: boolean;
+  }) => {
     const [senderDevices, recipientDevices] = await Promise.all([
       fetchPublicDeviceBundles(token, userId, { forceRefresh }),
       fetchPublicDeviceBundles(token, recipientUserId, { forceRefresh }),
     ]);
+    const targetDevices = useOneTimePreKeys
+      ? [...senderDevices, ...recipientDevices]
+      : withoutOneTimePreKeys([...senderDevices, ...recipientDevices]);
     const { recipientPayloads } = await encryptSecureTextForRecipients({
       content: encryptedContent,
       senderUserId: userId,
       senderState: state,
-      recipientDevices: [...senderDevices, ...recipientDevices],
+      recipientDevices: targetDevices,
     });
 
     return fetchJson(`${getApiBaseUrl()}/e2ee/chats/${chatId}/messages`, {
@@ -541,18 +605,10 @@ export const sendSecureMediaMessage = async ({
     });
   };
 
-  let messagePayload: any;
-  try {
-    messagePayload = await sendAttempt(false);
-  } catch (error) {
-    if (!isUnavailableOneTimePreKeyError(error)) {
-      throw error;
-    }
-
-    bundleCache.delete(`bundles:${userId}`);
-    bundleCache.delete(`bundles:${recipientUserId}`);
-    messagePayload = await sendAttempt(true);
-  }
+  const messagePayload = await sendWithStalePreKeyRetry({
+    attempt: sendAttempt,
+    cacheKeys: [`bundles:${userId}`, `bundles:${recipientUserId}`],
+  });
 
   bundleCache.delete(`bundles:${userId}`);
   bundleCache.delete(`bundles:${recipientUserId}`);
@@ -600,11 +656,20 @@ export const sendSecureReactionMessage = async ({
   const state = await getSecureDeviceState(token, userId);
   const recipientUserId = getConversationRecipient(conversation, userId);
 
-  const sendAttempt = async (forceRefresh: boolean) => {
+  const sendAttempt = async ({
+    forceRefresh,
+    useOneTimePreKeys,
+  }: {
+    forceRefresh: boolean;
+    useOneTimePreKeys: boolean;
+  }) => {
     const [senderDevices, recipientDevices] = await Promise.all([
       fetchPublicDeviceBundles(token, userId, { forceRefresh }),
       fetchPublicDeviceBundles(token, recipientUserId, { forceRefresh }),
     ]);
+    const targetDevices = useOneTimePreKeys
+      ? [...senderDevices, ...recipientDevices]
+      : withoutOneTimePreKeys([...senderDevices, ...recipientDevices]);
     const { recipientPayloads } = await encryptSecureTextForRecipients({
       content: JSON.stringify({
         kind: "reaction",
@@ -615,7 +680,7 @@ export const sendSecureReactionMessage = async ({
       }),
       senderUserId: userId,
       senderState: state,
-      recipientDevices: [...senderDevices, ...recipientDevices],
+      recipientDevices: targetDevices,
     });
 
     return fetchJson(`${getApiBaseUrl()}/e2ee/chats/${chatId}/messages`, {
@@ -633,17 +698,10 @@ export const sendSecureReactionMessage = async ({
     });
   };
 
-  try {
-    await sendAttempt(false);
-  } catch (error) {
-    if (!isUnavailableOneTimePreKeyError(error)) {
-      throw error;
-    }
-
-    bundleCache.delete(`bundles:${userId}`);
-    bundleCache.delete(`bundles:${recipientUserId}`);
-    await sendAttempt(true);
-  }
+  await sendWithStalePreKeyRetry({
+    attempt: sendAttempt,
+    cacheKeys: [`bundles:${userId}`, `bundles:${recipientUserId}`],
+  });
 
   bundleCache.delete(`bundles:${userId}`);
   bundleCache.delete(`bundles:${recipientUserId}`);
