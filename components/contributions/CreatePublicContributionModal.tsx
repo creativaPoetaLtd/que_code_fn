@@ -33,6 +33,7 @@ export default function CreatePublicContributionModal({ isOpen, onClose, onCreat
   const [step, setStep] = useState<Step>("form");
   const [form, setForm] = useState<ContributionFormValues>(emptyForm);
   const [createGroup, setCreateGroup] = useState(false);
+  const [groupIsOpen, setGroupIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [shareLink, setShareLink] = useState("");
   const [contributionId, setContributionId] = useState("");
@@ -44,6 +45,7 @@ export default function CreatePublicContributionModal({ isOpen, onClose, onCreat
       setStep("form");
       setForm(emptyForm);
       setCreateGroup(false);
+      setGroupIsOpen(false);
       setShareLink("");
       setContributionId("");
       setCopied(false);
@@ -92,7 +94,7 @@ export default function CreatePublicContributionModal({ isOpen, onClose, onCreat
           await createCampaignGroup(contribution.id, {
             name: form.title.trim(),
             description: "",
-            isOpen: true,
+            isOpen: groupIsOpen,
           });
         } catch {
           toast({ variant: "destructive", description: "Campaign created but community group setup failed." });
@@ -192,6 +194,43 @@ export default function CreatePublicContributionModal({ isOpen, onClose, onCreat
                 />
               </div>
             </button>
+
+            {/* Join policy for the community group */}
+            {createGroup && (
+              <div className="border border-gray-200 dark:border-darkBorder-light rounded-xl p-4 space-y-2">
+                <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Who can join?</p>
+                <button
+                  type="button"
+                  onClick={() => setGroupIsOpen(true)}
+                  disabled={isSubmitting}
+                  className={`w-full flex items-start gap-2 text-left rounded-lg p-2.5 border ${
+                    groupIsOpen
+                      ? "border-brand-green dark:border-brand-gold bg-brand-green/5 dark:bg-brand-gold/5"
+                      : "border-gray-200 dark:border-darkBorder-light"
+                  }`}
+                >
+                  <div className="text-sm">
+                    <p className="font-medium text-gray-800 dark:text-gray-200">Anyone can join</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500">Contributors join instantly, no approval needed</p>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGroupIsOpen(false)}
+                  disabled={isSubmitting}
+                  className={`w-full flex items-start gap-2 text-left rounded-lg p-2.5 border ${
+                    !groupIsOpen
+                      ? "border-brand-green dark:border-brand-gold bg-brand-green/5 dark:bg-brand-gold/5"
+                      : "border-gray-200 dark:border-darkBorder-light"
+                  }`}
+                >
+                  <div className="text-sm">
+                    <p className="font-medium text-gray-800 dark:text-gray-200">Require approval</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500">You approve each join request before they can access the group</p>
+                  </div>
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -203,7 +242,7 @@ export default function CreatePublicContributionModal({ isOpen, onClose, onCreat
                 Shareable Link
               </p>
               <div className="flex items-center gap-2">
-                <div className="flex-1 bg-white dark:bg-darkBg-interactive border border-gray-200 dark:border-darkBorder-light rounded-lg px-3 py-2 text-xs text-gray-700 dark:text-gray-300 truncate font-mono">
+                <div className="min-w-0 flex-1 bg-white dark:bg-darkBg-interactive border border-gray-200 dark:border-darkBorder-light rounded-lg px-3 py-2 text-xs text-gray-700 dark:text-gray-300 truncate font-mono">
                   {shareLink}
                 </div>
                 <Button

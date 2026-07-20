@@ -46,17 +46,17 @@ export default function OptionsDropdown({ isOpen, onOptionSelect }: OptionsDropd
 
     return (
         <div className="absolute bottom-16 left-0 z-50 min-w-48">
-            <div className="bg-white rounded-lg shadow-lg border border-gray-100 overflow-hidden transform origin-bottom-left transition-all duration-200 ease-out animate-dropdown">
+            <div className="bg-white dark:bg-darkBg-card rounded-lg shadow-lg border border-gray-100 dark:border-darkBorder-light overflow-hidden transform origin-bottom-left transition-all duration-200 ease-out animate-dropdown">
                 {options.map((option, index) => (
                     <div
                         key={index}
-                        className="flex items-center p-3 hover:bg-gray-50 cursor-pointer transition-colors duration-150 ease-in-out"
+                        className="flex items-center p-3 hover:bg-gray-50 dark:hover:bg-darkBg-interactive cursor-pointer transition-colors duration-150 ease-in-out"
                         onClick={option.action}
                         role="button"
                         tabIndex={0}
                     >
                         <div className={`${option.color} mr-3 flex items-center justify-center`}>{option.icon}</div>
-                        <span className="text-sm font-medium text-gray-700">{option.label}</span>
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{option.label}</span>
                     </div>
                 ))}
             </div>

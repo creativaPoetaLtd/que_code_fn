@@ -230,15 +230,15 @@ export default function AddMemberModal({
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="sm:max-w-[550px] max-h-[85vh] overflow-hidden flex flex-col p-0">
-                <DialogHeader className="px-6 pt-6 pb-4 border-b">
-                    <DialogTitle className="flex items-center gap-2">
-                        <div className="bg-gray-100 p-2 rounded-full">
-                            <UserPlus size={20} className="text-gray-700" />
+            <DialogContent className="sm:max-w-[550px] max-h-[85vh] overflow-hidden flex flex-col p-0 dark:bg-darkBg-card dark:border-darkBorder-light">
+                <DialogHeader className="px-6 pt-6 pb-4 border-b dark:border-darkBorder-light">
+                    <DialogTitle className="flex items-center gap-2 text-gray-900 dark:text-white">
+                        <div className="bg-gray-100 dark:bg-darkBg-interactive p-2 rounded-full">
+                            <UserPlus size={20} className="text-gray-700 dark:text-gray-300" />
                         </div>
                         <div>
                             <div>Add Members</div>
-                            <div className="text-sm font-normal text-gray-500 mt-0.5">
+                            <div className="text-sm font-normal text-gray-500 dark:text-gray-400 mt-0.5">
                                 Invite people to "{groupName}"
                             </div>
                         </div>
@@ -246,12 +246,21 @@ export default function AddMemberModal({
                 </DialogHeader>
 
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-hidden flex flex-col">
-                    <TabsList className="w-full grid grid-cols-2 mx-6 mt-4" style={{ width: 'calc(100% - 3rem)' }}>
-                        <TabsTrigger value="invite" className="flex items-center gap-2">
+                    <TabsList
+                        className="w-full grid grid-cols-2 mx-6 mt-4 bg-gray-100 dark:bg-darkBg-interactive border border-gray-200 dark:border-darkBorder-light"
+                        style={{ width: 'calc(100% - 3rem)' }}
+                    >
+                        <TabsTrigger
+                            value="invite"
+                            className="flex items-center gap-2 text-gray-600 dark:text-gray-300 data-[state=active]:bg-white dark:data-[state=active]:bg-darkBg-card data-[state=active]:text-gray-900 dark:data-[state=active]:text-white"
+                        >
                             <Users size={14} />
                             From Contacts
                         </TabsTrigger>
-                        <TabsTrigger value="share" className="flex items-center gap-2">
+                        <TabsTrigger
+                            value="share"
+                            className="flex items-center gap-2 text-gray-600 dark:text-gray-300 data-[state=active]:bg-white dark:data-[state=active]:bg-darkBg-card data-[state=active]:text-gray-900 dark:data-[state=active]:text-white"
+                        >
                             <Share2 size={14} />
                             Share Link
                         </TabsTrigger>
@@ -262,10 +271,10 @@ export default function AddMemberModal({
                         <TabsContent value="invite" className="mt-4 space-y-4">
                             {/* Search Bar */}
                             <div className="relative">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" size={16} />
                                 <Input
                                     placeholder="Search contacts..."
-                                    className="pl-10"
+                                    className="pl-10 dark:bg-darkBg-interactive dark:border-darkBorder-light dark:text-white"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                 />
@@ -273,16 +282,16 @@ export default function AddMemberModal({
 
                             {/* Selection Summary */}
                             {selectedContacts.length > 0 && (
-                                <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                <div className="p-3 bg-gray-50 dark:bg-darkBg-interactive rounded-lg border border-gray-200 dark:border-darkBorder-light">
                                     <div className="flex items-center justify-between">
-                                        <span className="text-sm font-medium text-gray-700">
+                                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                                             {selectedContacts.length} contact{selectedContacts.length > 1 ? "s" : ""} selected
                                         </span>
                                         <Button
                                             variant="ghost"
                                             size="sm"
                                             onClick={() => setSelectedContacts([])}
-                                            className="h-auto p-1 text-xs"
+                                            className="h-auto p-1 text-xs dark:text-gray-300 dark:hover:bg-darkBg-hover"
                                         >
                                             Clear
                                         </Button>
@@ -292,13 +301,13 @@ export default function AddMemberModal({
 
                             {/* Select All */}
                             {filteredContacts.length > 0 && (
-                                <div className="flex items-center gap-2 py-2 border-b">
+                                <div className="flex items-center gap-2 py-2 border-b dark:border-darkBorder-light">
                                     <Checkbox
                                         checked={selectedContacts.length === filteredContacts.length}
                                         onCheckedChange={handleSelectAll}
                                         id="select-all"
                                     />
-                                    <label htmlFor="select-all" className="text-sm font-medium cursor-pointer">
+                                    <label htmlFor="select-all" className="text-sm font-medium cursor-pointer text-gray-800 dark:text-gray-200">
                                         Select All ({filteredContacts.length})
                                     </label>
                                 </div>
@@ -308,11 +317,11 @@ export default function AddMemberModal({
                             <div className="space-y-2 max-h-[350px] overflow-y-auto">
                                 {isLoadingContacts ? (
                                     <div className="flex justify-center items-center py-12">
-                                        <Loader2 className="h-6 w-6 animate-spin text-gray-600" />
+                                        <Loader2 className="h-6 w-6 animate-spin text-gray-600 dark:text-gray-400" />
                                     </div>
                                 ) : filteredContacts.length === 0 ? (
-                                    <div className="text-center py-12 text-gray-500">
-                                        <Users size={48} className="mx-auto mb-4 text-gray-300" />
+                                    <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                                        <Users size={48} className="mx-auto mb-4 text-gray-300 dark:text-gray-600" />
                                         <p className="font-medium">No contacts found</p>
                                         <p className="text-sm mt-1">
                                             {searchTerm ? "Try a different search term" : "Add contacts to invite them"}
@@ -326,7 +335,7 @@ export default function AddMemberModal({
                                         return (
                                             <div
                                                 key={contact.id}
-                                                className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors"
+                                                className="flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-darkBg-interactive rounded-lg cursor-pointer transition-colors"
                                                 onClick={() => toggleContact(otherUser.id)}
                                             >
                                                 <Checkbox
@@ -335,15 +344,15 @@ export default function AddMemberModal({
                                                 />
                                                 <Avatar className="h-10 w-10">
                                                     <AvatarImage src={(otherUser as any).avatar} alt={otherUser.firstName} />
-                                                    <AvatarFallback>
+                                                    <AvatarFallback className="dark:bg-darkBg-interactive dark:text-gray-200">
                                                         {getInitials(otherUser.firstName, otherUser.lastName)}
                                                     </AvatarFallback>
                                                 </Avatar>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="font-medium text-sm truncate">
+                                                    <p className="font-medium text-sm truncate text-gray-900 dark:text-white">
                                                         {otherUser.firstName} {otherUser.lastName}
                                                     </p>
-                                                    <p className="text-xs text-gray-500 truncate">
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
                                                         {otherUser.email}
                                                     </p>
                                                 </div>
@@ -355,11 +364,11 @@ export default function AddMemberModal({
 
                             {/* Action Buttons */}
                             {selectedContacts.length > 0 && (
-                                <div className="flex gap-2 pt-4 border-t">
+                                <div className="flex gap-2 pt-4 border-t dark:border-darkBorder-light">
                                     <Button
                                         variant="outline"
                                         onClick={onClose}
-                                        className="flex-1"
+                                        className="flex-1 dark:border-darkBorder-light dark:text-gray-300 dark:hover:bg-darkBg-interactive"
                                     >
                                         Cancel
                                     </Button>
@@ -390,13 +399,13 @@ export default function AddMemberModal({
                                 <>
                                     {/* QR Code Section */}
                                     {qrCode && (
-                                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                                            <h4 className="font-semibold text-sm mb-3 flex items-center text-gray-700">
-                                                <QrCode size={16} className="mr-2 text-gray-600" />
+                                        <div className="bg-gray-50 dark:bg-darkBg-interactive border border-gray-200 dark:border-darkBorder-light rounded-lg p-4">
+                                            <h4 className="font-semibold text-sm mb-3 flex items-center text-gray-700 dark:text-gray-300">
+                                                <QrCode size={16} className="mr-2 text-gray-600 dark:text-gray-400" />
                                                 QR Code
                                             </h4>
                                             <div className="flex justify-center mb-3">
-                                                <div className="bg-white p-3 rounded-lg border border-gray-300 shadow-sm">
+                                                <div className="bg-white p-3 rounded-lg border border-gray-300 dark:border-darkBorder-light shadow-sm">
                                                     <img
                                                         src={qrCode}
                                                         alt="Group QR Code"
@@ -404,14 +413,14 @@ export default function AddMemberModal({
                                                     />
                                                 </div>
                                             </div>
-                                            <p className="text-xs text-gray-600 text-center mb-3">
+                                            <p className="text-xs text-gray-600 dark:text-gray-400 text-center mb-3">
                                                 Scan this QR code to join the group
                                             </p>
                                             <Button
                                                 onClick={handleDownloadQR}
                                                 variant="outline"
                                                 size="sm"
-                                                className="w-full"
+                                                className="w-full dark:border-darkBorder-light dark:text-gray-300 dark:hover:bg-darkBg-hover"
                                             >
                                                 <Download size={14} className="mr-2" />
                                                 Download QR Code
@@ -421,23 +430,23 @@ export default function AddMemberModal({
 
                                     {/* Access Link Section */}
                                     {accessLink && (
-                                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                                            <h4 className="font-semibold text-sm mb-3 flex items-center text-gray-700">
-                                                <Link2 size={16} className="mr-2 text-gray-600" />
+                                        <div className="bg-gray-50 dark:bg-darkBg-interactive border border-gray-200 dark:border-darkBorder-light rounded-lg p-4">
+                                            <h4 className="font-semibold text-sm mb-3 flex items-center text-gray-700 dark:text-gray-300">
+                                                <Link2 size={16} className="mr-2 text-gray-600 dark:text-gray-400" />
                                                 Invite Link
                                             </h4>
-                                            <p className="text-xs text-gray-600 mb-3">
+                                            <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
                                                 Share this link with people you want to invite to the group
                                             </p>
                                             <div className="flex gap-2 mb-3">
-                                                <div className="flex-1 bg-white border border-gray-300 rounded px-3 py-2 text-sm truncate">
+                                                <div className="flex-1 bg-white dark:bg-darkBg-card border border-gray-300 dark:border-darkBorder-light rounded px-3 py-2 text-sm truncate text-gray-800 dark:text-gray-200">
                                                     {accessLink}
                                                 </div>
                                                 <Button
                                                     onClick={handleCopyLink}
                                                     variant="outline"
                                                     size="sm"
-                                                    className="shrink-0"
+                                                    className="shrink-0 dark:border-darkBorder-light dark:hover:bg-darkBg-hover"
                                                 >
                                                     {copiedLink ? (
                                                         <Check size={14} className="text-brand-green dark:text-brand-gold" />
@@ -459,8 +468,8 @@ export default function AddMemberModal({
                                     )}
                                 </>
                             ) : (
-                                <div className="text-center py-12 text-gray-500">
-                                    <Link2 size={48} className="mx-auto mb-4 text-gray-300" />
+                                <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                                    <Link2 size={48} className="mx-auto mb-4 text-gray-300 dark:text-gray-600" />
                                     <p className="font-medium">No sharing options available</p>
                                     <p className="text-sm mt-1">
                                         Contact the group admin to enable sharing

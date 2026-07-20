@@ -1,11 +1,11 @@
 "use client"
 import React, { useEffect, useState } from 'react';
-import { Plus, Ticket, Target, ArrowRight, Users, BarChart3, ChevronDown } from 'lucide-react';
+import { Plus, Ticket, Target, ArrowRight, Users, BarChart3, ChevronDown, Globe2 } from 'lucide-react';
 import { useAuthToken } from '@/hooks/use-auth-token';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import baseUrl from '@/helpers/baseUrl';
-import { getMyGroupContributions } from '@/helpers/api';
+import { getMyGroupContributions, getMyPublicContributions } from '@/helpers/api';
 import { getCurrentUserInfo } from '@/utils/tokenUtils';
 import {
   DropdownMenu,
@@ -79,6 +79,15 @@ interface PendingContribution {
   collectedAmount: number;
   status: 'active' | 'completed' | 'closed' | 'expired';
   myPayment?: { id: string; amount: number; createdAt: string } | null;
+}
+
+interface PublicCampaignSummary {
+  id: string;
+  title: string;
+  goalAmount?: number | null;
+  collectedAmount: number;
+  status: 'active' | 'completed' | 'closed' | 'expired';
+  currency: string;
 }
 
 interface RecentActionsProps {
@@ -197,8 +206,56 @@ function VoteStandingRow({
   );
 }
 
+function CampaignRow({ c, onClick }: { c: PublicCampaignSummary; onClick: () => void }) {
+  const hasGoal = !!c.goalAmount && c.goalAmount > 0;
+  const progress = hasGoal ? Math.min((c.collectedAmount / c.goalAmount!) * 100, 100) : 0;
+
+  const statusBadge: Record<string, string> = {
+    active:    'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
+    completed: 'bg-blue-100  dark:bg-blue-900/30  text-blue-700  dark:text-blue-400',
+    expired:   'bg-red-100   dark:bg-red-900/30   text-red-700   dark:text-red-400',
+    closed:    'bg-gray-100  dark:bg-darkBg-interactive text-gray-500 dark:text-gray-400',
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      className="w-full flex items-center gap-3 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/10 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/30 hover:border-emerald-300 dark:hover:border-emerald-700 transition-all text-left group"
+    >
+      <div className="w-11 h-11 rounded-lg flex-shrink-0 bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+        <Globe2 size={18} className="text-emerald-600 dark:text-emerald-400" />
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{c.title}</p>
+        {hasGoal ? (
+          <>
+            <div className="mt-1.5 h-1 w-full bg-gray-200 dark:bg-darkBg-main rounded-full overflow-hidden">
+              <div className="h-full bg-brand-green dark:bg-brand-gold rounded-full" style={{ width: `${progress}%` }} />
+            </div>
+            <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+              {fmtRwf(c.collectedAmount, c.currency)} of {fmtRwf(c.goalAmount!, c.currency)}
+            </p>
+          </>
+        ) : (
+          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+            {fmtRwf(c.collectedAmount, c.currency)} collected
+          </p>
+        )}
+      </div>
+
+      <div className="flex-shrink-0">
+        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${statusBadge[c.status] ?? statusBadge.closed}`}>
+          {c.status.charAt(0).toUpperCase() + c.status.slice(1)}
+        </span>
+      </div>
+    </button>
+  );
+}
+
 function ContributionRow({ c, onClick }: { c: PendingContribution; onClick: () => void }) {
-  const progress = c.goalAmount > 0 ? Math.min((c.collectedAmount / c.goalAmount) * 100, 100) : 0;
+  const hasGoal = c.goalAmount > 0;
+  const progress = hasGoal ? Math.min((c.collectedAmount / c.goalAmount) * 100, 100) : 0;
   const isPaid = !!c.myPayment;
   const isActive = c.status === 'active';
 
@@ -226,9 +283,20 @@ function ContributionRow({ c, onClick }: { c: PendingContribution; onClick: () =
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{c.title}</p>
         <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{c.groupName}</p>
-        <div className="mt-1.5 h-1 w-full bg-gray-200 dark:bg-darkBg-main rounded-full overflow-hidden">
-          <div className="h-full bg-brand-green dark:bg-brand-gold rounded-full" style={{ width: `${progress}%` }} />
-        </div>
+        {hasGoal ? (
+          <>
+            <div className="mt-1.5 h-1 w-full bg-gray-200 dark:bg-darkBg-main rounded-full overflow-hidden">
+              <div className="h-full bg-brand-green dark:bg-brand-gold rounded-full" style={{ width: `${progress}%` }} />
+            </div>
+            <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+              {fmtRwf(c.collectedAmount, c.currency)} of {fmtRwf(c.goalAmount, c.currency)}
+            </p>
+          </>
+        ) : (
+          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+            {fmtRwf(c.collectedAmount, c.currency)} collected
+          </p>
+        )}
       </div>
 
       {/* Right side */}
@@ -318,6 +386,7 @@ export const RecentActions = ({ userId }: RecentActionsProps) => {
   const [voteItems, setVoteItems]           = useState<RecentAction[]>([]);
   const [voteDataMap, setVoteDataMap]       = useState<Record<string, VoteData>>({});
   const [pendingContributions, setPending]  = useState<PendingContribution[]>([]);
+  const [campaigns, setCampaigns]           = useState<PublicCampaignSummary[]>([]);
   const [orgActions, setOrgActions]         = useState<RecentAction[]>([]);
   const [isOrganization, setIsOrganization] = useState(false);
   const [loading, setLoading]               = useState(true);
@@ -359,10 +428,11 @@ export const RecentActions = ({ userId }: RecentActionsProps) => {
           return;
         }
 
-        // Individual user: fetch QR objects + contributions in parallel
-        const [qrRes, contribRes] = await Promise.allSettled([
+        // Individual user: fetch QR objects + contributions + public campaigns in parallel
+        const [qrRes, contribRes, campaignsRes] = await Promise.allSettled([
           axios.get(`${baseUrl}/users/${userId}/qr-objects`, { headers }),
           getMyGroupContributions(),
+          getMyPublicContributions(),
         ]);
 
         if (qrRes.status === 'fulfilled') {
@@ -470,6 +540,18 @@ export const RecentActions = ({ userId }: RecentActionsProps) => {
             setPending(toShow);
           }
         }
+
+        // Public campaigns: active first, up to 2
+        if (campaignsRes.status === 'fulfilled') {
+          const all: any[] = campaignsRes.value?.data?.data || campaignsRes.value?.data || [];
+          if (Array.isArray(all)) {
+            const active = all.filter((c: any) => c.status === 'active');
+            const toShow = active.length > 0
+              ? active.slice(0, 2)
+              : all.filter((c: any) => c.status !== 'active').slice(0, 2);
+            setCampaigns(toShow);
+          }
+        }
       } catch {
         // silently fail — card shows empty state
       } finally {
@@ -486,7 +568,7 @@ export const RecentActions = ({ userId }: RecentActionsProps) => {
 
   const hasContent = isOrganization
     ? orgActions.length > 0
-    : tickets.length > 0 || voteItems.length > 0 || pendingContributions.length > 0;
+    : tickets.length > 0 || voteItems.length > 0 || pendingContributions.length > 0 || campaigns.length > 0;
 
   return (
     <div className="bg-white dark:bg-darkBg-card rounded-2xl shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-100 dark:border-darkBorder-light overflow-hidden">
@@ -628,6 +710,21 @@ export const RecentActions = ({ userId }: RecentActionsProps) => {
                       c={c}
                       onClick={() => goToContribs(c.groupId)}
                     />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {campaigns.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-2 px-1">
+                  <p className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                    Campaigns
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  {campaigns.map((c) => (
+                    <CampaignRow key={c.id} c={c} onClick={goToActions} />
                   ))}
                 </div>
               </div>

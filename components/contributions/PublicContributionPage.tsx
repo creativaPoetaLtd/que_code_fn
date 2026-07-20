@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { getPublicContribution, getCampaignGroup, joinCampaignGroup } from "@/helpers/api";
 import { getValidToken } from "@/utils/tokenUtils";
 import { PublicContributionCard, PublicContributionData } from "./PublicContributionCard";
-import { Loader2, AlertCircle, LogIn, Users, Globe, Lock } from "lucide-react";
+import { Loader2, AlertCircle, LogIn, Users, Globe, Lock, Home } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface Props {
@@ -91,9 +91,20 @@ export default function PublicContributionPage({ contributionId }: Props) {
     }
   };
 
+  const HomeButton = () => (
+    <button
+      onClick={() => router.push("/")}
+      className="fixed top-4 left-4 z-10 inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:text-brand-green dark:hover:text-brand-gold bg-white dark:bg-darkBg-card border border-gray-200 dark:border-darkBorder-light rounded-full px-3 py-1.5 shadow-sm transition-colors"
+    >
+      <Home size={14} />
+      Home
+    </button>
+  );
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-darkBg-main">
+        <HomeButton />
         <Loader2 className="h-8 w-8 animate-spin text-brand-green dark:text-brand-gold" />
       </div>
     );
@@ -102,6 +113,7 @@ export default function PublicContributionPage({ contributionId }: Props) {
   if (error || !data) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-gray-50 dark:bg-darkBg-main px-4">
+        <HomeButton />
         <AlertCircle className="h-10 w-10 text-red-400" />
         <p className="text-sm text-gray-600 dark:text-gray-400 text-center max-w-xs">
           {error ?? "This contribution campaign could not be found."}
@@ -112,9 +124,10 @@ export default function PublicContributionPage({ contributionId }: Props) {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-darkBg-main flex flex-col items-center justify-start py-12 px-4">
+      <HomeButton />
       {/* branding strip */}
       <div className="mb-8 text-center">
-        <p className="text-2xl font-bold text-brand-green dark:text-brand-gold tracking-tight">que</p>
+        <p className="text-2xl font-bold text-brand-green dark:text-brand-gold tracking-tight">Qiew Code</p>
         <p className="text-xs text-gray-400 mt-0.5">Contribution Campaign</p>
       </div>
 
@@ -162,10 +175,12 @@ export default function PublicContributionPage({ contributionId }: Props) {
           </div>
 
           <div className="flex items-center gap-3 text-[11px] text-gray-500 dark:text-gray-400">
-            <span className="inline-flex items-center gap-1">
-              <Users size={11} />
-              {linkedGroup.memberCount} {linkedGroup.memberCount === 1 ? "member" : "members"}
-            </span>
+            {linkedGroup.isOpen && (
+              <span className="inline-flex items-center gap-1">
+                <Users size={11} />
+                {linkedGroup.memberCount} {linkedGroup.memberCount === 1 ? "member" : "members"}
+              </span>
+            )}
             <span className="inline-flex items-center gap-1">
               {linkedGroup.isOpen ? <Globe size={11} /> : <Lock size={11} />}
               {linkedGroup.isOpen ? "Open group" : "Invite only"}
@@ -204,7 +219,7 @@ export default function PublicContributionPage({ contributionId }: Props) {
       )}
 
       <p className="mt-8 text-xs text-gray-400 dark:text-gray-600 text-center">
-        Payments are secured by the Que platform.
+        Payments are secured by the Qiew Code platform.
       </p>
     </div>
   );

@@ -14,7 +14,7 @@ export function SentRequestsTable({ requests, isLoading }: SentRequestsTableProp
 
     if (isLoading) {
         return (
-            <div className="p-8 text-center text-gray-500">
+            <div className="p-8 text-center text-gray-500 dark:text-gray-400">
                 Loading pending requests...
             </div>
         );
@@ -22,9 +22,9 @@ export function SentRequestsTable({ requests, isLoading }: SentRequestsTableProp
 
     if (requests.length === 0) {
         return (
-            <div className="p-12 text-center text-gray-500">
+            <div className="p-12 text-center text-gray-500 dark:text-gray-400">
                 <div className="mb-4">
-                    <div className="h-12 w-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto text-gray-400">
+                    <div className="h-12 w-12 bg-gray-100 dark:bg-darkBg-interactive rounded-full flex items-center justify-center mx-auto text-gray-400 dark:text-gray-500">
                         <span className="text-xl">Outbox</span>
                     </div>
                 </div>

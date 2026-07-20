@@ -41,6 +41,15 @@ export interface Transaction {
         profileImage: string;
       };
     } | null;
+    group?: {
+      id: string;
+      name: string;
+      profilePictureUrl?: string | null;
+    } | null;
+    publicContribution?: {
+      id: string;
+      title: string;
+    } | null;
   };
   receiverWallet: {
     id: string;
@@ -63,6 +72,15 @@ export interface Transaction {
       profile?: {
         profileImage: string;
       };
+    } | null;
+    group?: {
+      id: string;
+      name: string;
+      profilePictureUrl?: string | null;
+    } | null;
+    publicContribution?: {
+      id: string;
+      title: string;
     } | null;
   };
   // Legacy fields for backward compatibility

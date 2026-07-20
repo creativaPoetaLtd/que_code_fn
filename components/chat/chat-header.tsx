@@ -110,7 +110,7 @@ export default function ChatHeader({
       {/* Conversation Info */}
       <div className='flex items-center gap-3 flex-1 min-w-0'>
         <div className='relative'>
-          <Avatar className='h-10 w-10 border-2 border-gray-100'>
+          <Avatar className='h-10 w-10 border-2 border-gray-100 dark:border-darkBorder-light'>
             <AvatarImage
               src={conversation.avatar}
               alt={conversation.name || 'User'}
@@ -122,7 +122,7 @@ export default function ChatHeader({
           {!conversation.isGroup && conversation.isOnline && (
             <Circle
               size={10}
-              className='absolute -bottom-0.5 -right-0.5 fill-green-500 text-green-500 border-2 border-white rounded-full'
+              className='absolute -bottom-0.5 -right-0.5 fill-green-500 text-green-500 border-2 border-white dark:border-darkBg-card rounded-full'
             />
           )}
         </div>
@@ -162,7 +162,7 @@ export default function ChatHeader({
               variant='ghost'
               size='icon'
               onClick={onInviteToGroup}
-              className='h-9 w-9 hover:bg-gray-100 transition-colors'
+              className='h-9 w-9 hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors'
               aria-label='Add members'
             >
               <UserPlus size={16} />
@@ -175,7 +175,7 @@ export default function ChatHeader({
           variant='ghost'
           size='icon'
           onClick={onViewProfile}
-          className='h-9 w-9 hover:bg-gray-100 transition-colors'
+          className='h-9 w-9 hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors'
           aria-label='View profile'
         >
           <Info size={16} />
@@ -187,7 +187,7 @@ export default function ChatHeader({
             <Button
               variant='ghost'
               size='icon'
-              className='h-9 w-9 hover:bg-gray-100 transition-colors'
+              className='h-9 w-9 hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors'
               aria-label='More options'
             >
               <MoreVertical size={16} />

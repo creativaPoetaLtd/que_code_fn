@@ -262,7 +262,7 @@ function ContactsPageInner() {
                             </DropdownMenu>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto space-y-8 pr-2">
+                        <div className="flex-1 overflow-y-auto space-y-8 pr-2 mobile-bottom-padding">
                             {(activeTab === 'normal' || activeTab === 'companies' || activeTab === 'persons') && (
                                 <>
                                     {/* Favorites Section */}

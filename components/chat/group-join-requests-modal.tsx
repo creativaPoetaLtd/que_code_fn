@@ -68,7 +68,7 @@ const GroupJoinRequestsModal: React.FC<GroupJoinRequestsModalProps> = ({
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
+            <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-hidden flex flex-col dark:bg-darkBg-card dark:border-darkBorder-light">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-gray-900 dark:text-white text-xl font-semibold">
                         <Users size={20} className="text-brand-green dark:text-brand-gold" />
@@ -80,55 +80,55 @@ const GroupJoinRequestsModal: React.FC<GroupJoinRequestsModalProps> = ({
                 <div className="flex-1 overflow-y-auto py-4">
                     {isLoading ? (
                         <div className="text-center py-8">
-                            <Loader2 size={40} className="mx-auto mb-2 animate-spin text-gray-400" />
-                            <p className="text-gray-500">Loading join requests...</p>
+                            <Loader2 size={40} className="mx-auto mb-2 animate-spin text-gray-400 dark:text-gray-500" />
+                            <p className="text-gray-500 dark:text-gray-400">Loading join requests...</p>
                         </div>
                     ) : error ? (
                         <div className="text-center py-8">
-                            <AlertCircle size={40} className="mx-auto mb-2 text-red-400" />
-                            <p className="text-red-500 mb-2">Failed to load join requests</p>
-                            <Button onClick={() => refetch()} variant="outline" size="sm">
+                            <AlertCircle size={40} className="mx-auto mb-2 text-red-400 dark:text-red-400" />
+                            <p className="text-red-500 dark:text-red-400 mb-2">Failed to load join requests</p>
+                            <Button onClick={() => refetch()} variant="outline" size="sm" className="dark:border-darkBorder-light dark:text-gray-300 dark:hover:bg-darkBg-interactive">
                                 Retry
                             </Button>
                         </div>
                     ) : requests.length === 0 ? (
                         <div className="text-center py-8">
-                            <Users size={40} className="mx-auto mb-2 text-gray-400" />
-                            <p className="text-gray-500 mb-2">No pending join requests</p>
-                            <p className="text-sm text-gray-400">All clear for now!</p>
+                            <Users size={40} className="mx-auto mb-2 text-gray-400 dark:text-gray-500" />
+                            <p className="text-gray-500 dark:text-gray-400 mb-2">No pending join requests</p>
+                            <p className="text-sm text-gray-400 dark:text-gray-500">All clear for now!</p>
                         </div>
                     ) : (
                         <div className="space-y-3">
                             {requests.map((request) => (
                                 <div
                                     key={request.id}
-                                    className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg"
+                                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 bg-white dark:bg-darkBg-interactive border border-gray-200 dark:border-darkBorder-light rounded-lg"
                                 >
-                                    <div className="flex items-center flex-1">
-                                        <Avatar className="h-10 w-10 mr-3">
+                                    <div className="flex items-center flex-1 min-w-0">
+                                        <Avatar className="h-10 w-10 mr-3 flex-shrink-0">
                                             <AvatarImage
                                                 src={request.userPicture || `/placeholder.svg?height=40&width=40`}
                                                 alt={request.userName}
                                             />
-                                            <AvatarFallback className="bg-gray-100 text-gray-600">
+                                            <AvatarFallback className="bg-gray-100 dark:bg-darkBg-card text-gray-600 dark:text-gray-300">
                                                 {request.userName?.charAt(0)?.toUpperCase()}
                                             </AvatarFallback>
                                         </Avatar>
-                                        <div className="flex-1">
-                                            <p className="font-medium text-gray-900">{request.userName}</p>
-                                            <p className="text-sm text-gray-500">{request.userEmail}</p>
-                                            <p className="text-xs text-gray-400">
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-medium text-gray-900 dark:text-white truncate">{request.userName}</p>
+                                            <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{request.userEmail}</p>
+                                            <p className="text-xs text-gray-400 dark:text-gray-500">
                                                 Requested {new Date(request.requestedAt).toLocaleDateString()}
                                             </p>
                                         </div>
                                     </div>
-                                    <div className="flex gap-2 ml-4">
+                                    <div className="flex gap-2 w-full sm:w-auto sm:ml-4">
                                         <Button
                                             variant="outline"
                                             size="sm"
                                             onClick={() => handleRespond(request.id, "approve")}
                                             disabled={isResponding && processingRequestId === request.id}
-                                            className="bg-brand-green/10 dark:bg-brand-gold/10 text-brand-green dark:text-brand-gold hover:bg-brand-green/20 dark:hover:bg-brand-gold/20"
+                                            className="flex-1 sm:flex-none justify-center bg-brand-green/10 dark:bg-brand-gold/10 text-brand-green dark:text-brand-gold hover:bg-brand-green/20 dark:hover:bg-brand-gold/20"
                                         >
                                             {isResponding && processingRequestId === request.id ? (
                                                 <Loader2 size={16} className="mr-2 animate-spin" />
@@ -142,7 +142,7 @@ const GroupJoinRequestsModal: React.FC<GroupJoinRequestsModalProps> = ({
                                             size="sm"
                                             onClick={() => handleRespond(request.id, "reject")}
                                             disabled={isResponding && processingRequestId === request.id}
-                                            className="bg-gray-100 dark:bg-darkBg-interactive text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                                            className="flex-1 sm:flex-none justify-center bg-gray-100 dark:bg-darkBg-card text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-darkBorder-light border-transparent dark:border-darkBorder-light"
                                         >
                                             {isResponding && processingRequestId === request.id ? (
                                                 <Loader2 size={16} className="mr-2 animate-spin" />

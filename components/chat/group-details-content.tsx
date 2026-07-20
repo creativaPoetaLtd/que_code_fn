@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { useGetGroupByIdQuery, useGetGroupMembersQuery } from "@/states/groupSlice";
+import { useGetGroupByIdQuery, useGetGroupMembersQuery, useGetGroupJoinRequestsQuery } from "@/states/groupSlice";
 import { socketService } from "@/services/socketService";
 import GroupProgressBar from "./group-progress-bar";
 import DeadlineCounter from "./deadline-counter";
@@ -58,6 +58,18 @@ export default function GroupDetailsContent({
     const group = groupData?.data;
     const members = membersData?.data?.members || [];
     const isLoading = isLoadingGroup || isLoadingMembers;
+
+    const showJoinRequestsEntry =
+        !!onJoinRequests &&
+        !!group &&
+        (group.userRole === "owner" || group.userRole === "admin") &&
+        group.privacyType === "require_approval";
+
+    const { data: joinRequestsData } = useGetGroupJoinRequestsQuery(
+        { groupId: groupId!, token },
+        { skip: !groupId || !token || !showJoinRequestsEntry }
+    );
+    const pendingRequestsCount = joinRequestsData?.data?.requests?.length ?? 0;
 
     useEffect(() => {
         if (!groupId || !isActive) return;
@@ -352,22 +364,31 @@ export default function GroupDetailsContent({
                     {renderActions && renderActions(group)}
 
                     {/* Join requests — visible to owners/admins of require_approval groups */}
-                    {onJoinRequests &&
-                        (group.userRole === "owner" || group.userRole === "admin") &&
-                        group.privacyType === "require_approval" && (
-                            <button
-                                type="button"
-                                onClick={onJoinRequests}
-                                className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg border border-gray-200 dark:border-darkBorder-light hover:bg-gray-50 dark:hover:bg-darkBg-interactive transition-colors text-sm text-gray-700 dark:text-gray-300"
-                            >
-                                <span className="flex items-center gap-2">
-                                    <ClipboardList size={15} className="text-brand-green dark:text-brand-gold" />
-                                    Join Requests
-                                </span>
-                                <span className="text-xs text-gray-400 dark:text-gray-500">Review →</span>
-                            </button>
-                        )
-                    }
+                    {showJoinRequestsEntry && (
+                        <button
+                            type="button"
+                            onClick={onJoinRequests}
+                            className={cn(
+                                "w-full flex items-center justify-between px-3 py-2.5 rounded-lg border transition-colors text-sm",
+                                pendingRequestsCount > 0
+                                    ? "border-brand-green/40 dark:border-brand-gold/40 bg-brand-green/5 dark:bg-brand-gold/5 text-gray-800 dark:text-gray-200"
+                                    : "border-gray-200 dark:border-darkBorder-light hover:bg-gray-50 dark:hover:bg-darkBg-interactive text-gray-700 dark:text-gray-300"
+                            )}
+                        >
+                            <span className="flex items-center gap-2">
+                                <ClipboardList size={15} className="text-brand-green dark:text-brand-gold" />
+                                Join Requests
+                                {pendingRequestsCount > 0 && (
+                                    <Badge className="bg-brand-green dark:bg-brand-gold text-white dark:text-darkBg-main text-[10px] h-5 min-w-5 px-1.5 rounded-full">
+                                        {pendingRequestsCount}
+                                    </Badge>
+                                )}
+                            </span>
+                            <span className="text-xs text-gray-400 dark:text-gray-500">
+                                {pendingRequestsCount > 0 ? "Review now →" : "Review →"}
+                            </span>
+                        </button>
+                    )}
 
                     <div className="text-xs text-gray-400 dark:text-gray-500 text-center space-y-0.5 pt-2 border-t border-gray-100 dark:border-darkBorder-light">
                         <p>
