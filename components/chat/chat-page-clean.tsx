@@ -327,7 +327,10 @@ export default function ChatPageClean() {
         isExpanded ? 'lg:ml-64' : 'lg:ml-20'
       )}>
         {/* Fixed Header */}
-        <div className='flex-shrink-0 z-20 bg-white dark:bg-darkBg-card border-b border-gray-100 dark:border-darkBorder-light'>
+        <div className={cn(
+          'flex-shrink-0 z-20 bg-white dark:bg-darkBg-card border-b border-gray-100 dark:border-darkBorder-light',
+          isChatActive && 'hidden md:block'
+        )}>
           <Header />
           <div className="px-4 py-2 border-t border-gray-100 dark:border-darkBorder-light">
             <BackButton />

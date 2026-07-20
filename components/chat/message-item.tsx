@@ -200,8 +200,8 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
         return Check
     })()
     const statusTone = visualStatus === "read"
-        ? "text-emerald-600 dark:text-emerald-700"
-        : "text-gray-500 dark:text-darkBg-main/70"
+        ? "text-[#34b7f1]"
+        : "text-gray-500 dark:text-gray-300"
 
     const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
         if (!canSwipeReply) return
@@ -292,7 +292,7 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
                         <Reply
                             size={16}
                             className={cn(
-                                isMe ? "text-white/90" : "text-brand-green dark:text-brand-gold"
+                                isMe ? "text-gray-700 dark:text-gray-100" : "text-brand-green dark:text-brand-gold"
                             )}
                         />
                     </div>
@@ -310,7 +310,7 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
                     }}
                     className={cn(
                         "relative max-w-[18rem] sm:max-w-md rounded-lg px-2.5 py-1.5 shadow-sm",
-                        isMe ? "bg-brand-green dark:bg-brand-gold text-white dark:text-darkBg-main" : "bg-white dark:bg-darkBg-card border border-gray-100 dark:border-darkBorder-light text-gray-900 dark:text-white",
+                        isMe ? "bg-[#d9fdd3] text-gray-950 dark:bg-[#2f5f46] dark:text-gray-50" : "bg-white dark:bg-[#1f2c26] border border-gray-100 dark:border-darkBorder-light text-gray-900 dark:text-gray-50",
                         isOldMoneyMessage ? "border-2 border-yellow-400 dark:border-yellow-600" : ""
                     )}
                 >
@@ -320,18 +320,18 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
                     <div className={cn(
                         "mb-2 rounded-md border px-2 py-1",
                         isMe
-                            ? "border-white/30 bg-white/15"
+                            ? "border-emerald-300/60 bg-white/35 dark:border-emerald-200/30 dark:bg-white/10"
                             : "border-gray-200 dark:border-darkBorder-light bg-gray-50 dark:bg-darkBg-interactive"
                     )}>
                         <p className={cn(
                             "text-[11px] font-semibold truncate",
-                            isMe ? "text-white/90" : "text-brand-green dark:text-brand-gold"
+                            isMe ? "text-gray-700 dark:text-gray-100" : "text-brand-green dark:text-brand-gold"
                         )}>
                             {replyTo.senderName}
                         </p>
                         <p className={cn(
                             "text-[11px] truncate",
-                            isMe ? "text-white/80" : "text-gray-600 dark:text-gray-400"
+                            isMe ? "text-gray-600 dark:text-gray-200" : "text-gray-600 dark:text-gray-400"
                         )}>
                             {replyTo.content || "(no text)"}
                         </p>
@@ -374,7 +374,7 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
                     </>
                 )}
 
-                <div className={cn("flex items-center justify-end gap-1 text-[10px] leading-3 mt-0.5", isMe ? "text-white/80 dark:text-darkBg-main/80" : "text-gray-500 dark:text-gray-500")}>
+                <div className={cn("flex items-center justify-end gap-1 text-[10px] leading-3 mt-0.5", isMe ? "text-gray-600 dark:text-gray-200" : "text-gray-500 dark:text-gray-500")}>
                     <span>{timestamp}</span>
                     {StatusIcon && (
                         <StatusIcon
@@ -387,7 +387,7 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
                 {(!isLegacy && (onReply || reactionsAllowed)) && !isTempMessage && (
                     <div className={cn(
                         "absolute -bottom-3 right-1 z-10 flex items-center gap-0.5 rounded-full px-1 py-0.5 opacity-100 shadow-sm transition-opacity sm:opacity-0 sm:group-hover/message:opacity-100 sm:group-focus-within/message:opacity-100",
-                        isMe ? "bg-brand-green/95 dark:bg-brand-gold/95" : "bg-white/95 dark:bg-darkBg-interactive/95 border border-gray-100 dark:border-darkBorder-light"
+                        isMe ? "bg-[#d9fdd3]/95 dark:bg-[#2f5f46]/95 border border-emerald-200/70 dark:border-emerald-900/50" : "bg-white/95 dark:bg-darkBg-interactive/95 border border-gray-100 dark:border-darkBorder-light"
                     )}>
                         {/* Reaction trigger */}
                         {reactionsAllowed && (
@@ -400,7 +400,7 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
                                 className={cn(
                                     "h-5 w-5 p-0",
                                     isMe
-                                        ? "text-white/70 hover:text-white hover:bg-white/15"
+                                        ? "text-gray-500 hover:text-gray-700 hover:bg-emerald-100/80 dark:text-gray-200 dark:hover:text-white dark:hover:bg-white/10"
                                         : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
                                 )}
                                 aria-label="Add reaction"
@@ -427,7 +427,7 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
                                 className={cn(
                                     "h-5 w-5 p-0",
                                     isMe
-                                        ? "text-white/90 hover:text-white hover:bg-white/15"
+                                        ? "text-gray-600 hover:text-gray-800 hover:bg-emerald-100/80 dark:text-gray-100 dark:hover:text-white dark:hover:bg-white/10"
                                         : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                                 )}
                             >

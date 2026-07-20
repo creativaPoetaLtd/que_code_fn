@@ -1,8 +1,7 @@
 "use client"
 
 import { useRef, useEffect, useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Send, HandCoins, Target } from "lucide-react"
+import { Send } from "lucide-react"
 import ChatHeader from "./chat-header"
 import MessageItem from "./message-item"
 import MessageInput from "./message-input"
@@ -116,40 +115,12 @@ export default function ChatArea({
                     onGroupSettings={onGroupSettings}
                     onDeleteGroup={onDeleteGroup}
                     onVerifySecurity={onVerifySecurity}
+                    onSendMoney={onSendMoney}
+                    onRequestMoney={onRequestMoney}
+                    onCreateContribution={onCreateContribution}
+                    isGroupAdmin={isGroupAdmin}
                 />
             </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-2 p-3 sm:p-4 border-b border-gray-100 dark:border-darkBorder-light bg-white dark:bg-darkBg-card flex-shrink-0">
-                <Button
-                    onClick={onSendMoney}
-                    className="bg-brand-green hover:bg-brand-green/90 dark:bg-brand-gold dark:hover:bg-brand-gold/90 text-white dark:text-darkBg-main text-xs sm:text-sm py-2 px-4 rounded-lg shadow-sm transition-all duration-200 flex-1 sm:flex-none"
-                >
-                    <Send size={14} className="mr-1.5 hidden sm:inline" />
-                    Send Money
-                </Button>
-                {!conversation.isGroup && (
-                    <Button
-                        onClick={onRequestMoney}
-                        variant="outline"
-                        className="text-xs sm:text-sm py-2 px-4 rounded-lg shadow-sm transition-all duration-200 flex-1 sm:flex-none"
-                    >
-                        <HandCoins size={14} className="mr-1.5 hidden sm:inline" />
-                        Request Money
-                    </Button>
-                )}
-                {conversation.isGroup && isGroupAdmin && onCreateContribution && (
-                    <Button
-                        onClick={onCreateContribution}
-                        variant="outline"
-                        className="text-xs sm:text-sm py-2 px-4 rounded-lg shadow-sm transition-all duration-200 flex-1 sm:flex-none border-brand-green/40 dark:border-brand-gold/40 text-brand-green dark:text-brand-gold hover:bg-brand-green/5 dark:hover:bg-brand-gold/5"
-                    >
-                        <Target size={14} className="mr-1.5 hidden sm:inline" />
-                        Contributions
-                    </Button>
-                )}
-            </div>
-
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-3 sm:p-4">
                 {messages.length > 0 ? (

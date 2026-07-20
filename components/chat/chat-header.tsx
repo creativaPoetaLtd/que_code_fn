@@ -30,6 +30,9 @@ import {
   Lock,
   ShieldCheck,
   Trash2,
+  Send,
+  HandCoins,
+  Target,
 } from 'lucide-react';
 
 interface ChatHeaderProps {
@@ -40,6 +43,10 @@ interface ChatHeaderProps {
   onGroupSettings?: () => void;
   onDeleteGroup?: () => void;
   onVerifySecurity?: () => void;
+  onSendMoney?: () => void;
+  onRequestMoney?: () => void;
+  onCreateContribution?: () => void;
+  isGroupAdmin?: boolean;
 }
 
 export default function ChatHeader({
@@ -50,6 +57,10 @@ export default function ChatHeader({
   onGroupSettings,
   onDeleteGroup,
   onVerifySecurity,
+  onSendMoney,
+  onRequestMoney,
+  onCreateContribution,
+  isGroupAdmin = false,
 }: ChatHeaderProps) {
   const chat = useChat();
   const { getToken } = useAuthToken();
@@ -92,22 +103,22 @@ export default function ChatHeader({
   };
 
   return (
-    <div className='flex items-center justify-between px-3 sm:px-4 py-3 bg-white dark:bg-darkBg-card border-b border-gray-100 dark:border-darkBorder-light shadow-sm'>
+    <div className='flex items-center justify-between gap-1 px-2 sm:px-4 py-2.5 sm:py-3 bg-white dark:bg-darkBg-card border-b border-gray-100 dark:border-darkBorder-light shadow-sm'>
       {/* Back Button - Mobile Only */}
       <Button
         variant='ghost'
         size='icon'
         onClick={onBackClick}
-        className='h-9 w-9 md:hidden hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors'
+        className='h-9 w-9 flex-shrink-0 md:hidden hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors'
         aria-label='Back to conversations'
       >
         <ArrowLeft size={18} />
       </Button>
 
       {/* Conversation Info */}
-      <div className='flex items-center gap-3 flex-1 min-w-0'>
+      <div className='flex items-center gap-2 sm:gap-3 flex-1 min-w-0'>
         <div className='relative'>
-          <Avatar className='h-10 w-10 border-2 border-gray-100'>
+          <Avatar className='h-9 w-9 sm:h-10 sm:w-10 border-2 border-gray-100'>
             {!isPlaceholderAvatar(conversation.avatar) && (
               <AvatarImage
                 src={conversation.avatar}
@@ -134,7 +145,7 @@ export default function ChatHeader({
             {isSecureConversation && (
               <Badge
                 variant='secondary'
-                className='gap-1 border border-brand-green/20 bg-brand-green/10 text-brand-green'
+                className='hidden sm:inline-flex gap-1 border border-brand-green/20 bg-brand-green/10 text-brand-green'
               >
                 <Lock size={12} />
                 Secure
@@ -170,24 +181,51 @@ export default function ChatHeader({
               variant='ghost'
               size='icon'
               onClick={onInviteToGroup}
-              className='h-9 w-9 hover:bg-gray-100 transition-colors'
+              className='h-9 w-9 hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors'
               aria-label='Add members'
             >
               <UserPlus size={16} />
             </Button>
           )}
         </div>
+        {onSendMoney && (
+          <Button
+            variant='ghost'
+            size='icon'
+            onClick={onSendMoney}
+            className='h-9 w-9 hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors'
+            aria-label='Send money'
+            title='Send money'
+          >
+            <Send size={16} />
+          </Button>
+        )}
 
-        {/* Profile/Info Button */}
-        <Button
-          variant='ghost'
-          size='icon'
-          onClick={onViewProfile}
-          className='h-9 w-9 hover:bg-gray-100 transition-colors'
-          aria-label='View profile'
-        >
-          <Info size={16} />
-        </Button>
+        {!conversation.isGroup && onRequestMoney && (
+          <Button
+            variant='ghost'
+            size='icon'
+            onClick={onRequestMoney}
+            className='h-9 w-9 hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors'
+            aria-label='Request money'
+            title='Request money'
+          >
+            <HandCoins size={16} />
+          </Button>
+        )}
+
+        {conversation.isGroup && isGroupAdmin && onCreateContribution && (
+          <Button
+            variant='ghost'
+            size='icon'
+            onClick={onCreateContribution}
+            className='h-9 w-9 hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors'
+            aria-label='Create contribution'
+            title='Create contribution'
+          >
+            <Target size={16} />
+          </Button>
+        )}
 
         {/* More Actions Dropdown */}
         <DropdownMenu>
@@ -195,7 +233,7 @@ export default function ChatHeader({
             <Button
               variant='ghost'
               size='icon'
-              className='h-9 w-9 hover:bg-gray-100 transition-colors'
+              className='h-9 w-9 hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors'
               aria-label='More options'
             >
               <MoreVertical size={16} />
