@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from "react"
 import dynamic from "next/dynamic"
 import type { EmojiClickData } from "emoji-picker-react"
 import { Button } from "@/components/ui/button"
-import { Send, Paperclip, Smile, ImageIcon, X } from "lucide-react"
+import { Plus, Send, Smile, X } from "lucide-react"
 import OptionsDropdown from "./options-dropdown"
 import { toast } from "@/hooks/use-toast"
 import { useChat } from "@/context/ChatContext"
@@ -380,7 +380,11 @@ export default function MessageInput({
     // ── Attachments / Media ───────────────────────────────────────────────────
     const handleOptionSelect = (option: string) => {
         setShowOptions(false)
-        toast({ title: "Selected option", description: option })
+        if (option === "Media") {
+            setShowMediaModal(true)
+            return
+        }
+        toast({ title: "Coming soon", description: option })
     }
 
     const handleMediaUpload = async (file: File, caption: string) => {
@@ -448,7 +452,7 @@ export default function MessageInput({
                 ref={wrapperRef}
                 className="relative bg-white dark:bg-darkBg-card px-3 py-2 sm:px-4 sm:py-3 border-t border-gray-100 dark:border-darkBorder-light"
             >
-                {/* ── @Mention dropdown ──────────────────────────────────────────────── */}
+                {/* @Mention dropdown */}
                 {showMentionDropdown && (
                     <MentionDropdown
                         members={mentionMembers}
@@ -458,7 +462,7 @@ export default function MessageInput({
                     />
                 )}
 
-                {/* ── Emoji picker popover ──────────────────────────────────────────── */}
+                {/* Emoji picker popover */}
                 {showEmojiPicker && (
                     <div
                         ref={emojiPickerRef}
@@ -476,7 +480,7 @@ export default function MessageInput({
                             <EmojiPicker
                                 onEmojiClick={handleEmojiClick}
                                 theme={isDark ? "dark" as any : "light" as any}
-                                searchPlaceholder="Search emoji…"
+                                searchPlaceholder="Search emoji..."
                                 skinTonesDisabled
                                 width="100%"
                                 height={340}
@@ -509,40 +513,12 @@ export default function MessageInput({
                         </Button>
                     </div>
                 )}
-
-                {/* ── Input row ─────────────────────────────────────────────────────── */}
-                <div className="flex items-end gap-1 sm:gap-2">
-
-                    {/* Attachment */}
-                    <div className="relative flex-shrink-0 pb-0.5" ref={dropdownRef}>
-                        <Button
-                            variant="ghost" size="icon"
-                            onClick={() => setShowOptions(!showOptions)}
-                            className={`h-8 w-8 sm:h-9 sm:w-9 transition-colors hover:bg-gray-100 dark:hover:bg-darkBg-interactive ${showOptions ? "bg-gray-100 dark:bg-darkBg-interactive" : ""}`}
-                            aria-label="Attachments"
-                        >
-                            <Paperclip size={16} className="text-gray-500 dark:text-gray-400" />
-                        </Button>
-                        <OptionsDropdown isOpen={showOptions} onOptionSelect={handleOptionSelect} />
-                    </div>
-
-                    {/* Media */}
-                    <Button
-                        variant="ghost" size="icon"
-                        onClick={() => {
-                            setShowMediaModal(true)
-                        }}
-                        className="flex-shrink-0 h-8 w-8 sm:h-9 sm:w-9 mb-0.5 hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors"
-                        aria-label="Add media"
-                    >
-                        <ImageIcon size={16} className="text-gray-500 dark:text-gray-400" />
-                    </Button>
-
-                    {/* Textarea */}
-                    <div className="relative flex-1">
+                {/* Input row */}
+                <div className="flex items-center gap-2">
+                    <div className="relative flex-1" ref={dropdownRef}>
                         <textarea
                             ref={textareaRef}
-                            placeholder={!isConnected ? "Connecting…" : groupId ? "Type a message… use @ to mention" : "Type a message…"}
+                            placeholder={!isConnected ? "Connecting..." : groupId ? "Type a message... use @ to mention" : "Type a message..."}
                             value={messageText}
                             onChange={handleChange}
                             onKeyDown={handleKeyDown}
@@ -554,17 +530,32 @@ export default function MessageInput({
                             aria-label="Message input"
                             aria-multiline="true"
                             aria-autocomplete={showMentionDropdown ? "list" : "none"}
-                            className="w-full resize-none rounded-2xl bg-gray-50 dark:bg-darkBg-interactive border border-gray-200 dark:border-darkBorder-light py-2.5 pl-4 pr-10 text-base leading-6 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-green dark:focus:ring-brand-gold focus:ring-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden hide-scrollbar"
-                            style={{ minHeight: "44px" }}
+                            className="w-full resize-none rounded-2xl bg-gray-50 dark:bg-darkBg-interactive border border-gray-200 dark:border-darkBorder-light py-2.5 pl-11 pr-10 text-base leading-6 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-green dark:focus:ring-brand-gold focus:ring-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden hide-scrollbar"
+                            style={{ minHeight: "44px", height: "44px" }}
                         />
-                        {/* Emoji trigger */}
+
+                        <button
+                            type="button"
+                            onClick={() => setShowOptions(!showOptions)}
+                            aria-label="Share"
+                            aria-expanded={showOptions}
+                            className={`absolute left-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full transition-colors ${
+                                showOptions
+                                    ? "bg-brand-green text-white dark:bg-brand-gold dark:text-darkBg-main"
+                                    : "text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:text-gray-500 dark:hover:bg-darkBg-card dark:hover:text-gray-300"
+                            }`}
+                        >
+                            <Plus size={18} />
+                        </button>
+                        <OptionsDropdown isOpen={showOptions} onOptionSelect={handleOptionSelect} />
+
                         <button
                             ref={emojiButtonRef}
                             type="button"
                             onClick={toggleEmojiPicker}
                             aria-label="Open emoji picker"
                             aria-expanded={showEmojiPicker}
-                            className={`absolute right-2 bottom-2 h-7 w-7 flex items-center justify-center rounded-full transition-colors ${
+                            className={`absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full transition-colors ${
                                 showEmojiPicker
                                     ? "text-brand-green dark:text-brand-gold"
                                     : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
@@ -574,22 +565,20 @@ export default function MessageInput({
                         </button>
                     </div>
 
-                    {/* Send */}
                     <Button
                         onClick={handleSendMessage}
                         size="icon"
                         disabled={!canSend}
                         aria-label="Send message"
-                        className={`flex-shrink-0 mb-0.5 h-8 w-8 sm:h-9 sm:w-9 rounded-full transition-all duration-200 shadow-sm ${
+                        className={`h-[44px] w-[44px] flex-shrink-0 rounded-full transition-all duration-200 shadow-sm ${
                             canSend
                                 ? "bg-brand-green dark:bg-brand-gold hover:bg-brand-green/90 dark:hover:bg-brand-gold/90 text-white dark:text-darkBg-main hover:shadow-md"
                                 : "bg-gray-200 dark:bg-darkBg-interactive text-gray-400 cursor-not-allowed"
                         }`}
                     >
-                        <Send size={15} />
+                        <Send size={17} />
                     </Button>
                 </div>
-
                 {/* Hint shown while typing */}
                 {messageText.length > 0 && (
                     <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1 pl-1 select-none">

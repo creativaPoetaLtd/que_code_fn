@@ -252,6 +252,60 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
         setSwipeOffset(0)
     }
 
+    const messageActions = (!isLegacy && (onReply || reactionsAllowed)) && !isTempMessage ? (
+        <div className={cn(
+            "relative z-10 flex shrink-0 items-center gap-0.5 self-end rounded-full border px-1 py-0.5 shadow-sm transition-opacity",
+            "opacity-100 sm:opacity-0 sm:group-hover/message:opacity-100 sm:group-focus-within/message:opacity-100",
+            isMe
+                ? "bg-[#d9fdd3]/95 dark:bg-[#2f5f46]/95 border-emerald-200/70 dark:border-emerald-900/50"
+                : "bg-white/95 dark:bg-darkBg-interactive/95 border-gray-100 dark:border-darkBorder-light"
+        )}>
+            {reactionsAllowed && (
+                <div className="relative">
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowReactionPicker((v) => !v)}
+                        className={cn(
+                            "h-5 w-5 p-0",
+                            isMe
+                                ? "text-gray-500 hover:text-gray-700 hover:bg-emerald-100/80 dark:text-gray-200 dark:hover:text-white dark:hover:bg-white/10"
+                                : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+                        )}
+                        aria-label="Add reaction"
+                    >
+                        <Smile size={11} />
+                    </Button>
+                    {showReactionPicker && (
+                        <ReactionPicker
+                            isMe={isMe}
+                            onSelect={handleReactionSelect}
+                            onClose={() => setShowReactionPicker(false)}
+                        />
+                    )}
+                </div>
+            )}
+
+            {onReply && (
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleReply}
+                    aria-label="Reply"
+                    className={cn(
+                        "h-5 w-5 p-0",
+                        isMe
+                            ? "text-gray-600 hover:text-gray-800 hover:bg-emerald-100/80 dark:text-gray-100 dark:hover:text-white dark:hover:bg-white/10"
+                            : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                    )}
+                >
+                    <Reply size={11} />
+                </Button>
+            )}
+        </div>
+    ) : null
     // Render group contribution card
     if (isMoneyMessage && groupContributionData) {
         return (
@@ -271,7 +325,7 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
     }
     
     return (
-        <div className={cn("flex mb-0.5 sm:mb-1", isMe ? "justify-end" : "justify-start")}>
+        <div className={cn("flex mb-1.5 sm:mb-2", isMe ? "justify-end" : "justify-start")}>
             {shouldShowIncomingAvatar && (
                 <Avatar className="h-7 w-7 mt-0.5 mr-2 flex-shrink-0">
                     {avatar && <AvatarImage src={avatar} alt={senderDisplayName} />}
@@ -281,7 +335,7 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
                 </Avatar>
             )}
 
-            <div className="relative group/message">
+            <div className="relative group/message flex items-end gap-1">
                 {!isLegacy && onReply && (
                     <div
                         className={cn(
@@ -297,6 +351,8 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
                         />
                     </div>
                 )}
+
+                {isMe && messageActions}
 
                 <div
                     onTouchStart={handleTouchStart}
@@ -384,59 +440,6 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
                     )}
                 </div>
 
-                {(!isLegacy && (onReply || reactionsAllowed)) && !isTempMessage && (
-                    <div className={cn(
-                        "absolute -bottom-3 right-1 z-10 flex items-center gap-0.5 rounded-full px-1 py-0.5 opacity-100 shadow-sm transition-opacity sm:opacity-0 sm:group-hover/message:opacity-100 sm:group-focus-within/message:opacity-100",
-                        isMe ? "bg-[#d9fdd3]/95 dark:bg-[#2f5f46]/95 border border-emerald-200/70 dark:border-emerald-900/50" : "bg-white/95 dark:bg-darkBg-interactive/95 border border-gray-100 dark:border-darkBorder-light"
-                    )}>
-                        {/* Reaction trigger */}
-                        {reactionsAllowed && (
-                        <div className="relative">
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setShowReactionPicker((v) => !v)}
-                                className={cn(
-                                    "h-5 w-5 p-0",
-                                    isMe
-                                        ? "text-gray-500 hover:text-gray-700 hover:bg-emerald-100/80 dark:text-gray-200 dark:hover:text-white dark:hover:bg-white/10"
-                                        : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
-                                )}
-                                aria-label="Add reaction"
-                            >
-                                <Smile size={11} />
-                            </Button>
-                            {showReactionPicker && (
-                                <ReactionPicker
-                                    isMe={isMe}
-                                    onSelect={handleReactionSelect}
-                                    onClose={() => setShowReactionPicker(false)}
-                                />
-                            )}
-                        </div>
-                        )}
-
-                        {onReply && (
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={handleReply}
-                                aria-label="Reply"
-                                className={cn(
-                                    "h-5 w-5 p-0",
-                                    isMe
-                                        ? "text-gray-600 hover:text-gray-800 hover:bg-emerald-100/80 dark:text-gray-100 dark:hover:text-white dark:hover:bg-white/10"
-                                        : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-                                )}
-                            >
-                                <Reply size={11} />
-                            </Button>
-                        )}
-                    </div>
-                )}
-
                 {/* Aggregated reaction bubbles */}
                 {aggregatedReactions.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-1.5">
@@ -482,6 +485,8 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
                     </div>
                 )} */}
                 </div>
+
+                {!isMe && messageActions}
             </div>
 
         </div>

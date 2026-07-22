@@ -1,52 +1,53 @@
-'use client'
+'use client';
 
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { cn } from '@/lib/utils';
 
-export type FilterType = "all" | "users" | "groups"
+export type FilterType = 'all' | 'users' | 'groups';
 
 interface ConversationFiltersProps {
-    activeFilter: FilterType
-    onFilterChange: (filter: FilterType) => void
-    totalCount: number
-    userCount: number
-    groupCount: number
+  activeFilter: FilterType;
+  onFilterChange: (filter: FilterType) => void;
+  totalCount: number;
+  userCount: number;
+  groupCount: number;
 }
 
 export default function ConversationFilters({
-    activeFilter,
-    onFilterChange,
-    totalCount,
-    userCount,
-    groupCount,
+  activeFilter,
+  onFilterChange,
+  totalCount,
+  userCount,
+  groupCount,
 }: ConversationFiltersProps) {
-    return (
-        <div>
+  const filters: Array<{ value: FilterType; label: string; count: number }> = [
+    { value: 'all', label: 'All', count: totalCount },
+    { value: 'users', label: 'Users', count: userCount },
+    { value: 'groups', label: 'Groups', count: groupCount },
+  ];
 
-            <Tabs
-                value={activeFilter}
-                onValueChange={(value) => onFilterChange(value as FilterType)}
-            >
-                <TabsList className="grid w-full grid-cols-3 h-8 bg-gray-100 dark:bg-darkBg-interactive">
-                    <TabsTrigger
-                        value="all"
-                        className="text-xs data-[state=active]:bg-white dark:data-[state=active]:bg-darkBg-card data-[state=active]:text-brand-green dark:data-[state=active]:text-brand-gold"
-                    >
-                        All ({totalCount})
-                    </TabsTrigger>
-                    <TabsTrigger
-                        value="users"
-                        className="text-xs data-[state=active]:bg-white dark:data-[state=active]:bg-darkBg-card data-[state=active]:text-brand-green dark:data-[state=active]:text-brand-gold"
-                    >
-                        Users ({userCount})
-                    </TabsTrigger>
-                    <TabsTrigger
-                        value="groups"
-                        className="text-xs data-[state=active]:bg-white dark:data-[state=active]:bg-darkBg-card data-[state=active]:text-brand-green dark:data-[state=active]:text-brand-gold"
-                    >
-                        Groups ({groupCount})
-                    </TabsTrigger>
-                </TabsList>
-            </Tabs>
-        </div>
-    )
+  return (
+    <div className='flex gap-1.5 overflow-x-auto py-0'>
+      {filters.map(filter => {
+        const isActive = activeFilter === filter.value;
+        return (
+          <button
+            key={filter.value}
+            type='button'
+            onClick={() => onFilterChange(filter.value)}
+            className={cn(
+              'h-7 shrink-0 rounded-full px-2.5 text-[11px] font-semibold transition-colors',
+              isActive
+                ? 'bg-brand-green/15 text-brand-green dark:bg-brand-gold/15 dark:text-brand-gold'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-darkBg-interactive dark:text-gray-300 dark:hover:bg-darkBg-main'
+            )}
+          >
+            {filter.label}{' '}
+            {filter.count > 0 && (
+              <span className='opacity-80'>({filter.count})</span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -33,6 +33,8 @@ import {
   Send,
   HandCoins,
   Target,
+  BellOff,
+  Bell,
 } from 'lucide-react';
 
 interface ChatHeaderProps {
@@ -73,8 +75,34 @@ export default function ChatHeader({
   );
 
   const group = groupData?.data;
-  const isDirectConversation = !conversation.isGroup && conversation.type !== 'support';
+  const isDirectConversation =
+    !conversation.isGroup && conversation.type !== 'support';
   const isSecureConversation = conversation.securityMode === 'secure_dm_v1';
+  const [isMuted, setIsMuted] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const muted = JSON.parse(
+      localStorage.getItem('qc-muted-conversations') || '{}'
+    ) as Record<string, boolean>;
+    setIsMuted(Boolean(muted[conversation.id]));
+  }, [conversation.id]);
+
+  const toggleMuteConversation = () => {
+    if (typeof window === 'undefined') return;
+    const muted = JSON.parse(
+      localStorage.getItem('qc-muted-conversations') || '{}'
+    ) as Record<string, boolean>;
+    if (muted[conversation.id]) {
+      delete muted[conversation.id];
+      setIsMuted(false);
+    } else {
+      muted[conversation.id] = true;
+      setIsMuted(true);
+    }
+    localStorage.setItem('qc-muted-conversations', JSON.stringify(muted));
+    window.dispatchEvent(new Event('qc-muted-conversations-changed'));
+  };
 
   // Listen for real-time fundraising progress updates
   useEffect(() => {
@@ -154,14 +182,18 @@ export default function ChatHeader({
           </div>
 
           {/* Fundraising Progress for Groups */}
-          {conversation.isGroup && group?.hasFundraising && group.fundraisingTarget && (
-            <div className="mt-1">
-              <FundraisingProgressBadge
-                currentAmount={group.walletBalance ?? group.fundraisingCurrentAmount ?? 0}
-                targetAmount={group.fundraisingTarget}
-              />
-            </div>
-          )}
+          {conversation.isGroup &&
+            group?.hasFundraising &&
+            group.fundraisingTarget && (
+              <div className='mt-1'>
+                <FundraisingProgressBadge
+                  currentAmount={
+                    group.walletBalance ?? group.fundraisingCurrentAmount ?? 0
+                  }
+                  targetAmount={group.fundraisingTarget}
+                />
+              </div>
+            )}
 
           {/* Online Status (only show if not fundraising) */}
           {!(conversation.isGroup && group?.hasFundraising) && (
@@ -275,12 +307,29 @@ export default function ChatHeader({
               Chat Settings
             </DropdownMenuItem>
 
-            {isDirectConversation && isSecureConversation && onVerifySecurity && (
-              <DropdownMenuItem onClick={onVerifySecurity} className='cursor-pointer'>
-                <ShieldCheck size={14} className='mr-2' />
-                Verify Security
-              </DropdownMenuItem>
-            )}
+            <DropdownMenuItem
+              onClick={toggleMuteConversation}
+              className='cursor-pointer'
+            >
+              {isMuted ? (
+                <Bell size={14} className='mr-2' />
+              ) : (
+                <BellOff size={14} className='mr-2' />
+              )}
+              {isMuted ? 'Unmute Conversation' : 'Mute Conversation'}
+            </DropdownMenuItem>
+
+            {isDirectConversation &&
+              isSecureConversation &&
+              onVerifySecurity && (
+                <DropdownMenuItem
+                  onClick={onVerifySecurity}
+                  className='cursor-pointer'
+                >
+                  <ShieldCheck size={14} className='mr-2' />
+                  Verify Security
+                </DropdownMenuItem>
+              )}
 
             {isDirectConversation && isSecureConversation && (
               <DropdownMenuItem disabled className='cursor-default opacity-70'>
