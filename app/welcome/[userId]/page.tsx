@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import baseUrl from '@/helpers/baseUrl';
+import { createOrGetPreferredDmChat } from '@/services/secureChatService';
 import Navigation from '@/components/Navigation';
 import { Header } from '@/components/Header';
 import { useUserInfo } from '@/hooks/use-user-info';
@@ -1319,13 +1320,12 @@ const WelcomeProfilePage: React.FC = () => {
         return;
       }
 
-      const response = await axios.post(
-        `${baseUrl}/chats/dm`,
-        { participantId: userId },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const result = await createOrGetPreferredDmChat({
+        token,
+        participantId: userId,
+      });
 
-      const chatId = response?.data?.data?.chatId;
+      const chatId = result?.chatId;
       if (chatId) {
         sessionStorage.setItem('pendingChatId', chatId);
       }

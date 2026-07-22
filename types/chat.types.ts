@@ -1,6 +1,7 @@
 export type MessageType = "text" | "image" | "file" | "money" | "audio" | "video" | "document";
 export type MessageStatus = "sent" | "delivered" | "read";
 export type ChatType = "dm" | "group" | "support";
+export type ChatSecurityMode = "legacy" | "secure_dm_v1" | "secure_group_v1" | "support_plain";
 
 export interface User {
   id: string;
@@ -24,6 +25,11 @@ export interface LastMessage {
   content: string;
   messageType: MessageType;
   createdAt: string;
+  status?: MessageStatus;
+  deliveredAt?: Date | string | null;
+  readAt?: Date | string | null;
+  readBy?: ReadReceipt[];
+  deliveryConfirmed?: boolean;
   sender:
     | string
     | {
@@ -38,6 +44,8 @@ export interface Conversation {
   name?: string; // Make optional to match Chat interface
   isGroup: boolean;
   type?: ChatType;
+  securityMode?: ChatSecurityMode;
+  protocolVersion?: string | null;
   groupId?: string; // The actual group ID for group chats
   lastMessage?: LastMessage | null;
   timestamp?: string;
@@ -55,6 +63,8 @@ export interface Chat {
   name?: string; // Optional since DM chats might not have names
   isGroup: boolean;
   type?: ChatType;
+  securityMode?: ChatSecurityMode;
+  protocolVersion?: string | null;
   groupId?: string; // The actual group ID for group chats
   avatar?: string;
   participants: Participant[];
@@ -83,6 +93,9 @@ export interface MediaData {
     thumbnailUrl?: string;
     fileName?: string;
     mimeType?: string;
+    secureMediaKey?: string;
+    secureMediaIv?: string;
+    isSecureMedia?: boolean;
     duration?: number;
     width?: number;
     height?: number;
@@ -126,6 +139,7 @@ export interface Message extends MediaData {
     sender: MessageSender;
     readBy?: ReadReceipt[];
     isMe?: boolean;
+    deliveryConfirmed?: boolean;
     mentions?: MentionData[];
     reactions?: ReactionRow[];
 }

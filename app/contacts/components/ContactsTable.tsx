@@ -17,6 +17,7 @@ import { useAuthToken } from "@/hooks/use-auth-token";
 import { useToast } from "@/hooks/use-toast";
 import { ManageTagsDialog } from "./ManageTagsDialog";
 import { useRouter } from "next/navigation";
+import { createOrGetPreferredDmChat } from "@/services/secureChatService";
 
 interface ContactsTableProps {
     contacts: Contact[];
@@ -57,9 +58,41 @@ export function ContactsTable({ contacts, isLoading, onSelect }: ContactsTablePr
         }
     };
 
-    const handleQuickMessage = (e: React.MouseEvent) => {
+    const handleSendMessage = async (contact: Contact) => {
+        if (!token) {
+            toast({
+                title: "Authentication required",
+                description: "Please log in again to open a conversation.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        try {
+            const result = await createOrGetPreferredDmChat({
+                token,
+                participantId: contact.otherUser.id,
+            });
+
+            sessionStorage.setItem("pendingChatId", result.chatId);
+            router.push("/chat");
+
+            toast({
+                title: "Secure Chat Ready",
+                description: `Opening a secure conversation with ${contact.otherUser.firstName} ${contact.otherUser.lastName}.`,
+            });
+        } catch (error: any) {
+            toast({
+                title: "Unable to open chat",
+                description: error?.data?.message || error?.message || "Please try again.",
+                variant: "destructive",
+            });
+        }
+    };
+
+    const handleQuickMessage = (contact: Contact, e: React.MouseEvent) => {
         e.stopPropagation();
-        router.push("/chat");
+        void handleSendMessage(contact);
     };
 
     const handleQuickSend = (contact: Contact, e: React.MouseEvent) => {
@@ -189,7 +222,7 @@ export function ContactsTable({ contacts, isLoading, onSelect }: ContactsTablePr
                                                     variant="ghost"
                                                     size="icon"
                                                     className="h-9 w-9 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                                                    onClick={handleQuickMessage}
+                                                    onClick={(e) => handleQuickMessage(contact, e)}
                                                     title="Message"
                                                 >
                                                     <MessageCircle className="h-4 w-4" />
@@ -239,6 +272,9 @@ export function ContactsTable({ contacts, isLoading, onSelect }: ContactsTablePr
                                                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                                         <DropdownMenuItem onClick={(e) => handleOpenProfile(e, contact.otherUser.id)}>
                                                             View Profile
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => void handleSendMessage(contact)}>
+                                                            Send Message
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem onSelect={() => setManagingTagsContactId(contact.id)}>
                                                             Edit Tags
@@ -308,6 +344,10 @@ export function ContactsTable({ contacts, isLoading, onSelect }: ContactsTablePr
                                         <DropdownMenuItem onClick={(e) => handleOpenProfile(e, contact.otherUser.id)}>
                                             View Profile
                                         </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => void handleSendMessage(contact)}>
+                                            Send Message
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem>Send Money</DropdownMenuItem>
                                         <DropdownMenuItem onSelect={() => setManagingTagsContactId(contact.id)}>
                                             Edit Tags
                                         </DropdownMenuItem>
@@ -327,7 +367,7 @@ export function ContactsTable({ contacts, isLoading, onSelect }: ContactsTablePr
                                     variant="outline"
                                     size="sm"
                                     className="h-8 flex-1 rounded-full text-xs border-gray-200 text-gray-700 hover:bg-gray-50 dark:border-darkBorder-light/60 dark:text-gray-200 dark:hover:bg-darkBg-interactive"
-                                    onClick={handleQuickMessage}
+                                    onClick={(e) => handleQuickMessage(contact, e)}
                                 >
                                     <MessageCircle className="h-3.5 w-3.5 mr-1" />
                                     Message

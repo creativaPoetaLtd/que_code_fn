@@ -8,7 +8,7 @@ import { GroupContributionCard } from "./group-contribution-card"
 import MessageText from "./message-text"
 import LinkPreviewCard from "./link-preview-card"
 import { extractUrls } from "@/utils/url-utils"
-import { Reply, Smile } from "lucide-react"
+import { Check, CheckCheck, Clock, Reply, Smile } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import ReactionPicker from "./reaction-picker"
 import { useChat } from "@/context/ChatContext"
@@ -120,9 +120,15 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
     const horizontalLockRef = useRef(false)
     const gestureActiveRef = useRef(false)
 
-    const { addReaction, removeReaction, activeChat } = useChat()
+    const { addReaction, removeReaction, activeChat, conversations } = useChat()
     const { getUserId } = useAuthToken()
     const currentUserId = getUserId()
+    const activeConversation = activeChat
+        ? conversations.find((conversation) => conversation.id === activeChat)
+        : null
+    const shouldShowSenderName = Boolean(activeConversation?.isGroup && !isMe)
+    const shouldShowIncomingAvatar = Boolean(activeConversation?.isGroup && !isMe)
+    const reactionsAllowed = true
 
     // Aggregate raw reaction rows into display format
     const aggregatedReactions: Reaction[] = useMemo(() => {
@@ -168,6 +174,34 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
 
     const isTempMessage = !isLegacy && (message as Message).id.startsWith('temp_')
     const canSwipeReply = !isLegacy && !!onReply && !isTempMessage
+    const getInitials = (name: string) => {
+        const parts = name.trim().split(/\s+/).filter(Boolean)
+        const initials = parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join("")
+        return initials || "U"
+    }
+
+    const messageStatus = !isLegacy ? (message as Message).status : undefined
+    const hasReadProof = !isLegacy && Boolean(
+        (message as Message).readBy?.some((receipt) => receipt.userId && receipt.userId !== currentUserId)
+    )
+    const hasDeliveryProof = !isLegacy && Boolean((message as any).deliveryConfirmed || hasReadProof)
+    const visualStatus = isTempMessage
+        ? "pending"
+        : hasReadProof
+            ? "read"
+            : hasDeliveryProof
+                ? "delivered"
+                : "sent"
+    const StatusIcon = (() => {
+        if (!isMe || isLegacy) return null
+        if (visualStatus === "pending") return Clock
+        if (visualStatus === "read") return CheckCheck
+        if (visualStatus === "delivered") return CheckCheck
+        return Check
+    })()
+    const statusTone = visualStatus === "read"
+        ? "text-[#34b7f1]"
+        : "text-gray-500 dark:text-gray-300"
 
     const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
         if (!canSwipeReply) return
@@ -218,6 +252,60 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
         setSwipeOffset(0)
     }
 
+    const messageActions = (!isLegacy && (onReply || reactionsAllowed)) && !isTempMessage ? (
+        <div className={cn(
+            "relative z-10 flex shrink-0 items-center gap-0.5 self-end rounded-full border px-1 py-0.5 shadow-sm transition-opacity",
+            "opacity-100 sm:opacity-0 sm:group-hover/message:opacity-100 sm:group-focus-within/message:opacity-100",
+            isMe
+                ? "bg-[#d9fdd3]/95 dark:bg-[#2f5f46]/95 border-emerald-200/70 dark:border-emerald-900/50"
+                : "bg-white/95 dark:bg-darkBg-interactive/95 border-gray-100 dark:border-darkBorder-light"
+        )}>
+            {reactionsAllowed && (
+                <div className="relative">
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowReactionPicker((v) => !v)}
+                        className={cn(
+                            "h-5 w-5 p-0",
+                            isMe
+                                ? "text-gray-500 hover:text-gray-700 hover:bg-emerald-100/80 dark:text-gray-200 dark:hover:text-white dark:hover:bg-white/10"
+                                : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+                        )}
+                        aria-label="Add reaction"
+                    >
+                        <Smile size={11} />
+                    </Button>
+                    {showReactionPicker && (
+                        <ReactionPicker
+                            isMe={isMe}
+                            onSelect={handleReactionSelect}
+                            onClose={() => setShowReactionPicker(false)}
+                        />
+                    )}
+                </div>
+            )}
+
+            {onReply && (
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleReply}
+                    aria-label="Reply"
+                    className={cn(
+                        "h-5 w-5 p-0",
+                        isMe
+                            ? "text-gray-600 hover:text-gray-800 hover:bg-emerald-100/80 dark:text-gray-100 dark:hover:text-white dark:hover:bg-white/10"
+                            : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                    )}
+                >
+                    <Reply size={11} />
+                </Button>
+            )}
+        </div>
+    ) : null
     // Render group contribution card
     if (isMoneyMessage && groupContributionData) {
         return (
@@ -237,15 +325,17 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
     }
     
     return (
-        <div className={cn("flex mb-3 sm:mb-4", isMe ? "justify-end" : "justify-start")}>
-            {!isMe && (
-                <Avatar className="h-7 w-7 sm:h-9 sm:w-9 mt-1 mr-2 flex-shrink-0">
-                    <AvatarImage src={avatar || "/placeholder.svg"} alt={senderDisplayName} />
-                    <AvatarFallback>{senderDisplayName.charAt(0).toUpperCase()}</AvatarFallback>
+        <div className={cn("flex mb-1.5 sm:mb-2", isMe ? "justify-end" : "justify-start")}>
+            {shouldShowIncomingAvatar && (
+                <Avatar className="h-7 w-7 mt-0.5 mr-2 flex-shrink-0">
+                    {avatar && <AvatarImage src={avatar} alt={senderDisplayName} />}
+                    <AvatarFallback className="text-[10px] font-semibold">
+                        {getInitials(senderDisplayName)}
+                    </AvatarFallback>
                 </Avatar>
             )}
 
-            <div className="relative">
+            <div className="relative group/message flex items-end gap-1">
                 {!isLegacy && onReply && (
                     <div
                         className={cn(
@@ -256,11 +346,13 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
                         <Reply
                             size={16}
                             className={cn(
-                                isMe ? "text-white/90" : "text-brand-green dark:text-brand-gold"
+                                isMe ? "text-gray-700 dark:text-gray-100" : "text-brand-green dark:text-brand-gold"
                             )}
                         />
                     </div>
                 )}
+
+                {isMe && messageActions}
 
                 <div
                     onTouchStart={handleTouchStart}
@@ -273,29 +365,29 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
                         touchAction: "pan-y",
                     }}
                     className={cn(
-                        "relative max-w-[18rem] sm:max-w-md rounded-xl px-3 py-2 shadow-sm",
-                        isMe ? "bg-brand-green dark:bg-brand-gold text-white dark:text-darkBg-main" : "bg-white dark:bg-darkBg-card border border-gray-100 dark:border-darkBorder-light text-gray-900 dark:text-white",
+                        "relative max-w-[18rem] sm:max-w-md rounded-lg px-2.5 py-1.5 shadow-sm",
+                        isMe ? "bg-[#d9fdd3] text-gray-950 dark:bg-[#2f5f46] dark:text-gray-50" : "bg-white dark:bg-[#1f2c26] border border-gray-100 dark:border-darkBorder-light text-gray-900 dark:text-gray-50",
                         isOldMoneyMessage ? "border-2 border-yellow-400 dark:border-yellow-600" : ""
                     )}
                 >
-                {!isMe && <p className="text-xs font-semibold mb-1 text-gray-700 dark:text-gray-300">{senderDisplayName}</p>}
+                {shouldShowSenderName && <p className="text-[11px] leading-3 font-semibold mb-0.5 text-gray-700 dark:text-gray-300">{senderDisplayName}</p>}
 
                 {replyTo && (
                     <div className={cn(
                         "mb-2 rounded-md border px-2 py-1",
                         isMe
-                            ? "border-white/30 bg-white/15"
+                            ? "border-emerald-300/60 bg-white/35 dark:border-emerald-200/30 dark:bg-white/10"
                             : "border-gray-200 dark:border-darkBorder-light bg-gray-50 dark:bg-darkBg-interactive"
                     )}>
                         <p className={cn(
                             "text-[11px] font-semibold truncate",
-                            isMe ? "text-white/90" : "text-brand-green dark:text-brand-gold"
+                            isMe ? "text-gray-700 dark:text-gray-100" : "text-brand-green dark:text-brand-gold"
                         )}>
                             {replyTo.senderName}
                         </p>
                         <p className={cn(
                             "text-[11px] truncate",
-                            isMe ? "text-white/80" : "text-gray-600 dark:text-gray-400"
+                            isMe ? "text-gray-600 dark:text-gray-200" : "text-gray-600 dark:text-gray-400"
                         )}>
                             {replyTo.content || "(no text)"}
                         </p>
@@ -321,6 +413,9 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
                         fileSize={message.fileSize}
                         duration={message.duration}
                         mimeType={message.mimeType}
+                        secureMediaKey={message.secureMediaKey}
+                        secureMediaIv={message.secureMediaIv}
+                        isSecureMedia={message.isSecureMedia}
                     />
                 ) : (
                     <>
@@ -335,57 +430,15 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
                     </>
                 )}
 
-                <p className={cn("text-right text-xs mt-1", isMe ? "text-white/80 dark:text-darkBg-main/80" : "text-gray-500 dark:text-gray-500")}>
-                    {timestamp}
-                </p>
-
-                {(!isLegacy && (onReply || true)) && !isTempMessage && (
-                    <div className="mt-1 flex items-center justify-end gap-1">
-                        {/* Reaction trigger */}
-                        <div className="relative">
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setShowReactionPicker((v) => !v)}
-                                className={cn(
-                                    "h-6 w-6 p-0",
-                                    isMe
-                                        ? "text-white/70 hover:text-white hover:bg-white/15"
-                                        : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
-                                )}
-                                aria-label="Add reaction"
-                            >
-                                <Smile size={12} />
-                            </Button>
-                            {showReactionPicker && (
-                                <ReactionPicker
-                                    isMe={isMe}
-                                    onSelect={handleReactionSelect}
-                                    onClose={() => setShowReactionPicker(false)}
-                                />
-                            )}
-                        </div>
-
-                        {onReply && (
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={handleReply}
-                                className={cn(
-                                    "h-6 px-2 text-[11px]",
-                                    isMe
-                                        ? "text-white/90 hover:text-white hover:bg-white/15"
-                                        : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-                                )}
-                            >
-                                <Reply size={12} className="mr-1" />
-                                Reply
-                            </Button>
-                        )}
-                    </div>
-                )}
+                <div className={cn("flex items-center justify-end gap-1 text-[10px] leading-3 mt-0.5", isMe ? "text-gray-600 dark:text-gray-200" : "text-gray-500 dark:text-gray-500")}>
+                    <span>{timestamp}</span>
+                    {StatusIcon && (
+                        <StatusIcon
+                            size={13}
+                            className={statusTone}
+                        />
+                    )}
+                </div>
 
                 {/* Aggregated reaction bubbles */}
                 {aggregatedReactions.length > 0 && (
@@ -432,14 +485,10 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
                     </div>
                 )} */}
                 </div>
+
+                {!isMe && messageActions}
             </div>
 
-            {isMe && (
-                <Avatar className="h-7 w-7 sm:h-9 sm:w-9 mt-1 ml-2 flex-shrink-0">
-                    <AvatarImage src={avatar || "/placeholder.svg"} alt="You" />
-                    <AvatarFallback>Y</AvatarFallback>
-                </Avatar>
-            )}
         </div>
     )
 }

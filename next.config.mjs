@@ -2,6 +2,7 @@ import withPWA from 'next-pwa';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+    distDir: process.env.NEXT_DIST_DIR || '.next',
     images:
     {
         domains: ['deploy-preview-7--qcode-staging.netlify.app'],

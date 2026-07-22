@@ -11,11 +11,19 @@ import {
     TypingUser,
     OnlineUser,
     ChatParticipantStatus,
+    MessageType,
     Participant,
     ReactionRow,
 } from "@/types/chat.types";
 import { toast } from "@/hooks/use-toast";
 import { notificationService } from "@/services/notificationService";
+import { getChatPreviewText } from "@/utils/chatPreview";
+import {
+    fetchSecureChatMessages,
+    markSecureChatAsRead,
+    sendSecureReactionMessage,
+    sendSecureTextMessage,
+} from "@/services/secureChatService";
 
 interface ChatContextType {
     isConnected: boolean;
@@ -50,6 +58,7 @@ interface ChatContextType {
     clearChatState: () => void;
     addReaction: (chatId: string, messageId: string, emoji: string) => void;
     removeReaction: (chatId: string, messageId: string) => void;
+    upsertConversation: (conversation: Conversation) => void;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -57,6 +66,13 @@ const ChatContext = createContext<ChatContextType | undefined>(undefined);
 interface ChatProviderProps {
     children: ReactNode;
 }
+
+type NotificationMessageType = "text" | "image" | "video" | "audio" | "file" | "voice" | "money" | "secure";
+
+const toNotificationMessageType = (messageType: MessageType): NotificationMessageType => {
+    if (messageType === "document") return "file";
+    return messageType;
+};
 
 export const ChatProvider = ({ children }: ChatProviderProps) => {
     const { getToken, getUserId } = useAuthToken();
@@ -71,6 +87,12 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
     const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
     const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
     const [participantsStatus, setParticipantsStatus] = useState<Record<string, ChatParticipantStatus[]>>({});
+    const [secureMessagesRefreshKey, setSecureMessagesRefreshKey] = useState(0);
+
+    const activeConversation = activeChat
+        ? conversations.find((conversation) => conversation.id === activeChat) || null
+        : null;
+    const isActiveSecureChat = activeConversation?.securityMode === "secure_dm_v1";
 
     const isSupportConversation = useCallback((conv: Conversation) => {
         if ((conv as any).type === 'support') return true;
@@ -90,6 +112,49 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         return new Date(bTime).getTime() - new Date(aTime).getTime();
     }, [isSupportConversation]);
 
+    const updateSecureConversationPreview = useCallback(async (chatId: string) => {
+        if (!token || !userId) return null;
+
+        const secureMessages = await fetchSecureChatMessages({
+            token,
+            userId,
+            chatId,
+            page: 1,
+            limit: 1,
+        });
+        const latestMessage = secureMessages[secureMessages.length - 1] || null;
+
+        if (!latestMessage || latestMessage.content.startsWith("[Unable to decrypt")) {
+            return latestMessage;
+        }
+
+        setConversations((prev: Conversation[]) => {
+            const updatedConversations = prev.map((conv: Conversation) =>
+                conv.id === chatId
+                    ? {
+                        ...conv,
+                        lastMessage: {
+                            content: getChatPreviewText(latestMessage),
+                            messageType: latestMessage.messageType,
+                            createdAt: latestMessage.createdAt,
+                            sender: latestMessage.sender.id === userId ? "You" : latestMessage.sender.name,
+                            status: latestMessage.status,
+                            deliveredAt: latestMessage.deliveredAt,
+                            readAt: latestMessage.readAt,
+                            readBy: latestMessage.readBy,
+                            deliveryConfirmed: latestMessage.deliveryConfirmed,
+                        },
+                        timestamp: latestMessage.createdAt,
+                    }
+                    : conv
+            );
+
+            return updatedConversations.sort(sortConversations);
+        });
+
+        return latestMessage;
+    }, [sortConversations, token, userId]);
+
     // Monitor token and userId changes
     useEffect(() => {
         const currentToken = getToken();
@@ -97,7 +162,6 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         
         // If userId changes (different user logged in), clear all state
         if (userId && currentUserId && userId !== currentUserId) {
-            console.log('Different user detected, clearing chat state');
             setConversations([]);
             setActiveChat(null);
             setMessages({});
@@ -120,7 +184,6 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
             
             // If user changed, clear state
             if (userId && newUserId && userId !== newUserId) {
-                console.log('User changed via token event, clearing chat state');
                 setConversations([]);
                 setActiveChat(null);
                 setMessages({});
@@ -147,7 +210,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
 
     const { data: messagesData, refetch: refetchMessages } = useGetChatMessagesQuery(
         { chatId: activeChat || '', page: 1, limit: 50 },
-        { skip: !activeChat || !token }
+        { skip: !activeChat || !token || isActiveSecureChat }
     );
 
     useEffect(() => {
@@ -264,15 +327,101 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
             });
         };
 
+        const handleSecureMessageAvailable = (data: {
+            chatId: string;
+            messageId: string;
+            senderId: string;
+            sender: { id: string; name: string; firstName?: string; lastName?: string };
+            messageType: "text";
+            securityMode: "secure_dm_v1";
+            createdAt: string;
+        }) => {
+            const conversation = conversations.find((item) => item.id === data.chatId);
+            if (!conversation || conversation.securityMode !== "secure_dm_v1") {
+                refetchChats();
+                return;
+            }
+
+            if (data.senderId === userId) {
+                if (data.chatId === activeChat) {
+                    setSecureMessagesRefreshKey((current) => current + 1);
+                }
+                refetchChats();
+                return;
+            }
+
+            if (data.chatId === activeChat) {
+                setSecureMessagesRefreshKey((current) => current + 1);
+            }
+
+            setConversations((prev: Conversation[]) => {
+                const updatedConversations = prev.map((conv: Conversation) => {
+                    if (conv.id !== data.chatId) return conv;
+
+                    const shouldIncrementUnread =
+                        data.senderId !== userId &&
+                        conv.id !== activeChat;
+
+                    return {
+                        ...conv,
+                        lastMessage: {
+                            content: "Secure message",
+                            messageType: "text" as const,
+                            createdAt: data.createdAt,
+                            sender: data.sender.name,
+                        },
+                        timestamp: data.createdAt,
+                        unreadCount: shouldIncrementUnread
+                            ? (conv.unreadCount || 0) + 1
+                            : (conv.unreadCount || 0),
+                    };
+                });
+
+                return updatedConversations.sort(sortConversations);
+            });
+
+            void updateSecureConversationPreview(data.chatId)
+                .then((latestMessage) => {
+                    if (data.senderId !== userId) {
+                        notificationService.notifyNewMessage({
+                            chatId: data.chatId,
+                            senderId: data.senderId,
+                            senderName: data.sender.name,
+                            content: latestMessage?.content || "",
+                            messageType: latestMessage
+                                ? toNotificationMessageType(latestMessage.messageType)
+                                : "secure" as const,
+                        });
+                    }
+                })
+                .catch((error) => {
+                    console.error("Failed to decrypt secure notification preview", error);
+                    if (data.senderId !== userId) {
+                        notificationService.notifyNewMessage({
+                            chatId: data.chatId,
+                            senderId: data.senderId,
+                            senderName: "",
+                            content: "",
+                            messageType: "secure" as const,
+                        });
+                    }
+                });
+
+            refetchChats();
+        };
+
         const handleMessageDelivered = (data: { chatId: string; messageId: string; deliveredAt: Date }) => {
             setMessages((prev: Record<string, Message[]>) => ({
                 ...prev,
                 [data.chatId]: prev[data.chatId]?.map((msg: Message) =>
                     msg.id === data.messageId
-                        ? { ...msg, status: 'delivered', deliveredAt: data.deliveredAt }
+                        ? { ...msg, status: 'delivered', deliveredAt: data.deliveredAt, deliveryConfirmed: true }
                         : msg
                 ) || []
             }));
+            void updateSecureConversationPreview(data.chatId).catch((error) => {
+                console.error("Failed to update delivered secure preview", error);
+            });
         };
 
         const handleMessagesRead = (data: { chatId: string; readBy: string; readAt: Date }) => {
@@ -280,8 +429,16 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
             setMessages((prev: Record<string, Message[]>) => ({
                 ...prev,
                 [data.chatId]: prev[data.chatId]?.map((msg: Message) =>
-                    msg.status === 'delivered' && msg.sender.id !== userId
-                        ? { ...msg, status: 'read', readAt: data.readAt }
+                    msg.sender.id === userId && data.readBy !== userId
+                        ? {
+                            ...msg,
+                            status: 'read',
+                            readAt: data.readAt,
+                            readBy: [
+                                ...(msg.readBy || []).filter((receipt: any) => receipt.userId !== data.readBy),
+                                { userId: data.readBy, name: '', readAt: data.readAt },
+                            ],
+                        }
                         : msg
                 ) || []
             }));
@@ -295,6 +452,9 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
                         : conv
                 ));
             }
+            void updateSecureConversationPreview(data.chatId).catch((error) => {
+                console.error("Failed to update read secure preview", error);
+            });
         };
 
         const handleUserTyping = (data: TypingUser) => {
@@ -384,6 +544,31 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         };
 
         const handleError = (error: { message: string }) => {
+            if (
+                activeChat &&
+                error.message?.includes("requires secure messaging")
+            ) {
+                setConversations((prev: Conversation[]) =>
+                    prev.map((conversation: Conversation) =>
+                        conversation.id === activeChat
+                            ? {
+                                ...conversation,
+                                securityMode: "secure_dm_v1" as const,
+                                protocolVersion: conversation.protocolVersion || "secure-dm-v1",
+                            }
+                            : conversation,
+                    ).sort(sortConversations),
+                );
+                setSecureMessagesRefreshKey((current) => current + 1);
+                refetchChats();
+                toast({
+                    title: "Secure chat ready",
+                    description: "This thread is secure. Send the message again using the secure flow.",
+                    duration: 5000,
+                });
+                return;
+            }
+
             toast({
                 title: "Error",
                 description: error.message,
@@ -451,6 +636,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         };
 
         socketService.onNewMessage(handleNewMessage);
+        socketService.onSecureMessageAvailable(handleSecureMessageAvailable);
         socketService.onMessageDelivered(handleMessageDelivered);
         socketService.onMessagesRead(handleMessagesRead);
         socketService.onUserTyping(handleUserTyping);
@@ -469,6 +655,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
 
         return () => {
             socketService.offNewMessage(handleNewMessage);
+            socketService.offSecureMessageAvailable(handleSecureMessageAvailable);
             socketService.offMessageDelivered(handleMessageDelivered);
             socketService.offMessagesRead(handleMessagesRead);
             socketService.offUserTyping(handleUserTyping);
@@ -484,22 +671,34 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
             socketService.offPaymentRequestUpdated(handlePaymentRequestUpdated);
             socketService.offReactionUpdated(handleReactionUpdated);
         };
-    }, [isConnected, activeChat, userId, refetchMessages, sortConversations]);
+    }, [isConnected, activeChat, userId, refetchMessages, sortConversations, conversations, token, refetchChats, updateSecureConversationPreview]);
 
     useEffect(() => {
-        if (activeChat && isConnected) {
+        if (!activeChat) return;
+
+        notificationService.setActiveChat(activeChat);
+
+        setConversations((prev: Conversation[]) => prev.map((conv: Conversation) =>
+            conv.id === activeChat
+                ? { ...conv, unreadCount: 0 }
+                : conv
+        ));
+
+        if (isActiveSecureChat) {
+            if (token && userId) {
+                void markSecureChatAsRead({ token, userId, chatId: activeChat }).catch((error) => {
+                    console.error("Failed to mark secure chat as read", error);
+                });
+            }
+
+            return () => {
+                notificationService.setActiveChat(null);
+            };
+        }
+
+        if (isConnected) {
             socketService.joinChat(activeChat);
             socketService.markMessageRead(activeChat, '');
-            
-            // Update notification service with active chat
-            notificationService.setActiveChat(activeChat);
-
-            // Reset unread count for active chat
-            setConversations((prev: Conversation[]) => prev.map((conv: Conversation) =>
-                conv.id === activeChat
-                    ? { ...conv, unreadCount: 0 } // ...conv already preserves all fields
-                    : conv
-            ));
 
             return () => {
                 if (activeChat) {
@@ -508,7 +707,11 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
                 }
             };
         }
-    }, [activeChat, isConnected]);
+
+        return () => {
+            notificationService.setActiveChat(null);
+        };
+    }, [activeChat, isConnected, isActiveSecureChat, token, userId]);
 
     useEffect(() => {
         if (chatsData?.data) {
@@ -519,6 +722,10 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
     }, [chatsData, sortConversations]);
 
     useEffect(() => {
+        if (isActiveSecureChat) {
+            return;
+        }
+
         if (messagesData?.data?.messages && activeChat) {
             const messagesWithIsMe = messagesData.data.messages.map((msg: Message) => ({
                 ...msg,
@@ -530,17 +737,156 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
                 [activeChat]: messagesWithIsMe
             }));
         }
-    }, [messagesData, activeChat, userId]);
+    }, [messagesData, activeChat, userId, isActiveSecureChat]);
+
+    useEffect(() => {
+        if (!activeChat || !token || !userId || !isActiveSecureChat) {
+            return;
+        }
+
+        let cancelled = false;
+
+        const loadSecureMessages = async () => {
+            try {
+                const secureMessages = await fetchSecureChatMessages({
+                    token,
+                    userId,
+                    chatId: activeChat,
+                });
+
+                if (cancelled) return;
+
+                setMessages((prev: Record<string, Message[]>) => ({
+                    ...prev,
+                    [activeChat]: secureMessages.map((message) => ({
+                        ...message,
+                        isMe: String(message.sender.id) === String(userId),
+                    })),
+                }));
+
+                const latestMessage = secureMessages[secureMessages.length - 1] || null;
+                if (latestMessage && !latestMessage.content.startsWith("[Unable to decrypt")) {
+                    setConversations((prev: Conversation[]) => {
+                        const updatedConversations = prev.map((conv: Conversation) =>
+                            conv.id === activeChat
+                                ? {
+                                    ...conv,
+                                    lastMessage: {
+                                        content: getChatPreviewText(latestMessage),
+                                        messageType: latestMessage.messageType,
+                                        createdAt: latestMessage.createdAt,
+                                        sender: latestMessage.sender.id === userId ? "You" : latestMessage.sender.name,
+                                        status: latestMessage.status,
+                                        deliveredAt: latestMessage.deliveredAt,
+                                        readAt: latestMessage.readAt,
+                                        readBy: latestMessage.readBy,
+                                        deliveryConfirmed: latestMessage.deliveryConfirmed,
+                                    },
+                                    timestamp: latestMessage.createdAt,
+                                }
+                                : conv
+                        );
+
+                        return updatedConversations.sort(sortConversations);
+                    });
+                }
+
+                await markSecureChatAsRead({ token, userId, chatId: activeChat });
+            } catch (error: any) {
+                console.error("Failed to load secure chat messages", error);
+                if (
+                    error?.name === "SecureIdentityChangedError" ||
+                    error?.message?.includes("Secure device identity changed")
+                ) {
+                    toast({
+                        title: "Security warning",
+                        description: "A secure device identity changed. Verify this contact before continuing.",
+                        variant: "destructive",
+                    });
+                }
+            }
+        };
+
+        void loadSecureMessages();
+        const interval = window.setInterval(() => {
+            void loadSecureMessages();
+        }, 5000);
+
+        return () => {
+            cancelled = true;
+            window.clearInterval(interval);
+        };
+    }, [activeChat, token, userId, isActiveSecureChat, secureMessagesRefreshKey, sortConversations]);
+
+    useEffect(() => {
+        if (!token || !userId) {
+            return;
+        }
+
+        const securePreviewTargets = conversations.filter(
+            (conversation) =>
+                conversation.securityMode === "secure_dm_v1" &&
+                (
+                    !conversation.lastMessage ||
+                    conversation.lastMessage.content === "Secure message" ||
+                    conversation.lastMessage.content.startsWith("[Unable to decrypt")
+                ),
+        );
+
+        securePreviewTargets.forEach((conversation) => {
+            void updateSecureConversationPreview(conversation.id).catch((error) => {
+                console.error("Failed to update secure conversation preview", error);
+            });
+        });
+
+        const hasSecureConversations = conversations.some(
+            (conversation) => conversation.securityMode === "secure_dm_v1",
+        );
+
+        if (!hasSecureConversations) {
+            return;
+        }
+
+        const interval = window.setInterval(() => {
+            refetchChats();
+        }, 10000);
+
+        return () => {
+            window.clearInterval(interval);
+        };
+    }, [token, userId, conversations, refetchChats, updateSecureConversationPreview]);
 
     const refreshConversations = useCallback(() => {
         refetchChats();
     }, [refetchChats]);
 
+    const upsertConversation = useCallback((conversation: Conversation) => {
+        setConversations((prev: Conversation[]) => {
+            const existingIndex = prev.findIndex((item) => item.id === conversation.id);
+
+            if (existingIndex === -1) {
+                return [conversation, ...prev].sort(sortConversations);
+            }
+
+            const next = [...prev];
+            next[existingIndex] = {
+                ...next[existingIndex],
+                ...conversation,
+            };
+
+            return next.sort(sortConversations);
+        });
+    }, [sortConversations]);
+
     const refreshMessages = useCallback((chatId: string) => {
         if (chatId === activeChat) {
+            if (activeConversation?.securityMode === "secure_dm_v1") {
+                setSecureMessagesRefreshKey((current) => current + 1);
+                return;
+            }
             refetchMessages();
         }
-    }, [activeChat, refetchMessages]);
+    }, [activeChat, activeConversation?.securityMode, refetchMessages]);
 
     const sendMessage = useCallback((
         chatId: string,
@@ -550,13 +896,114 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         replyToMessageId?: string,
         replyTo?: ReplyPreview | null
     ) => {
-        if (isConnected && content.trim()) {
-            socketService.sendMessage(chatId, content.trim(), messageType, undefined, mentions, replyToMessageId);
+        const trimmedContent = content.trim();
+        if (!trimmedContent) {
+            return;
+        }
+
+        const conversation = conversations.find((item) => item.id === chatId);
+        if (conversation?.securityMode === "secure_dm_v1") {
+            if (messageType !== "text") {
+                toast({
+                    title: "Not available yet",
+                    description: "secure_dm_v1 currently supports text messages only.",
+                    variant: "destructive",
+                });
+                return;
+            }
+
+            if (!token || !userId) {
+                toast({
+                    title: "Secure chat unavailable",
+                    description: "Your session is not ready for secure messaging yet.",
+                    variant: "destructive",
+                });
+                return;
+            }
+
+            const tempMessageId = `temp_secure_${Date.now()}`;
+            const tempMessage: Message = {
+                id: tempMessageId,
+                chatId,
+                content: trimmedContent,
+                messageType: "text",
+                replyToMessageId: replyToMessageId || null,
+                replyTo: replyTo || null,
+                reactions: [],
+                status: 'sent',
+                createdAt: new Date().toISOString(),
+                sender: {
+                    id: userId,
+                    name: 'You',
+                    avatar: undefined
+                },
+                isMe: true,
+                mentions,
+            };
+
+            setMessages((prev: Record<string, Message[]>) => ({
+                ...prev,
+                [chatId]: [...(prev[chatId] || []), tempMessage]
+            }));
+
+            setConversations((prev: Conversation[]) => {
+                const updatedConversations = prev.map((conv: Conversation) =>
+                    conv.id === chatId
+                        ? {
+                            ...conv,
+                            lastMessage: {
+                                content: trimmedContent,
+                                messageType: "text" as const,
+                                createdAt: tempMessage.createdAt,
+                                sender: "You"
+                            },
+                            timestamp: tempMessage.createdAt
+                        }
+                        : conv
+                );
+
+                return updatedConversations.sort(sortConversations);
+            });
+
+            void (async () => {
+                try {
+                    await sendSecureTextMessage({
+                        token,
+                        userId,
+                        chatId,
+                        conversation,
+                        content: trimmedContent,
+                        replyToMessageId: replyToMessageId || undefined,
+                    });
+                    setSecureMessagesRefreshKey((current) => current + 1);
+                    refetchChats();
+                } catch (error: any) {
+                    setMessages((prev: Record<string, Message[]>) => ({
+                        ...prev,
+                        [chatId]: (prev[chatId] || []).filter((message) => message.id !== tempMessageId)
+                    }));
+                    const identityChanged =
+                        error?.name === "SecureIdentityChangedError" ||
+                        error?.message?.includes("Secure device identity changed");
+                    toast({
+                        title: identityChanged ? "Security warning" : "Secure message failed",
+                        description: identityChanged
+                            ? "A secure device identity changed. Verify this contact before sending."
+                            : error?.message || "Failed to send secure message",
+                        variant: "destructive",
+                    });
+                }
+            })();
+            return;
+        }
+
+        if (isConnected) {
+            socketService.sendMessage(chatId, trimmedContent, messageType, undefined, mentions, replyToMessageId);
 
             const tempMessage: Message = {
                 id: `temp_${Date.now()}`,
                 chatId,
-                content: content.trim(),
+                content: trimmedContent,
                 messageType,
                 replyToMessageId: replyToMessageId || null,
                 replyTo: replyTo || null,
@@ -585,7 +1032,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
                         ? {
                             ...conv, // Preserve all fields including groupId
                             lastMessage: {
-                                content: content.trim(),
+                                content: trimmedContent,
                                 messageType,
                                 createdAt: new Date().toISOString(),
                                 sender: 'You'
@@ -599,13 +1046,23 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
                 return updatedConversations.sort(sortConversations);
             });
         }
-    }, [isConnected, userId, sortConversations]);
+    }, [isConnected, userId, token, conversations, sortConversations, refetchChats]);
 
     const markMessagesAsRead = useCallback((chatId: string) => {
+        const conversation = conversations.find((item) => item.id === chatId);
+        if (conversation?.securityMode === "secure_dm_v1") {
+            if (token && userId) {
+                void markSecureChatAsRead({ token, userId, chatId }).catch((error) => {
+                    console.error("Failed to mark secure chat as read", error);
+                });
+            }
+            return;
+        }
+
         if (isConnected) {
             socketService.markMessageRead(chatId, '');
         }
-    }, [isConnected]);
+    }, [conversations, isConnected, token, userId]);
 
     const startTyping = useCallback((chatId: string) => {
         if (isConnected) {
@@ -646,8 +1103,17 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
     }, []);
 
     const markMessageRead = useCallback((chatId: string, messageId: string) => {
+        const conversation = conversations.find((item) => item.id === chatId);
+        if (conversation?.securityMode === "secure_dm_v1") {
+            if (token && userId) {
+                void markSecureChatAsRead({ token, userId, chatId }).catch((error) => {
+                    console.error("Failed to mark secure chat as read", error);
+                });
+            }
+            return;
+        }
         socketService.markMessageRead(chatId, messageId);
-    }, []);
+    }, [conversations, token, userId]);
 
     const addMessage = useCallback((message: Message) => {
         setMessages((prev: Record<string, Message[]>) => {
@@ -677,16 +1143,106 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
     }, []);
 
     const addReaction = useCallback((chatId: string, messageId: string, emoji: string) => {
+        const conversation = conversations.find((item) => item.id === chatId);
+        if (conversation?.securityMode === "secure_dm_v1") {
+            if (!token || !userId) {
+                toast({
+                    title: "Secure reaction failed",
+                    description: "Your secure session is not ready yet.",
+                    variant: "destructive",
+                });
+                return;
+            }
+
+            setMessages((prev: Record<string, Message[]>) => ({
+                ...prev,
+                [chatId]: (prev[chatId] || []).map((message) =>
+                    message.id === messageId
+                        ? {
+                            ...message,
+                            reactions: [
+                                ...(message.reactions || []).filter(
+                                    (reaction) => reaction.userId !== userId,
+                                ),
+                                { userId, emoji },
+                            ],
+                        }
+                        : message
+                ),
+            }));
+
+            void sendSecureReactionMessage({
+                token,
+                userId,
+                chatId,
+                conversation,
+                targetMessageId: messageId,
+                emoji,
+                action: "set",
+            }).catch((error) => {
+                toast({
+                    title: "Secure reaction failed",
+                    description: error?.message || "Failed to send encrypted reaction",
+                    variant: "destructive",
+                });
+                setSecureMessagesRefreshKey((current) => current + 1);
+            });
+            return;
+        }
+
         if (isConnected) {
             socketService.addReaction(chatId, messageId, emoji);
         }
-    }, [isConnected]);
+    }, [conversations, isConnected, token, userId]);
 
     const removeReaction = useCallback((chatId: string, messageId: string) => {
+        const conversation = conversations.find((item) => item.id === chatId);
+        if (conversation?.securityMode === "secure_dm_v1") {
+            if (!token || !userId) {
+                toast({
+                    title: "Secure reaction failed",
+                    description: "Your secure session is not ready yet.",
+                    variant: "destructive",
+                });
+                return;
+            }
+
+            setMessages((prev: Record<string, Message[]>) => ({
+                ...prev,
+                [chatId]: (prev[chatId] || []).map((message) =>
+                    message.id === messageId
+                        ? {
+                            ...message,
+                            reactions: (message.reactions || []).filter(
+                                (reaction) => reaction.userId !== userId,
+                            ),
+                        }
+                        : message
+                ),
+            }));
+
+            void sendSecureReactionMessage({
+                token,
+                userId,
+                chatId,
+                conversation,
+                targetMessageId: messageId,
+                action: "remove",
+            }).catch((error) => {
+                toast({
+                    title: "Secure reaction failed",
+                    description: error?.message || "Failed to remove encrypted reaction",
+                    variant: "destructive",
+                });
+                setSecureMessagesRefreshKey((current) => current + 1);
+            });
+            return;
+        }
+
         if (isConnected) {
             socketService.removeReaction(chatId, messageId);
         }
-    }, [isConnected]);
+    }, [conversations, isConnected, token, userId]);
 
     const clearChatState = useCallback(() => {
         // Disconnect socket properly
@@ -730,6 +1286,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         clearChatState,
         addReaction,
         removeReaction,
+        upsertConversation,
     };
 
     return (

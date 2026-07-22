@@ -15,10 +15,9 @@ import {
   PlusCircle,
   Link,
   MoreVertical,
+  ArrowLeft,
 } from 'lucide-react';
-import {
-  useGetPendingInvitationsUnifiedQuery,
-} from '@/states/contactSlice';
+import { useGetPendingInvitationsUnifiedQuery } from '@/states/contactSlice';
 import { useAuthToken } from '@/hooks/use-auth-token';
 
 interface QuickActionsProps {
@@ -53,7 +52,21 @@ export default function QuickActions({
   return (
     <div>
       <div className='flex items-center justify-between mb-3'>
-        <h2 className='text-xl font-bold text-gray-900 dark:text-white'>Messages</h2>
+        <div className='flex items-center gap-2'>
+          <Button
+            type='button'
+            variant='ghost'
+            size='icon'
+            onClick={() => window.history.back()}
+            className='h-7 w-7 rounded-full text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-darkBg-interactive'
+            aria-label='Go back'
+          >
+            <ArrowLeft size={15} />
+          </Button>
+          <h2 className='text-xl font-bold text-gray-900 dark:text-white'>
+            Messages
+          </h2>
+        </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -61,7 +74,10 @@ export default function QuickActions({
               size='sm'
               className='h-6 w-6 p-0 hover:bg-gray-100 dark:hover:bg-darkBg-interactive'
             >
-              <MoreVertical size={14} className='text-gray-600 dark:text-gray-400' />
+              <MoreVertical
+                size={14}
+                className='text-gray-600 dark:text-gray-400'
+              />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align='end' className='w-48'>

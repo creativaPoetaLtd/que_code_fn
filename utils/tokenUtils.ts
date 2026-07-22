@@ -143,13 +143,16 @@ export const storeAccessToken = (token: string, days: number = 1) => {
 
     const payload = parseTokenPayload(token);
     if (payload) {
+        const resolvedUserInfo = extractUserInfo(payload);
         localStorage.setItem(
             USER_INFO_KEY,
             JSON.stringify({
-                id: payload.id || payload.userId || payload.sub || null,
+                id: resolvedUserInfo.accountType === 'organization'
+                    ? resolvedUserInfo.organizationId
+                    : resolvedUserInfo.userId,
                 name: payload.name || null,
                 email: payload.email || null,
-                accountType: payload.accountType || null,
+                accountType: resolvedUserInfo.accountType,
             }),
         );
     }

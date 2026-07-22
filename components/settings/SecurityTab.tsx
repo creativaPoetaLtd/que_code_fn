@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Eye, EyeOff, CheckCircle, AlertCircle, Smartphone, Globe, LogOut } from 'lucide-react';
+import { Eye, EyeOff, CheckCircle, AlertCircle, Smartphone, Globe, RotateCw, ShieldOff } from "lucide-react";
 import Input from "@/components/ui/Input-ant";
 import { Label } from "@/components/ui/label";
 import { useSecuritySettings } from "@/hooks/use-security-settings";
@@ -15,10 +15,16 @@ export const SecurityTab: React.FC = () => {
     pinStatus,
     loadingPinStatus,
     changingPin,
+    secureDevices,
+    loadingSecureDevices,
+    revokingSecureDeviceId,
+    currentSecureDeviceId,
     securityFormData,
     updateSecurityFormData,
     handleChangePassword,
     handleChangePin,
+    fetchSecureDevices,
+    handleRevokeSecureDevice,
     togglePasswordVisibility,
     toggleCurrentPinVisibility,
     toggleNewPinVisibility,
@@ -32,9 +38,21 @@ export const SecurityTab: React.FC = () => {
     await handleChangePin();
   };
 
-  const handleNumericInput = (value: string, field: 'currentPin' | 'newPin' | 'confirmNewPin') => {
+  const handleNumericInput = (value: string, field: "currentPin" | "newPin" | "confirmNewPin") => {
     const numericValue = value.replace(/\D/g, "");
     updateSecurityFormData({ [field]: numericValue });
+  };
+
+  const formatDate = (value?: string | null) => {
+    if (!value) return "Never synced";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "Unknown";
+    return date.toLocaleString([], {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   return (
@@ -79,8 +97,8 @@ export const SecurityTab: React.FC = () => {
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium dark:text-gray-300">Attempts Left:</span>
                 <span className={`text-sm font-medium ${
-                  pinStatus.attemptsLeft <= 1 ? 'text-red-600 dark:text-red-400' :
-                  pinStatus.attemptsLeft <= 2 ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400'
+                  pinStatus.attemptsLeft <= 1 ? "text-red-600 dark:text-red-400" :
+                  pinStatus.attemptsLeft <= 2 ? "text-yellow-600 dark:text-yellow-400" : "text-green-600 dark:text-green-400"
                 }`}>
                   {pinStatus.attemptsLeft}/5
                 </span>
@@ -116,7 +134,7 @@ export const SecurityTab: React.FC = () => {
                 id="current-password"
                 type={securityFormData.showPassword ? "text" : "password"}
                 value={securityFormData.currentPassword}
-                onChange={(e) => updateSecurityFormData({ currentPassword: e.target.value })}
+                onChange={(event) => updateSecurityFormData({ currentPassword: event.target.value })}
                 className="dark:bg-darkBg-main dark:text-white dark:border-darkBorder-light"
               />
               <Button
@@ -136,7 +154,7 @@ export const SecurityTab: React.FC = () => {
               id="new-password"
               type="password"
               value={securityFormData.newPassword}
-              onChange={(e) => updateSecurityFormData({ newPassword: e.target.value })}
+              onChange={(event) => updateSecurityFormData({ newPassword: event.target.value })}
               className="dark:bg-darkBg-main dark:text-white dark:border-darkBorder-light"
             />
           </div>
@@ -146,7 +164,7 @@ export const SecurityTab: React.FC = () => {
               id="confirm-password"
               type="password"
               value={securityFormData.confirmPassword}
-              onChange={(e) => updateSecurityFormData({ confirmPassword: e.target.value })}
+              onChange={(event) => updateSecurityFormData({ confirmPassword: event.target.value })}
               className="dark:bg-darkBg-main dark:text-white dark:border-darkBorder-light"
             />
           </div>
@@ -178,8 +196,8 @@ export const SecurityTab: React.FC = () => {
                 pattern="[0-9]*"
                 maxLength={4}
                 value={securityFormData.currentPin}
-                onChange={(e) => handleNumericInput(e.target.value, 'currentPin')}
-                placeholder="••••"
+                onChange={(event) => handleNumericInput(event.target.value, "currentPin")}
+                placeholder="****"
                 className="dark:bg-darkBg-main dark:text-white dark:border-darkBorder-light"
               />
               <Button
@@ -203,8 +221,8 @@ export const SecurityTab: React.FC = () => {
                 pattern="[0-9]*"
                 maxLength={4}
                 value={securityFormData.newPin}
-                onChange={(e) => handleNumericInput(e.target.value, 'newPin')}
-                placeholder="••••"
+                onChange={(event) => handleNumericInput(event.target.value, "newPin")}
+                placeholder="****"
                 className="dark:bg-darkBg-main dark:text-white dark:border-darkBorder-light"
               />
               <Button
@@ -227,8 +245,8 @@ export const SecurityTab: React.FC = () => {
               pattern="[0-9]*"
               maxLength={4}
               value={securityFormData.confirmNewPin}
-              onChange={(e) => handleNumericInput(e.target.value, 'confirmNewPin')}
-              placeholder="••••"
+              onChange={(event) => handleNumericInput(event.target.value, "confirmNewPin")}
+              placeholder="****"
               className="dark:bg-darkBg-main dark:text-white dark:border-darkBorder-light"
             />
           </div>
@@ -281,61 +299,105 @@ export const SecurityTab: React.FC = () => {
         </CardFooter>
       </Card>
 
-      {/* Login Sessions Card - Full Width */}
       <Card className="md:col-span-2 dark:bg-darkBg-card dark:border-darkBorder-light">
         <CardHeader>
-          <CardTitle className="dark:text-white">Login Sessions</CardTitle>
-          <CardDescription className="dark:text-gray-400">Manage your active sessions across devices</CardDescription>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <CardTitle className="dark:text-white">Secure Chat Devices</CardTitle>
+              <CardDescription className="dark:text-gray-400">Manage devices allowed to receive end-to-end encrypted messages</CardDescription>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={fetchSecureDevices}
+              disabled={loadingSecureDevices}
+              className="dark:border-darkBorder-light dark:text-gray-300 dark:hover:bg-gray-800"
+            >
+              <RotateCw size={14} className="mr-2" />
+              Refresh
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg dark:border dark:border-green-800">
-              <div className="flex items-center gap-3">
-                <Smartphone size={20} className="text-green-600 dark:text-green-400" />
-                <div>
-                  <p className="font-medium dark:text-gray-200">Current device</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    iPhone 13 • San Francisco, CA • Last active: Just now
-                  </p>
-                </div>
-              </div>
-              <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800">
-                Current
-              </Badge>
+          {loadingSecureDevices ? (
+            <LoadingSpinner size="sm" text="Loading secure devices..." />
+          ) : secureDevices.length === 0 ? (
+            <div className="rounded-lg border border-gray-200 p-4 text-sm text-gray-500 dark:border-darkBorder-light dark:text-gray-400">
+              No secure chat device is registered for this account yet.
             </div>
+          ) : (
+            <div className="space-y-3">
+              {secureDevices.map((device) => {
+                const isCurrent = device.deviceId === currentSecureDeviceId;
+                const isRevoking = revokingSecureDeviceId === device.deviceId;
+                const isBrowserLike = /web|win|mac|linux|browser|chrome|edge|firefox/i.test(
+                  `${device.platform || ""} ${device.deviceName || ""}`,
+                );
 
-            <div className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-main/50">
-              <div className="flex items-center gap-3">
-                <Globe size={20} className="text-gray-500 dark:text-gray-400" />
-                <div>
-                  <p className="font-medium dark:text-gray-200">Chrome on Windows</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">New York, NY • Last active: 2 days ago</p>
-                </div>
-              </div>
-              <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20">
-                Sign out
-              </Button>
+                return (
+                  <div
+                    key={device.deviceId}
+                    className={`flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between ${
+                      isCurrent
+                        ? "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20"
+                        : "border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-main/50"
+                    }`}
+                  >
+                    <div className="flex min-w-0 items-start gap-3">
+                      {isBrowserLike ? (
+                        <Globe size={20} className={isCurrent ? "mt-0.5 text-green-600 dark:text-green-400" : "mt-0.5 text-gray-500 dark:text-gray-400"} />
+                      ) : (
+                        <Smartphone size={20} className={isCurrent ? "mt-0.5 text-green-600 dark:text-green-400" : "mt-0.5 text-gray-500 dark:text-gray-400"} />
+                      )}
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-medium dark:text-gray-200">
+                            {device.deviceName || "Secure device"}
+                          </p>
+                          {isCurrent && (
+                            <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800">
+                              Current
+                            </Badge>
+                          )}
+                          {!device.isActive && (
+                            <Badge variant="outline" className="border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+                              Revoked
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {device.platform || "unknown"} - Last active: {formatDate(device.lastSeenAt)}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          Signed prekey #{device.bundle?.signedPreKeyId || "n/a"} - {device.availableOneTimePreKeys} one-time keys
+                        </p>
+                        <p className="mt-1 max-w-full truncate font-mono text-[11px] text-gray-400 dark:text-gray-500">
+                          {device.deviceId}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={isCurrent || isRevoking || !device.isActive}
+                      onClick={() => handleRevokeSecureDevice(device.deviceId)}
+                      className="self-start text-red-500 hover:text-red-600 hover:bg-red-50 disabled:text-gray-400 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20 sm:self-center"
+                    >
+                      <ShieldOff size={14} className="mr-2" />
+                      {isRevoking ? "Revoking..." : "Revoke"}
+                    </Button>
+                  </div>
+                );
+              })}
             </div>
-
-            <div className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-main/50">
-              <div className="flex items-center gap-3">
-                <Smartphone size={20} className="text-gray-500 dark:text-gray-400" />
-                <div>
-                  <p className="font-medium dark:text-gray-200">Android App</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Chicago, IL • Last active: 5 days ago</p>
-                </div>
-              </div>
-              <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20">
-                Sign out
-              </Button>
-            </div>
-          </div>
+          )}
         </CardContent>
         <CardFooter className="dark:border-t dark:border-darkBorder-light">
-          <Button variant="outline" className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:border-darkBorder-light dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20">
-            <LogOut size={16} className="mr-2" />
-            Sign out of all devices
-          </Button>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Revoked devices cannot receive new secure chat envelopes. Existing local message history on that device is not remotely erased.
+          </p>
         </CardFooter>
       </Card>
     </div>

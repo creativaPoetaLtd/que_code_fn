@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -17,6 +17,7 @@ import { useGetGroupByIdQuery } from '@/states/groupSlice';
 import { useAuthToken } from '@/hooks/use-auth-token';
 import FundraisingProgressBadge from './fundraising-progress-badge';
 import { socketService } from '@/services/socketService';
+import { getInitials, isPlaceholderAvatar } from '@/utils/avatar';
 import {
   ArrowLeft,
   Info,
@@ -27,7 +28,13 @@ import {
   Circle,
   Wifi,
   Lock,
+  ShieldCheck,
   Trash2,
+  Send,
+  HandCoins,
+  Target,
+  BellOff,
+  Bell,
 } from 'lucide-react';
 
 interface ChatHeaderProps {
@@ -37,6 +44,11 @@ interface ChatHeaderProps {
   onInviteToGroup?: () => void;
   onGroupSettings?: () => void;
   onDeleteGroup?: () => void;
+  onVerifySecurity?: () => void;
+  onSendMoney?: () => void;
+  onRequestMoney?: () => void;
+  onCreateContribution?: () => void;
+  isGroupAdmin?: boolean;
 }
 
 export default function ChatHeader({
@@ -46,6 +58,11 @@ export default function ChatHeader({
   onInviteToGroup,
   onGroupSettings,
   onDeleteGroup,
+  onVerifySecurity,
+  onSendMoney,
+  onRequestMoney,
+  onCreateContribution,
+  isGroupAdmin = false,
 }: ChatHeaderProps) {
   const chat = useChat();
   const { getToken } = useAuthToken();
@@ -58,6 +75,34 @@ export default function ChatHeader({
   );
 
   const group = groupData?.data;
+  const isDirectConversation =
+    !conversation.isGroup && conversation.type !== 'support';
+  const isSecureConversation = conversation.securityMode === 'secure_dm_v1';
+  const [isMuted, setIsMuted] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const muted = JSON.parse(
+      localStorage.getItem('qc-muted-conversations') || '{}'
+    ) as Record<string, boolean>;
+    setIsMuted(Boolean(muted[conversation.id]));
+  }, [conversation.id]);
+
+  const toggleMuteConversation = () => {
+    if (typeof window === 'undefined') return;
+    const muted = JSON.parse(
+      localStorage.getItem('qc-muted-conversations') || '{}'
+    ) as Record<string, boolean>;
+    if (muted[conversation.id]) {
+      delete muted[conversation.id];
+      setIsMuted(false);
+    } else {
+      muted[conversation.id] = true;
+      setIsMuted(true);
+    }
+    localStorage.setItem('qc-muted-conversations', JSON.stringify(muted));
+    window.dispatchEvent(new Event('qc-muted-conversations-changed'));
+  };
 
   // Listen for real-time fundraising progress updates
   useEffect(() => {
@@ -85,36 +130,29 @@ export default function ChatHeader({
     return conversation.isOnline ? 'Online' : 'Last seen recently';
   };
 
-  const getInitials = (name: string | undefined) => {
-    if (!name) return 'U';
-    return name
-      .split(' ')
-      .map(word => word[0])
-      .join('')
-      .toUpperCase();
-  };
-
   return (
-    <div className='flex items-center justify-between px-3 sm:px-4 py-3 bg-white dark:bg-darkBg-card border-b border-gray-100 dark:border-darkBorder-light shadow-sm'>
+    <div className='flex items-center justify-between gap-1 px-2 sm:px-4 py-2.5 sm:py-3 bg-white dark:bg-darkBg-card border-b border-gray-100 dark:border-darkBorder-light shadow-sm'>
       {/* Back Button - Mobile Only */}
       <Button
         variant='ghost'
         size='icon'
         onClick={onBackClick}
-        className='h-9 w-9 md:hidden hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors'
+        className='h-9 w-9 flex-shrink-0 md:hidden hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors'
         aria-label='Back to conversations'
       >
         <ArrowLeft size={18} />
       </Button>
 
       {/* Conversation Info */}
-      <div className='flex items-center gap-3 flex-1 min-w-0'>
+      <div className='flex items-center gap-2 sm:gap-3 flex-1 min-w-0'>
         <div className='relative'>
-          <Avatar className='h-10 w-10 border-2 border-gray-100 dark:border-darkBorder-light'>
-            <AvatarImage
-              src={conversation.avatar}
-              alt={conversation.name || 'User'}
-            />
+          <Avatar className='h-9 w-9 sm:h-10 sm:w-10 border-2 border-gray-100 dark:border-darkBorder-light'>
+            {!isPlaceholderAvatar(conversation.avatar) && (
+              <AvatarImage
+                src={conversation.avatar}
+                alt={conversation.name || 'User'}
+              />
+            )}
             <AvatarFallback className='bg-brand-green dark:bg-brand-gold text-white dark:text-darkBg-main font-medium'>
               {getInitials(conversation.name)}
             </AvatarFallback>
@@ -132,17 +170,30 @@ export default function ChatHeader({
             <h1 className='text-base sm:text-lg font-semibold text-gray-900 dark:text-white truncate'>
               {conversation.name || 'Unknown Contact'}
             </h1>
+            {isSecureConversation && (
+              <Badge
+                variant='secondary'
+                className='hidden sm:inline-flex gap-1 border border-brand-green/20 bg-brand-green/10 text-brand-green'
+              >
+                <Lock size={12} />
+                Secure
+              </Badge>
+            )}
           </div>
 
           {/* Fundraising Progress for Groups */}
-          {conversation.isGroup && group?.hasFundraising && group.fundraisingTarget && (
-            <div className="mt-1">
-              <FundraisingProgressBadge
-                currentAmount={group.walletBalance ?? group.fundraisingCurrentAmount ?? 0}
-                targetAmount={group.fundraisingTarget}
-              />
-            </div>
-          )}
+          {conversation.isGroup &&
+            group?.hasFundraising &&
+            group.fundraisingTarget && (
+              <div className='mt-1'>
+                <FundraisingProgressBadge
+                  currentAmount={
+                    group.walletBalance ?? group.fundraisingCurrentAmount ?? 0
+                  }
+                  targetAmount={group.fundraisingTarget}
+                />
+              </div>
+            )}
 
           {/* Online Status (only show if not fundraising) */}
           {!(conversation.isGroup && group?.hasFundraising) && (
@@ -169,7 +220,44 @@ export default function ChatHeader({
             </Button>
           )}
         </div>
+        {onSendMoney && (
+          <Button
+            variant='ghost'
+            size='icon'
+            onClick={onSendMoney}
+            className='h-9 w-9 hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors'
+            aria-label='Send money'
+            title='Send money'
+          >
+            <Send size={16} />
+          </Button>
+        )}
 
+        {!conversation.isGroup && onRequestMoney && (
+          <Button
+            variant='ghost'
+            size='icon'
+            onClick={onRequestMoney}
+            className='h-9 w-9 hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors'
+            aria-label='Request money'
+            title='Request money'
+          >
+            <HandCoins size={16} />
+          </Button>
+        )}
+
+        {conversation.isGroup && isGroupAdmin && onCreateContribution && (
+          <Button
+            variant='ghost'
+            size='icon'
+            onClick={onCreateContribution}
+            className='h-9 w-9 hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors'
+            aria-label='Create contribution'
+            title='Create contribution'
+          >
+            <Target size={16} />
+          </Button>
+        )}
         {/* Profile/Info Button */}
         <Button
           variant='ghost'
@@ -180,6 +268,7 @@ export default function ChatHeader({
         >
           <Info size={16} />
         </Button>
+
 
         {/* More Actions Dropdown */}
         <DropdownMenu>
@@ -230,14 +319,37 @@ export default function ChatHeader({
             </DropdownMenuItem>
 
             <DropdownMenuItem
-              onClick={() => chat.initializeEncryption()}
+              onClick={toggleMuteConversation}
               className='cursor-pointer'
             >
-              <Lock size={14} className='mr-2' />
-              Initialize Encryption
+              {isMuted ? (
+                <Bell size={14} className='mr-2' />
+              ) : (
+                <BellOff size={14} className='mr-2' />
+              )}
+              {isMuted ? 'Unmute Conversation' : 'Mute Conversation'}
             </DropdownMenuItem>
 
-            {/* Delete Group — only visible to owners and admins */}
+            {isDirectConversation &&
+              isSecureConversation &&
+              onVerifySecurity && (
+                <DropdownMenuItem
+                  onClick={onVerifySecurity}
+                  className='cursor-pointer'
+                >
+                  <ShieldCheck size={14} className='mr-2' />
+                  Verify Security
+                </DropdownMenuItem>
+              )}
+
+            {isDirectConversation && isSecureConversation && (
+              <DropdownMenuItem disabled className='cursor-default opacity-70'>
+                <Lock size={14} className='mr-2' />
+                End-to-end encrypted
+              </DropdownMenuItem>
+            )}
+
+            {/* Delete Group â€” only visible to owners and admins */}
             {conversation.isGroup &&
               (group?.userRole === 'owner' || group?.userRole === 'admin') &&
               onDeleteGroup && (
@@ -250,7 +362,7 @@ export default function ChatHeader({
                 </DropdownMenuItem>
               )}
 
-            {/* Delete Chat — only for direct (non-group) conversations */}
+            {/* Delete Chat â€” only for direct (non-group) conversations */}
             {!conversation.isGroup && (
               <DropdownMenuItem
                 onClick={() =>
