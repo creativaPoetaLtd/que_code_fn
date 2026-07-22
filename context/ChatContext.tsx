@@ -162,7 +162,6 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         
         // If userId changes (different user logged in), clear all state
         if (userId && currentUserId && userId !== currentUserId) {
-            console.log('Different user detected, clearing chat state');
             setConversations([]);
             setActiveChat(null);
             setMessages({});
@@ -185,7 +184,6 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
             
             // If user changed, clear state
             if (userId && newUserId && userId !== newUserId) {
-                console.log('User changed via token event, clearing chat state');
                 setConversations([]);
                 setActiveChat(null);
                 setMessages({});

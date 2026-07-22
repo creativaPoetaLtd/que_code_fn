@@ -28,12 +28,10 @@ class SocketService {
         this.connectionCount++
 
         if (this.socket?.connected) {
-            console.log(`Socket already connected. Connection count: ${this.connectionCount}`)
             return this.socket
         }
 
         this.userId = userId
-        console.log(`Creating new socket connection. Connection count: ${this.connectionCount}`)
 
         const finalToken = token || getValidToken();
 
@@ -46,16 +44,13 @@ class SocketService {
         })
 
         this.socket.on("connect", () => {
-            console.log("Connected to chat server")
             // User is automatically joined to their chats on connection
         })
 
         this.socket.on("disconnect", () => {
-            console.log("Disconnected from socket server")
         })
 
         this.socket.on("connect_error", async (error) => {
-            console.error("Socket connection error:", error)
             if (error.message.includes('Authentication error') && !this.refreshInProgress) {
                 this.refreshInProgress = true
 
@@ -81,11 +76,9 @@ class SocketService {
 
     disconnect() {
         this.connectionCount = Math.max(0, this.connectionCount - 1)
-        console.log(`Disconnect requested. Connection count: ${this.connectionCount}`)
 
         // Only actually disconnect when no contexts are using the socket
         if (this.connectionCount === 0 && this.socket) {
-            console.log("Actually disconnecting socket")
             this.socket.disconnect()
             this.socket = null
             this.userId = null
@@ -94,7 +87,6 @@ class SocketService {
 
     // Force disconnect (for logout)
     forceDisconnect() {
-        console.log("Force disconnecting socket")
         if (this.socket) {
             this.socket.removeAllListeners()
             this.socket.disconnect()
@@ -182,19 +174,15 @@ class SocketService {
             if (this.socket.connected) {
                 this.socket.emit("send_message", payload)
             } else {
-                console.error('Socket exists but is not connected. Attempting to reconnect...');
                 this.socket.connect();
                 setTimeout(() => {
                     if (this.socket?.connected) {
-                        console.log('Reconnected, sending message');
                         this.socket.emit("send_message", payload)
                     } else {
-                        console.error('Failed to reconnect socket');
                     }
                 }, 1000);
             }
         } else {
-            console.error('No socket available to send message');
         }
     }
 

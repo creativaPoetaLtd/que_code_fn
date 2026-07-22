@@ -184,7 +184,7 @@ export default function StartChatModal({ isOpen, onClose, onStartChat, existingC
               <div className='text-center py-8'>
                 <Search size={40} className='mx-auto mb-2 text-gray-400 dark:text-gray-500' />
                 <p className='text-gray-500 dark:text-gray-400'>
-                  No contacts found matching "{searchTerm}"
+                  No contacts found matching &quot;{searchTerm}&quot;
                 </p>
               </div>
             ) : availableContacts.length === 0 ? (
