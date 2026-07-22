@@ -8,15 +8,16 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { useGetGroupByIdQuery, useGetGroupMembersQuery } from "@/states/groupSlice";
+import { useGetGroupByIdQuery, useGetGroupMembersQuery, useGetGroupJoinRequestsQuery } from "@/states/groupSlice";
 import { socketService } from "@/services/socketService";
 import GroupProgressBar from "./group-progress-bar";
 import DeadlineCounter from "./deadline-counter";
 import GroupMembersList from "./group-members-list";
-import { Check, Copy, Download, Info, Loader2, QrCode, Users, Target } from "lucide-react";
+import { Check, Copy, Download, Info, Loader2, QrCode, Users, Target, ExternalLink, ClipboardList } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { Group } from "@/types/group.types";
 import { getCurrentUserId } from "@/utils/tokenUtils";
+import { getContributionByGroup } from "@/helpers/api";
 
 interface GroupDetailsContentProps {
     groupId: string | null;
@@ -26,6 +27,7 @@ interface GroupDetailsContentProps {
     membersMaxHeight?: string;
     headerAction?: ReactNode;
     renderActions?: (group: Group) => ReactNode;
+    onJoinRequests?: () => void;
 }
 
 export default function GroupDetailsContent({
@@ -36,10 +38,12 @@ export default function GroupDetailsContent({
     membersMaxHeight = "max-h-48",
     headerAction,
     renderActions,
+    onJoinRequests,
 }: GroupDetailsContentProps) {
     const { toast } = useToast();
     const router = useRouter();
     const [copiedLink, setCopiedLink] = useState(false);
+    const [linkedCampaign, setLinkedCampaign] = useState<{ id: string; title: string; status: string; collectedAmount: number; goalAmount: number | null } | null>(null);
 
     const { data: groupData, isLoading: isLoadingGroup, refetch: refetchGroup } = useGetGroupByIdQuery(
         { groupId: groupId!, token },
@@ -54,6 +58,18 @@ export default function GroupDetailsContent({
     const group = groupData?.data;
     const members = membersData?.data?.members || [];
     const isLoading = isLoadingGroup || isLoadingMembers;
+
+    const showJoinRequestsEntry =
+        !!onJoinRequests &&
+        !!group &&
+        (group.userRole === "owner" || group.userRole === "admin") &&
+        group.privacyType === "require_approval";
+
+    const { data: joinRequestsData } = useGetGroupJoinRequestsQuery(
+        { groupId: groupId!, token },
+        { skip: !groupId || !token || !showJoinRequestsEntry }
+    );
+    const pendingRequestsCount = joinRequestsData?.data?.requests?.length ?? 0;
 
     useEffect(() => {
         if (!groupId || !isActive) return;
@@ -76,6 +92,13 @@ export default function GroupDetailsContent({
         socketService.onFundraisingProgress(handleProgressUpdate);
         return () => { socketService.offFundraisingProgress(handleProgressUpdate); };
     }, [groupId, isActive, refetchGroup, toast]);
+
+    useEffect(() => {
+        if (!groupId) return;
+        getContributionByGroup(groupId)
+            .then((res) => setLinkedCampaign(res?.data?.data ?? null))
+            .catch(() => setLinkedCampaign(null));
+    }, [groupId]);
 
     const handleCopyLink = async () => {
         if (group?.accessLink) {
@@ -175,6 +198,38 @@ export default function GroupDetailsContent({
                         <div className="bg-gray-50 dark:bg-darkBg-interactive rounded-lg p-3">
                             <h4 className="font-semibold text-xs text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">About</h4>
                             <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">{group.description}</p>
+                        </div>
+                    )}
+
+                    {/* Campaign banner — shown when this group is linked to a public campaign */}
+                    {linkedCampaign && (
+                        <div className="bg-brand-green/5 dark:bg-brand-gold/5 border border-brand-green/20 dark:border-brand-gold/20 rounded-lg p-3">
+                            <div className="flex items-start gap-2.5">
+                                <div className="bg-brand-green/10 dark:bg-brand-gold/10 p-1.5 rounded-full shrink-0">
+                                    <Target size={13} className="text-brand-green dark:text-brand-gold" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-0.5">
+                                        Linked Campaign
+                                    </p>
+                                    <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate">
+                                        {linkedCampaign.title}
+                                    </p>
+                                    {linkedCampaign.goalAmount && (
+                                        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                                            {new Intl.NumberFormat("en-RW", { style: "currency", currency: "RWF", minimumFractionDigits: 0 }).format(Number(linkedCampaign.collectedAmount))}
+                                            {" / "}
+                                            {new Intl.NumberFormat("en-RW", { style: "currency", currency: "RWF", minimumFractionDigits: 0 }).format(Number(linkedCampaign.goalAmount))} goal
+                                        </p>
+                                    )}
+                                </div>
+                                <button
+                                    onClick={() => router.push(`/contribute/${linkedCampaign.id}`)}
+                                    className="shrink-0 flex items-center gap-1 text-[11px] font-medium text-brand-green dark:text-brand-gold hover:underline"
+                                >
+                                    View <ExternalLink size={10} />
+                                </button>
+                            </div>
                         </div>
                     )}
 
@@ -307,6 +362,33 @@ export default function GroupDetailsContent({
                     </Button>
 
                     {renderActions && renderActions(group)}
+
+                    {/* Join requests — visible to owners/admins of require_approval groups */}
+                    {showJoinRequestsEntry && (
+                        <button
+                            type="button"
+                            onClick={onJoinRequests}
+                            className={cn(
+                                "w-full flex items-center justify-between px-3 py-2.5 rounded-lg border transition-colors text-sm",
+                                pendingRequestsCount > 0
+                                    ? "border-brand-green/40 dark:border-brand-gold/40 bg-brand-green/5 dark:bg-brand-gold/5 text-gray-800 dark:text-gray-200"
+                                    : "border-gray-200 dark:border-darkBorder-light hover:bg-gray-50 dark:hover:bg-darkBg-interactive text-gray-700 dark:text-gray-300"
+                            )}
+                        >
+                            <span className="flex items-center gap-2">
+                                <ClipboardList size={15} className="text-brand-green dark:text-brand-gold" />
+                                Join Requests
+                                {pendingRequestsCount > 0 && (
+                                    <Badge className="bg-brand-green dark:bg-brand-gold text-white dark:text-darkBg-main text-[10px] h-5 min-w-5 px-1.5 rounded-full">
+                                        {pendingRequestsCount}
+                                    </Badge>
+                                )}
+                            </span>
+                            <span className="text-xs text-gray-400 dark:text-gray-500">
+                                {pendingRequestsCount > 0 ? "Review now →" : "Review →"}
+                            </span>
+                        </button>
+                    )}
 
                     <div className="text-xs text-gray-400 dark:text-gray-500 text-center space-y-0.5 pt-2 border-t border-gray-100 dark:border-darkBorder-light">
                         <p>

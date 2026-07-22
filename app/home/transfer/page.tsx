@@ -5,12 +5,14 @@ import Navigation from '@/components/Navigation'
 import { Header } from '@/components/Header'
 import { useSidebar } from '@/context/SidebarContext'
 import { cn } from '@/lib/utils'
+import { useAccent } from '@/hooks/use-accent'
 
 const TransferPage = () => {
     const { isExpanded } = useSidebar();
+    const accent = useAccent();
 
     return (
-        <div className="flex flex-col min-h-screen bg-white dark:bg-transparent">
+        <div className={`flex flex-col min-h-screen bg-white ${accent.darkBgPage}`}>
             <Navigation hideBottomNav />
 
             {/* Main Content */}

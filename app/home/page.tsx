@@ -2,10 +2,12 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useAuthToken } from '@/hooks/use-auth-token';
+import { useAccent } from '@/hooks/use-accent';
 
 const HomePage = () => {
   const router = useRouter();
   const { getToken } = useAuthToken();
+  const accent = useAccent();
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [redirectAttempts, setRedirectAttempts] = useState(0);
 
@@ -71,7 +73,7 @@ const HomePage = () => {
   // If too many redirect attempts, show error and manual redirect button
   if (redirectAttempts >= 3) {
     return (
-      <div className="flex flex-col min-h-screen bg-gray-50">
+      <div className={`flex flex-col min-h-screen bg-gray-50 ${accent.darkBgPage}`}>
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <div className="text-red-500 mb-4">Redirect failed</div>
@@ -97,7 +99,7 @@ const HomePage = () => {
                   router.push('/auth/login');
                 }
               }}
-              className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+              className={`px-4 py-2 ${accent.solid} text-white rounded`}
             >
               Try Again
             </button>
@@ -109,10 +111,10 @@ const HomePage = () => {
 
   // Show loading state while redirecting
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
+    <div className={`flex flex-col min-h-screen bg-gray-50 ${accent.darkBgPage}`}>
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500 mx-auto"></div>
+          <div className={`animate-spin rounded-full h-8 w-8 border-b-2 ${accent.spinner} mx-auto`}></div>
           <p className="mt-4 text-gray-600">Redirecting to your home page...</p>
           <p className="mt-2 text-sm text-gray-400">Please wait...</p>
           {redirectAttempts > 0 && (

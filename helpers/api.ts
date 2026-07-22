@@ -397,18 +397,31 @@ export const getSubActions = (actionId: string) => apiGet(`/actions/${actionId}/
 export const getGroupById = (groupId: string) =>
   axios.get(`${baseUrl}/groups/${groupId}`, { headers: getAuthHeaders() });
 
+export const transferActionPurchase = (purchaseId: string, recipientId: string) =>
+  apiPost(`/action-purchases/${purchaseId}/transfer`, { recipientId });
+
+export const getUserById = (userId: string) => apiGet(`/users/${userId}`);
+
+export const getOrganizationById = (organizationId: string) =>
+  apiGet(`/organizations/${organizationId}`);
+
+export const getGroupWallet = (groupId: string) =>
+  apiGet(`/groups/${groupId}/wallet`);
+
 // Group contributions
 export const createGroupContribution = (
   groupId: string,
   payload: {
     title: string;
     note?: string;
-    goalAmount: number;
+    goalAmount?: number;
     type: "fixed" | "flexible";
     amountPerMember?: number;
     minimumAmount?: number;
     deadline?: string;
     visibilityMode: "all" | "admin_only";
+    disbursementPolicy?: "hold" | "auto";
+    disbursementRecipientId?: string;
   }
 ) =>
   axios.post(`${baseUrl}/groups/${groupId}/contributions`, payload, {
@@ -423,11 +436,116 @@ export const getGroupContributions = (groupId: string) =>
 export const getGroupContribution = (groupId: string, contributionId: string) =>
   apiGet(`/groups/${groupId}/contributions/${contributionId}`);
 
-export const contributeToGroup = (groupId: string, contributionId: string, amount: number, pin: string) =>
-  axios.post(`${baseUrl}/groups/${groupId}/contributions/${contributionId}/pay`, { amount, pin }, { headers: getAuthHeaders() });
+export const contributeToGroup = (groupId: string, contributionId: string, amount: number, pin: string, isAnonymous?: boolean) =>
+  axios.post(`${baseUrl}/groups/${groupId}/contributions/${contributionId}/pay`, { amount, pin, isAnonymous }, { headers: getAuthHeaders() });
+
+export const updateGroupContribution = (
+  groupId: string,
+  contributionId: string,
+  payload: {
+    title?: string;
+    note?: string | null;
+    goalAmount?: number | null;
+    visibilityMode?: "all" | "admin_only";
+    disbursementPolicy?: "hold" | "auto";
+    disbursementRecipientId?: string | null;
+  }
+) =>
+  axios.patch(`${baseUrl}/groups/${groupId}/contributions/${contributionId}`, payload, { headers: getAuthHeaders() });
 
 export const closeGroupContribution = (groupId: string, contributionId: string) =>
   axios.patch(`${baseUrl}/groups/${groupId}/contributions/${contributionId}/close`, {}, { headers: getAuthHeaders() });
 
 export const extendGroupContributionDeadline = (groupId: string, contributionId: string, deadline: string) =>
   axios.patch(`${baseUrl}/groups/${groupId}/contributions/${contributionId}/extend`, { deadline }, { headers: getAuthHeaders() });
+
+export const withdrawGroupContribution = (groupId: string, contributionId: string) =>
+  axios.post(`${baseUrl}/groups/${groupId}/contributions/${contributionId}/withdraw`, {}, { headers: getAuthHeaders() });
+
+export const listGroupContributors = (groupId: string, contributionId: string) =>
+  apiGet(`/groups/${groupId}/contributions/${contributionId}/contributors`);
+
+// Public (standalone) contributions
+export const createPublicContribution = (payload: {
+  title: string;
+  note?: string;
+  goalAmount?: number;
+  type: "fixed" | "flexible";
+  amountPerMember?: number;
+  minimumAmount?: number;
+  deadline?: string;
+  visibilityMode?: "all" | "creator_only";
+  disbursementPolicy?: "hold" | "auto";
+}) =>
+  apiPost("/public-contributions", payload);
+
+export const getPublicContribution = (contributionId: string) =>
+  apiGet(`/public-contributions/${contributionId}`);
+
+export const getMyPublicContributions = () =>
+  apiGet("/public-contributions/");
+
+export const contributeToPublic = (contributionId: string, amount: number, pin: string, isAnonymous?: boolean) =>
+  axios.post(
+    `${baseUrl}/public-contributions/${contributionId}/pay`,
+    { amount, pin, isAnonymous },
+    { headers: getAuthHeaders() }
+  );
+
+export const closePublicContribution = (contributionId: string) =>
+  axios.patch(
+    `${baseUrl}/public-contributions/${contributionId}/close`,
+    {},
+    { headers: getAuthHeaders() }
+  );
+
+export const extendPublicContributionDeadline = (contributionId: string, deadline: string) =>
+  axios.patch(
+    `${baseUrl}/public-contributions/${contributionId}/extend`,
+    { deadline },
+    { headers: getAuthHeaders() }
+  );
+
+export const withdrawPublicContribution = (contributionId: string) =>
+  axios.post(
+    `${baseUrl}/public-contributions/${contributionId}/withdraw`,
+    {},
+    { headers: getAuthHeaders() }
+  );
+
+export const updatePublicContribution = (
+  contributionId: string,
+  payload: {
+    title?: string;
+    note?: string | null;
+    goalAmount?: number | null;
+    visibilityMode?: "all" | "creator_only";
+    disbursementPolicy?: "hold" | "auto";
+  }
+) =>
+  axios.patch(`${baseUrl}/public-contributions/${contributionId}`, payload, { headers: getAuthHeaders() });
+
+export const listPublicContributors = (contributionId: string) =>
+  apiGet(`/public-contributions/${contributionId}/contributors`);
+
+export const createCampaignGroup = (
+  contributionId: string,
+  payload: { name: string; description?: string; isOpen: boolean }
+) =>
+  axios.post(`${baseUrl}/public-contributions/${contributionId}/group`, payload, { headers: getAuthHeaders() });
+
+export const getCampaignGroup = (contributionId: string) =>
+  apiGet(`/public-contributions/${contributionId}/group`);
+
+export const joinCampaignGroup = (contributionId: string) =>
+  apiPost(`/public-contributions/${contributionId}/join-group`, {});
+
+export const getContributionByGroup = (groupId: string) =>
+  apiGet(`/public-contributions/by-group/${groupId}`);
+
+export const updateGroupPrivacy = (groupId: string, isOpen: boolean) =>
+  axios.put(
+    `${baseUrl}/groups/${groupId}`,
+    { privacyType: isOpen ? "public" : "require_approval" },
+    { headers: getAuthHeaders() }
+  );

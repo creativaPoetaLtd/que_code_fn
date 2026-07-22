@@ -19,6 +19,7 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import baseUrl from "@/helpers/baseUrl";
 import RequestQRModal from "@/components/payments/RequestQRModal";
+import { useAccent } from "@/hooks/use-accent";
 
 interface RecipientOption {
   id: string;
@@ -32,6 +33,7 @@ function RequestMoneyPageInner() {
   const { isExpanded } = useSidebar();
   const { getToken } = useAuthToken();
   const token = getToken();
+  const accent = useAccent();
 
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
@@ -155,7 +157,7 @@ function RequestMoneyPageInner() {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-transparent">
+    <div className={`flex min-h-screen bg-gray-50 ${accent.darkBgPage}`}>
       <Navigation />
       <main
         className={cn(

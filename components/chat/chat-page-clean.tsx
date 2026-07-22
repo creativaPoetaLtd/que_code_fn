@@ -198,12 +198,11 @@ export default function ChatPageClean() {
       conversation => conversation.id === requestedChatId
     );
 
-    if (!requestedConversation) {
-      return;
-    }
+    if (!requestedConversation) return;
 
     handleConversationSelect(requestedConversation);
-  }, [requestedChatId, conversations, selectedChat?.id, activeChat]);
+    setRequestedChatId(null);
+  }, [requestedChatId, conversations]);
 
   // Clear activeChat when navigating away from chat page
   useEffect(() => {

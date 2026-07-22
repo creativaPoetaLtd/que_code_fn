@@ -2,7 +2,7 @@ import type { Config } from 'tailwindcss'
 
 const config: Config = {
 	darkMode: ["class"],
-	content: ["./pages/**/*.{js,ts,jsx,tsx,mdx}", "./components/**/*.{js,ts,jsx,tsx,mdx}", "./app/**/*.{js,ts,jsx,tsx,mdx}", "./src/**/*.{js,ts,jsx,tsx,mdx}", "*.{js,ts,jsx,tsx,mdx}"],
+	content: ["./pages/**/*.{js,ts,jsx,tsx,mdx}", "./components/**/*.{js,ts,jsx,tsx,mdx}", "./app/**/*.{js,ts,jsx,tsx,mdx}", "./src/**/*.{js,ts,jsx,tsx,mdx}", "./hooks/**/*.{js,ts,jsx,tsx,mdx}", "*.{js,ts,jsx,tsx,mdx}"],
 	theme: {
 		container: {
 			center: true,
@@ -12,6 +12,9 @@ const config: Config = {
 			},
 		},
 		extend: {
+			borderColor: {
+				DEFAULT: "hsl(var(--border))",
+			},
 			colors: {
 				border: "hsl(var(--border))",
 				input: "hsl(var(--input))",
@@ -58,13 +61,13 @@ const config: Config = {
 					dark: '#040f0c',
 					teal: '#17624b',
 				},
-				// Dark Mode Theme
+				// Dark Mode Theme — values driven by CSS vars so org/personal can swap at runtime
 				darkBg: {
-					main: '#040f0c',
-					card: '#0c241b',
-					interactive: '#1a3028',
-					overlay: '#0d1f17',
-					sidebar: '#040f0c',
+					main: 'var(--dark-bg-main, #060d08)',
+					card: 'var(--dark-bg-card, #0b1610)',
+					interactive: 'var(--dark-bg-interactive, #132016)',
+					overlay: 'var(--dark-bg-overlay, #0d1a12)',
+					sidebar: 'var(--dark-bg-sidebar, #060d08)',
 				},
 				darkBorder: {
 					light: 'rgba(255, 255, 255, 0.05)',

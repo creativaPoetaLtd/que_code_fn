@@ -329,6 +329,8 @@ const ActionPageLayout: React.FC = () => {
             title: "Actions",
             key: "action",
             align: "center",
+            fixed: "right" as const,
+            width: 160,
             render: (_, record) => (
                 <div className="flex items-center justify-center gap-2">
                     <Button
@@ -366,13 +368,13 @@ const ActionPageLayout: React.FC = () => {
                     <p className="text-sm text-gray-600">Design QR-powered experiences and manage them in one place.</p>
                 </div>
                 <div className="flex gap-3">
-                    <Button icon={<ReloadOutlined />} onClick={fetchActions}>
+                    <Button icon={<ReloadOutlined />} onClick={fetchActions} className="w-full sm:w-auto">
                         Refresh
                     </Button>
                     <Button
                         type="primary"
                         icon={<PlusOutlined />}
-                        className="bg-[#00B512] border-none hover:bg-[#009e10]"
+                        className="w-full sm:w-auto bg-[#00B512] border-none hover:bg-[#009e10]"
                         onClick={() => setWizardOpen(true)}
                     >
                         New Action
@@ -391,6 +393,7 @@ const ActionPageLayout: React.FC = () => {
                 <Tabs
                     activeKey={activeTab}
                     onChange={(key) => setActiveTab(key as FilterTab)}
+                    tabBarStyle={{ overflowX: 'auto', whiteSpace: 'nowrap' }}
                     items={[
                         {
                             key: 'active',
@@ -406,25 +409,26 @@ const ActionPageLayout: React.FC = () => {
                 />
             </div>
 
-            <div className="flex-1 overflow-auto">
+            <div className="flex-1 overflow-hidden rounded-2xl border border-gray-100">
                 <Table
                     loading={loading}
                     dataSource={tableData}
                     columns={columns}
+                    scroll={{ x: 800 }}
                     pagination={{ pageSize: 6, showSizeChanger: false }}
                     rowSelection={{ type: 'checkbox' }}
                     locale={{
                         emptyText: (
-                            <Empty 
+                            <Empty
                                 description={
-                                    activeTab === 'archive' 
-                                        ? "No archived or expired actions yet." 
+                                    activeTab === 'archive'
+                                        ? "No archived or expired actions yet."
                                         : "No actions yet. Create your first one to get started."
-                                } 
+                                }
                             />
                         ),
                     }}
-                    className="border border-gray-100 rounded-2xl"
+                    className="rounded-2xl"
                 />
             </div>
 
@@ -445,6 +449,8 @@ const ActionPageLayout: React.FC = () => {
                 okText="Transfer"
                 confirmLoading={transferSubmitting}
                 okButtonProps={{ className: 'bg-[#00B512] border-none hover:bg-[#009e10]' }}
+                width="min(480px, calc(100vw - 32px))"
+                style={{ top: 'auto' }}
                 destroyOnClose
             >
                 <div className="space-y-4 pt-2">

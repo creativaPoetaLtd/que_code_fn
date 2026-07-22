@@ -1509,7 +1509,7 @@ const WelcomeProfilePage: React.FC = () => {
     <>
       {isHydrated && isLoggedIn && <Header />}
       <div className={`min-h-screen ${accent.bgPage}`}>
-        <div className="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-8 space-y-4 sm:space-y-5">
+        <div className="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-8 space-y-4 sm:space-y-5 mobile-bottom-padding">
 
           {/* Profile header card */}
           <div className={`rounded-2xl p-4 sm:p-6 md:p-8 ${accent.bgCard}`}>

@@ -146,7 +146,7 @@ export default function ChatHeader({
       {/* Conversation Info */}
       <div className='flex items-center gap-2 sm:gap-3 flex-1 min-w-0'>
         <div className='relative'>
-          <Avatar className='h-9 w-9 sm:h-10 sm:w-10 border-2 border-gray-100'>
+          <Avatar className='h-9 w-9 sm:h-10 sm:w-10 border-2 border-gray-100 dark:border-darkBorder-light'>
             {!isPlaceholderAvatar(conversation.avatar) && (
               <AvatarImage
                 src={conversation.avatar}
@@ -160,7 +160,7 @@ export default function ChatHeader({
           {!conversation.isGroup && conversation.isOnline && (
             <Circle
               size={10}
-              className='absolute -bottom-0.5 -right-0.5 fill-green-500 text-green-500 border-2 border-white rounded-full'
+              className='absolute -bottom-0.5 -right-0.5 fill-green-500 text-green-500 border-2 border-white dark:border-darkBg-card rounded-full'
             />
           )}
         </div>
@@ -258,6 +258,17 @@ export default function ChatHeader({
             <Target size={16} />
           </Button>
         )}
+        {/* Profile/Info Button */}
+        <Button
+          variant='ghost'
+          size='icon'
+          onClick={onViewProfile}
+          className='h-9 w-9 hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors'
+          aria-label='View profile'
+        >
+          <Info size={16} />
+        </Button>
+
 
         {/* More Actions Dropdown */}
         <DropdownMenu>
@@ -338,7 +349,7 @@ export default function ChatHeader({
               </DropdownMenuItem>
             )}
 
-            {/* Delete Group — only visible to owners and admins */}
+            {/* Delete Group â€” only visible to owners and admins */}
             {conversation.isGroup &&
               (group?.userRole === 'owner' || group?.userRole === 'admin') &&
               onDeleteGroup && (
@@ -351,7 +362,7 @@ export default function ChatHeader({
                 </DropdownMenuItem>
               )}
 
-            {/* Delete Chat — only for direct (non-group) conversations */}
+            {/* Delete Chat â€” only for direct (non-group) conversations */}
             {!conversation.isGroup && (
               <DropdownMenuItem
                 onClick={() =>

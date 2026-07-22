@@ -28,7 +28,6 @@ import {
     Store,
     MoreHorizontal,
     X,
-    HelpCircle,
     Sun,
     HandCoins
 } from "lucide-react"
@@ -113,8 +112,6 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
             setActiveItem('Wallet');
         } else if (pathname.includes('/settings')) {
             setActiveItem('Settings');
-        } else if (pathname.includes('/support')) {
-            setActiveItem('Support');
         } else if (pathname.includes('/groups')) {
             setActiveItem('Groups');
         } else if (pathname.includes('/home/requests')) {
@@ -139,13 +136,13 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
 
     const mobileSecondaryItems: NavigationItem[] = [
         { id: "Groups", icon: <Network size={24} />, label: "Groups", path: "/groups" },
+        { id: "Actions", icon: <FileText size={24} />, label: "Actions", path: userId ? `/action/${userId}` : '/action' },
         { id: "Contacts", icon: <Users size={24} />, label: "Contacts", path: '/contacts' },
         { id: "Merchants", icon: <Store size={24} />, label: "Merchants", path: userId ? `/merchants/${userId}` : '/merchants' },
         { id: "History", icon: <Clock size={24} />, label: "History", path: "/transactions" },
         { id: "Wallet", icon: <Wallet size={24} />, label: "Wallet", path: userId ? `/wallet/${userId}` : '/wallet' },
         { id: "Requests", icon: <HandCoins size={24} />, label: "Requests", path: "/home/requests" },
         { id: "Settings", icon: <Settings size={24} />, label: "Settings", path: `/settings` },
-        { id: "Help", icon: <HelpCircle size={24} />, label: "Help", path: `/help` },
     ]
 
     const mainMenuItems: NavigationItem[] = [
@@ -309,27 +306,6 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
                         theme === "dark" ? "border-darkBorder-light" : "border-gray-200"
                     )}>
                         <div className="flex flex-col gap-2">
-                            <button
-                                onClick={() => handleClick("Support", "/support")}
-                                className={cn(
-                                    "flex items-center px-3 py-3.5 transition-all rounded-xl duration-200",
-                                    "justify-center",
-                                    activeItem === "Support"
-                                        ? theme === "dark"
-                                            ? "bg-brand-gold text-gray-900 shadow-lg"
-                                            : "bg-brand-green text-white shadow-lg"
-                                        : theme === "dark"
-                                            ? "text-white hover:bg-darkBg-interactive hover:shadow-md"
-                                            : "text-gray-700 hover:bg-gray-100 hover:shadow-md"
-                                )}
-                                aria-label="Support"
-                                title="Support"
-                            >
-                                <span className="inline-flex items-center justify-center">
-                                    <HelpCircle size={24} />
-                                </span>
-                            </button>
-
                             {bottomMenuItems.map((item) => (
                                 <button
                                     key={item.id}

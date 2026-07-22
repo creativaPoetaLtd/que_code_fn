@@ -19,9 +19,16 @@ import {
     CheckCircle,
     Ban,
     CalendarClock,
+    ChevronLeft,
     ChevronRight,
     Lock,
     ArrowRight,
+    Plus,
+    Globe2,
+    Eye,
+    Pencil,
+    Send,
+    ArrowLeftRight,
 } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import Navigation from '@/components/Navigation';
@@ -38,10 +45,21 @@ import { Button } from '@/components/ui/button';
 import jsPDF from 'jspdf';
 import ActionWizardModal from '@/components/ActionPage/ActionWizardModal';
 import QRObjectValidator from '@/components/ActionPage/QRObjectValidator';
-import { createSubAction, updateSubAction, getMyGroupContributions, contributeToGroup, closeGroupContribution, extendGroupContributionDeadline } from '@/helpers/api';
+import TransferTicketModal from '@/components/ActionPage/TransferTicketModal';
+import { createSubAction, updateSubAction, getMyGroupContributions, contributeToGroup, closeGroupContribution, extendGroupContributionDeadline, getMyPublicContributions } from '@/helpers/api';
+import CreatePublicContributionModal from '@/components/contributions/CreatePublicContributionModal';
+import { PublicContributionCard, PublicContributionData } from '@/components/contributions/PublicContributionCard';
 import socketService from '@/services/socketService';
 import { getCurrentUserId } from '@/utils/tokenUtils';
 import { formatDistanceToNow } from 'date-fns';
+
+interface TransferRecord {
+    fromId: string;
+    fromName: string;
+    toId: string;
+    toName: string;
+    at: string;
+}
 
 interface QrObject {
     id: string;
@@ -55,6 +73,7 @@ interface QrObject {
         coverImage?: string;
         actionId?: string;
         organizationId?: string;
+        transferHistory?: TransferRecord[];
         [key: string]: any;
     };
     status: string;
@@ -66,6 +85,7 @@ interface QrObject {
     createdAt?: string;
     updatedAt?: string;
     actionId?: string;
+    actionPurchaseId?: string;
     organizationId?: string;
 }
 
@@ -128,11 +148,18 @@ interface MyContribution {
 const fmtRwf = (n: number, cur = 'RWF') =>
     new Intl.NumberFormat('en-RW', { style: 'currency', currency: cur, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
 
+const toOrdinal = (n: number) => {
+    const s = ['th', 'st', 'nd', 'rd'];
+    const v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+};
+
 function ContributeFlow({ contribution, onSuccess }: { contribution: MyContribution; onSuccess: (amount: number) => void }) {
     type Step = 'idle' | 'enter_amount' | 'enter_pin' | 'loading';
     const [step, setStep] = useState<Step>('idle');
     const [amount, setAmount] = useState('');
     const [pin, setPin] = useState('');
+    const [isAnonymous, setIsAnonymous] = useState(false);
 
     const fixedAmount = Number(contribution.amountPerMember);
 
@@ -144,16 +171,16 @@ function ContributeFlow({ contribution, onSuccess }: { contribution: MyContribut
         }
         setStep('loading');
         try {
-            await contributeToGroup(contribution.groupId, contribution.id, payAmount, pin);
+            await contributeToGroup(contribution.groupId, contribution.id, payAmount, pin, isAnonymous);
             onSuccess(payAmount);
-            setStep('idle'); setPin(''); setAmount('');
+            setStep('idle'); setPin(''); setAmount(''); setIsAnonymous(false);
         } catch (err: any) {
             alert(err?.response?.data?.message || 'Contribution failed');
             setStep(contribution.type === 'fixed' ? 'enter_pin' : 'enter_amount');
         }
     };
 
-    const cancel = () => { setStep('idle'); setPin(''); setAmount(''); };
+    const cancel = () => { setStep('idle'); setPin(''); setAmount(''); setIsAnonymous(false); };
 
     if (step === 'idle') return (
         <Button size="sm" className="h-8 text-xs bg-[#00B512] hover:bg-[#009a0f] text-white"
@@ -164,29 +191,96 @@ function ContributeFlow({ contribution, onSuccess }: { contribution: MyContribut
     );
 
     if (step === 'enter_amount') return (
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
             <Input type="number" placeholder={`Amount${contribution.minimumAmount ? ` (min ${fmtRwf(Number(contribution.minimumAmount), contribution.currency)})` : ''}`}
-                value={amount} onChange={(e) => setAmount(e.target.value)} className="h-8 text-xs w-36" autoFocus />
-            <Button size="sm" variant="outline" className="h-8 text-xs" onClick={cancel}>Cancel</Button>
-            <Button size="sm" className="h-8 text-xs bg-[#00B512] hover:bg-[#009a0f] text-white" onClick={() => {
-                if (!amount || Number(amount) <= 0) return;
-                setStep('enter_pin');
-            }}>Next</Button>
+                value={amount} onChange={(e) => setAmount(e.target.value)} className="h-8 text-xs w-full sm:w-36 min-w-0" autoFocus />
+            <div className="flex gap-2">
+                <Button size="sm" variant="outline" className="h-8 text-xs flex-1 sm:flex-none" onClick={cancel}>Cancel</Button>
+                <Button size="sm" className="h-8 text-xs flex-1 sm:flex-none bg-[#00B512] hover:bg-[#009a0f] text-white" onClick={() => {
+                    if (!amount || Number(amount) <= 0) return;
+                    setStep('enter_pin');
+                }}>Next</Button>
+            </div>
         </div>
     );
 
     if (step === 'enter_pin') return (
-        <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex items-center gap-1 text-xs text-gray-500"><Lock size={11} /><span>PIN</span></div>
-            <Input type="password" inputMode="numeric" maxLength={4} placeholder="••••"
-                value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                className="h-8 text-xs w-20 tracking-widest" autoFocus />
-            <Button size="sm" variant="outline" className="h-8 text-xs" onClick={cancel}>Cancel</Button>
-            <Button size="sm" className="h-8 text-xs bg-[#00B512] hover:bg-[#009a0f] text-white" onClick={handlePay}>Pay</Button>
+        <div className="flex flex-col gap-2 w-full">
+            <label className="flex items-center gap-1.5 text-[11px] text-gray-500 cursor-pointer select-none">
+                <input type="checkbox" checked={isAnonymous} onChange={(e) => setIsAnonymous(e.target.checked)} className="h-3 w-3" />
+                Contribute anonymously
+            </label>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
+                <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 text-xs text-gray-500"><Lock size={11} /><span>PIN</span></div>
+                    <Input type="password" inputMode="numeric" maxLength={4} placeholder="••••"
+                        value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                        className="h-8 text-xs w-full sm:w-20 min-w-0 tracking-widest" autoFocus />
+                </div>
+                <div className="flex gap-2">
+                    <Button size="sm" variant="outline" className="h-8 text-xs flex-1 sm:flex-none" onClick={cancel}>Cancel</Button>
+                    <Button size="sm" className="h-8 text-xs flex-1 sm:flex-none bg-[#00B512] hover:bg-[#009a0f] text-white" onClick={handlePay}>Pay</Button>
+                </div>
+            </div>
         </div>
     );
 
     return <div className="flex items-center gap-2 text-xs text-gray-500"><Loader2 size={13} className="animate-spin" /> Processing…</div>;
+}
+
+function useScrollRow() {
+    const ref = React.useRef<HTMLDivElement>(null);
+    const [canLeft, setCanLeft] = React.useState(false);
+    const [canRight, setCanRight] = React.useState(true);
+
+    const update = React.useCallback(() => {
+        const el = ref.current;
+        if (!el) return;
+        setCanLeft(el.scrollLeft > 4);
+        setCanRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+    }, []);
+
+    React.useEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        update();
+        const t1 = setTimeout(update, 80);
+        const t2 = setTimeout(update, 400);
+        el.addEventListener('scroll', update, { passive: true });
+        window.addEventListener('resize', update);
+        return () => {
+            clearTimeout(t1);
+            clearTimeout(t2);
+            el.removeEventListener('scroll', update);
+            window.removeEventListener('resize', update);
+        };
+    }, [update]);
+
+    const scroll = React.useCallback((dir: 'left' | 'right') => {
+        ref.current?.scrollBy({ left: dir === 'right' ? 320 : -320, behavior: 'smooth' });
+        setTimeout(update, 380);
+    }, [update]);
+
+    return { ref, canLeft, canRight, scroll };
+}
+
+function ScrollBtns({ s }: { s: ReturnType<typeof useScrollRow> }) {
+    const btn = (active: boolean) =>
+        `w-6 h-6 rounded-full border flex items-center justify-center transition-all ${
+            active
+                ? 'border-gray-300 dark:border-darkBorder-light text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-darkBg-interactive cursor-pointer'
+                : 'border-gray-200 dark:border-darkBorder-light text-gray-300 dark:text-gray-600 pointer-events-none'
+        }`;
+    return (
+        <div className="flex items-center gap-1">
+            <button onClick={() => s.scroll('left')} disabled={!s.canLeft} className={btn(s.canLeft)}>
+                <ChevronLeft size={12} />
+            </button>
+            <button onClick={() => s.scroll('right')} disabled={!s.canRight} className={btn(s.canRight)}>
+                <ChevronRight size={12} />
+            </button>
+        </div>
+    );
 }
 
 function ContributionCard({ contribution: initial, currentUserId }: { contribution: MyContribution; currentUserId: string }) {
@@ -200,7 +294,7 @@ function ContributionCard({ contribution: initial, currentUserId }: { contributi
     const progress = goal > 0 ? Math.min((collected / goal) * 100, 100) : 0;
     const isActive = c.status === 'active';
     const hasPaid = !!c.myPayment;
-    const canContribute = isActive && !hasPaid;
+    const canContribute = isActive;
     const isDeadlinePast = c.deadline && new Date(c.deadline) < new Date();
 
     useEffect(() => {
@@ -257,7 +351,7 @@ function ContributionCard({ contribution: initial, currentUserId }: { contributi
     const showPayments = expanded && c.payments && c.payments.length > 0 && (c.isAdmin || c.visibilityMode === 'all');
 
     return (
-        <div className="bg-white dark:bg-darkBg-card rounded-3xl border border-emerald-50 dark:border-darkBorder-light shadow-lg shadow-emerald-100/40 dark:shadow-none p-6">
+        <div className="h-full bg-white dark:bg-darkBg-card rounded-3xl border border-emerald-50 dark:border-darkBorder-light shadow-lg shadow-emerald-100/40 dark:shadow-none p-6">
             <div className="flex items-start justify-between gap-3 mb-4">
                 <div className="flex items-center gap-3">
                     <div className={`p-2 rounded-full ${c.status === 'completed' ? 'bg-green-100 dark:bg-green-900/30' : c.status === 'active' ? 'bg-[#00B512]/10' : 'bg-gray-100 dark:bg-gray-800'}`}>
@@ -322,7 +416,7 @@ function ContributionCard({ contribution: initial, currentUserId }: { contributi
                 )}
 
                 {c.isAdmin && (isActive || c.status === 'expired') && (
-                    <div className="flex gap-2 ml-auto">
+                    <div className="flex gap-2 flex-shrink-0 ml-auto">
                         {isActive && (
                             <Button variant="outline" size="sm" className="h-7 text-[11px] border-red-200 text-red-500 hover:bg-red-50" onClick={handleClose}>
                                 Close
@@ -337,11 +431,13 @@ function ContributionCard({ contribution: initial, currentUserId }: { contributi
             </div>
 
             {extendOpen && (
-                <div className="mt-3 flex items-center gap-2 flex-wrap">
+                <div className="mt-3 flex flex-col sm:flex-row sm:items-center gap-2">
                     <Input type="date" min={new Date().toISOString().split('T')[0]} value={newDeadline}
-                        onChange={(e) => setNewDeadline(e.target.value)} className="h-8 text-xs w-44" />
-                    <Button size="sm" className="h-8 text-xs bg-[#00B512] hover:bg-[#009a0f] text-white" onClick={handleExtend}>Save</Button>
-                    <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => { setExtendOpen(false); setNewDeadline(''); }}>Cancel</Button>
+                        onChange={(e) => setNewDeadline(e.target.value)} className="h-8 text-xs w-full sm:w-44 min-w-0" />
+                    <div className="flex gap-2">
+                        <Button size="sm" className="h-8 text-xs flex-1 sm:flex-none bg-[#00B512] hover:bg-[#009a0f] text-white" onClick={handleExtend}>Save</Button>
+                        <Button size="sm" variant="outline" className="h-8 text-xs flex-1 sm:flex-none" onClick={() => { setExtendOpen(false); setNewDeadline(''); }}>Cancel</Button>
+                    </div>
                 </div>
             )}
 
@@ -415,6 +511,7 @@ const ActionsByAccountPage = () => {
     const [isSubActionsModalOpen, setIsSubActionsModalOpen] = useState(false);
     const [wizardOpen, setWizardOpen] = useState(false);
     const [editingActionId, setEditingActionId] = useState<string | null>(null);
+    const [preSelectedType, setPreSelectedType] = useState<string | null>(null);
     const [creatingSubAction, setCreatingSubAction] = useState(false);
     const [qrValidatorOpen, setQrValidatorOpen] = useState(false);
     const [subActionError, setSubActionError] = useState<string | null>(null);
@@ -429,18 +526,29 @@ const ActionsByAccountPage = () => {
     const [purchasedActionsFilter, setPurchasedActionsFilter] = useState<'all' | 'archive'>('all');
     const [editingSubActionId, setEditingSubActionId] = useState<string | null>(null);
     const [markingAsUsed, setMarkingAsUsed] = useState<Record<string, boolean>>({});
+    const [transferTarget, setTransferTarget] = useState<QrObject | null>(null);
+    const [resolvedTypeMap, setResolvedTypeMap] = useState<Record<string, string>>({});
+    const [voteStandingsMap, setVoteStandingsMap] = useState<Record<string, { id: string; name: string; votes: number; rank: number }[]>>({});
 
-    // Group contributions tab
-    const [individualTab, setIndividualTab] = useState<'actions' | 'contributions'>('actions');
     const [filterGroupId, setFilterGroupId] = useState<string | null>(null);
     const [myContributions, setMyContributions] = useState<MyContribution[]>([]);
     const [contributionsLoading, setContributionsLoading] = useState(false);
     const currentUserId = React.useMemo(() => getCurrentUserId(), []);
 
+    // Public campaigns tab
+    const [myPublicContributions, setMyPublicContributions] = useState<PublicContributionData[]>([]);
+    const [publicContributionsLoading, setPublicContributionsLoading] = useState(false);
+    const [createCampaignOpen, setCreateCampaignOpen] = useState(false);
+    const [contributionsFilter, setContributionsFilter] = useState<'all' | 'active' | 'history'>('all');
+    const [campaignsFilter, setCampaignsFilter] = useState<'all' | 'active' | 'closed'>('all');
+
+    const actionsScroll = useScrollRow();
+    const contributionsScroll = useScrollRow();
+    const campaignsScroll = useScrollRow();
+
     useEffect(() => {
         if (typeof window === 'undefined') return;
         const params = new URLSearchParams(window.location.search);
-        if (params.get('tab') === 'contributions') setIndividualTab('contributions');
         setFilterGroupId(params.get('group'));
     }, []);
 
@@ -568,11 +676,55 @@ const ActionsByAccountPage = () => {
         }
     }, []);
 
-    useEffect(() => {
-        if (accountMode === 'individual' && individualTab === 'contributions') {
-            fetchMyContributions();
+    const fetchMyPublicContributions = useCallback(async () => {
+        setPublicContributionsLoading(true);
+        try {
+            const res = await getMyPublicContributions();
+            setMyPublicContributions(res?.data?.data || res?.data || []);
+        } catch {
+            // silently fail
+        } finally {
+            setPublicContributionsLoading(false);
         }
-    }, [accountMode, individualTab, fetchMyContributions]);
+    }, []);
+
+    useEffect(() => {
+        if (accountMode === 'individual' && !isViewingAnotherUser) {
+            fetchMyContributions();
+            fetchMyPublicContributions();
+        }
+    }, [accountMode, isViewingAnotherUser, fetchMyContributions, fetchMyPublicContributions]);
+
+    useEffect(() => {
+        if (!purchasedActions.length) return;
+        const token = getToken();
+        if (!token) return;
+        const headers = { Authorization: `Bearer ${token}` };
+        const uniqueIds = Array.from(
+            new Set(
+                purchasedActions.map(i => i.metadata?.actionId || i.actionId).filter(Boolean) as string[]
+            )
+        );
+        Promise.allSettled(
+            uniqueIds.map(async (actionId) => {
+                const res = await axios.get(`${baseUrl}/actions/${actionId}`, { headers }).catch(() => null);
+                const action = res?.data?.data || res?.data;
+                if (!action) return;
+                setResolvedTypeMap(prev => ({ ...prev, [actionId]: action.type }));
+                if (action.type === 'vote') {
+                    const subRes = await axios.get(`${baseUrl}/actions/${actionId}/sub-actions`, { headers }).catch(() => null);
+                    const subs: any[] = subRes?.data?.data || subRes?.data || [];
+                    if (Array.isArray(subs)) {
+                        const standings = subs
+                            .filter((s: any) => s.isActive !== false)
+                            .sort((a: any, b: any) => Number(b.metadata?.votes ?? 0) - Number(a.metadata?.votes ?? 0))
+                            .map((s: any, idx: number) => ({ id: s.id, name: s.name, votes: Number(s.metadata?.votes ?? 0), rank: idx + 1 }));
+                        setVoteStandingsMap(prev => ({ ...prev, [actionId]: standings }));
+                    }
+                }
+            })
+        );
+    }, [purchasedActions, getToken]);
 
     const pageTitle = useMemo(() => {
         if (isLoggedInAsOrganization && isViewingAnotherUser && accountMode === 'individual') {
@@ -818,6 +970,7 @@ const ActionsByAccountPage = () => {
     const handleWizardCompleted = () => {
         setWizardOpen(false);
         setEditingActionId(null);
+        setPreSelectedType(null);
         if (effectiveUserId) {
             fetchData(effectiveUserId);
         }
@@ -826,6 +979,7 @@ const ActionsByAccountPage = () => {
     const handleWizardClose = () => {
         setWizardOpen(false);
         setEditingActionId(null);
+        setPreSelectedType(null);
     };
 
     // Handler for organizations to mark a QR object as used
@@ -940,16 +1094,15 @@ const ActionsByAccountPage = () => {
 
         if (!purchasedActions.length) {
             return (
-                <div className="bg-white dark:bg-darkBg-card border border-emerald-100 dark:border-darkBorder-light rounded-3xl p-8 text-center shadow-sm">
-                    <div className="flex items-center justify-center gap-2 text-emerald-600 dark:text-brand-green font-semibold mb-2">
-                        <Ticket className="w-5 h-5" />
-                        <span>{isLoggedInAsOrganization && isViewingAnotherUser ? 'No matching QR objects' : 'No purchases yet'}</span>
-                    </div>
-                    <p className="text-gray-600 dark:text-gray-300 max-w-md mx-auto">
-                        {isLoggedInAsOrganization && isViewingAnotherUser 
+                <div className="bg-white dark:bg-darkBg-card border border-emerald-100 dark:border-darkBorder-light rounded-2xl p-8 text-center shadow-sm">
+                    <div className="text-4xl mb-3">🎟️</div>
+                    <p className="font-semibold text-[#00313A] dark:text-white mb-1">
+                        {isLoggedInAsOrganization && isViewingAnotherUser ? 'No QR objects found' : 'No tickets yet'}
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 max-w-xs mx-auto">
+                        {isLoggedInAsOrganization && isViewingAnotherUser
                             ? 'This user has not purchased any tickets or actions from your organization.'
-                            : 'When you buy tickets or actions, they will appear here with instant access to their QR codes.'
-                        }
+                            : 'When you buy tickets or actions, they appear here with instant QR code access.'}
                     </p>
                 </div>
             );
@@ -957,35 +1110,6 @@ const ActionsByAccountPage = () => {
 
         return (
             <div className="space-y-4">
-                {/* Filter Buttons - Always Visible */}
-                <div className="flex flex-wrap gap-4 items-center">
-                    <div>
-                        <label className="block text-xs font-semibold text-[#00313A] dark:text-white uppercase mb-2">Filter</label>
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => setPurchasedActionsFilter('all')}
-                                className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
-                                    purchasedActionsFilter === 'all'
-                                        ? 'bg-[#00B512] text-white shadow'
-                                        : 'border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-interactive dark:text-white text-[#00313A] hover:bg-gray-50 dark:hover:bg-darkBg-card'
-                                }`}
-                            >
-                                Valid ({purchasedActions.filter(item => !item.status?.toLowerCase().includes('used') && (!item.validUntil || new Date(item.validUntil) >= new Date())).length})
-                            </button>
-                            <button
-                                onClick={() => setPurchasedActionsFilter('archive')}
-                                className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
-                                    purchasedActionsFilter === 'archive'
-                                        ? 'bg-[#00B512] text-white shadow'
-                                        : 'border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-interactive dark:text-white text-[#00313A] hover:bg-gray-50 dark:hover:bg-darkBg-card'
-                                }`}
-                            >
-                                Archive ({purchasedActions.filter(item => item.status?.toLowerCase().includes('used') || (item.validUntil && new Date(item.validUntil) < new Date())).length})
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
                 {/* Toolbar for organizations viewing user's QR objects */}
                 {isLoggedInAsOrganization && isViewingAnotherUser && (
                     <div className="flex flex-wrap gap-3 items-center justify-between bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-2xl p-4">
@@ -1006,140 +1130,268 @@ const ActionsByAccountPage = () => {
 
                 {/* Content Section - Empty or Grid */}
                 {filteredPurchasedActions.length === 0 ? (
-                    <div className="bg-white dark:bg-darkBg-card border border-emerald-100 dark:border-darkBorder-light rounded-3xl p-8 text-center shadow-sm">
-                        <div className="flex items-center justify-center gap-2 text-emerald-600 dark:text-brand-green font-semibold mb-2">
-                            <Ticket className="w-5 h-5" />
-                            <span>
-                                {purchasedActionsFilter === 'archive'
-                                    ? 'No archived or expired items'
-                                    : isLoggedInAsOrganization && isViewingAnotherUser
-                                    ? 'No valid QR objects'
-                                    : 'No valid purchases yet'}
-                            </span>
+                    <div className="bg-white dark:bg-darkBg-card border border-emerald-100 dark:border-darkBorder-light rounded-2xl p-6 text-center shadow-sm">
+                        <div className="text-3xl mb-2">
+                            {purchasedActionsFilter === 'archive' ? '📦' : '🎟️'}
                         </div>
-                        <p className="text-gray-600 dark:text-gray-300 max-w-md mx-auto">
+                        <p className="font-semibold text-[#00313A] dark:text-white mb-1 text-sm">
                             {purchasedActionsFilter === 'archive'
-                                ? 'Your used and expired items will appear here.'
+                                ? 'No archived items'
                                 : isLoggedInAsOrganization && isViewingAnotherUser
-                                ? 'This user has not purchased any valid tickets or actions from your organization.'
-                                : 'When you buy tickets or actions, they will appear here with instant access to their QR codes.'}
+                                ? 'No valid QR objects'
+                                : 'Nothing valid right now'}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 max-w-xs mx-auto">
+                            {purchasedActionsFilter === 'archive'
+                                ? 'Used and expired items will show up here once you have some.'
+                                : isLoggedInAsOrganization && isViewingAnotherUser
+                                ? 'This user has no active tickets or actions from your organization.'
+                                : 'Switch to Archive to see past items, or buy tickets to add new ones.'}
                         </p>
                     </div>
                 ) : (
-                    <div className="grid gap-6 md:grid-cols-2">
-                    {filteredPurchasedActions.map((item) => (
-                        <div
-                            key={item.id}
-                            className="bg-white dark:bg-darkBg-card rounded-3xl border border-emerald-50 dark:border-darkBorder-light shadow-lg shadow-emerald-100/40 dark:shadow-none p-6 relative overflow-hidden"
-                        >
-                        <div className="flex items-start justify-between gap-4">
-                            <div>
-                                <p className="text-xs uppercase tracking-[0.2em] text-emerald-500 dark:text-brand-green font-semibold mb-2">
-                                    {item.type || 'QR Object'}
-                                </p>
-                                <h3 className="text-2xl font-bold text-[#00313A] dark:text-white leading-tight">
-                                    {item.metadata?.actionName || 'Unnamed Action'}
-                                </h3>
-                                {item.metadata?.subActionName && (
-                                    <p className="text-sm text-[#00313A]/70 dark:text-gray-300 font-medium mt-1">
-                                        {item.metadata.subActionName}
-                                    </p>
-                                )}
-                            </div>
-                            <span
-                                className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${
-                                    isQRObjectExpired(item)
-                                        ? statusClasses['expired']
-                                        : statusClasses[item.status?.toLowerCase()] ||
-                                    'bg-gray-100 dark:bg-darkBg-interactive text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-darkBorder-light'
-                                }`}
-                            >
-                                {isQRObjectExpired(item) ? 'Expired' : item.status || 'unknown'}
+                    <div ref={actionsScroll.ref} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide items-stretch">
+                    {filteredPurchasedActions.map((item) => {
+                        const actionId = item.metadata?.actionId || item.actionId || '';
+                        const orgId = item.metadata?.organizationId || item.organizationId || '';
+                        const resolvedType = actionId ? (resolvedTypeMap[actionId] ?? item.type ?? 'ticket') : (item.type ?? 'ticket');
+                        const isExpiredItem = isQRObjectExpired(item);
+                        const cover = item.coverImage || item.metadata?.coverImage;
+
+                        const TYPE_CONFIG: Record<string, { icon: string; label: string; accent: string; accentBg: string; border: string; btnBg: string }> = {
+                            ticket:     { icon: '🎟️', label: 'Ticket',        accent: 'text-emerald-600 dark:text-emerald-400', accentBg: 'bg-emerald-50 dark:bg-emerald-900/20', border: 'border-emerald-100 dark:border-emerald-800/40', btnBg: 'bg-[#00B512] hover:bg-[#00a010]' },
+                            vote:       { icon: '🗳️', label: 'Vote Receipt',  accent: 'text-orange-600 dark:text-orange-400',   accentBg: 'bg-orange-50 dark:bg-orange-900/10',   border: 'border-orange-100 dark:border-orange-800/40', btnBg: 'bg-orange-500 hover:bg-orange-600' },
+                            transport:  { icon: '🚌', label: 'Transport Pass', accent: 'text-blue-600 dark:text-blue-400',       accentBg: 'bg-blue-50 dark:bg-blue-900/10',       border: 'border-blue-100 dark:border-blue-800/40',    btnBg: 'bg-blue-500 hover:bg-blue-600' },
+                            service:    { icon: '🛠️', label: 'Service',        accent: 'text-violet-600 dark:text-violet-400',   accentBg: 'bg-violet-50 dark:bg-violet-900/10',   border: 'border-violet-100 dark:border-violet-800/40', btnBg: 'bg-violet-500 hover:bg-violet-600' },
+                            booking:    { icon: '📅', label: 'Booking',        accent: 'text-cyan-600 dark:text-cyan-400',       accentBg: 'bg-cyan-50 dark:bg-cyan-900/10',       border: 'border-cyan-100 dark:border-cyan-800/40',    btnBg: 'bg-cyan-500 hover:bg-cyan-600' },
+                            membership: { icon: '🏅', label: 'Membership',     accent: 'text-amber-600 dark:text-amber-400',     accentBg: 'bg-amber-50 dark:bg-amber-900/10',     border: 'border-amber-100 dark:border-amber-800/40',  btnBg: 'bg-amber-500 hover:bg-amber-600' },
+                        };
+                        const cfg = TYPE_CONFIG[resolvedType] ?? TYPE_CONFIG.ticket;
+
+                        const statusBadge = (
+                            <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold capitalize flex-shrink-0 ${
+                                isExpiredItem ? statusClasses['expired'] :
+                                statusClasses[item.status?.toLowerCase()] ||
+                                'bg-gray-100 dark:bg-darkBg-interactive text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-darkBorder-light'
+                            }`}>
+                                {isExpiredItem ? 'Expired' : item.status || 'unknown'}
                             </span>
-                        </div>
+                        );
 
-                        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-[#00313A] dark:text-gray-200">
-                            <div className="flex flex-col gap-1">
-                                <span className="text-xs font-semibold text-[#00B512] uppercase tracking-widest">Issued</span>
-                                <span className="font-medium">{formatDate(item.issuedAt || item.createdAt)}</span>
-                            </div>
-                            <div className="flex flex-col gap-1">
-                                <span className="text-xs font-semibold text-[#00B512] uppercase tracking-widest">
-                                    Valid Until
-                                </span>
-                                <span className="font-medium">{formatDate(item.validUntil)}</span>
-                            </div>
-                            <div className="flex flex-col gap-1">
-                                <span className="text-xs font-semibold text-[#00B512] uppercase tracking-widest">Quantity</span>
-                                <span className="font-medium">{item.metadata?.quantity ?? 1}</span>
-                            </div>
-                            {item.metadata?.seatType && (
-                                <div className="flex flex-col gap-1">
-                                    <span className="text-xs font-semibold text-[#00B512] uppercase tracking-widest">Seat</span>
-                                    <span className="font-medium capitalize">{item.metadata.seatType}</span>
-                                </div>
-                            )}
-                        </div>
+                        // ── VOTE RECEIPT CARD ────────────────────────────────
+                        if (resolvedType === 'vote') {
+                            const standings = voteStandingsMap[actionId] ?? [];
+                            const myCandidate = item.metadata?.subActionName || '';
+                            const myFromStandings = standings.find(s => s.name.toLowerCase() === myCandidate.toLowerCase());
+                            const myRank = myFromStandings?.rank ?? item.metadata?.rank ?? item.metadata?.candidateRank ?? null;
+                            const myRankLabel = myRank != null ? toOrdinal(myRank) : null;
+                            const placeEmoji = (r: number) => r === 1 ? '🥇' : r === 2 ? '🥈' : r === 3 ? '🥉' : `${r}.`;
+                            const myRankColor = myRank === 1 ? 'text-yellow-600 dark:text-yellow-400' : myRank === 2 ? 'text-gray-500 dark:text-gray-300' : myRank === 3 ? 'text-amber-600 dark:text-amber-500' : 'text-blue-600 dark:text-blue-400';
+                            const actionName = item.metadata?.actionName || 'Vote';
 
-                        {Array.isArray(item.metadata?.benefits) && item.metadata.benefits.length > 0 ? (
-                            <div className="mt-5">
-                                <p className="text-xs font-semibold text-[#00B512] dark:text-brand-green uppercase tracking-widest mb-2">Benefits</p>
-                                <ul className="space-y-1 text-sm text-[#00313A]/80 dark:text-gray-300">
-                                    {item.metadata.benefits.map((benefit) => (
-                                        <li key={`${item.id}-${benefit}`} className="flex items-center gap-2">
-                                            <CheckCircle2 className="w-4 h-4 text-[#00B512] dark:text-brand-green" />
-                                            <span>{benefit}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        ) : null}
+                            return (
+                                <div key={item.id} className={`w-80 flex-shrink-0 bg-white dark:bg-darkBg-card rounded-3xl border ${cfg.border} shadow-md overflow-hidden`}>
+                                    {/* Header strip */}
+                                    <div className={`${cfg.accentBg} px-5 py-4 flex items-center gap-3`}>
+                                        <div className="w-11 h-11 rounded-full bg-white dark:bg-darkBg-card flex items-center justify-center shadow-sm flex-shrink-0 overflow-hidden">
+                                            {cover
+                                                ? <img src={cover} alt={actionName} className="w-11 h-11 object-cover" />
+                                                : <span className="text-xl">{cfg.icon}</span>
+                                            }
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className={`text-[10px] font-bold uppercase tracking-widest ${cfg.accent}`}>{cfg.label}</p>
+                                            <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{actionName}</p>
+                                        </div>
+                                        {statusBadge}
+                                    </div>
 
-                        {item.qrCodeData && (
-                            <div className="mt-6 bg-[#f4fff9] dark:bg-darkBg-interactive border border-[#00B512]/10 dark:border-darkBorder-light rounded-2xl p-4 flex flex-col sm:flex-row items-center gap-4">
-                                <div className="p-2 bg-white dark:bg-darkBg-main rounded-xl border border-[#00B512]/20 dark:border-darkBorder-medium shadow-inner">
-                                    <img
-                                        src={item.qrCodeData}
-                                        alt={`${item.metadata?.actionName || 'Action'} QR`}
-                                        className="w-28 h-28 object-contain"
-                                    />
-                                </div>
-                                <div className="flex-1 text-sm text-[#00313A]/80 dark:text-gray-300">
-                                    <p className="font-semibold text-[#00313A] dark:text-white">Show this QR code to redeem your action.</p>
-                                    <p className="mt-1">
-                                        {item.usedAt
-                                            ? `Used ${formatDate(item.usedAt)}`
-                                            : 'Not used yet. Keep it safe for event day.'}
-                                    </p>
-                                    <div className="flex flex-wrap gap-2 mt-3">
-                                        <button
-                                            onClick={() => handleDownloadTicket(item)}
-                                            className="inline-flex items-center gap-2 px-3 py-2 rounded-full bg-[#00B512] text-white text-xs font-semibold shadow hover:bg-[#00a010]"
-                                        >
-                                            <Download size={16} />
-                                            Download Ticket (PDF)
-                                        </button>
-                                        {/* Show Mark as Used button for organizations viewing another user's QR objects */}
-                                        {isLoggedInAsOrganization && isViewingAnotherUser && item.status?.toLowerCase() !== 'used' && (
+                                    <div className="p-5 space-y-4">
+                                        {/* My choice */}
+                                        {myCandidate && (
+                                            <div className="bg-orange-50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/30 rounded-2xl p-3.5">
+                                                <p className="text-[10px] font-semibold text-orange-400 uppercase tracking-wider mb-1.5">Your Vote</p>
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <p className="font-bold text-orange-600 dark:text-orange-400 text-sm">{myCandidate}</p>
+                                                    {myRankLabel && (
+                                                        <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full bg-white dark:bg-darkBg-card border border-orange-200 dark:border-orange-800/40 ${myRankColor}`}>
+                                                            {myRankLabel} place
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Standings */}
+                                        {standings.length > 0 && (
+                                            <div>
+                                                <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Standings</p>
+                                                <div className="space-y-1.5">
+                                                    {standings.slice(0, 3).map((s, i) => {
+                                                        const isMe = myCandidate && s.name.toLowerCase() === myCandidate.toLowerCase();
+                                                        return (
+                                                            <div key={s.id} className={`flex items-center gap-2.5 px-3 py-2 rounded-xl ${isMe ? 'bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-800/30' : 'bg-gray-50 dark:bg-darkBg-interactive'}`}>
+                                                                <span className="text-base w-6 text-center leading-none">{placeEmoji(i + 1)}</span>
+                                                                <span className={`flex-1 text-sm truncate ${isMe ? 'font-bold text-orange-600 dark:text-orange-400' : 'font-medium text-gray-700 dark:text-gray-200'}`}>{s.name}</span>
+                                                                {s.votes > 0 && <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">{s.votes} votes</span>}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* View voting page */}
+                                        {actionId && orgId && (
                                             <button
-                                                onClick={() => handleMarkQRObjectAsUsed(item.id)}
-                                                disabled={markingAsUsed[item.id]}
-                                                className="inline-flex items-center gap-2 px-3 py-2 rounded-full bg-purple-600 text-white text-xs font-semibold shadow hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                onClick={() => router.push(`/welcome/${orgId}/action/${actionId}`)}
+                                                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-full border-2 border-orange-400 dark:border-orange-600 text-orange-600 dark:text-orange-400 text-sm font-semibold hover:bg-orange-50 dark:hover:bg-orange-900/10 transition-colors"
                                             >
-                                                {markingAsUsed[item.id] ? (
-                                                    <Loader2 size={16} className="animate-spin" />
-                                                ) : (
-                                                    <Check size={16} />
-                                                )}
-                                                Mark as Used
+                                                View Live Standings
+                                                <ArrowRight size={14} />
                                             </button>
                                         )}
                                     </div>
                                 </div>
+                            );
+                        }
+
+                        // ── TICKET / TRANSPORT / SERVICE / BOOKING / MEMBERSHIP ──
+                        const actionName = item.metadata?.actionName || 'Unnamed Action';
+                        const tier = item.metadata?.subActionName;
+                        const lastTransfer = item.metadata?.transferHistory?.[item.metadata.transferHistory.length - 1];
+
+                        return (
+                            <div key={item.id} className={`w-80 flex-shrink-0 bg-white dark:bg-darkBg-card rounded-3xl border ${cfg.border} shadow-md overflow-hidden`}>
+                                {/* Cover image */}
+                                {cover && (
+                                    <div className="h-28 overflow-hidden relative">
+                                        <img src={cover} alt={actionName} className="w-full h-full object-cover" />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                                        <div className="absolute bottom-3 left-4 right-4 flex items-end justify-between gap-2">
+                                            <div className="min-w-0">
+                                                <p className="text-[10px] font-bold uppercase tracking-widest text-white/80">{cfg.icon} {cfg.label}</p>
+                                                <p className="text-sm font-bold text-white truncate leading-tight">{actionName}</p>
+                                                {tier && <p className="text-xs text-white/70 truncate">{tier}</p>}
+                                            </div>
+                                            {statusBadge}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Header (no cover) */}
+                                {!cover && (
+                                    <div className={`${cfg.accentBg} px-5 py-4 flex items-center gap-3`}>
+                                        <div className="w-10 h-10 rounded-xl bg-white dark:bg-darkBg-card flex items-center justify-center shadow-sm flex-shrink-0">
+                                            <span className="text-xl">{cfg.icon}</span>
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className={`text-[10px] font-bold uppercase tracking-widest ${cfg.accent}`}>{cfg.label}</p>
+                                            <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{actionName}</p>
+                                            {tier && <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{tier}</p>}
+                                        </div>
+                                        {statusBadge}
+                                    </div>
+                                )}
+
+                                <div className="px-5 pt-4 pb-5 space-y-4">
+                                    {/* Transfer trail — this ticket changed hands */}
+                                    {lastTransfer && (
+                                        <div className="flex items-center gap-2 text-xs bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-xl px-3 py-2 text-blue-600 dark:text-blue-400">
+                                            <ArrowLeftRight className="w-3.5 h-3.5 flex-shrink-0" />
+                                            <span className="truncate">
+                                                {!isViewingAnotherUser
+                                                    ? `Received from ${lastTransfer.fromName}`
+                                                    : `Transferred from ${lastTransfer.fromName} to ${lastTransfer.toName}`}
+                                            </span>
+                                        </div>
+                                    )}
+
+                                    {/* Details grid */}
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <p className={`text-[10px] font-bold uppercase tracking-wider mb-0.5 ${cfg.accent}`}>Issued</p>
+                                            <p className="text-xs font-medium text-gray-700 dark:text-gray-200">{formatDate(item.issuedAt || item.createdAt)}</p>
+                                        </div>
+                                        <div>
+                                            <p className={`text-[10px] font-bold uppercase tracking-wider mb-0.5 ${cfg.accent}`}>Valid Until</p>
+                                            <p className="text-xs font-medium text-gray-700 dark:text-gray-200">{formatDate(item.validUntil)}</p>
+                                        </div>
+                                        {(item.metadata?.quantity ?? 1) > 1 && (
+                                            <div>
+                                                <p className={`text-[10px] font-bold uppercase tracking-wider mb-0.5 ${cfg.accent}`}>Qty</p>
+                                                <p className="text-xs font-medium text-gray-700 dark:text-gray-200">{item.metadata?.quantity}</p>
+                                            </div>
+                                        )}
+                                        {item.metadata?.seatType && (
+                                            <div>
+                                                <p className={`text-[10px] font-bold uppercase tracking-wider mb-0.5 ${cfg.accent}`}>Seat</p>
+                                                <p className="text-xs font-medium text-gray-700 dark:text-gray-200 capitalize">{item.metadata.seatType}</p>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Benefits */}
+                                    {Array.isArray(item.metadata?.benefits) && item.metadata.benefits.length > 0 && (
+                                        <div>
+                                            <p className={`text-[10px] font-bold uppercase tracking-wider mb-1.5 ${cfg.accent}`}>Benefits</p>
+                                            <ul className="space-y-1">
+                                                {item.metadata.benefits.map((b: string) => (
+                                                    <li key={b} className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-300">
+                                                        <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0 text-emerald-500" />{b}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+
+                                    {/* QR + actions */}
+                                    {item.qrCodeData && (
+                                        <div className={`${cfg.accentBg} border ${cfg.border} rounded-2xl p-4 flex items-center gap-4`}>
+                                            <div className="p-1.5 bg-white dark:bg-darkBg-main rounded-xl shadow-sm flex-shrink-0">
+                                                <img src={item.qrCodeData} alt="QR" className="w-20 h-20 object-contain" />
+                                            </div>
+                                            <div className="flex-1 min-w-0 space-y-2">
+                                                <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">
+                                                    {item.usedAt ? `Used ${formatDate(item.usedAt)}` : 'Show at entry to redeem'}
+                                                </p>
+                                                <div className="flex flex-col gap-1.5">
+                                                    <button
+                                                        onClick={() => handleDownloadTicket(item)}
+                                                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white text-xs font-semibold shadow ${cfg.btnBg}`}
+                                                    >
+                                                        <Download size={12} /> Download PDF
+                                                    </button>
+                                                    {/* Owner can hand a still-valid ticket to a contact */}
+                                                    {!isViewingAnotherUser
+                                                        && item.actionPurchaseId
+                                                        && !isExpiredItem
+                                                        && item.status?.toLowerCase() === 'valid' && (
+                                                        <button
+                                                            onClick={() => setTransferTarget(item)}
+                                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-300 dark:border-darkBorder-light text-gray-700 dark:text-gray-200 text-xs font-semibold hover:border-[#00B512] hover:text-[#00B512] transition-colors"
+                                                        >
+                                                            <Send size={12} /> Transfer
+                                                        </button>
+                                                    )}
+                                                    {isLoggedInAsOrganization && isViewingAnotherUser && item.status?.toLowerCase() !== 'used' && (
+                                                        <button
+                                                            onClick={() => handleMarkQRObjectAsUsed(item.id)}
+                                                            disabled={!!markingAsUsed[item.id]}
+                                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-600 text-white text-xs font-semibold shadow hover:bg-purple-700 disabled:opacity-50"
+                                                        >
+                                                            {markingAsUsed[item.id] ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                                                            Mark as Used
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        )}
-                    </div>
-                ))}
+                        );
+                    })}
                     </div>
                 )}
             </div>
@@ -1171,63 +1423,132 @@ const ActionsByAccountPage = () => {
         const filteredActions = getFilteredOrganizationActions();
 
         return (
-            <div className="space-y-4">
-                {/* Filter and Action Buttons - Always Visible */}
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="flex flex-wrap gap-4 items-center">
-                        <div>
-                            <label className="block text-xs font-semibold text-[#00313A] dark:text-white uppercase mb-2">Status</label>
-                            <div className="flex flex-wrap gap-2">
-                                {[
-                                    { value: 'all', label: 'All' },
-                                    { value: 'published', label: 'Published' },
-                                    { value: 'draft', label: 'Draft' },
-                                    { value: 'archived', label: 'Archived' }
-                                ].map(filter => {
-                                    let count = 0;
-                                    if (filter.value === 'all') {
-                                        count = organizationActions.length;
-                                    } else if (filter.value === 'archived') {
-                                        count = organizationActions.filter(action => action.status === 'archived' || isActionExpired(action)).length;
-                                    } else {
-                                        count = organizationActions.filter(action => action.status === filter.value && !isActionExpired(action)).length;
-                                    }
-                                    return (
-                                        <button
-                                            key={filter.value}
-                                            onClick={() => setStatusFilter(filter.value as 'all' | 'draft' | 'published' | 'archived')}
-                                            className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
-                                                statusFilter === filter.value
-                                                    ? 'bg-[#00B512] text-white shadow'
-                                                    : 'border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-interactive dark:text-white text-[#00313A] hover:bg-gray-50 dark:hover:bg-darkBg-card'
-                                            }`}
-                                        >
-                                            {`${filter.label} (${count})`}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    </div>
-                    <div className="flex justify-end gap-3">
+            <div className="space-y-5">
+                {/* Create New Action */}
+                <div>
+                    <p className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-3 flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5" />
+                        Create new action
+                    </p>
+                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+                        {/* Ticket */}
                         <button
-                            onClick={() => setQrValidatorOpen(true)}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-[#00B512] to-[#1fd331] text-white text-sm font-semibold shadow hover:shadow-lg transition-all"
+                            onClick={() => { setPreSelectedType('ticket'); setEditingActionId(null); setWizardOpen(true); }}
+                            className="group relative flex flex-col items-center gap-2 pt-5 pb-3 px-3 rounded-2xl border-2 border-dashed border-emerald-200 dark:border-emerald-800/60 hover:border-emerald-400 dark:hover:border-emerald-500 hover:bg-emerald-50/60 dark:hover:bg-emerald-900/20 transition-all duration-200"
                         >
-                            <Scan className="w-4 h-4" />
-                            Scan QR Code
+                            <span className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500 text-white shadow-sm shadow-emerald-300/50 group-hover:scale-110 transition-transform duration-200">
+                                <Plus className="w-3.5 h-3.5" strokeWidth={3} />
+                            </span>
+                            <span className="text-2xl group-hover:scale-110 transition-transform duration-200">🎟️</span>
+                            <span className="text-xs font-bold text-gray-700 dark:text-gray-200 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">Ticket</span>
+                            <span className="text-[10px] text-gray-400 dark:text-gray-500">Events & entry</span>
                         </button>
+
+                        {/* Transport */}
                         <button
-                            onClick={() => {
-                                setEditingActionId(null);
-                                setWizardOpen(true);
-                            }}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#00B512] text-white text-sm font-semibold shadow hover:bg-[#009a0f] transition-colors"
+                            onClick={() => { setPreSelectedType('transport'); setEditingActionId(null); setWizardOpen(true); }}
+                            className="group relative flex flex-col items-center gap-2 pt-5 pb-3 px-3 rounded-2xl border-2 border-dashed border-blue-200 dark:border-blue-800/60 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-blue-50/60 dark:hover:bg-blue-900/20 transition-all duration-200"
                         >
-                            <Sparkles className="w-4 h-4" />
-                            Create New Action
+                            <span className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center justify-center w-6 h-6 rounded-full bg-blue-500 text-white shadow-sm shadow-blue-300/50 group-hover:scale-110 transition-transform duration-200">
+                                <Plus className="w-3.5 h-3.5" strokeWidth={3} />
+                            </span>
+                            <span className="text-2xl group-hover:scale-110 transition-transform duration-200">🚌</span>
+                            <span className="text-xs font-bold text-gray-700 dark:text-gray-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">Transport</span>
+                            <span className="text-[10px] text-gray-400 dark:text-gray-500">Routes & fares</span>
+                        </button>
+
+                        {/* Service */}
+                        <button
+                            onClick={() => { setPreSelectedType('service'); setEditingActionId(null); setWizardOpen(true); }}
+                            className="group relative flex flex-col items-center gap-2 pt-5 pb-3 px-3 rounded-2xl border-2 border-dashed border-violet-200 dark:border-violet-800/60 hover:border-violet-400 dark:hover:border-violet-500 hover:bg-violet-50/60 dark:hover:bg-violet-900/20 transition-all duration-200"
+                        >
+                            <span className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center justify-center w-6 h-6 rounded-full bg-violet-500 text-white shadow-sm shadow-violet-300/50 group-hover:scale-110 transition-transform duration-200">
+                                <Plus className="w-3.5 h-3.5" strokeWidth={3} />
+                            </span>
+                            <span className="text-2xl group-hover:scale-110 transition-transform duration-200">🛠️</span>
+                            <span className="text-xs font-bold text-gray-700 dark:text-gray-200 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">Service</span>
+                            <span className="text-[10px] text-gray-400 dark:text-gray-500">Packages & work</span>
+                        </button>
+
+                        {/* Vote */}
+                        <button
+                            onClick={() => { setPreSelectedType('vote'); setEditingActionId(null); setWizardOpen(true); }}
+                            className="group relative flex flex-col items-center gap-2 pt-5 pb-3 px-3 rounded-2xl border-2 border-dashed border-orange-200 dark:border-orange-800/60 hover:border-orange-400 dark:hover:border-orange-500 hover:bg-orange-50/60 dark:hover:bg-orange-900/20 transition-all duration-200"
+                        >
+                            <span className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center justify-center w-6 h-6 rounded-full bg-orange-500 text-white shadow-sm shadow-orange-300/50 group-hover:scale-110 transition-transform duration-200">
+                                <Plus className="w-3.5 h-3.5" strokeWidth={3} />
+                            </span>
+                            <span className="text-2xl group-hover:scale-110 transition-transform duration-200">🗳️</span>
+                            <span className="text-xs font-bold text-gray-700 dark:text-gray-200 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">Vote</span>
+                            <span className="text-[10px] text-gray-400 dark:text-gray-500">Polls & elections</span>
+                        </button>
+
+                        {/* Booking */}
+                        <button
+                            onClick={() => { setPreSelectedType('booking'); setEditingActionId(null); setWizardOpen(true); }}
+                            className="group relative flex flex-col items-center gap-2 pt-5 pb-3 px-3 rounded-2xl border-2 border-dashed border-cyan-200 dark:border-cyan-800/60 hover:border-cyan-400 dark:hover:border-cyan-500 hover:bg-cyan-50/60 dark:hover:bg-cyan-900/20 transition-all duration-200"
+                        >
+                            <span className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center justify-center w-6 h-6 rounded-full bg-cyan-500 text-white shadow-sm shadow-cyan-300/50 group-hover:scale-110 transition-transform duration-200">
+                                <Plus className="w-3.5 h-3.5" strokeWidth={3} />
+                            </span>
+                            <span className="text-2xl group-hover:scale-110 transition-transform duration-200">📅</span>
+                            <span className="text-xs font-bold text-gray-700 dark:text-gray-200 group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">Booking</span>
+                            <span className="text-[10px] text-gray-400 dark:text-gray-500">Reservations</span>
+                        </button>
+
+                        {/* Membership */}
+                        <button
+                            onClick={() => { setPreSelectedType('membership'); setEditingActionId(null); setWizardOpen(true); }}
+                            className="group relative flex flex-col items-center gap-2 pt-5 pb-3 px-3 rounded-2xl border-2 border-dashed border-amber-200 dark:border-amber-800/60 hover:border-amber-400 dark:hover:border-amber-500 hover:bg-amber-50/60 dark:hover:bg-amber-900/20 transition-all duration-200"
+                        >
+                            <span className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center justify-center w-6 h-6 rounded-full bg-amber-500 text-white shadow-sm shadow-amber-300/50 group-hover:scale-110 transition-transform duration-200">
+                                <Plus className="w-3.5 h-3.5" strokeWidth={3} />
+                            </span>
+                            <span className="text-2xl group-hover:scale-110 transition-transform duration-200">🏅</span>
+                            <span className="text-xs font-bold text-gray-700 dark:text-gray-200 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">Membership</span>
+                            <span className="text-[10px] text-gray-400 dark:text-gray-500">Plans & tiers</span>
                         </button>
                     </div>
+                </div>
+
+                {/* Status filter + Scan QR */}
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-2 flex-wrap">
+                        {[
+                            { value: 'all', label: 'All' },
+                            { value: 'published', label: 'Published' },
+                            { value: 'draft', label: 'Draft' },
+                            { value: 'archived', label: 'Archived' },
+                        ].map(filter => {
+                            let count = 0;
+                            if (filter.value === 'all') count = organizationActions.length;
+                            else if (filter.value === 'archived') count = organizationActions.filter(a => a.status === 'archived' || isActionExpired(a)).length;
+                            else count = organizationActions.filter(a => a.status === filter.value && !isActionExpired(a)).length;
+                            return (
+                                <button
+                                    key={filter.value}
+                                    onClick={() => setStatusFilter(filter.value as 'all' | 'draft' | 'published' | 'archived')}
+                                    className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                                        statusFilter === filter.value
+                                            ? 'bg-[#00B512] text-white shadow-sm shadow-emerald-300/40 dark:shadow-emerald-900/40'
+                                            : 'border border-gray-200 dark:border-darkBorder-light text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-darkBorder-medium hover:bg-gray-50 dark:hover:bg-darkBg-interactive'
+                                    }`}
+                                >
+                                    {filter.label}
+                                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${statusFilter === filter.value ? 'bg-white/20' : 'bg-gray-100 dark:bg-darkBg-interactive text-gray-500 dark:text-gray-400'}`}>
+                                        {count}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                    <button
+                        onClick={() => setQrValidatorOpen(true)}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-[#00B512] to-[#1fd331] text-white text-xs font-semibold shadow-sm hover:shadow-md hover:shadow-emerald-300/30 transition-all"
+                    >
+                        <Scan className="w-3.5 h-3.5" />
+                        Scan QR Code
+                    </button>
                 </div>
 
                 {/* Content Section - Empty or Actions Grid */}
@@ -1237,20 +1558,9 @@ const ActionsByAccountPage = () => {
                             <Ticket className="w-5 h-5" />
                             <span>No actions published yet</span>
                         </div>
-                        <p className="text-gray-600 dark:text-gray-300 max-w-md mx-auto mb-6">
-                            Create your first action to start accepting payments or issuing tickets. They will appear here in the same
-                            layout visitors see on your welcome page.
+                        <p className="text-gray-600 dark:text-gray-300 max-w-md mx-auto">
+                            Select an action type above to get started. Your published actions will appear here in the same layout visitors see on your welcome page.
                         </p>
-                        <button
-                            onClick={() => {
-                                setEditingActionId(null);
-                                setWizardOpen(true);
-                            }}
-                            className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#00B512] text-white text-sm font-semibold shadow hover:bg-[#009a0f] transition-colors"
-                        >
-                            <Sparkles className="w-4 h-4" />
-                            Create Your First Action
-                        </button>
                     </div>
                 ) : filteredActions.length === 0 ? (
                     <div className="bg-white dark:bg-darkBg-card border border-blue-100 dark:border-darkBorder-light rounded-3xl p-8 text-center shadow-sm">
@@ -1324,8 +1634,8 @@ const ActionsByAccountPage = () => {
                                     </div>
                                 )}
                             </div>
-                            {action.status === 'draft' && (
-                                <div className="mt-4">
+                            <div className="mt-4 flex flex-wrap items-center gap-2">
+                                {(action.status === 'draft' || action.status === 'published') && (
                                     <span
                                         role="button"
                                         tabIndex={0}
@@ -1344,11 +1654,41 @@ const ActionsByAccountPage = () => {
                                         }}
                                         className="inline-flex items-center gap-2 px-3 py-2 rounded-full border border-[#00B512] dark:border-brand-green text-[#00B512] dark:text-brand-green text-xs font-semibold hover:bg-[#00B512] dark:hover:bg-brand-green hover:text-white transition-colors cursor-pointer"
                                     >
-                                        <Sparkles className="w-4 h-4" />
-                                        Continue Setup
+                                        {action.status === 'draft' ? (
+                                            <>
+                                                <Sparkles className="w-4 h-4" />
+                                                Continue Setup
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Pencil className="w-4 h-4" />
+                                                Edit action
+                                            </>
+                                        )}
                                     </span>
-                                </div>
-                            )}
+                                )}
+                                {effectiveUserId && (
+                                    <span
+                                        role="button"
+                                        tabIndex={0}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            router.push(`/welcome/${effectiveUserId}/action/${action.id}`);
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                router.push(`/welcome/${effectiveUserId}/action/${action.id}`);
+                                            }
+                                        }}
+                                        className="inline-flex items-center gap-2 px-3 py-2 rounded-full border border-[#00B512] dark:border-brand-green text-[#00B512] dark:text-brand-green text-xs font-semibold hover:bg-[#00B512] dark:hover:bg-brand-green hover:text-white transition-colors cursor-pointer"
+                                    >
+                                        <Eye className="w-4 h-4" />
+                                        Preview action
+                                    </span>
+                                )}
+                            </div>
                         </button>
                     ))}
                     </div>
@@ -1403,93 +1743,186 @@ const ActionsByAccountPage = () => {
             return renderOrganizationActions();
         }
 
-        // Individual: show tabs for My Actions and Group Contributions
-        const visibleContributions = filterGroupId
+        // Individual: 3 horizontal scroll rows
+        const allVisibleContributions = filterGroupId
             ? myContributions.filter((c) => c.groupId === filterGroupId)
             : myContributions;
-        const activeContributions = visibleContributions.filter((c) => c.status === 'active');
-        const historyContributions = visibleContributions.filter((c) => c.status !== 'active');
+        const visibleContributions =
+            contributionsFilter === 'active' ? allVisibleContributions.filter((c) => c.status === 'active')
+            : contributionsFilter === 'history' ? allVisibleContributions.filter((c) => c.status !== 'active')
+            : allVisibleContributions;
+        const activeContributions = allVisibleContributions.filter((c) => c.status === 'active');
+
+        const allCampaigns = myPublicContributions;
+        const visibleCampaigns =
+            campaignsFilter === 'active' ? allCampaigns.filter((c) => c.status === 'active')
+            : campaignsFilter === 'closed' ? allCampaigns.filter((c) => c.status !== 'active')
+            : allCampaigns;
+        const activeCampaigns = allCampaigns.filter((c) => c.status === 'active');
 
         return (
-            <div className="space-y-4">
-                {/* Tab switcher — only show when not viewing another user */}
+            <div className="space-y-8">
+                {/* ── ROW 1: My Actions ── */}
+                <div>
+                    <div className="flex items-center gap-3 mb-3">
+                        <Ticket size={16} className="text-[#00B512]" />
+                        <span className="text-sm font-bold text-[#00313A] dark:text-white uppercase tracking-widest">My Actions</span>
+                        <span className="text-xs text-gray-400 dark:text-gray-500">{purchasedActions.length}</span>
+                        <div className="flex items-center gap-2 ml-auto">
+                            <button
+                                onClick={() => setPurchasedActionsFilter('all')}
+                                className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+                                    purchasedActionsFilter === 'all'
+                                        ? 'bg-[#00B512] text-white'
+                                        : 'border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-interactive dark:text-white text-[#00313A]'
+                                }`}
+                            >
+                                Valid
+                            </button>
+                            <button
+                                onClick={() => setPurchasedActionsFilter('archive')}
+                                className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+                                    purchasedActionsFilter === 'archive'
+                                        ? 'bg-[#00B512] text-white'
+                                        : 'border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-interactive dark:text-white text-[#00313A]'
+                                }`}
+                            >
+                                Archive
+                            </button>
+                            <ScrollBtns s={actionsScroll} />
+                        </div>
+                    </div>
+                    {renderPurchasedActions()}
+                </div>
+
+                {/* ── ROW 2: Group Contributions ── */}
                 {!isViewingAnotherUser && (
-                    <div className="flex gap-2">
-                        <button
-                            onClick={() => setIndividualTab('actions')}
-                            className={`px-5 py-2 rounded-full text-sm font-semibold transition-colors ${
-                                individualTab === 'actions'
-                                    ? 'bg-[#00B512] text-white shadow'
-                                    : 'border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-interactive dark:text-white text-[#00313A] hover:bg-gray-50 dark:hover:bg-darkBg-card'
-                            }`}
-                        >
-                            My Actions
-                        </button>
-                        <button
-                            onClick={() => setIndividualTab('contributions')}
-                            className={`inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold transition-colors ${
-                                individualTab === 'contributions'
-                                    ? 'bg-[#00B512] text-white shadow'
-                                    : 'border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-interactive dark:text-white text-[#00313A] hover:bg-gray-50 dark:hover:bg-darkBg-card'
-                            }`}
-                        >
-                            <Target size={14} />
-                            Group Contributions
+                    <div>
+                        <div className="flex items-center gap-3 mb-3">
+                            <Target size={16} className="text-amber-500" />
+                            <span className="text-sm font-bold text-[#00313A] dark:text-white uppercase tracking-widest">Group Contributions</span>
+                            <span className="text-xs text-gray-400 dark:text-gray-500">{visibleContributions.length}</span>
                             {activeContributions.length > 0 && (
                                 <span className="bg-amber-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
-                                    {activeContributions.length}
+                                    {activeContributions.length} active
                                 </span>
                             )}
-                        </button>
+                            <div className="ml-auto flex items-center gap-1.5">
+                                {(['all', 'active', 'history'] as const).map((f) => (
+                                    <button key={f} onClick={() => setContributionsFilter(f)}
+                                        className={`px-2.5 py-1 rounded-full text-[11px] font-semibold capitalize transition-colors ${
+                                            contributionsFilter === f
+                                                ? 'bg-amber-400 text-white'
+                                                : 'border border-gray-200 dark:border-darkBorder-light text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-darkBg-interactive'
+                                        }`}
+                                    >{f}</button>
+                                ))}
+                                <ScrollBtns s={contributionsScroll} />
+                            </div>
+                        </div>
+                        {contributionsLoading ? (
+                            <div className="flex items-center gap-3 py-8 text-sm text-gray-500">
+                                <Loader2 className="w-5 h-5 animate-spin text-[#00B512]" />
+                                Loading contributions…
+                            </div>
+                        ) : allVisibleContributions.length === 0 ? (
+                            <div className="bg-white dark:bg-darkBg-card border border-amber-50 dark:border-darkBorder-light rounded-2xl p-8 text-center shadow-sm">
+                                <div className="text-4xl mb-3">🎯</div>
+                                <p className="font-semibold text-[#00313A] dark:text-white mb-1">No group campaigns</p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 max-w-xs mx-auto">
+                                    When a group admin starts a contribution campaign in your chat, it&apos;ll show up here.
+                                </p>
+                            </div>
+                        ) : visibleContributions.length === 0 ? (
+                            <div className="py-6 text-center text-sm text-gray-400 dark:text-gray-500">
+                                No {contributionsFilter === 'history' ? 'past' : 'active'} contributions
+                            </div>
+                        ) : (
+                            <div ref={contributionsScroll.ref} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide items-stretch">
+                                {visibleContributions.map((c) => (
+                                    <div key={c.id} className="w-80 flex-shrink-0">
+                                        <ContributionCard contribution={c} currentUserId={currentUserId || ''} />
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
 
-                {individualTab === 'actions' || isViewingAnotherUser
-                    ? renderPurchasedActions()
-                    : contributionsLoading
-                    ? (
-                        <div className="flex flex-col items-center justify-center py-20">
-                            <Loader2 className="w-8 h-8 animate-spin text-[#00B512]" />
-                            <p className="mt-3 text-sm text-gray-500">Loading contributions…</p>
-                        </div>
-                    )
-                    : visibleContributions.length === 0
-                    ? (
-                        <div className="bg-white dark:bg-darkBg-card border border-emerald-100 dark:border-darkBorder-light rounded-3xl p-8 text-center shadow-sm">
-                            <div className="flex justify-center mb-3">
-                                <div className="p-4 rounded-full bg-[#00B512]/10">
-                                    <Target className="w-6 h-6 text-[#00B512]" />
-                                </div>
+                {/* ── ROW 3: Public Campaigns ── */}
+                {!isViewingAnotherUser && (
+                    <div>
+                        <div className="flex flex-wrap items-center gap-3 mb-3">
+                            <Globe2 size={16} className="text-[#00B512]" />
+                            <span className="text-sm font-bold text-[#00313A] dark:text-white uppercase tracking-widest">My Campaigns</span>
+                            <span className="text-xs text-gray-400 dark:text-gray-500">{visibleCampaigns.length}</span>
+                            {activeCampaigns.length > 0 && (
+                                <span className="bg-[#00B512] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+                                    {activeCampaigns.length} active
+                                </span>
+                            )}
+                            <div className="w-full sm:w-auto sm:ml-auto flex flex-wrap items-center gap-1.5">
+                                {(['all', 'active', 'closed'] as const).map((f) => (
+                                    <button key={f} onClick={() => setCampaignsFilter(f)}
+                                        className={`px-2.5 py-1 rounded-full text-[11px] font-semibold capitalize transition-colors ${
+                                            campaignsFilter === f
+                                                ? 'bg-[#00B512] text-white'
+                                                : 'border border-gray-200 dark:border-darkBorder-light text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-darkBg-interactive'
+                                        }`}
+                                    >{f}</button>
+                                ))}
+                                <ScrollBtns s={campaignsScroll} />
+                                <button
+                                    onClick={() => setCreateCampaignOpen(true)}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-[#00B512] hover:bg-[#009a0f] text-white transition-colors whitespace-nowrap"
+                                >
+                                    <Plus size={12} />
+                                    New Campaign
+                                </button>
                             </div>
-                            <p className="font-semibold text-[#00313A] dark:text-white mb-1">No contribution campaigns yet</p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">Group admins can create campaigns from the group chat.</p>
                         </div>
-                    )
-                    : (
-                        <div className="space-y-6">
-                            {activeContributions.length > 0 && (
-                                <div>
-                                    <p className="text-xs font-semibold text-[#00313A] dark:text-white uppercase tracking-widest mb-3">Active</p>
-                                    <div className="grid gap-4 md:grid-cols-2">
-                                        {activeContributions.map((c) => (
-                                            <ContributionCard key={c.id} contribution={c} currentUserId={currentUserId || ''} />
-                                        ))}
+                        {publicContributionsLoading ? (
+                            <div className="flex items-center gap-3 py-8 text-sm text-gray-500">
+                                <Loader2 className="w-5 h-5 animate-spin text-[#00B512]" />
+                                Loading campaigns…
+                            </div>
+                        ) : allCampaigns.length === 0 ? (
+                            <div className="bg-white dark:bg-darkBg-card border border-emerald-100 dark:border-darkBorder-light rounded-2xl p-8 text-center shadow-sm">
+                                <div className="text-4xl mb-3">🌍</div>
+                                <p className="font-semibold text-[#00313A] dark:text-white mb-1">No campaigns yet</p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 max-w-xs mx-auto mb-5">
+                                    Start a campaign, share a link, and collect contributions from anyone — no group needed.
+                                </p>
+                                <button
+                                    onClick={() => setCreateCampaignOpen(true)}
+                                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold bg-[#00B512] hover:bg-[#009a0f] text-white transition-colors shadow-sm"
+                                >
+                                    <Plus size={14} />
+                                    Create your first campaign
+                                </button>
+                            </div>
+                        ) : visibleCampaigns.length === 0 ? (
+                            <div className="py-6 text-center text-sm text-gray-400 dark:text-gray-500">
+                                No {campaignsFilter === 'closed' ? 'closed' : 'active'} campaigns
+                            </div>
+                        ) : (
+                            <div ref={campaignsScroll.ref} className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide items-stretch">
+                                {visibleCampaigns.map((c) => (
+                                    <div key={c.id} className="w-80 flex-shrink-0">
+                                        <PublicContributionCard
+                                            data={c}
+                                            onUpdated={(patch) =>
+                                                setMyPublicContributions((prev) =>
+                                                    prev.map((item) => item.id === c.id ? { ...item, ...patch } : item)
+                                                )
+                                            }
+                                        />
                                     </div>
-                                </div>
-                            )}
-                            {historyContributions.length > 0 && (
-                                <div>
-                                    <p className="text-xs font-semibold text-[#00313A] dark:text-white uppercase tracking-widest mb-3">History</p>
-                                    <div className="grid gap-4 md:grid-cols-2">
-                                        {historyContributions.map((c) => (
-                                            <ContributionCard key={c.id} contribution={c} currentUserId={currentUserId || ''} />
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )
-                }
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
         );
     };
@@ -1501,7 +1934,7 @@ const ActionsByAccountPage = () => {
 
             {/* Main Content */}
             <main className={cn(
-                "flex-1 flex flex-col p-4 md:p-8 transition-all duration-300",
+                "flex-1 min-w-0 flex flex-col p-4 md:p-8 transition-all duration-300",
                 isExpanded ? "lg:ml-64" : "lg:ml-20"
             )}>
                 <div className="flex-1 overflow-y-auto pb-24 lg:pb-8">
@@ -1510,13 +1943,25 @@ const ActionsByAccountPage = () => {
                     <section className="mt-6 space-y-6">
                         <div className="bg-white dark:bg-darkBg-card rounded-3xl border border-white/40 dark:border-darkBorder-light shadow-md shadow-emerald-50 dark:shadow-none p-6 relative overflow-hidden">
                             <div className="absolute -top-10 -right-10 w-32 h-32 bg-[#00B512]/10 dark:bg-[#00B512]/20 rounded-full blur-3xl" />
-                            <div className="relative z-10">
-                                <p className="inline-flex items-center gap-2 text-sm font-semibold text-[#00B512] dark:text-brand-green">
-                                    <Sparkles className="w-4 h-4" />
-                                    Actions Center
-                                </p>
-                                <h1 className="text-2xl md:text-3xl font-bold text-[#00313A] dark:text-white mt-2">{pageTitle}</h1>
-                                <p className="text-[#00313A]/70 dark:text-gray-300 mt-2 max-w-2xl">{pageDescription}</p>
+                            <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                <div>
+                                    <p className="inline-flex items-center gap-2 text-sm font-semibold text-[#00B512] dark:text-brand-green">
+                                        <Sparkles className="w-4 h-4" />
+                                        Actions Center
+                                    </p>
+                                    <h1 className="text-2xl md:text-3xl font-bold text-[#00313A] dark:text-white mt-2">{pageTitle}</h1>
+                                    <p className="text-[#00313A]/70 dark:text-gray-300 mt-2 max-w-2xl">{pageDescription}</p>
+                                </div>
+                                {accountMode === 'organization' && effectiveUserId && (
+                                    <button
+                                        type="button"
+                                        onClick={() => router.push(`/welcome/${effectiveUserId}`)}
+                                        className="self-start inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#00B512] text-white text-sm font-semibold shadow hover:bg-[#009a0f] transition-colors"
+                                    >
+                                        <Eye className="w-4 h-4" />
+                                        Preview welcome page
+                                    </button>
+                                )}
                             </div>
                         </div>
 
@@ -1712,6 +2157,7 @@ const ActionsByAccountPage = () => {
                         organizationId={effectiveUserId}
                         onCompleted={handleWizardCompleted}
                         editingActionId={editingActionId}
+                        preSelectedType={preSelectedType}
                     />
                     <QRObjectValidator
                         isOpen={qrValidatorOpen}
@@ -1733,6 +2179,27 @@ const ActionsByAccountPage = () => {
                         }
                     }}
                     organizationId={tokenUserId}
+                />
+            )}
+
+            <CreatePublicContributionModal
+                isOpen={createCampaignOpen}
+                onClose={() => setCreateCampaignOpen(false)}
+                onCreated={fetchMyPublicContributions}
+            />
+
+            {/* Transfer a purchased ticket to a contact */}
+            {transferTarget && tokenUserId && (
+                <TransferTicketModal
+                    open={Boolean(transferTarget)}
+                    onClose={() => setTransferTarget(null)}
+                    purchaseId={transferTarget.actionPurchaseId as string}
+                    ticketName={transferTarget.metadata?.actionName || 'this ticket'}
+                    senderId={tokenUserId}
+                    onTransferred={() => {
+                        setTransferTarget(null);
+                        if (effectiveUserId) fetchData(effectiveUserId);
+                    }}
                 />
             )}
         </div>

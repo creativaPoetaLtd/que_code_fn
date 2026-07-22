@@ -67,6 +67,15 @@ export interface SubActionWallet {
     currency: string;
 }
 
+export interface SocialLinks {
+    instagram?: string;
+    x?: string;
+}
+
+export interface SubActionMetadata extends Record<string, any> {
+    socialLinks?: SocialLinks;
+}
+
 export interface SubActionSummary {
     id: string;
     actionId: string;
@@ -74,10 +83,11 @@ export interface SubActionSummary {
     description?: string | null;
     price: number | string;
     stock?: number | null;
-    metadata?: Record<string, any>;
+    metadata?: SubActionMetadata;
     sortOrder?: number;
     isActive?: boolean;
     coverImage?: string | null;
+    images?: string[];
     dedicatedQrCodeData?: string | null;
     createdAt?: string;
     updatedAt?: string;

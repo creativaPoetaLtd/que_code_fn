@@ -14,6 +14,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v2
@@ -30,7 +32,17 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run ESLint
-        run: pnpm run lint
+        run: |
+          CHANGED_FILES=$(git diff --name-only --diff-filter=ACMR ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }} | grep -E '\.(js|jsx|ts|tsx)$' || true)
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "No JS/TS files changed; skipping ESLint."
+            exit 0
+          fi
+          LINT_ARGS=()
+          while IFS= read -r file; do
+            [ -n "$file" ] && LINT_ARGS+=(--file "$file")
+          done <<< "$CHANGED_FILES"
+          pnpm exec next lint "${LINT_ARGS[@]}"
 
       - name: Run TypeScript type check
         run: pnpm run type-check

@@ -1,4 +1,5 @@
 import React from 'react';
+import type { SocialLinks } from '@/types/action.types';
 
 export interface Action {
   id: string;
@@ -54,10 +55,11 @@ export interface SubAction {
   stock: number | null;
   stockReserved: number;
   variants: Record<string, any>;
-  metadata: Record<string, any>;
+  metadata: Record<string, any> & { socialLinks?: SocialLinks };
   isActive: boolean;
   sortOrder: number;
   coverImage?: string | null;
+  images?: string[];
   dedicatedQrCodeData?: string | null;
   createdAt: string;
   updatedAt: string;
