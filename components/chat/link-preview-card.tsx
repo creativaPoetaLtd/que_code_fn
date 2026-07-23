@@ -1,7 +1,7 @@
 "use client"
 
 import { useGetLinkPreviewQuery } from "@/states/linkPreviewSlice"
-import { ExternalLink, Globe } from "lucide-react"
+import { ExternalLink, Globe, Users } from "lucide-react"
 
 interface LinkPreviewCardProps {
     /** Fully-qualified, sanitized URL (https://...) */
@@ -13,6 +13,48 @@ interface LinkPreviewCardProps {
 export default function LinkPreviewCard({ url, isMe }: LinkPreviewCardProps) {
     const { data, isLoading, isError } = useGetLinkPreviewQuery(url)
 
+    const isGroupJoinLink = (() => {
+        try {
+            const parsedUrl = new URL(url)
+            return parsedUrl.pathname === "/groups/join" && parsedUrl.searchParams.has("token")
+        } catch {
+            return false
+        }
+    })()
+
+    if (isGroupJoinLink) {
+        return (
+            <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className={`mt-2 flex gap-3 rounded-lg border p-3 transition-opacity hover:opacity-90 ${
+                    isMe
+                        ? "border-white/20 bg-white/10 text-white"
+                        : "border-gray-200 bg-gray-50 text-gray-900 dark:border-darkBorder-light dark:bg-darkBg-interactive dark:text-white"
+                }`}
+            >
+                <div className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full ${
+                    isMe ? "bg-white/15" : "bg-brand-green/10 dark:bg-brand-gold/10"
+                }`}>
+                    <Users size={22} className={isMe ? "text-white" : "text-brand-green dark:text-brand-gold"} />
+                </div>
+                <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold leading-snug">Join a QiewCode Group</p>
+                    <p className={`mt-1 line-clamp-2 text-xs leading-relaxed ${
+                        isMe ? "text-white/75" : "text-gray-500 dark:text-gray-400"
+                    }`}>
+                        Open this secure invitation link to request access to the group.
+                    </p>
+                    <p className={`mt-1 truncate text-[11px] ${isMe ? "text-white/55" : "text-gray-400"}`}>
+                        qc-dev2.netlify.app
+                    </p>
+                </div>
+                <ExternalLink size={12} className="mt-1 flex-shrink-0 opacity-70" />
+            </a>
+        )
+    }
     // ── Skeleton while loading ────────────────────────────────────────────────
     if (isLoading) {
         return (

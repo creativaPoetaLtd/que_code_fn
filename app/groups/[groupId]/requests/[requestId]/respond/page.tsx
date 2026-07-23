@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useSearchParams, useRouter, useParams } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -28,6 +28,7 @@ export default function RespondToGroupJoinRequestPage() {
     const [errorMessage, setErrorMessage] = useState<string>("")
     const [groupName, setGroupName] = useState<string>("")
     const [userName, setUserName] = useState<string>("")
+    const processedRequestKeyRef = useRef<string | null>(null)
 
     const [respondToJoinRequest, { isLoading }] = useRespondToJoinRequestMutation()
 
@@ -56,6 +57,13 @@ export default function RespondToGroupJoinRequestPage() {
             action: normalizedAction as "approve" | "decline",
         }
 
+        const requestKey = `${details.groupId}:${details.requestId}:${details.action}`
+
+        if (processedRequestKeyRef.current === requestKey) {
+            return
+        }
+
+        processedRequestKeyRef.current = requestKey
         setRequestDetails(details)
         handleJoinRequestResponse(details)
     }, [searchParams, params, authToken])
@@ -106,6 +114,7 @@ export default function RespondToGroupJoinRequestPage() {
 
     const handleRetry = () => {
         if (requestDetails) {
+            processedRequestKeyRef.current = null
             handleJoinRequestResponse(requestDetails)
         }
     }
@@ -219,7 +228,7 @@ export default function RespondToGroupJoinRequestPage() {
                             <h2 className="text-xl font-semibold mb-2">Login Required</h2>
                             <p className="text-gray-600 text-center mb-6">{errorMessage}</p>
                             <div className="flex gap-3">
-                                <Button onClick={() => router.push("/login")} className="flex items-center">
+                                <Button onClick={() => router.push(`/auth/login?returnUrl=${encodeURIComponent(window.location.pathname + window.location.search)}`)} className="flex items-center">
                                     Login
                                 </Button>
                                 <Button variant="outline" onClick={() => router.push("/")} className="flex items-center">

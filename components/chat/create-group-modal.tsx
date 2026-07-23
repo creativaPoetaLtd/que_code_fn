@@ -307,7 +307,7 @@ export default function CreateGroupModalUpdated({
                         <QRCodeGenerator
                             value={createdGroup.accessLink}
                             title={`Join ${createdGroup.name}`}
-                            description="Scan this QR code or share the link to invite others"
+                            description={`Request access to the group "${createdGroup.name}" on QiewCode.`}
                         />
                         <div className="flex justify-center mt-6 gap-2">
                             <Button onClick={handleClose}>Done</Button>

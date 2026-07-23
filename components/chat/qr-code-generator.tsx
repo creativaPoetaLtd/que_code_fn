@@ -41,7 +41,7 @@ export default function QRCodeGenerator({ value, size = 200, title, description 
             navigator
                 .share({
                     title: title,
-                    text: description || "Scan this QR code",
+                    text: `${title}. ${description || "Open this QiewCode link"}`,
                     url: value,
                 })
                 .catch((error) => {

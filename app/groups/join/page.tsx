@@ -64,7 +64,7 @@ function JoinGroupContent() {
             setJoinResult(result.data)
 
             // Check if requires approval (private group)
-            if (result.data?.requiresApproval || result.data?.status === "PENDING") {
+            if (result.data?.requiresApproval || String(result.data?.status || "").toLowerCase() === "pending") {
                 setJoinState("pending")
                 toast({
                     title: "Request Sent",
@@ -121,7 +121,7 @@ function JoinGroupContent() {
                                 Successfully Joined!
                             </h2>
                             <p className="text-gray-600 dark:text-gray-400 text-center mb-6">
-                                You've joined <strong className="text-gray-900 dark:text-white">
+                                You&apos;ve joined <strong className="text-gray-900 dark:text-white">
                                     {joinResult?.groupName || "the group"}
                                 </strong>. You can now participate in group activities.
                             </p>
@@ -162,7 +162,7 @@ function JoinGroupContent() {
                                 </strong> has been sent. The group owner will review your request.
                             </p>
                             <p className="text-sm text-gray-500 dark:text-gray-500 text-center mb-6">
-                                You'll receive a notification when your request is approved or declined.
+                                You&apos;ll receive a notification when your request is approved or declined.
                             </p>
                             <div className="flex gap-3">
                                 <Button
