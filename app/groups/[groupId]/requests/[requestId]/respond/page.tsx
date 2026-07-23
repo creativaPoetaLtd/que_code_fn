@@ -13,7 +13,7 @@ type ResponseState = "loading" | "success" | "error" | "invalid" | "unauthorized
 interface JoinRequestDetails {
     groupId: string
     requestId: string
-    action: "approve" | "reject" // Changed from "decline"
+    action: "approve" | "decline"
 }
 
 export default function RespondToGroupJoinRequestPage() {
@@ -36,8 +36,9 @@ export default function RespondToGroupJoinRequestPage() {
         const requestId = params.requestId as string
         const action = searchParams.get("action")
 
-        if (!groupId || !requestId || !action || !["approve", "reject"].includes(action)) {
-            // Changed from "decline"
+        const normalizedAction = action === 'reject' ? 'decline' : action
+
+        if (!groupId || !requestId || !normalizedAction || !["approve", "decline"].includes(normalizedAction)) {
             setResponseState("invalid")
             setErrorMessage("Invalid group join request link. Please check the link and try again.")
             return
@@ -52,7 +53,7 @@ export default function RespondToGroupJoinRequestPage() {
         const details: JoinRequestDetails = {
             groupId,
             requestId,
-            action: action as "approve" | "reject", // Changed from "decline"
+            action: normalizedAction as "approve" | "decline",
         }
 
         setRequestDetails(details)
@@ -110,11 +111,11 @@ export default function RespondToGroupJoinRequestPage() {
     }
 
     const getActionText = (action: string) => {
-        return action === "approve" ? "approving" : "rejecting" // Changed from "declining"
+        return action === "approve" ? "approving" : "declining"
     }
 
     const getActionPastTense = (action: string) => {
-        return action === "approve" ? "approved" : "rejected" // Changed from "declined"
+        return action === "approve" ? "approved" : "declined"
     }
 
     const renderContent = () => {
@@ -143,7 +144,7 @@ export default function RespondToGroupJoinRequestPage() {
                                 {isApproved ? (
                                     <CheckCircle size={48} className="text-green-600" />
                                 ) : (
-                                    <XCircle size={48} className="text-red-600\" />
+                                    <XCircle size={48} className="text-red-600" />
                                 )}
                             </div>
                             <h2 className="text-xl font-semibold mb-2">
@@ -153,7 +154,7 @@ export default function RespondToGroupJoinRequestPage() {
                             <p className="text-gray-600 text-center mb-6">
                                 {isApproved
                                     ? `${userName || "The user"}'s request to join ${groupName ? `"${groupName}"` : "the group"} has been approved.`
-                                    : `${userName || "The user"}'s request to join ${groupName ? `"${groupName}"` : "the group"} has been rejected.`} {/* Changed from "declined" */}
+                                    : `${userName || "The user"}'s request to join ${groupName ? `"${groupName}"` : "the group"} has been declined.`}
                             </p>
                             <div className="flex gap-3">
                                 <Button onClick={() => router.push("/chat")} className="flex items-center">

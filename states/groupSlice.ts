@@ -189,7 +189,7 @@ export const groupSlice = apiSlice.injectEndpoints({
         }),
         respondToJoinRequest: builder.mutation<
             { message: string; data?: any },
-            { groupId: string; requestId: string; action: "approve" | "reject"; token: string }
+            { groupId: string; requestId: string; action: "approve" | "decline"; token: string }
         >({
             query: ({ groupId, requestId, action, token }) => {
                 return {
