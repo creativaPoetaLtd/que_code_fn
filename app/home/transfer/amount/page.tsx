@@ -11,6 +11,7 @@ import {
     getUserWallet,
     getWalletRestrictions,
     transferMoney,
+    scheduleTransfer,
     getPaymentRequestById,
 } from "@/helpers/api";
 import { cn } from "@/lib/utils";
@@ -19,6 +20,7 @@ import { Header } from "@/components/Header";
 import RecipientHeader from "@/components/transfer/RecipientHeader";
 import AmountInput from "@/components/transfer/AmountInput";
 import CategorySelector from "@/components/transfer/CategorySelector";
+import SchedulePicker, { ScheduleState, defaultScheduleState } from "@/components/transfer/SchedulePicker";
 import PinEntry from "@/components/transfer/PinEntry";
 import RequestContextBanner from "@/components/transfer/RequestContextBanner";
 import TransferSummaryCard from "@/components/transfer/TransferSummaryCard";
@@ -26,7 +28,7 @@ import StepIndicator from "@/components/transfer/StepIndicator";
 import RequestLoadingSkeleton from "@/components/transfer/RequestLoadingSkeleton";
 import { PinSetupModal } from "@/components/PinSetupModal";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, AlertCircle, ScanLine } from "lucide-react";
+import { Loader2, AlertCircle, ScanLine, CalendarClock } from "lucide-react";
 import { isTokenExpired, getUserIdFromToken } from "@/utils/jwtUtils";
 import { useAccent } from "@/hooks/use-accent";
 
@@ -94,6 +96,7 @@ const AmountPageInner = () => {
     const [categories, setCategories] = useState<any[]>([]);
     const [selectedCategory, setSelectedCategory] = useState<any>(null);
     const [applyConstraints, setApplyConstraints] = useState(false);
+    const [schedule, setSchedule] = useState<ScheduleState>(defaultScheduleState);
 
     const [isOrganization, setIsOrganization] = useState(false);
     const [organizationCategory, setOrganizationCategory] = useState<any>(null);
@@ -187,7 +190,7 @@ const AmountPageInner = () => {
                 const balRes = await getEntityBalance(userId, "user").catch(() =>
                     getEntityBalance(userId, "organization")
                 );
-                if (balRes.success) setCurrentBalance(Number(balRes.data.balance));
+                if (balRes.success) setCurrentBalance(Number(balRes.data.availableBalance));
 
                 const catRes: any = await getTransactionCategories();
                 if (catRes.data?.success) setCategories(catRes.data.data);
@@ -223,6 +226,28 @@ const AmountPageInner = () => {
             setError("Insufficient balance");
             return;
         }
+
+        if (schedule.enabled && !requestId) {
+            if (!schedule.date || !schedule.time) {
+                setError("Please choose a date and time for this transfer");
+                return;
+            }
+            const scheduledDateTime = new Date(`${schedule.date}T${schedule.time}`);
+            const minAllowed = new Date(Date.now() + 5 * 60000);
+            if (isNaN(scheduledDateTime.getTime()) || scheduledDateTime < minAllowed) {
+                setError("Scheduled time must be at least 5 minutes from now");
+                return;
+            }
+            if (
+                schedule.recurrence.frequency !== "none" &&
+                schedule.recurrence.endMode === "date" &&
+                !schedule.recurrence.endDate
+            ) {
+                setError("Please choose an end date for the recurring transfer");
+                return;
+            }
+        }
+
         setError("");
         setStep(2);
     };
@@ -286,6 +311,38 @@ const AmountPageInner = () => {
                 params.receiverOrganizationId = recipient?.id;
             } else {
                 params.receiverUserId = recipient?.id;
+            }
+
+            if (schedule.enabled && !requestId) {
+                const scheduledDateTime = new Date(`${schedule.date}T${schedule.time}`);
+                delete params.paymentRequestId;
+
+                let recurrence: any = undefined;
+                if (schedule.recurrence.frequency !== "none") {
+                    recurrence = {
+                        frequency: schedule.recurrence.frequency,
+                        interval: schedule.recurrence.interval || 1,
+                    };
+                    if (schedule.recurrence.endMode === "date" && schedule.recurrence.endDate) {
+                        recurrence.endDate = new Date(schedule.recurrence.endDate).toISOString();
+                    } else if (schedule.recurrence.endMode === "count") {
+                        recurrence.maxOccurrences = schedule.recurrence.maxOccurrences;
+                    }
+                }
+
+                const result = await scheduleTransfer({
+                    ...params,
+                    scheduledFor: scheduledDateTime.toISOString(),
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    recurrence,
+                });
+
+                if (result.success) {
+                    router.push("/home/scheduled-transfers?created=1");
+                } else {
+                    setError(result.message || "Failed to schedule transfer");
+                }
+                return;
             }
 
             const result = await transferMoney(params);
@@ -459,6 +516,15 @@ const AmountPageInner = () => {
                                     />
                                 )}
 
+                                {/* Scheduling — hidden for request flows, which need immediate fulfillment */}
+                                {!isQRFlow && (
+                                    <SchedulePicker
+                                        schedule={schedule}
+                                        onChange={setSchedule}
+                                        minDate={new Date().toISOString().slice(0, 10)}
+                                    />
+                                )}
+
                                 {/* Category selector — hidden for request flows */}
                                 {!isQRFlow && (
                                     <CategorySelector
@@ -505,6 +571,21 @@ const AmountPageInner = () => {
                                     currency={requestMeta?.currency || "RWF"}
                                 />
 
+                                {schedule.enabled && !requestId && schedule.date && schedule.time && (
+                                    <div className="flex items-start gap-2.5 mb-6 p-4 bg-brand-green/5 dark:bg-brand-gold/5 border border-brand-green/20 dark:border-brand-gold/20 rounded-2xl">
+                                        <CalendarClock className="w-4 h-4 text-brand-green dark:text-brand-gold flex-shrink-0 mt-0.5" />
+                                        <p className="text-xs text-gray-700 dark:text-gray-300">
+                                            <span className="font-semibold text-brand-green dark:text-brand-gold">
+                                                Scheduled
+                                            </span>{" "}
+                                            for {new Date(`${schedule.date}T${schedule.time}`).toLocaleString()}
+                                            {schedule.recurrence.frequency !== "none" &&
+                                                `, repeating ${schedule.recurrence.frequency}`}
+                                            . Funds will be reserved from your balance now.
+                                        </p>
+                                    </div>
+                                )}
+
                                 <PinEntry
                                     pin={pin}
                                     setPin={setPin}
@@ -520,6 +601,8 @@ const AmountPageInner = () => {
                                 >
                                     {loading ? (
                                         <Loader2 className="animate-spin" size={20} />
+                                    ) : schedule.enabled && !requestId ? (
+                                        "Confirm Schedule"
                                     ) : (
                                         "Confirm Transfer"
                                     )}

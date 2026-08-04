@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ArrowLeft, Search } from "lucide-react";
+import { ArrowLeft, CalendarClock, Search, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuthToken } from "@/hooks/use-auth-token";
 import { useGetAcceptedContactsQuery, useSendContactInvitationByPublicIdMutation } from "@/states/contactSlice";
@@ -74,7 +74,7 @@ const TransferPageLayout = () => {
                 }
 
                 if (response.success && response.data) {
-                    setBalance(Number(response.data.balance));
+                    setBalance(Number(response.data.availableBalance));
                 }
             } catch (err) {
                 console.error("Could not fetch balance");
@@ -357,7 +357,21 @@ const TransferPageLayout = () => {
                 >
                     <ArrowLeft className="w-6 h-6" />
                 </button>
-                <h1 className="text-xl font-bold text-gray-900 dark:text-white">Send Money</h1>
+                <h1 className="text-xl font-bold text-gray-900 dark:text-white flex-1">Send Money</h1>
+                <button
+                    onClick={() => router.push("/home/transfer/batch")}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 dark:border-darkBorder-light text-xs font-semibold text-gray-600 dark:text-gray-300 hover:border-brand-green dark:hover:border-brand-gold hover:text-brand-green dark:hover:text-brand-gold transition-colors"
+                >
+                    <Users className="w-4 h-4" />
+                    <span className="hidden sm:inline">Multiple</span>
+                </button>
+                <button
+                    onClick={() => router.push("/home/scheduled-transfers")}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 dark:border-darkBorder-light text-xs font-semibold text-gray-600 dark:text-gray-300 hover:border-brand-green dark:hover:border-brand-gold hover:text-brand-green dark:hover:text-brand-gold transition-colors"
+                >
+                    <CalendarClock className="w-4 h-4" />
+                    <span className="hidden sm:inline">Scheduled</span>
+                </button>
             </div>
 
             {/* Balance Card */}

@@ -120,7 +120,7 @@ export const Header = ({ showBackButton = false }: HeaderProps) => {
                 }
 
                 if (response.success && response.data) {
-                    setBalance(Number(response.data.balance));
+                    setBalance(Number(response.data.availableBalance));
                 } else {
                     setBalanceError('Invalid balance data received');
                 }
