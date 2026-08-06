@@ -33,6 +33,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuthToken } from "@/hooks/use-auth-token"
+import { getValidToken } from "@/utils/tokenUtils"
 import { useSidebar } from "@/context/SidebarContext"
 import { useDispatch } from "react-redux"
 import { useTheme } from "@/context/ThemeContext"
@@ -72,9 +73,13 @@ export default function Navigation({ hideBottomNav = false }: NavigationProps) {
         const getUserId = () => {
             let currentUserId = params.userId as string;
 
-            // If userId is not in URL, try to get it from token
+            // If userId is not in URL, try to get it from token.
+            // Read synchronously from storage (getValidToken) rather than the
+            // async useAuthToken state, which is null on first render — otherwise
+            // on token-less routes like /chat the userId stays empty and links
+            // such as Wallet fall back to bare "/wallet" (a 404).
             if (!currentUserId || currentUserId === 'undefined') {
-                const authToken = getToken();
+                const authToken = getValidToken();
                 if (authToken) {
                     try {
                         const base64Url = authToken.split('.')[1];

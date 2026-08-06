@@ -26,6 +26,7 @@ const apiGet = (url: string) => axios.get(`${baseUrl}${url}`, { headers: getAuth
 const apiPost = (url: string, data: any) => axios.post(`${baseUrl}${url}`, data, { headers: getAuthHeaders() });
 const apiPut = (url: string, data: any) => axios.put(`${baseUrl}${url}`, data, { headers: getAuthHeaders() });
 const apiDelete = (url: string) => axios.delete(`${baseUrl}${url}`, { headers: getAuthHeaders() });
+const apiPatch = (url: string, data: any) => axios.patch(`${baseUrl}${url}`, data, { headers: getAuthHeaders() });
 
 // Helper for FormData requests (no Content-Type header, let browser set it with boundary)
 const apiPostFormData = (url: string, formData: FormData) =>
@@ -35,6 +36,11 @@ const apiPostFormData = (url: string, formData: FormData) =>
 
 const apiPutFormData = (url: string, formData: FormData) =>
   axios.put(`${baseUrl}${url}`, formData, {
+    headers: getAuthHeaders()
+  });
+
+const apiPatchFormData = (url: string, formData: FormData) =>
+  axios.patch(`${baseUrl}${url}`, formData, {
     headers: getAuthHeaders()
   });
 
@@ -290,6 +296,140 @@ export const getTransactionsByCategory = async (
 // Wallet restrictions and transaction details
 export const getWalletRestrictions = (walletId: string) =>
   apiGet(`/transactions/wallet/${walletId}/restrictions`);
+
+// Wallet page: aggregated summary + generic "items wallet"
+export const getWalletSummary = async (
+  entityId: string,
+  entityType: 'user' | 'organization' = 'user'
+) => {
+  const res = await apiGet(`/wallets/${entityType}/${entityId}/summary`);
+  return res.data;
+};
+
+export const getWalletItems = async (
+  walletId: string,
+  params?: { status?: string; itemType?: string }
+) => {
+  const qs = new URLSearchParams(
+    Object.entries(params || {}).filter(([, v]) => v != null) as [string, string][]
+  ).toString();
+  const res = await apiGet(`/wallets/${walletId}/items${qs ? `?${qs}` : ''}`);
+  return res.data;
+};
+
+export const createWalletItem = async (walletId: string, data: any) => {
+  const res = await apiPost(`/wallets/${walletId}/items`, data);
+  return res.data;
+};
+
+// Create a wallet item with an attached file (photo or PDF) via multipart
+export const createWalletItemForm = async (walletId: string, formData: FormData) => {
+  const res = await apiPostFormData(`/wallets/${walletId}/items`, formData);
+  return res.data;
+};
+
+// Update a wallet item (optionally with a new/replacement file) via multipart
+export const updateWalletItemForm = async (itemId: string, formData: FormData) => {
+  const res = await apiPatchFormData(`/wallets/items/${itemId}`, formData);
+  return res.data;
+};
+
+// Wallet transaction history by wallet id (recent activity feed)
+export const getWalletHistory = async (
+  walletId: string,
+  params?: { page?: number; limit?: number; type?: string; status?: string }
+) => {
+  const qs = new URLSearchParams(
+    Object.entries(params || {})
+      .filter(([, v]) => v != null)
+      .map(([k, v]) => [k, String(v)])
+  ).toString();
+  const res = await apiGet(`/transactions/wallet/${walletId}/history${qs ? `?${qs}` : ''}`);
+  return res.data;
+};
+
+// Spending categories (for budgets / restrictions picker)
+export const getWalletCategories = async () => {
+  const res = await apiGet('/transactions/categories');
+  return res.data;
+};
+
+// Wallet spending restrictions ("budgets") CRUD
+export const createWalletRestriction = async (walletId: string, categoryId: string, amount: number) => {
+  const res = await apiPost('/transactions/restrictions', { walletId, categoryId, amount });
+  return res.data;
+};
+
+export const updateWalletRestriction = async (id: string, amount: number) => {
+  const res = await apiPut(`/transactions/restrictions/${id}`, { amount });
+  return res.data;
+};
+
+export const deleteWalletRestriction = async (id: string) => {
+  const res = await apiDelete(`/transactions/restrictions/${id}`);
+  return res.data;
+};
+
+// Incoming money rules: auto-categorize money received from a specific sender
+export const getWalletIncomingRules = async (walletId: string) => {
+  const res = await apiGet(`/transactions/wallet/${walletId}/incoming-rules`);
+  return res.data;
+};
+
+// Senders (users/orgs) that have sent money to this wallet — picker source
+export const getIncomingSenders = async (walletId: string) => {
+  const res = await apiGet(`/transactions/wallet/${walletId}/incoming-senders`);
+  return res.data;
+};
+
+export const createWalletIncomingRule = async (payload: {
+  walletId: string;
+  categoryId: string;
+  cap?: number | null;
+  senderWalletId?: string;
+  senderUserId?: string;
+  senderOrganizationId?: string;
+}) => {
+  const res = await apiPost('/transactions/incoming-rules', payload);
+  return res.data;
+};
+
+export const updateWalletIncomingRule = async (
+  id: string,
+  data: { categoryId?: string; cap?: number | null; isActive?: boolean }
+) => {
+  const res = await apiPut(`/transactions/incoming-rules/${id}`, data);
+  return res.data;
+};
+
+export const deleteWalletIncomingRule = async (id: string) => {
+  const res = await apiDelete(`/transactions/incoming-rules/${id}`);
+  return res.data;
+};
+
+// Download a transaction receipt (auth-protected → fetch as blob then save)
+export const downloadTransactionReceipt = async (transactionId: string) => {
+  const res = await axios.get(`${baseUrl}/transactions/receipt/${transactionId}`, {
+    headers: getAuthHeaders(),
+    responseType: 'blob',
+  });
+  const url = URL.createObjectURL(res.data);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `receipt-${transactionId}.pdf`;
+  link.click();
+  URL.revokeObjectURL(url);
+};
+
+export const updateWalletItem = async (itemId: string, data: any) => {
+  const res = await apiPatch(`/wallets/items/${itemId}`, data);
+  return res.data;
+};
+
+export const deleteWalletItem = async (itemId: string) => {
+  const res = await apiDelete(`/wallets/items/${itemId}`);
+  return res.data;
+};
 
 export const getTransactionDetails = (transactionId: string) =>
   apiGet(`/transactions/${transactionId}`);

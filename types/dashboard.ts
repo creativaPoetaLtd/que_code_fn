@@ -147,6 +147,117 @@ export interface WalletRestriction {
   updatedAt: string;
 }
 
+// A person/organization eligible as a rule sender (recent sender or contact)
+export interface IncomingSender {
+  senderWalletId: string;
+  type: 'user' | 'organization';
+  userId: string | null;
+  organizationId: string | null;
+  name: string;
+  source?: 'recent' | 'contact';
+}
+
+// Receiver-driven rule: money from senderWalletId is auto-filed into a category
+export interface WalletIncomingRule {
+  id: string;
+  walletId: string;
+  senderWalletId: string;
+  categoryId: string;
+  cap: number | null;
+  restrictedTotal: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  category?: { id: string; name: string; description?: string | null };
+  senderWallet?: {
+    id: string;
+    userId: string | null;
+    organizationId: string | null;
+    user?: { id: string; firstName?: string; lastName?: string } | null;
+    organization?: { id: string; name?: string } | null;
+  };
+}
+
+// Wallet page ("items wallet") types
+export type WalletItemType =
+  | 'voucher'
+  | 'pass'
+  | 'saved_action'
+  | 'custom_card'
+  | 'transferred_item'
+  | 'action_purchase_ref';
+
+export type WalletItemStatus = 'active' | 'used' | 'expired' | 'archived';
+
+export interface WalletItem {
+  id: string;
+  walletId: string;
+  itemType: WalletItemType;
+  referenceId?: string | null;
+  title: string;
+  subtitle?: string | null;
+  imageUrl?: string | null;
+  metadata?: Record<string, any>;
+  status: WalletItemStatus;
+  isPinned: boolean;
+  expiresAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WalletPurchase {
+  id: string;
+  actionId: string;
+  subActionId: string | null;
+  quantity: number;
+  unitPrice: number;
+  totalAmount: number;
+  currency: string;
+  status: 'pending' | 'completed' | 'cancelled' | 'refunded';
+  buyerData?: Record<string, any>;
+  createdAt: string;
+  action?: {
+    id: string;
+    name: string;
+    type: string;
+    coverImage: string | null;
+    currency: string;
+  } | null;
+  subAction?: {
+    id: string;
+    name: string;
+    coverImage: string | null;
+  } | null;
+  qrObject?: {
+    id: string;
+    type: string;
+    status: string;
+    qrCodeData: string;
+    coverImage: string | null;
+    validUntil: string | null;
+    metadata?: Record<string, any>;
+  } | null;
+}
+
+export interface WalletSummary {
+  wallet: {
+    id: string;
+    balance: number;
+    currency: string;
+    isActive: boolean;
+    entityType: 'user' | 'organization';
+    entityId: string;
+  };
+  balanceBreakdown: {
+    total: number;
+    restricted: number;
+    available: number;
+  };
+  restrictions: WalletRestriction[];
+  purchases: WalletPurchase[];
+  items: WalletItem[];
+}
+
 // Transaction Category Types
 export interface TransactionCategory {
   id: string;

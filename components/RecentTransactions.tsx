@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { getTransactionHistory, getUserWallet, getOrganizationWallet } from '@/helpers/api';
 import { Transaction } from '@/types/dashboard';
 import { useRouter } from 'next/navigation';
-import { useAuthToken } from '@/hooks/use-auth-token';
+import { getValidToken } from '@/utils/tokenUtils';
 import { getUserIdFromToken, isTokenExpired } from '@/utils/jwtUtils';
 import { CheckCircle, Clock, AlertCircle, RefreshCcw } from 'lucide-react';
 import { UserAvatar } from '@/components/UserAvatar';
@@ -17,14 +17,16 @@ export const RecentTransactions: React.FC = () => {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentUserWalletId, setCurrentUserWalletId] = useState<string | null>(null);
   const router = useRouter();
-  const { getToken } = useAuthToken();
 
   useEffect(() => {
     const fetchTransactions = async () => {
       setLoading(true);
       setError(null);
       try {
-        const token = getToken();
+        // Read the token synchronously from storage (same source api.ts trusts).
+        // The stateful useAuthToken().getToken() is null on first mount, and this
+        // effect only runs once — using it left the panel permanently errored.
+        const token = getValidToken();
         let userId: string | null | undefined;
         if (token && !isTokenExpired(token)) {
           userId = getUserIdFromToken(token);
