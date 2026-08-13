@@ -24,6 +24,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   contributeToPublic,
   closePublicContribution,
@@ -56,6 +57,7 @@ export interface PublicContributionData {
   status: "active" | "completed" | "closed" | "expired";
   currency: string;
   isCreator?: boolean;
+  isContributor?: boolean;
   myPayment?: { amount: number } | null;
   payments?: Array<{ payerId: string; amount: number; payer?: { firstName: string; lastName: string } }>;
   creator?: { id: string; firstName: string; lastName: string };
@@ -106,6 +108,7 @@ export function PublicContributionCard({ data, onUpdated, isAuthenticated = true
   const [step, setStep] = React.useState<Step>("idle");
   const [customAmount, setCustomAmount] = React.useState("");
   const [pin, setPin] = React.useState("");
+  const [isAnonymous, setIsAnonymous] = React.useState(false);
   const [newDeadline, setNewDeadline] = React.useState("");
   const [showShare, setShowShare] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
@@ -185,7 +188,7 @@ export function PublicContributionCard({ data, onUpdated, isAuthenticated = true
   const isCompleted = localStatus === "completed";
   const isClosed = localStatus === "closed" || localStatus === "expired";
   const isDeadlinePast = data.deadline && new Date(data.deadline) < new Date();
-  const canContribute = isActive && !hasPaid;
+  const canContribute = isActive;
 
   // ── status pill ───────────────────────────────────────────────────────────
   const StatusPill = () => {
@@ -238,7 +241,7 @@ export function PublicContributionCard({ data, onUpdated, isAuthenticated = true
     setStep("loading");
     try {
       const amount = getAmount();
-      const res = await contributeToPublic(data.id, amount, pin);
+      const res = await contributeToPublic(data.id, amount, pin, isAnonymous);
       const resData = res?.data?.data;
       const updated = resData?.contribution;
       toast({ description: "Contribution successful!" });
@@ -250,6 +253,7 @@ export function PublicContributionCard({ data, onUpdated, isAuthenticated = true
       }
       setPin("");
       setCustomAmount("");
+      setIsAnonymous(false);
       if (resData?.canJoinGroup && joinStatus === "none") {
         setStep("join_group_prompt");
       } else {
@@ -282,7 +286,7 @@ export function PublicContributionCard({ data, onUpdated, isAuthenticated = true
       const res = await createCampaignGroup(data.id, {
         name: data.title,
         description: "",
-        isOpen: true,
+        isOpen: false,
       });
       const group = res?.data?.data;
       setLinkedGroupId(group?.id ?? null);
@@ -345,6 +349,7 @@ export function PublicContributionCard({ data, onUpdated, isAuthenticated = true
     setStep("idle");
     setPin("");
     setCustomAmount("");
+    setIsAnonymous(false);
   };
 
   return (
@@ -395,7 +400,14 @@ export function PublicContributionCard({ data, onUpdated, isAuthenticated = true
               )}
             </div>
           </div>
-          <StatusPill />
+          <div className="flex flex-col items-end gap-1">
+            <StatusPill />
+            {!data.isCreator && (data.isContributor || hasPaid) && (
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400">
+                You contributed
+              </span>
+            )}
+          </div>
         </div>
 
         {/* title + note */}
@@ -563,6 +575,13 @@ export function PublicContributionCard({ data, onUpdated, isAuthenticated = true
               className="h-9 text-sm tracking-widest"
               autoFocus
             />
+            <label className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 cursor-pointer select-none">
+              <Checkbox
+                checked={isAnonymous}
+                onCheckedChange={(checked) => setIsAnonymous(checked === true)}
+              />
+              Contribute anonymously
+            </label>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" className="flex-1 h-8 text-xs" onClick={handleCancel}>
                 Cancel

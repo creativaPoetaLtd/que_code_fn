@@ -175,7 +175,7 @@ export default function GroupsPage() {
                         </div>
 
                         {/* Group list */}
-                        <div className="flex-1 overflow-y-auto pr-1">
+                        <div className="flex-1 overflow-y-auto pr-1 mobile-bottom-padding">
                             <div className="bg-white dark:bg-darkBg-card rounded-xl shadow-sm border border-gray-200 dark:border-darkBorder-light overflow-hidden">
                                 {filteredGroups.length === 0 ? (
                                     <div className="flex flex-col items-center justify-center py-16 px-6 text-center">

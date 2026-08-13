@@ -307,7 +307,7 @@ export default function CreateGroupModalUpdated({
                         <QRCodeGenerator
                             value={createdGroup.accessLink}
                             title={`Join ${createdGroup.name}`}
-                            description="Scan this QR code or share the link to invite others"
+                            description={`Request access to the group "${createdGroup.name}" on QiewCode.`}
                         />
                         <div className="flex justify-center mt-6 gap-2">
                             <Button onClick={handleClose}>Done</Button>
@@ -338,10 +338,10 @@ export default function CreateGroupModalUpdated({
                             ) : (
                                 <div className="flex flex-col items-center">
                                     <label htmlFor="group-image" className="cursor-pointer">
-                                        <div className="h-20 w-20 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors">
-                                            <Upload size={24} className="text-gray-500" />
+                                        <div className="h-20 w-20 rounded-full bg-gray-100 dark:bg-darkBg-interactive flex items-center justify-center hover:bg-gray-200 dark:hover:bg-darkBg-hover transition-colors">
+                                            <Upload size={24} className="text-gray-500 dark:text-gray-400" />
                                         </div>
-                                        <span className="text-sm text-gray-500 mt-2 block text-center">Upload Picture</span>
+                                        <span className="text-sm text-gray-500 dark:text-gray-400 mt-2 block text-center">Upload Picture</span>
                                     </label>
                                     <input
                                         id="group-image"

@@ -16,6 +16,7 @@ import BrowserNotificationBadge from "@/components/notifications/BrowserNotifica
 import AuthSessionManager from "@/components/AuthSessionManager"
 import AppLockGate from "@/components/AppLockGate"
 import ChatNotificationSync from "@/components/ChatNotificationSync"
+import SecureDeviceBootstrap from "@/components/SecureDeviceBootstrap"
 
 const APP_LOCK_ENABLED = process.env.NEXT_PUBLIC_ENABLE_APP_LOCK === "true"
 const APP_LOCK_STORAGE_KEYS = ["qc:appLocked", "qc:lastActivityAt"]
@@ -36,6 +37,7 @@ const ClientProvider = ({ children }: { children: React.ReactNode }) => {
     return (
         <Provider store={store}>
             <AuthSessionManager />
+            <SecureDeviceBootstrap />
             <ThemeProvider>
                 {APP_LOCK_ENABLED ? <AppLockGate /> : null}
                 <NotificationProvider>

@@ -173,7 +173,7 @@ export default function InviteToGroupModal({ isOpen, onClose, group, token }: In
                 <div className="flex-1 overflow-hidden flex flex-col py-4">
                     {/* Search Bar */}
                     <div className="relative mb-4">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" size={16} />
                         <Input
                             placeholder="Search contacts..."
                             className="pl-10"
@@ -208,8 +208,8 @@ export default function InviteToGroupModal({ isOpen, onClose, group, token }: In
                     <div className="flex-1 overflow-y-auto">
                         {isLoadingContacts ? (
                             <div className="text-center py-8">
-                                <Loader2 size={40} className="mx-auto mb-2 animate-spin text-gray-400" />
-                                <p className="text-gray-500">Loading contacts...</p>
+                                <Loader2 size={40} className="mx-auto mb-2 animate-spin text-gray-400 dark:text-gray-500" />
+                                <p className="text-gray-500 dark:text-gray-400">Loading contacts...</p>
                             </div>
                         ) : error ? (
                             <div className="text-center py-8">
@@ -224,18 +224,18 @@ export default function InviteToGroupModal({ isOpen, onClose, group, token }: In
                                 {/* Select All Option */}
                                 {filteredContacts.length > 1 && (
                                     <>
-                                        <div className="flex items-center p-3 hover:bg-gray-50 rounded-lg cursor-pointer">
+                                        <div className="flex items-center p-3 hover:bg-gray-50 dark:hover:bg-darkBg-interactive rounded-lg cursor-pointer">
                                             <Checkbox
                                                 id="select-all"
                                                 checked={selectedContacts.length === filteredContacts.length}
                                                 onCheckedChange={handleSelectAll}
                                                 className="mr-3"
                                             />
-                                            <label htmlFor="select-all" className="cursor-pointer font-medium text-gray-700">
+                                            <label htmlFor="select-all" className="cursor-pointer font-medium text-gray-700 dark:text-gray-200">
                                                 Select All ({filteredContacts.length} contacts)
                                             </label>
                                         </div>
-                                        <div className="border-t border-gray-100 my-2" />
+                                        <div className="border-t border-gray-100 dark:border-darkBorder-light my-2" />
                                     </>
                                 )}
 
@@ -247,7 +247,7 @@ export default function InviteToGroupModal({ isOpen, onClose, group, token }: In
                                     return (
                                         <div
                                             key={contact.id}
-                                            className="flex items-center p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors"
+                                            className="flex items-center p-3 hover:bg-gray-50 dark:hover:bg-darkBg-interactive rounded-lg cursor-pointer transition-colors"
                                             onClick={() => toggleContact(otherUser.id)}
                                         >
                                             <Checkbox
@@ -283,14 +283,14 @@ export default function InviteToGroupModal({ isOpen, onClose, group, token }: In
                             </div>
                         ) : searchTerm ? (
                             <div className="text-center py-8">
-                                <Search size={40} className="mx-auto mb-2 text-gray-400" />
-                                <p className="text-gray-500">No contacts found matching "{searchTerm}"</p>
+                                <Search size={40} className="mx-auto mb-2 text-gray-400 dark:text-gray-500" />
+                                <p className="text-gray-500 dark:text-gray-400">No contacts found matching "{searchTerm}"</p>
                             </div>
                         ) : (
                             <div className="text-center py-8">
-                                <Users size={40} className="mx-auto mb-2 text-gray-400" />
-                                <p className="text-gray-500 mb-2">No contacts available</p>
-                                <p className="text-sm text-gray-400">Add some contacts first to invite them to groups</p>
+                                <Users size={40} className="mx-auto mb-2 text-gray-400 dark:text-gray-500" />
+                                <p className="text-gray-500 dark:text-gray-400 mb-2">No contacts available</p>
+                                <p className="text-sm text-gray-400 dark:text-gray-500">Add some contacts first to invite them to groups</p>
                             </div>
                         )}
                     </div>

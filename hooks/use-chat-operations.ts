@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useAuthToken } from '@/hooks/use-auth-token';
 import { useChat } from '@/context/ChatContext';
 import {
     useGetUserChatsQuery,
-    useCreateOrGetDMChatMutation,
     useSendMessageMutation,
     useMarkMessagesAsReadMutation,
     useCreateGroupChatMutation,
@@ -14,6 +13,7 @@ import {
 } from '@/states/chatSlice';
 import { toast } from '@/hooks/use-toast';
 import { parseMessageContent } from '@/utils/messageUtils';
+import { createOrGetPreferredDmChat } from '@/services/secureChatService';
 import type {
     Chat,
     Message,
@@ -36,6 +36,90 @@ interface UseChatOperationsReturn {
     handleDeleteChat: (chatId: string) => Promise<void>
     handleMarkAsRead: (chatId: string) => Promise<void>
     refreshConversations: () => void
+    upsertConversation: (conversation: Conversation) => void
+}
+
+const getDirectConversationOtherUserId = (conversation: Conversation, currentUserId?: string | null) => {
+    if (conversation.isGroup || conversation.type === 'support') {
+        return null
+    }
+
+    return conversation.participants?.find((participant: any) => participant.userId !== currentUserId)?.userId || null
+}
+
+const preferSecureDirectConversations = (
+    conversations: Conversation[],
+    currentUserId?: string | null,
+) => {
+    const keptByDirectKey = new Map<string, Conversation>()
+
+    for (const conversation of conversations) {
+        const otherUserId = getDirectConversationOtherUserId(conversation, currentUserId)
+        if (!otherUserId) {
+            continue
+        }
+
+        const mapKey = `dm:${otherUserId}`
+        const existing = keptByDirectKey.get(mapKey)
+
+        if (!existing) {
+            keptByDirectKey.set(mapKey, conversation)
+            continue
+        }
+
+        const existingIsSecure = existing.securityMode === 'secure_dm_v1'
+        const currentIsSecure = conversation.securityMode === 'secure_dm_v1'
+
+        if (currentIsSecure && !existingIsSecure) {
+            keptByDirectKey.set(mapKey, conversation)
+            continue
+        }
+
+        if (currentIsSecure === existingIsSecure) {
+            const existingTimestamp = new Date(existing.lastMessage?.createdAt || existing.timestamp || 0).getTime()
+            const currentTimestamp = new Date(conversation.lastMessage?.createdAt || conversation.timestamp || 0).getTime()
+
+            if (currentTimestamp > existingTimestamp) {
+                keptByDirectKey.set(mapKey, conversation)
+            }
+        }
+    }
+
+    const seen = new Set<string>()
+
+    return conversations.filter((conversation) => {
+        const otherUserId = getDirectConversationOtherUserId(conversation, currentUserId)
+        if (!otherUserId) {
+            return true
+        }
+
+        const mapKey = `dm:${otherUserId}`
+        const preferred = keptByDirectKey.get(mapKey)
+        if (!preferred || preferred.id !== conversation.id || seen.has(mapKey)) {
+            return false
+        }
+
+        seen.add(mapKey)
+        return true
+    })
+}
+
+const getPreferredDirectConversationMap = (
+    conversations: Conversation[],
+    currentUserId?: string | null,
+) => {
+    const map = new Map<string, Conversation>()
+
+    for (const conversation of preferSecureDirectConversations(conversations, currentUserId)) {
+        const otherUserId = getDirectConversationOtherUserId(conversation, currentUserId)
+        if (!otherUserId) {
+            continue
+        }
+
+        map.set(otherUserId, conversation)
+    }
+
+    return map
 }
 
 export function useChatOperations(): UseChatOperationsReturn {
@@ -53,6 +137,7 @@ export function useChatOperations(): UseChatOperationsReturn {
         conversations: enhancedConversations,
         refreshConversations: contextRefreshConversations,
         initializeEncryption,
+        upsertConversation,
     } = useChat();
 
     const {
@@ -64,8 +149,6 @@ export function useChatOperations(): UseChatOperationsReturn {
         skip: !token,
     });
 
-    const [createOrGetDMChat, { isLoading: isCreatingDMChat }] =
-        useCreateOrGetDMChatMutation();
     const [sendMessage, { isLoading: isSendingMessage }] =
         useSendMessageMutation();
     const [markAsRead] = useMarkMessagesAsReadMutation();
@@ -75,13 +158,7 @@ export function useChatOperations(): UseChatOperationsReturn {
         useJoinGroupChatMutation();
     const [deleteChat] = useDeleteChatMutation();
 
-    const [activeChat, setActiveChat] = useState<string | null>(
-        contextActiveChat
-    );
-
-    useEffect(() => {
-        setActiveChat(contextActiveChat);
-    }, [contextActiveChat]);
+    const activeChat = contextActiveChat;
 
     useEffect(() => {
         if (isConnected && initializeEncryption) {
@@ -98,12 +175,14 @@ export function useChatOperations(): UseChatOperationsReturn {
             });
         }
     }, [chatsError]);
-    const conversations: Conversation[] = enhancedConversations?.length
+    const rawConversations: Conversation[] = enhancedConversations?.length
         ? enhancedConversations.map((conv: any) => ({
             id: conv.id,
             name: conv.name,
             isGroup: conv.isGroup,
             type: conv.type,
+            securityMode: conv.securityMode,
+            protocolVersion: conv.protocolVersion,
             groupId: conv.groupId, // Include groupId
             lastMessage: conv.lastMessage?.content ? {
                 content: parseMessageContent(conv.lastMessage.content, conv.lastMessage.messageType),
@@ -127,6 +206,8 @@ export function useChatOperations(): UseChatOperationsReturn {
             name: chat.name,
             isGroup: chat.isGroup,
             type: chat.type,
+            securityMode: chat.securityMode,
+            protocolVersion: chat.protocolVersion,
             groupId: chat.groupId, // Include groupId
             lastMessage: chat.lastMessage ? {
                 content: parseMessageContent(chat.lastMessage.content, chat.lastMessage.messageType),
@@ -146,30 +227,92 @@ export function useChatOperations(): UseChatOperationsReturn {
             participants: chat.participants
         })) || []
 
+    const conversations: Conversation[] = preferSecureDirectConversations(rawConversations, userId)
+
+    useEffect(() => {
+        if (!contextActiveChat || !rawConversations.length) {
+            return
+        }
+
+        const activeConversation = rawConversations.find((conversation) => conversation.id === contextActiveChat)
+        if (!activeConversation) {
+            return
+        }
+
+        const otherUserId = getDirectConversationOtherUserId(activeConversation, userId)
+        if (!otherUserId) {
+            return
+        }
+
+        const preferredMap = getPreferredDirectConversationMap(rawConversations, userId)
+        const preferredConversation = preferredMap.get(otherUserId)
+
+        if (
+            preferredConversation &&
+            preferredConversation.id !== contextActiveChat &&
+            preferredConversation.securityMode === 'secure_dm_v1'
+        ) {
+            setContextActiveChat(preferredConversation.id)
+        }
+    }, [contextActiveChat, rawConversations, userId, setContextActiveChat])
+
     const messages: Message[] = activeChat ? (contextMessages[activeChat] || []) : []
 
     const handleStartNewChat = useCallback(async (contact: any) => {
         try {
-            const result = await createOrGetDMChat({
-                participantId: contact.otherUser.id
-            }).unwrap()
+            if (!token) {
+                throw new Error("Authentication required");
+            }
 
-            setContextActiveChat(result.data.chatId)
+            const result = await createOrGetPreferredDmChat({
+                token,
+                participantId: contact.otherUser.id,
+            });
+
+            upsertConversation({
+                id: result.chatId,
+                name: `${contact.otherUser.firstName} ${contact.otherUser.lastName}`.trim() || 'Unknown Contact',
+                isGroup: false,
+                type: 'dm',
+                securityMode: 'secure_dm_v1',
+                protocolVersion: result.protocolVersion,
+                lastMessage: null,
+                timestamp: '',
+                unreadCount: 0,
+                avatar: contact.otherUser.profileImage || "/placeholder.svg?height=40&width=40",
+                isOnline: false,
+                participants: [
+                    {
+                        userId: userId || '',
+                        role: 'member',
+                    } as any,
+                    {
+                        userId: contact.otherUser.id,
+                        role: 'member',
+                        user: {
+                            id: contact.otherUser.id,
+                            email: contact.otherUser.email,
+                            phone: contact.otherUser.phone,
+                        },
+                    } as any,
+                ],
+            })
+            setContextActiveChat(result.chatId)
 
             toast({
-                title: "Chat Started",
-                description: `Started a new conversation with ${contact.otherUser.firstName} ${contact.otherUser.lastName}`,
+                title: "Secure Chat Started",
+                description: `Started a secure conversation with ${contact.otherUser.firstName} ${contact.otherUser.lastName}`,
             })
 
             contextRefreshConversations?.()
         } catch (error: any) {
             toast({
                 title: "Error",
-                description: error.data?.message || "Failed to start chat",
+                description: error?.data?.message || error?.message || "Failed to start chat",
                 variant: "destructive"
             })
         }
-    }, [createOrGetDMChat, setContextActiveChat, contextRefreshConversations])
+    }, [token, setContextActiveChat, contextRefreshConversations, upsertConversation, userId])
 
     const handleJoinGroup = useCallback(async (group: any) => {
         try {
@@ -253,7 +396,7 @@ export function useChatOperations(): UseChatOperationsReturn {
         conversations,
         activeChat,
         messages,
-        isLoading: chatsLoading || isCreatingDMChat || isSendingMessage || isCreatingGroup || isJoiningGroup,
+        isLoading: chatsLoading || isSendingMessage || isCreatingGroup || isJoiningGroup,
         isConnected,
         typingUsers,
         onlineUsers,
@@ -263,6 +406,7 @@ export function useChatOperations(): UseChatOperationsReturn {
         handleCreateGroupChat,
         handleDeleteChat,
         handleMarkAsRead,
-        refreshConversations
+        refreshConversations,
+        upsertConversation,
     }
 }

@@ -171,7 +171,7 @@ export function ContactDetailsPanel({ contact, isOpen, onClose }: ContactDetails
                                     className="absolute bottom-0 right-0 bg-white dark:bg-darkBg-card rounded-full p-1.5 shadow-sm border border-gray-100 dark:border-darkBorder-light hover:bg-gray-50 dark:hover:bg-darkBg-hover transition-colors"
                                     title={contact.isFavorite ? "Remove from favorites" : "Add to favorites"}
                                 >
-                                    <Star className={cn("h-4 w-4", contact.isFavorite ? "text-yellow-500 fill-yellow-500" : "text-gray-400")} />
+                                    <Star className={cn("h-4 w-4", contact.isFavorite ? "text-yellow-500 fill-yellow-500" : "text-gray-400 dark:text-gray-500")} />
                                 </button>
                             </div>
 
@@ -195,7 +195,7 @@ export function ContactDetailsPanel({ contact, isOpen, onClose }: ContactDetails
                                     className="h-5 w-5 p-0 rounded-full hover:bg-gray-100 dark:hover:bg-darkBg-hover"
                                     title="Manage tags"
                                 >
-                                    <Edit className="h-3 w-3 text-gray-400" />
+                                    <Edit className="h-3 w-3 text-gray-400 dark:text-gray-500" />
                                 </Button>
                             </div>
 

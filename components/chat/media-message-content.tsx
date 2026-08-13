@@ -1,10 +1,12 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Download, Play, Pause, Volume2, VolumeX } from "lucide-react"
+import { Download, Lock, Play, Pause, Volume2, VolumeX } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { decryptSecureMediaBlob } from "@/lib/e2ee/secureMediaCrypto"
 import { formatDuration, formatFileSize, getFileIcon } from "@/services/mediaService"
 import type { MediaData } from "@/types/chat.types"
+import { getChatPreviewText } from "@/utils/chatPreview"
 
 interface MediaMessageContentProps extends MediaData {
     content: string
@@ -18,12 +20,83 @@ export default function MediaMessageContent({
     fileName,
     fileSize,
     duration,
-    mimeType
+    mimeType,
+    secureMediaKey,
+    secureMediaIv,
+    isSecureMedia
 }: MediaMessageContentProps) {
+    const [decryptedMediaUrl, setDecryptedMediaUrl] = useState<string | null>(null)
+    const [isDecryptingPreview, setIsDecryptingPreview] = useState(false)
+    const [previewError, setPreviewError] = useState<string | null>(null)
+    const mediaPreviewText = getChatPreviewText({ messageType: mediaType })
+    const showCaption = Boolean(
+        content &&
+        content !== `Sent a ${mediaType}` &&
+        content !== mediaPreviewText
+    )
+
+    useEffect(() => {
+        return () => {
+            if (decryptedMediaUrl) {
+                window.URL.revokeObjectURL(decryptedMediaUrl)
+            }
+        }
+    }, [decryptedMediaUrl])
+
+    const fetchMediaBlob = async (url: string) => {
+        const response = await fetch(url)
+        if (!response.ok) {
+            throw new Error(`Download failed with status ${response.status}`)
+        }
+
+        return response.blob()
+    }
+
+    const decryptMediaBlobIfNeeded = async (blob: Blob) => {
+        if (!isSecureMedia || !secureMediaKey || !secureMediaIv) {
+            return blob
+        }
+
+        return decryptSecureMediaBlob({
+            encryptedBlob: blob,
+            key: secureMediaKey,
+            iv: secureMediaIv,
+            originalType: mimeType || "application/octet-stream",
+        })
+    }
+
+    const loadSecurePreview = async () => {
+        if (!mediaUrl || decryptedMediaUrl || isDecryptingPreview) return
+
+        setIsDecryptingPreview(true)
+        setPreviewError(null)
+        try {
+            const encryptedBlob = await fetchMediaBlob(mediaUrl)
+            const blob = await decryptMediaBlobIfNeeded(encryptedBlob)
+            setDecryptedMediaUrl(window.URL.createObjectURL(blob))
+        } catch (error) {
+            console.error("Secure media preview failed:", error)
+            setPreviewError("Preview unavailable")
+        } finally {
+            setIsDecryptingPreview(false)
+        }
+    }
+
+    useEffect(() => {
+        const canAutoPreview =
+            mediaType === "image" || mediaType === "video" || mediaType === "audio"
+
+        if (!isSecureMedia || !canAutoPreview || !mediaUrl || decryptedMediaUrl || isDecryptingPreview) {
+            return
+        }
+
+        void loadSecurePreview()
+    }, [isSecureMedia, mediaType, mediaUrl, decryptedMediaUrl, isDecryptingPreview])
+
     const handleDownload = async (url: string, filename: string) => {
         try {
-            const response = await fetch(url);
-            const blob = await response.blob();
+            const encryptedBlob = await fetchMediaBlob(url);
+            const blob = await decryptMediaBlobIfNeeded(encryptedBlob);
             const blobUrl = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = blobUrl;
@@ -34,9 +107,141 @@ export default function MediaMessageContent({
             window.URL.revokeObjectURL(blobUrl);
         } catch (error) {
             console.error('Download failed:', error);
-            window.open(url, '_blank');
+            if (!isSecureMedia) {
+                window.open(url, '_blank');
+            }
         }
     };
+
+    if (isSecureMedia && mediaUrl) {
+        const canPreview = mediaType === "image" || mediaType === "video" || mediaType === "audio"
+
+        if (decryptedMediaUrl && mediaType === "image") {
+            return (
+                <div className="space-y-2">
+                    <div className="relative group rounded-lg overflow-hidden max-w-sm">
+                        <img
+                            src={decryptedMediaUrl}
+                            alt={fileName || "Secure image"}
+                            className="w-full h-auto cursor-pointer hover:opacity-90 transition-opacity"
+                            onClick={() => window.open(decryptedMediaUrl, "_blank")}
+                        />
+                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button
+                                size="icon"
+                                variant="secondary"
+                                className="h-8 w-8 rounded-full bg-white/90 hover:bg-white"
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleDownload(mediaUrl, fileName || "secure-image")
+                                }}
+                                title="Download decrypted file"
+                            >
+                                <Download className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
+                    {showCaption && (
+                        <p className="text-sm">{content}</p>
+                    )}
+                </div>
+            )
+        }
+
+        if (decryptedMediaUrl && mediaType === "video") {
+            return (
+                <div className="space-y-2">
+                    <div className="relative group rounded-lg overflow-hidden max-w-sm">
+                        <video
+                            src={decryptedMediaUrl}
+                            controls
+                            className="w-full h-auto"
+                            preload="metadata"
+                        >
+                            Your browser does not support the video tag.
+                        </video>
+                        <div className="absolute top-2 right-2">
+                            <Button
+                                size="icon"
+                                variant="secondary"
+                                className="h-8 w-8 rounded-full bg-white/90 hover:bg-white"
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleDownload(mediaUrl, fileName || "secure-video")
+                                }}
+                                title="Download decrypted file"
+                            >
+                                <Download className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
+                    {showCaption && (
+                        <p className="text-sm">{content}</p>
+                    )}
+                </div>
+            )
+        }
+
+        if (decryptedMediaUrl && mediaType === "audio") {
+            return (
+                <AudioPlayer
+                    mediaUrl={decryptedMediaUrl}
+                    duration={duration}
+                    content={content}
+                    mediaType={mediaType}
+                    fileName={fileName}
+                    onDownload={() => handleDownload(mediaUrl, fileName || "secure-audio")}
+                />
+            )
+        }
+
+        return (
+            <div className="space-y-2">
+                <div className="flex items-center gap-3 p-3 bg-gray-100 dark:bg-white/10 rounded-lg max-w-sm">
+                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md bg-white dark:bg-darkBg-card">
+                        <Lock className="h-5 w-5 text-brand-green dark:text-brand-gold" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate text-gray-900 dark:text-white">
+                            {mediaPreviewText || "Secure file"}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-300">
+                            {fileSize ? formatFileSize(fileSize) : "Encrypted media"}
+                        </p>
+                    </div>
+                    {canPreview && (
+                        <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 flex-shrink-0"
+                            onClick={loadSecurePreview}
+                            disabled={isDecryptingPreview}
+                            title="Decrypt preview"
+                        >
+                            <Play className="h-4 w-4" />
+                        </Button>
+                    )}
+                    <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 flex-shrink-0"
+                        onClick={() => handleDownload(mediaUrl, fileName || "secure-file")}
+                        title="Download decrypted file"
+                    >
+                        <Download className="h-4 w-4" />
+                    </Button>
+                </div>
+                {showCaption && (
+                    <p className="text-sm">{content}</p>
+                )}
+                {previewError && (
+                    <p className="text-xs text-red-500 dark:text-red-400">{previewError}</p>
+                )}
+            </div>
+        )
+    }
 
     // Image rendering
     if (mediaType === 'image' && mediaUrl) {
@@ -63,7 +268,7 @@ export default function MediaMessageContent({
                         </Button>
                     </div>
                 </div>
-                {content && content !== `Sent a ${mediaType}` && (
+                {showCaption && (
                     <p className="text-sm">{content}</p>
                 )}
             </div>
@@ -98,7 +303,7 @@ export default function MediaMessageContent({
                         </Button>
                     </div>
                 </div>
-                {content && content !== `Sent a ${mediaType}` && (
+                {showCaption && (
                     <p className="text-sm">{content}</p>
                 )}
                 {duration && (
@@ -152,7 +357,7 @@ export default function MediaMessageContent({
                         <Download className="h-5 w-5 text-gray-600 dark:text-gray-300" />
                     </button>
                 </div>
-                {content && content !== `Sent a ${mediaType}` && (
+                {showCaption && (
                     <p className="text-sm">{content}</p>
                 )}
             </div>
@@ -179,7 +384,7 @@ export default function MediaMessageContent({
                         <Download className="h-5 w-5 text-gray-600 dark:text-gray-300" />
                     </button>
                 </div>
-                {content && (
+                {showCaption && (
                     <p className="text-sm">{content}</p>
                 )}
             </div>
@@ -211,6 +416,12 @@ function AudioPlayer({
     const [currentTime, setCurrentTime] = useState(0)
     const [totalDuration, setTotalDuration] = useState(duration || 0)
     const [isMuted, setIsMuted] = useState(false)
+    const audioPreviewText = getChatPreviewText({ messageType: mediaType })
+    const showAudioCaption = Boolean(
+        content &&
+        content !== `Sent a ${mediaType}` &&
+        content !== audioPreviewText
+    )
 
     useEffect(() => {
         const audio = audioRef.current
@@ -321,9 +532,9 @@ function AudioPlayer({
                     </Button>
                 )}
             </div>
-            {content && content !== `Sent a ${mediaType}` && (
-                <p className="text-sm">{content}</p>
-            )}
+                {showAudioCaption && (
+                    <p className="text-sm">{content}</p>
+                )}
         </div>
     )
 }

@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { Search, MessageCircle, Users, Loader2, AlertCircle } from "lucide-react"
-import { toast } from "@/hooks/use-toast"
 import { useGetAcceptedContactsQuery } from "@/states/contactSlice"
 import { useAuthToken } from "@/hooks/use-auth-token"
 import type { Conversation } from "@/types/chat.types"
@@ -14,7 +13,7 @@ import type { Conversation } from "@/types/chat.types"
 interface StartChatModalProps {
   isOpen: boolean
   onClose: () => void
-  onStartChat: (contact: any) => void
+  onStartChat: (contact: any) => Promise<void> | void
   existingConversations: Conversation[]
 }
 
@@ -47,14 +46,10 @@ export default function StartChatModal({ isOpen, onClose, onStartChat, existingC
     return fullName.includes(search) || email.includes(search)
   })
 
-  const handleStartChat = (contact: any) => {
-    onStartChat(contact)
+  const handleStartChat = async (contact: any) => {
+    await Promise.resolve(onStartChat(contact))
     onClose()
     setSearchTerm("")
-    toast({
-      title: "Chat Started",
-      description: `Started a new conversation with ${contact.otherUser.firstName} ${contact.otherUser.lastName}`,
-    })
   }
 
   const handleClose = () => {
@@ -73,8 +68,8 @@ export default function StartChatModal({ isOpen, onClose, onStartChat, existingC
             </DialogTitle>
           </DialogHeader>
           <div className='py-8 text-center'>
-            <AlertCircle size={40} className='mx-auto mb-2 text-gray-400' />
-            <p className='text-gray-500'>
+            <AlertCircle size={40} className='mx-auto mb-2 text-gray-400 dark:text-gray-500' />
+            <p className='text-gray-500 dark:text-gray-400'>
               Please log in to start new chats
             </p>
           </div>
@@ -105,7 +100,7 @@ export default function StartChatModal({ isOpen, onClose, onStartChat, existingC
           {/* Search Bar */}
           <div className='relative mb-4'>
             <Search
-              className='absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400'
+              className='absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500'
               size={16}
             />
             <Input
@@ -122,9 +117,9 @@ export default function StartChatModal({ isOpen, onClose, onStartChat, existingC
               <div className='text-center py-8'>
                 <Loader2
                   size={40}
-                  className='mx-auto mb-2 animate-spin text-gray-400'
+                  className='mx-auto mb-2 animate-spin text-gray-400 dark:text-gray-500'
                 />
-                <p className='text-gray-500'>Loading contacts...</p>
+                <p className='text-gray-500 dark:text-gray-400'>Loading contacts...</p>
               </div>
             ) : error ? (
               <div className='text-center py-8'>
@@ -142,8 +137,8 @@ export default function StartChatModal({ isOpen, onClose, onStartChat, existingC
                 {filteredContacts.map((contact: any) => (
                   <div
                     key={contact.id}
-                    className='flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer group'
-                    onClick={() => handleStartChat(contact)}
+                    className='flex items-center justify-between p-3 bg-white dark:bg-darkBg-interactive border border-gray-200 dark:border-darkBorder-light rounded-lg hover:bg-gray-50 dark:hover:bg-darkBg-hover transition-colors cursor-pointer group'
+                    onClick={() => void handleStartChat(contact)}
                   >
                     <div className='flex items-center flex-1'>
                       <Avatar className='h-12 w-12 mr-3'>
@@ -157,14 +152,14 @@ export default function StartChatModal({ isOpen, onClose, onStartChat, existingC
                         </AvatarFallback>
                       </Avatar>
                       <div className='flex-1'>
-                        <p className='font-medium text-gray-900'>
+                        <p className='font-medium text-gray-900 dark:text-white'>
                           {contact.otherUser.firstName}{' '}
                           {contact.otherUser.lastName}
                         </p>
-                        <p className='text-sm text-gray-500'>
+                        <p className='text-sm text-gray-500 dark:text-gray-400'>
                           {contact.otherUser.email}
                         </p>
-                        <p className='text-xs text-gray-400'>
+                        <p className='text-xs text-gray-400 dark:text-gray-500'>
                           Connected{' '}
                           {new Date(contact.createdAt).toLocaleDateString()}
                         </p>
@@ -176,7 +171,7 @@ export default function StartChatModal({ isOpen, onClose, onStartChat, existingC
                       className='opacity-0 group-hover:opacity-100 transition-opacity'
                       onClick={e => {
                         e.stopPropagation();
-                        handleStartChat(contact);
+                        void handleStartChat(contact);
                       }}
                     >
                       <MessageCircle size={16} className='mr-2' />
@@ -187,25 +182,25 @@ export default function StartChatModal({ isOpen, onClose, onStartChat, existingC
               </div>
             ) : searchTerm ? (
               <div className='text-center py-8'>
-                <Search size={40} className='mx-auto mb-2 text-gray-400' />
-                <p className='text-gray-500'>
-                  No contacts found matching "{searchTerm}"
+                <Search size={40} className='mx-auto mb-2 text-gray-400 dark:text-gray-500' />
+                <p className='text-gray-500 dark:text-gray-400'>
+                  No contacts found matching &quot;{searchTerm}&quot;
                 </p>
               </div>
             ) : availableContacts.length === 0 ? (
               <div className='text-center py-8'>
-                <Users size={40} className='mx-auto mb-2 text-gray-400' />
-                <p className='text-gray-500 mb-2'>
+                <Users size={40} className='mx-auto mb-2 text-gray-400 dark:text-gray-500' />
+                <p className='text-gray-500 dark:text-gray-400 mb-2'>
                   No available contacts to chat with
                 </p>
-                <p className='text-sm text-gray-400 mb-4'>
+                <p className='text-sm text-gray-400 dark:text-gray-500 mb-4'>
                   All your contacts already have active conversations
                 </p>
               </div>
             ) : (
               <div className='text-center py-8'>
-                <Users size={40} className='mx-auto mb-2 text-gray-400' />
-                <p className='text-gray-500'>No contacts available</p>
+                <Users size={40} className='mx-auto mb-2 text-gray-400 dark:text-gray-500' />
+                <p className='text-gray-500 dark:text-gray-400'>No contacts available</p>
               </div>
             )}
           </div>

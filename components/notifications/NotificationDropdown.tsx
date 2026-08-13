@@ -121,15 +121,16 @@ const NotificationDropdown: React.FC = () => {
             const groupId = pathSegments[pathSegments.indexOf("groups") + 1]
             const requestId = pathSegments[pathSegments.indexOf("requests") + 1]
             const action = url.searchParams.get("action")
+            const normalizedAction = action === "reject" ? "decline" : action
 
-            if (!groupId || !requestId || !action) {
+            if (!groupId || !requestId || !normalizedAction) {
                 throw new Error("Invalid action URL for join request.")
             }
 
             await respondToJoinRequest({
                 groupId,
                 requestId,
-                action: action as "approve" | "reject",
+                action: normalizedAction as "approve" | "decline",
                 token,
             }).unwrap()
 
@@ -138,7 +139,7 @@ const NotificationDropdown: React.FC = () => {
 
             toast({
                 title: "Action Successful",
-                description: `Group join request ${action === "approve" ? "approved" : "rejected"}.`,
+                description: `Group join request ${normalizedAction === "approve" ? "approved" : "declined"}.`,
             })
         } catch (error: any) {
             console.error("Failed to perform join request action:", error)
@@ -302,7 +303,7 @@ const NotificationDropdown: React.FC = () => {
                         <div className="p-8 text-center">
                             <Bell size={40} className="mx-auto mb-2 text-gray-400" />
                             <p className="text-gray-500">No notifications yet</p>
-                            <p className="text-sm text-gray-400">We'll notify you when something happens</p>
+                            <p className="text-sm text-gray-400">We&apos;ll notify you when something happens</p>
                         </div>
                     ) : (
                         <div className="divide-y divide-gray-100">

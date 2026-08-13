@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useSearchParams, useRouter, useParams } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -13,7 +13,7 @@ type ResponseState = "loading" | "success" | "error" | "invalid" | "unauthorized
 interface JoinRequestDetails {
     groupId: string
     requestId: string
-    action: "approve" | "reject" // Changed from "decline"
+    action: "approve" | "decline"
 }
 
 export default function RespondToGroupJoinRequestPage() {
@@ -28,6 +28,7 @@ export default function RespondToGroupJoinRequestPage() {
     const [errorMessage, setErrorMessage] = useState<string>("")
     const [groupName, setGroupName] = useState<string>("")
     const [userName, setUserName] = useState<string>("")
+    const processedRequestKeyRef = useRef<string | null>(null)
 
     const [respondToJoinRequest, { isLoading }] = useRespondToJoinRequestMutation()
 
@@ -36,8 +37,9 @@ export default function RespondToGroupJoinRequestPage() {
         const requestId = params.requestId as string
         const action = searchParams.get("action")
 
-        if (!groupId || !requestId || !action || !["approve", "reject"].includes(action)) {
-            // Changed from "decline"
+        const normalizedAction = action === 'reject' ? 'decline' : action
+
+        if (!groupId || !requestId || !normalizedAction || !["approve", "decline"].includes(normalizedAction)) {
             setResponseState("invalid")
             setErrorMessage("Invalid group join request link. Please check the link and try again.")
             return
@@ -52,9 +54,16 @@ export default function RespondToGroupJoinRequestPage() {
         const details: JoinRequestDetails = {
             groupId,
             requestId,
-            action: action as "approve" | "reject", // Changed from "decline"
+            action: normalizedAction as "approve" | "decline",
         }
 
+        const requestKey = `${details.groupId}:${details.requestId}:${details.action}`
+
+        if (processedRequestKeyRef.current === requestKey) {
+            return
+        }
+
+        processedRequestKeyRef.current = requestKey
         setRequestDetails(details)
         handleJoinRequestResponse(details)
     }, [searchParams, params, authToken])
@@ -105,16 +114,17 @@ export default function RespondToGroupJoinRequestPage() {
 
     const handleRetry = () => {
         if (requestDetails) {
+            processedRequestKeyRef.current = null
             handleJoinRequestResponse(requestDetails)
         }
     }
 
     const getActionText = (action: string) => {
-        return action === "approve" ? "approving" : "rejecting" // Changed from "declining"
+        return action === "approve" ? "approving" : "declining"
     }
 
     const getActionPastTense = (action: string) => {
-        return action === "approve" ? "approved" : "rejected" // Changed from "declined"
+        return action === "approve" ? "approved" : "declined"
     }
 
     const renderContent = () => {
@@ -143,7 +153,7 @@ export default function RespondToGroupJoinRequestPage() {
                                 {isApproved ? (
                                     <CheckCircle size={48} className="text-green-600" />
                                 ) : (
-                                    <XCircle size={48} className="text-red-600\" />
+                                    <XCircle size={48} className="text-red-600" />
                                 )}
                             </div>
                             <h2 className="text-xl font-semibold mb-2">
@@ -153,7 +163,7 @@ export default function RespondToGroupJoinRequestPage() {
                             <p className="text-gray-600 text-center mb-6">
                                 {isApproved
                                     ? `${userName || "The user"}'s request to join ${groupName ? `"${groupName}"` : "the group"} has been approved.`
-                                    : `${userName || "The user"}'s request to join ${groupName ? `"${groupName}"` : "the group"} has been rejected.`} {/* Changed from "declined" */}
+                                    : `${userName || "The user"}'s request to join ${groupName ? `"${groupName}"` : "the group"} has been declined.`}
                             </p>
                             <div className="flex gap-3">
                                 <Button onClick={() => router.push("/chat")} className="flex items-center">
@@ -218,7 +228,7 @@ export default function RespondToGroupJoinRequestPage() {
                             <h2 className="text-xl font-semibold mb-2">Login Required</h2>
                             <p className="text-gray-600 text-center mb-6">{errorMessage}</p>
                             <div className="flex gap-3">
-                                <Button onClick={() => router.push("/login")} className="flex items-center">
+                                <Button onClick={() => router.push(`/auth/login?returnUrl=${encodeURIComponent(window.location.pathname + window.location.search)}`)} className="flex items-center">
                                     Login
                                 </Button>
                                 <Button variant="outline" onClick={() => router.push("/")} className="flex items-center">
