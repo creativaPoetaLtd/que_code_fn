@@ -1,4 +1,4 @@
-export type MessageType = "text" | "image" | "file" | "money" | "audio" | "video" | "document";
+export type MessageType = "text" | "image" | "file" | "money" | "escrow" | "audio" | "video" | "document";
 export type MessageStatus = "sent" | "delivered" | "read";
 export type ChatType = "dm" | "group" | "support";
 

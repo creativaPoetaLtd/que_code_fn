@@ -4,6 +4,7 @@ import type { Message, LegacyMessage, ReplyPreview, Reaction } from "@/types/cha
 import { useMemo, useRef, useState, useCallback } from "react"
 import MediaMessageContent from "./media-message-content"
 import { MoneyMessageCard } from "./money-message-card"
+import { EscrowMessageCard } from "./escrow-message-card"
 import { GroupContributionCard } from "./group-contribution-card"
 import MessageText from "./message-text"
 import LinkPreviewCard from "./link-preview-card"
@@ -60,11 +61,25 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
         ['image', 'video', 'audio', 'document'].includes(message.messageType);
 
     const isMoneyMessage = !isLegacy && message.messageType === "money";
+    const isEscrowMessage = !isLegacy && message.messageType === "escrow";
 
     let messageContent: any = isLegacy ? message.message : message.content;
     let moneyTransferData = null;
     let groupContributionData = null;
+    let escrowData = null;
     let isOldMoneyMessage = false;
+
+    // Parse escrow hold data
+    if (isEscrowMessage && messageContent) {
+        try {
+            const parsed = JSON.parse(messageContent);
+            if (parsed.type === 'escrow' && parsed.escrowId) {
+                escrowData = parsed;
+            }
+        } catch (e) {
+            // Parsing failed - ignore, falls through to plain text rendering
+        }
+    }
 
     // Parse money transfer/request data
     if (isMoneyMessage && messageContent) {
@@ -88,7 +103,7 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
         }
     }
 
-    if (!isMediaMessage && !moneyTransferData) {
+    if (!isMediaMessage && !moneyTransferData && !escrowData) {
         if (typeof messageContent === 'object' && messageContent !== null) {
             if (messageContent.content) {
                 messageContent = messageContent.content;
@@ -235,7 +250,16 @@ export default function MessageItem({ message, onReply }: MessageItemProps) {
             </div>
         );
     }
-    
+
+    // Render escrow hold message as a special card
+    if (isEscrowMessage && escrowData) {
+        return (
+            <div className={cn("mb-4", isMe ? "ml-auto" : "mr-auto")}>
+                <EscrowMessageCard data={escrowData} isMe={isMe} chatId={!isLegacy ? message.chatId : undefined} />
+            </div>
+        );
+    }
+
     return (
         <div className={cn("flex mb-3 sm:mb-4", isMe ? "justify-end" : "justify-start")}>
             {!isMe && (
