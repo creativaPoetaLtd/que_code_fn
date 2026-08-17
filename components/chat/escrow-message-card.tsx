@@ -8,6 +8,7 @@ import { getCurrentUserId } from "@/utils/tokenUtils";
 import {
     useGetEscrowByIdQuery,
     useReleaseEscrowMutation,
+    useFulfillEscrowMutation,
     useRefundEscrowMutation,
     useDisputeEscrowMutation,
 } from "@/states/escrowSlice";
@@ -57,6 +58,7 @@ export const EscrowMessageCard: React.FC<EscrowMessageCardProps> = ({ data, isMe
     const escrow = escrowResp?.data;
 
     const [releaseEscrow, { isLoading: releasing }] = useReleaseEscrowMutation();
+    const [fulfillEscrow, { isLoading: fulfilling }] = useFulfillEscrowMutation();
     const [refundEscrow, { isLoading: refunding }] = useRefundEscrowMutation();
     const [disputeEscrow, { isLoading: disputing }] = useDisputeEscrowMutation();
 
@@ -67,6 +69,7 @@ export const EscrowMessageCard: React.FC<EscrowMessageCardProps> = ({ data, isMe
     const isPayer = Boolean(escrow?.payerUserId && currentUserId && escrow.payerUserId === currentUserId);
     const isPayee = Boolean(escrow?.payeeUserId && currentUserId && escrow.payeeUserId === currentUserId);
     const isHeld = status === "held";
+    const isFulfilled = Boolean(escrow?.fulfilledAt);
 
     const handleRelease = async () => {
         try {
@@ -74,6 +77,15 @@ export const EscrowMessageCard: React.FC<EscrowMessageCardProps> = ({ data, isMe
             toast({ title: "Funds released", description: `${fmt(data.amount, data.currency)} sent to ${data.payeeName}` });
         } catch (err: any) {
             toast({ title: "Could not release", description: err?.data?.message || "Something went wrong", variant: "destructive" });
+        }
+    };
+
+    const handleFulfill = async () => {
+        try {
+            await fulfillEscrow({ escrowId: data.escrowId, chatId }).unwrap();
+            toast({ title: "Marked as fulfilled", description: `${data.payerName} can now release the funds.` });
+        } catch (err: any) {
+            toast({ title: "Could not mark as fulfilled", description: err?.data?.message || "Something went wrong", variant: "destructive" });
         }
     };
 
@@ -206,19 +218,38 @@ export const EscrowMessageCard: React.FC<EscrowMessageCardProps> = ({ data, isMe
 
                     {!showDisputeForm ? (
                         <>
+                            {isFulfilled && (
+                                <p className="text-[11px] text-center text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-1">
+                                    <CheckCircle className="w-3 h-3 flex-shrink-0" />
+                                    {isPayee
+                                        ? (escrow?.autoReleaseAt
+                                            ? `You'll receive this automatically on ${new Date(escrow.autoReleaseAt).toLocaleDateString()} if ${data.payerName} hasn't released it by then`
+                                            : "Marked as fulfilled — waiting for release")
+                                        : (escrow?.autoReleaseAt
+                                            ? `Marked as fulfilled by ${data.payeeName} — auto-releases to them on ${new Date(escrow.autoReleaseAt).toLocaleDateString()} if you don't act`
+                                            : "Marked as fulfilled")}
+                                </p>
+                            )}
+
                             {isPayer && (
                                 <div className="flex gap-2">
-                                    <Button size="sm" variant="outline" onClick={handleRefund} disabled={releasing || refunding} className="flex-1 h-8 text-xs">
-                                        {refunding ? <span className="animate-pulse">…</span> : 'Cancel'}
-                                    </Button>
+                                    {!isFulfilled && (
+                                        <Button size="sm" variant="outline" onClick={handleRefund} disabled={releasing || refunding} className="flex-1 h-8 text-xs">
+                                            {refunding ? <span className="animate-pulse">…</span> : 'Cancel'}
+                                        </Button>
+                                    )}
                                     <Button size="sm" onClick={handleRelease} disabled={releasing || refunding} className="flex-1 h-8 text-xs bg-brand-green hover:bg-brand-green/90 dark:bg-brand-gold dark:hover:bg-brand-gold/90 text-white">
                                         {releasing ? <span className="animate-pulse">…</span> : 'Release'}
                                     </Button>
                                 </div>
                             )}
-                            {isPayee && (
-                                <p className="text-[11px] text-gray-500 text-center">Waiting for {data.payerName} to release</p>
+
+                            {isPayee && !isFulfilled && (
+                                <Button size="sm" variant="outline" onClick={handleFulfill} disabled={fulfilling} className="w-full h-8 text-xs">
+                                    {fulfilling ? <span className="animate-pulse">…</span> : 'Mark as Fulfilled'}
+                                </Button>
                             )}
+
                             <button
                                 onClick={() => setShowDisputeForm(true)}
                                 className="w-full text-[11px] text-red-500 hover:text-red-600 text-center"

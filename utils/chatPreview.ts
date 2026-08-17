@@ -1,4 +1,5 @@
 import type { MessageType } from "@/types/chat.types";
+import { parseMessageContent } from "@/utils/messageUtils";
 
 const mediaPreviewLabels: Partial<Record<MessageType, string>> = {
   image: "Image",
@@ -26,5 +27,10 @@ export const getChatPreviewText = ({
     return mediaPreviewLabels[messageType as MessageType] || "File";
   }
 
-  return content || "";
+  if (!content) return "";
+  if (messageType === "money" || messageType === "escrow") {
+    return parseMessageContent(content, messageType);
+  }
+
+  return content;
 };

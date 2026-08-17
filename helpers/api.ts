@@ -27,7 +27,6 @@ const apiPost = (url: string, data: any) => axios.post(`${baseUrl}${url}`, data,
 const apiPut = (url: string, data: any) => axios.put(`${baseUrl}${url}`, data, { headers: getAuthHeaders() });
 const apiPatch = (url: string, data: any) => axios.patch(`${baseUrl}${url}`, data, { headers: getAuthHeaders() });
 const apiDelete = (url: string) => axios.delete(`${baseUrl}${url}`, { headers: getAuthHeaders() });
-const apiPatch = (url: string, data: any) => axios.patch(`${baseUrl}${url}`, data, { headers: getAuthHeaders() });
 
 // Helper for FormData requests (no Content-Type header, let browser set it with boundary)
 const apiPostFormData = (url: string, formData: FormData) =>

@@ -67,6 +67,7 @@ interface ChatAreaProps {
     onDeleteGroup?: () => void
     onVerifySecurity?: () => void
     onCreateContribution?: () => void
+    onCreateGroup?: () => void
     isGroupAdmin?: boolean
     typingUsers?: any[]
     onlineUsers?: any[]
@@ -85,6 +86,7 @@ export default function ChatArea({
     onDeleteGroup,
     onVerifySecurity,
     onCreateContribution,
+    onCreateGroup,
     isGroupAdmin = false,
     typingUsers = [],
     onlineUsers = [],
@@ -196,6 +198,10 @@ export default function ChatArea({
                     secureConversation={conversation}
                     replyToMessage={replyToMessage}
                     onCancelReply={() => setReplyToMessage(null)}
+                    onSendMoney={onSendMoney}
+                    onRequestMoney={onRequestMoney}
+                    onCreateContribution={onCreateContribution}
+                    onCreateGroup={onCreateGroup}
                 />
             </div>
         </div>
