@@ -71,6 +71,7 @@ type NotificationMessageType = "text" | "image" | "video" | "audio" | "file" | "
 
 const toNotificationMessageType = (messageType: MessageType): NotificationMessageType => {
     if (messageType === "document") return "file";
+    if (messageType === "escrow") return "money";
     return messageType;
 };
 
@@ -727,15 +728,24 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         }
 
         if (messagesData?.data?.messages && activeChat) {
-            const messagesWithIsMe = messagesData.data.messages.map((msg: Message) => ({
+            const fetchedMessages = messagesData.data.messages.map((msg: Message) => ({
                 ...msg,
                 isMe: String(msg.sender.id) === String(userId || "")
             }));
 
-            setMessages((prev: Record<string, Message[]>) => ({
-                ...prev,
-                [activeChat]: messagesWithIsMe
-            }));
+            // Merge (don't replace) - an in-flight fetch started before a message was
+            // sent can resolve after the optimistic append and must not erase it.
+            setMessages((prev: Record<string, Message[]>) => {
+                const existing = prev[activeChat] || [];
+                const byId = new Map(existing.map((msg) => [msg.id, msg]));
+                for (const msg of fetchedMessages) {
+                    byId.set(msg.id, msg);
+                }
+                const merged = Array.from(byId.values()).sort(
+                    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+                );
+                return { ...prev, [activeChat]: merged };
+            });
         }
     }, [messagesData, activeChat, userId, isActiveSecureChat]);
 
@@ -756,13 +766,25 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
 
                 if (cancelled) return;
 
-                setMessages((prev: Record<string, Message[]>) => ({
-                    ...prev,
-                    [activeChat]: secureMessages.map((message) => ({
-                        ...message,
-                        isMe: String(message.sender.id) === String(userId),
-                    })),
+                const fetchedMessages = secureMessages.map((message) => ({
+                    ...message,
+                    isMe: String(message.sender.id) === String(userId),
                 }));
+
+                // Merge (don't replace) - same rationale as the plain-chat sync: an
+                // in-flight fetch can resolve after a locally-added message and must
+                // not erase it.
+                setMessages((prev: Record<string, Message[]>) => {
+                    const existing = prev[activeChat] || [];
+                    const byId = new Map(existing.map((msg) => [msg.id, msg]));
+                    for (const msg of fetchedMessages) {
+                        byId.set(msg.id, msg);
+                    }
+                    const merged = Array.from(byId.values()).sort(
+                        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+                    );
+                    return { ...prev, [activeChat]: merged };
+                });
 
                 const latestMessage = secureMessages[secureMessages.length - 1] || null;
                 if (latestMessage && !latestMessage.content.startsWith("[Unable to decrypt")) {

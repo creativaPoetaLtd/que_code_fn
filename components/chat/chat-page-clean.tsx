@@ -23,6 +23,7 @@ import {
 import SendMoneyModal from '@/components/chat/send-money-modal';
 import RequestMoneyModal from '@/components/chat/request-money-modal';
 import CreateContributionModal from '@/components/chat/create-contribution-modal';
+import CreateGroupModalUpdated from '@/components/chat/create-group-modal';
 import { getGroupById } from '@/helpers/api';
 import AddContactModal from '@/components/chat/add-contact-modal';
 import UserProfileModal from '@/components/chat/user-profile-modal';
@@ -83,6 +84,8 @@ export default function ChatPageClean() {
   const [selectedChat, setSelectedChat] = useState<Conversation | null>(null);
   const [isGroupAdmin, setIsGroupAdmin] = useState(false);
   const [isCreateContributionModalOpen, setIsCreateContributionModalOpen] =
+    useState(false);
+  const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] =
     useState(false);
   const [selectedOutsideMessage, setSelectedOutsideMessage] =
     useState<OutsideMessage | null>(null);
@@ -404,6 +407,7 @@ export default function ChatPageClean() {
               onCreateContribution={() =>
                 setIsCreateContributionModalOpen(true)
               }
+              onCreateGroup={() => setIsCreateGroupModalOpen(true)}
               isGroupAdmin={isGroupAdmin}
               onViewProfile={handleViewProfile}
               onInviteToGroup={handleInviteToGroup}
@@ -459,6 +463,12 @@ export default function ChatPageClean() {
         isOpen={isCreateContributionModalOpen}
         onClose={() => setIsCreateContributionModalOpen(false)}
         conversation={selectedChat}
+      />
+
+      <CreateGroupModalUpdated
+        isOpen={isCreateGroupModalOpen}
+        onClose={() => setIsCreateGroupModalOpen(false)}
+        token={token}
       />
 
       <AddContactModal

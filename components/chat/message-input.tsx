@@ -52,6 +52,10 @@ interface MessageInputProps {
     secureConversation?: Conversation
     replyToMessage?: ReplyPreview | null
     onCancelReply?: () => void
+    onSendMoney?: () => void
+    onRequestMoney?: () => void
+    onCreateContribution?: () => void
+    onCreateGroup?: () => void
 }
 
 export default function MessageInput({
@@ -62,6 +66,10 @@ export default function MessageInput({
     secureConversation,
     replyToMessage = null,
     onCancelReply,
+    onSendMoney,
+    onRequestMoney,
+    onCreateContribution,
+    onCreateGroup,
 }: MessageInputProps) {
     const [messageText, setMessageText]       = useState<string>("")
     const [showOptions, setShowOptions]       = useState<boolean>(false)
@@ -382,6 +390,26 @@ export default function MessageInput({
         setShowOptions(false)
         if (option === "Media") {
             setShowMediaModal(true)
+            return
+        }
+        if (option === "Send Money") {
+            if (onSendMoney) { onSendMoney(); return }
+            toast({ title: "Unavailable", description: "Open this chat to send money", variant: "destructive" })
+            return
+        }
+        if (option === "Request Money") {
+            if (onRequestMoney) { onRequestMoney(); return }
+            toast({ title: "Unavailable", description: "Open this chat to request money", variant: "destructive" })
+            return
+        }
+        if (option === "Contribution") {
+            if (onCreateContribution) { onCreateContribution(); return }
+            toast({ title: "Unavailable", description: "Open this chat to start a contribution", variant: "destructive" })
+            return
+        }
+        if (option === "Group") {
+            if (onCreateGroup) { onCreateGroup(); return }
+            toast({ title: "Unavailable", description: "Unable to open group creation right now", variant: "destructive" })
             return
         }
         toast({ title: "Coming soon", description: option })

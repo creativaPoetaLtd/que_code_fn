@@ -38,7 +38,7 @@ export const OrganizationWallet: React.FC<OrganizationWalletProps> = ({
       // Fetch balance
       const balanceResponse = await getOrganizationBalance(organizationId);
       if (balanceResponse.success) {
-        setBalance(balanceResponse.data.balance);
+        setBalance(balanceResponse.data.availableBalance);
       }
 
       // Fetch restrictions if wallet exists

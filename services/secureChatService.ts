@@ -320,6 +320,26 @@ export const fetchSecureChatMessages = async ({
 
   const decryptedMessages = await Promise.all(
     ((payload?.data?.messages as any[]) || []).map(async (rawMessage) => {
+      // Plain (non-E2EE) messages - money/escrow holds, etc. - carry their real
+      // content already; there's no envelope to decrypt.
+      if (!rawMessage.isEncrypted) {
+        return {
+          id: rawMessage.id,
+          chatId: rawMessage.chatId,
+          content: rawMessage.content || "",
+          messageType: rawMessage.messageType,
+          replyToMessageId: rawMessage.replyToMessageId || null,
+          replyTo: null,
+          reactions: [],
+          status: rawMessage.status,
+          deliveredAt: rawMessage.deliveredAt || undefined,
+          readAt: rawMessage.readAt || undefined,
+          createdAt: rawMessage.createdAt,
+          sender: rawMessage.sender,
+          readBy: rawMessage.readBy || [],
+          deliveryConfirmed: Boolean(rawMessage.deliveredAt),
+        } satisfies Message;
+      }
       try {
         return await decryptSecureApiMessage({ rawMessage, state, token });
       } catch (error) {

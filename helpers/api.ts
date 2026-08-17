@@ -25,8 +25,8 @@ const getAuthHeaders = () => {
 const apiGet = (url: string) => axios.get(`${baseUrl}${url}`, { headers: getAuthHeaders() });
 const apiPost = (url: string, data: any) => axios.post(`${baseUrl}${url}`, data, { headers: getAuthHeaders() });
 const apiPut = (url: string, data: any) => axios.put(`${baseUrl}${url}`, data, { headers: getAuthHeaders() });
-const apiDelete = (url: string) => axios.delete(`${baseUrl}${url}`, { headers: getAuthHeaders() });
 const apiPatch = (url: string, data: any) => axios.patch(`${baseUrl}${url}`, data, { headers: getAuthHeaders() });
+const apiDelete = (url: string) => axios.delete(`${baseUrl}${url}`, { headers: getAuthHeaders() });
 
 // Helper for FormData requests (no Content-Type header, let browser set it with boundary)
 const apiPostFormData = (url: string, formData: FormData) =>
@@ -160,6 +160,168 @@ const createTransferKey = (params: any) => {
   const senderId = senderUserId || senderOrganizationId || senderSubActionId;
   const receiverId = receiverUserId || receiverOrganizationId || receiverWalletId;
   return `${senderId}-${receiverId}-${amount}`;
+};
+
+/* ---------- Scheduled transfers ---------- */
+
+export interface ScheduleRecurrenceInput {
+  frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  interval?: number;
+  endDate?: string;
+  maxOccurrences?: number;
+}
+
+export interface ScheduleTransferParams {
+  senderUserId?: string;
+  senderOrganizationId?: string;
+  senderSubActionId?: string;
+  receiverUserId?: string;
+  receiverOrganizationId?: string;
+  receiverWalletId?: string;
+  amount: number;
+  description?: string;
+  categoryId?: string;
+  type?: string;
+  applyConstraints?: boolean;
+  pin: string;
+  scheduledFor: string;
+  timezone?: string;
+  recurrence?: ScheduleRecurrenceInput;
+}
+
+export const scheduleTransfer = async (params: ScheduleTransferParams) => {
+  validateTransferParams(params);
+  const res = await apiPost('/scheduled-transfers', params);
+  return res.data;
+};
+
+export const getScheduledTransfers = async (params?: {
+  status?: string;
+  direction?: 'outgoing' | 'incoming' | 'all';
+  limit?: number;
+  offset?: number;
+}) => {
+  const query = new URLSearchParams();
+  if (params?.status) query.set('status', params.status);
+  if (params?.direction) query.set('direction', params.direction);
+  if (params?.limit) query.set('limit', String(params.limit));
+  if (params?.offset) query.set('offset', String(params.offset));
+  const qs = query.toString();
+  const res = await apiGet(`/scheduled-transfers${qs ? `?${qs}` : ''}`);
+  return res.data;
+};
+
+export const getScheduledTransferById = async (id: string) => {
+  const res = await apiGet(`/scheduled-transfers/${id}`);
+  return res.data;
+};
+
+export const updateScheduledTransfer = async (id: string, params: {
+  amount?: number;
+  scheduledFor?: string;
+  description?: string;
+  categoryId?: string;
+  applyConstraints?: boolean;
+  recurrence?: ScheduleRecurrenceInput | null;
+  pin?: string;
+}) => {
+  const res = await apiPatch(`/scheduled-transfers/${id}`, params);
+  return res.data;
+};
+
+export const cancelScheduledTransfer = async (id: string) => {
+  const res = await apiPost(`/scheduled-transfers/${id}/cancel`, {});
+  return res.data;
+};
+
+export const pauseScheduledTransfer = async (id: string) => {
+  const res = await apiPost(`/scheduled-transfers/${id}/pause`, {});
+  return res.data;
+};
+
+export const resumeScheduledTransfer = async (id: string) => {
+  const res = await apiPost(`/scheduled-transfers/${id}/resume`, {});
+  return res.data;
+};
+
+export const skipNextScheduledOccurrence = async (id: string) => {
+  const res = await apiPost(`/scheduled-transfers/${id}/skip-next`, {});
+  return res.data;
+};
+
+export interface BatchRecipientInput {
+  receiverUserId?: string;
+  receiverOrganizationId?: string;
+  receiverWalletId?: string;
+  amount: number;
+  description?: string;
+}
+
+export const createBatchTransfer = async (params: {
+  senderUserId?: string;
+  senderOrganizationId?: string;
+  senderSubActionId?: string;
+  recipients: BatchRecipientInput[];
+  description?: string;
+  categoryId?: string;
+  type?: string;
+  applyConstraints?: boolean;
+  pin: string;
+  idempotencyKey?: string;
+}) => {
+  const res = await apiPost('/transactions/batch-transfer', params);
+  return res.data;
+};
+
+export const getBatchTransfers = async (params?: { page?: number; limit?: number }) => {
+  const query = new URLSearchParams();
+  if (params?.page) query.set('page', String(params.page));
+  if (params?.limit) query.set('limit', String(params.limit));
+  const qs = query.toString();
+  const res = await apiGet(`/transactions/batches${qs ? `?${qs}` : ''}`);
+  return res.data;
+};
+
+export const getBatchTransferById = async (id: string) => {
+  const res = await apiGet(`/transactions/batch/${id}`);
+  return res.data;
+};
+
+export const createScheduledBatchTransfer = async (params: {
+  senderUserId?: string;
+  senderOrganizationId?: string;
+  senderSubActionId?: string;
+  recipients: BatchRecipientInput[];
+  description?: string;
+  categoryId?: string;
+  type?: string;
+  applyConstraints?: boolean;
+  pin: string;
+  scheduledFor: string;
+  timezone: string;
+  recurrence?: ScheduleRecurrenceInput | null;
+}) => {
+  const res = await apiPost('/scheduled-transfers/batch', params);
+  return res.data;
+};
+
+export const getScheduledBatches = async (params?: { limit?: number; offset?: number }) => {
+  const query = new URLSearchParams();
+  if (params?.limit) query.set('limit', String(params.limit));
+  if (params?.offset) query.set('offset', String(params.offset));
+  const qs = query.toString();
+  const res = await apiGet(`/scheduled-transfers/batches${qs ? `?${qs}` : ''}`);
+  return res.data;
+};
+
+export const getScheduledBatchById = async (id: string) => {
+  const res = await apiGet(`/scheduled-transfers/batch/${id}`);
+  return res.data;
+};
+
+export const cancelScheduledBatch = async (id: string) => {
+  const res = await apiPost(`/scheduled-transfers/batch/${id}/cancel`, {});
+  return res.data;
 };
 
 export const getAllUsers = async () => {
