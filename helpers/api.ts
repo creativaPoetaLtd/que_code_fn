@@ -699,8 +699,26 @@ export const getSubActions = (actionId: string) => apiGet(`/actions/${actionId}/
 export const getGroupById = (groupId: string) =>
   axios.get(`${baseUrl}/groups/${groupId}`, { headers: getAuthHeaders() });
 
-export const transferActionPurchase = (purchaseId: string, recipientId: string) =>
-  apiPost(`/action-purchases/${purchaseId}/transfer`, { recipientId });
+// chatId is optional: pass it when transferring from a conversation and the server
+// posts the transfer card into that chat itself, so both sides see the same message.
+export const transferActionPurchase = (
+  purchaseId: string,
+  recipientId: string,
+  options?: { chatId?: string; note?: string }
+) =>
+  apiPost(`/action-purchases/${purchaseId}/transfer`, {
+    recipientId,
+    ...(options?.chatId ? { chatId: options.chatId } : {}),
+    ...(options?.note ? { note: options.note } : {}),
+  });
+
+// Share an action into a chat as a card — the server builds and posts the message
+export const shareActionToChat = (actionId: string, chatId: string, note?: string) =>
+  apiPost(`/actions/${actionId}/share-to-chat`, { chatId, ...(note ? { note } : {}) });
+
+// Tickets/passes a user currently owns — the transferable assets behind their purchases
+export const getUserQrObjects = (userId: string) =>
+  apiGet(`/users/${userId}/qr-objects`);
 
 export const getUserById = (userId: string) => apiGet(`/users/${userId}`);
 

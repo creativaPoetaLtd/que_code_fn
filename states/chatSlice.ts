@@ -34,6 +34,45 @@ export const chatSlice = apiSlice.injectEndpoints({
             ]
         }),
 
+        // Pinned messages — the set shown in the chat's pinned bar
+        getPinnedMessages: builder.query({
+            query: ({ chatId }) => `/chats/${chatId}/pins`,
+            providesTags: (result, error, { chatId }) => [
+                { type: "PinnedMessage", id: chatId }
+            ]
+        }),
+
+        pinMessage: builder.mutation({
+            query: ({ chatId, messageId }) => ({
+                url: `/chats/${chatId}/messages/${messageId}/pin`,
+                method: "POST"
+            }),
+            invalidatesTags: (result, error, { chatId }) => [
+                { type: "PinnedMessage", id: chatId }
+            ]
+        }),
+
+        unpinMessage: builder.mutation({
+            query: ({ chatId, messageId }) => ({
+                url: `/chats/${chatId}/messages/${messageId}/pin`,
+                method: "DELETE"
+            }),
+            invalidatesTags: (result, error, { chatId }) => [
+                { type: "PinnedMessage", id: chatId }
+            ]
+        }),
+
+        // Delete a message you sent — everyone in the chat sees the tombstone
+        deleteMessage: builder.mutation({
+            query: ({ chatId, messageId }) => ({
+                url: `/chats/${chatId}/messages/${messageId}`,
+                method: "DELETE"
+            }),
+            invalidatesTags: (result, error, { chatId }) => [
+                { type: "ChatMessage", id: chatId }
+            ]
+        }),
+
         // Mark messages as read
         markMessagesAsRead: builder.mutation({
             query: ({ chatId }) => ({
@@ -161,6 +200,10 @@ export const {
     useGetChatMessagesQuery,
     useCreateOrGetDMChatMutation,
     useSendMessageMutation,
+    useDeleteMessageMutation,
+    useGetPinnedMessagesQuery,
+    usePinMessageMutation,
+    useUnpinMessageMutation,
     useMarkMessagesAsReadMutation,
     useGetChatParticipantsStatusQuery,
     useCreateGroupChatMutation,

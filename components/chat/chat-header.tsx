@@ -18,11 +18,15 @@ import { useAuthToken } from '@/hooks/use-auth-token';
 import FundraisingProgressBadge from './fundraising-progress-badge';
 import { socketService } from '@/services/socketService';
 import { getInitials, isPlaceholderAvatar } from '@/utils/avatar';
+import GalleryRing from '@/components/ui/gallery-ring';
 import {
   ArrowLeft,
   Info,
   UserPlus,
+  LogOut,
   MoreVertical,
+  NotebookText,
+  Pin,
   Settings,
   Users,
   Circle,
@@ -48,6 +52,14 @@ interface ChatHeaderProps {
   onSendMoney?: () => void;
   onRequestMoney?: () => void;
   onCreateContribution?: () => void;
+  /** Opens the shared-notes list; the badge shows how many the chat has */
+  onOpenNotes?: () => void;
+  noteCount?: number;
+  /** Opens the pinned list */
+  onOpenPins?: () => void;
+  pinCount?: number;
+  /** Leave the group (members and admins alike; the owner deletes instead) */
+  onLeaveGroup?: () => void;
   isGroupAdmin?: boolean;
 }
 
@@ -62,6 +74,11 @@ export default function ChatHeader({
   onSendMoney,
   onRequestMoney,
   onCreateContribution,
+  onOpenNotes,
+  noteCount = 0,
+  onOpenPins,
+  pinCount = 0,
+  onLeaveGroup,
   isGroupAdmin = false,
 }: ChatHeaderProps) {
   const chat = useChat();
@@ -145,25 +162,38 @@ export default function ChatHeader({
 
       {/* Conversation Info */}
       <div className='flex items-center gap-2 sm:gap-3 flex-1 min-w-0'>
-        <div className='relative'>
-          <Avatar className='h-9 w-9 sm:h-10 sm:w-10 border-2 border-gray-100 dark:border-darkBorder-light'>
-            {!isPlaceholderAvatar(conversation.avatar) && (
-              <AvatarImage
-                src={conversation.avatar}
-                alt={conversation.name || 'User'}
-              />
-            )}
-            <AvatarFallback className='bg-brand-green dark:bg-brand-gold text-white dark:text-darkBg-main font-medium'>
-              {getInitials(conversation.name)}
-            </AvatarFallback>
-          </Avatar>
+        <button
+          type='button'
+          onClick={onViewProfile}
+          className='relative rounded-full transition-opacity hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-green dark:focus-visible:ring-brand-gold'
+          aria-label={conversation.isGroup ? 'View group profile' : 'View profile'}
+        >
+          <GalleryRing active={Boolean(conversation.hasGallery)}>
+            <Avatar
+              className={
+                conversation.hasGallery
+                  ? 'h-9 w-9 sm:h-10 sm:w-10'
+                  : 'h-9 w-9 sm:h-10 sm:w-10 border-2 border-gray-100 dark:border-darkBorder-light'
+              }
+            >
+              {!isPlaceholderAvatar(conversation.avatar) && (
+                <AvatarImage
+                  src={conversation.avatar}
+                  alt={conversation.name || 'User'}
+                />
+              )}
+              <AvatarFallback className='bg-brand-green dark:bg-brand-gold text-white dark:text-darkBg-main font-medium'>
+                {getInitials(conversation.name)}
+              </AvatarFallback>
+            </Avatar>
+          </GalleryRing>
           {!conversation.isGroup && conversation.isOnline && (
             <Circle
               size={10}
               className='absolute -bottom-0.5 -right-0.5 fill-green-500 text-green-500 border-2 border-white dark:border-darkBg-card rounded-full'
             />
           )}
-        </div>
+        </button>
 
         <div className='flex-1 min-w-0'>
           <div className='flex items-center gap-2'>
@@ -258,6 +288,22 @@ export default function ChatHeader({
             <Target size={16} />
           </Button>
         )}
+        {onOpenNotes && noteCount > 0 && (
+          <Button
+            variant='ghost'
+            size='icon'
+            onClick={onOpenNotes}
+            className='relative h-9 w-9 hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors'
+            aria-label={`Shared notes (${noteCount})`}
+            title='Shared notes'
+          >
+            <NotebookText size={16} />
+            <span className='absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] px-1 rounded-full bg-yellow-400 text-[9px] font-bold text-gray-900 flex items-center justify-center'>
+              {noteCount > 9 ? '9+' : noteCount}
+            </span>
+          </Button>
+        )}
+
         {/* Profile/Info Button */}
         <Button
           variant='ghost'
@@ -313,6 +359,16 @@ export default function ChatHeader({
             )}
 
             <DropdownMenuSeparator />
+            {onOpenPins && pinCount > 0 && (
+              <DropdownMenuItem
+                onClick={onOpenPins}
+                className='cursor-pointer'
+              >
+                <Pin size={14} className='mr-2' />
+                Pinned ({pinCount})
+              </DropdownMenuItem>
+            )}
+
             <DropdownMenuItem className='cursor-pointer'>
               <Settings size={14} className='mr-2' />
               Chat Settings
@@ -346,6 +402,17 @@ export default function ChatHeader({
               <DropdownMenuItem disabled className='cursor-default opacity-70'>
                 <Lock size={14} className='mr-2' />
                 End-to-end encrypted
+              </DropdownMenuItem>
+            )}
+
+            {/* Leave Group â€” for anyone but the owner, who deletes it instead */}
+            {conversation.isGroup && group?.userRole !== 'owner' && onLeaveGroup && (
+              <DropdownMenuItem
+                onClick={onLeaveGroup}
+                className='cursor-pointer text-red-600 hover:text-red-700 focus:text-red-700'
+              >
+                <LogOut size={14} className='mr-2' />
+                Leave Group
               </DropdownMenuItem>
             )}
 

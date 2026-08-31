@@ -1,10 +1,28 @@
 export function parseMessageContent(content: string, messageType: string): string {
-    if (messageType !== 'money' && messageType !== 'escrow') {
+    // Action cards ride on text messages, so those need parsing too
+    const isActionCandidate = messageType === 'text' && content.startsWith('{');
+    if (messageType !== 'money' && messageType !== 'escrow' && !isActionCandidate) {
         return content;
     }
 
     try {
         const data = JSON.parse(content);
+
+        if (data.type === 'action_transfer') {
+            return `🎟️ Ticket "${data.actionName || 'ticket'}" sent to ${data.toName || 'someone'}`;
+        }
+
+        if (data.type === 'shared_note') {
+            return `📝 Shared note: ${data.title || 'untitled'}`;
+        }
+
+        if (data.type === 'poll') {
+            return `📊 Poll: ${data.question || 'new poll'}`;
+        }
+
+        if (data.type === 'action_share') {
+            return `📅 Shared "${data.actionName || 'an action'}"`;
+        }
 
         if (data.type === 'money_transfer') {
             const amount = data.amount || 0;

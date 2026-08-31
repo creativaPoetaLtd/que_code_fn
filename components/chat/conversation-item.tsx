@@ -19,6 +19,7 @@ import type { Conversation } from '@/types/chat.types';
 import { formatTimestampWithoutSeconds } from '@/utils/timeUtils';
 import { getChatPreviewText } from '@/utils/chatPreview';
 import { getInitials, isPlaceholderAvatar } from '@/utils/avatar';
+import GalleryRing from '@/components/ui/gallery-ring';
 import { useAuthToken } from '@/hooks/use-auth-token';
 
 interface ConversationItemProps {
@@ -115,17 +116,22 @@ export default function ConversationItem({
             </div>
           ) : (
             <>
-              <Avatar className='h-10 w-10'>
-                {!isPlaceholderAvatar(conversation.avatar) && (
-                  <AvatarImage
-                    src={conversation.avatar}
-                    alt={conversation.name || 'User'}
-                  />
-                )}
-                <AvatarFallback className='text-sm font-semibold'>
-                  {getInitials(conversation.name)}
-                </AvatarFallback>
-              </Avatar>
+              <GalleryRing
+                active={Boolean(conversation.hasGallery)}
+                gapClassName='bg-white dark:bg-darkBg-main'
+              >
+                <Avatar className={cn(conversation.hasGallery ? 'h-[34px] w-[34px]' : 'h-10 w-10')}>
+                  {!isPlaceholderAvatar(conversation.avatar) && (
+                    <AvatarImage
+                      src={conversation.avatar}
+                      alt={conversation.name || 'User'}
+                    />
+                  )}
+                  <AvatarFallback className='text-sm font-semibold'>
+                    {getInitials(conversation.name)}
+                  </AvatarFallback>
+                </Avatar>
+              </GalleryRing>
               {conversation.isOnline && (
                 <span className='absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-white bg-green-500 dark:border-darkBg-card'></span>
               )}

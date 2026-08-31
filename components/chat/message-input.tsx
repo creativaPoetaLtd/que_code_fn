@@ -56,6 +56,10 @@ interface MessageInputProps {
     onRequestMoney?: () => void
     onCreateContribution?: () => void
     onCreateGroup?: () => void
+    onSendTicket?: () => void
+    onShareAction?: () => void
+    onCreatePoll?: () => void
+    onCreateSharedNote?: () => void
 }
 
 export default function MessageInput({
@@ -70,6 +74,10 @@ export default function MessageInput({
     onRequestMoney,
     onCreateContribution,
     onCreateGroup,
+    onSendTicket,
+    onShareAction,
+    onCreatePoll,
+    onCreateSharedNote,
 }: MessageInputProps) {
     const [messageText, setMessageText]       = useState<string>("")
     const [showOptions, setShowOptions]       = useState<boolean>(false)
@@ -410,6 +418,26 @@ export default function MessageInput({
         if (option === "Group") {
             if (onCreateGroup) { onCreateGroup(); return }
             toast({ title: "Unavailable", description: "Unable to open group creation right now", variant: "destructive" })
+            return
+        }
+        if (option === "Shared Note") {
+            if (onCreateSharedNote) { onCreateSharedNote(); return }
+            toast({ title: "Unavailable", description: "Open this chat to start a shared note", variant: "destructive" })
+            return
+        }
+        if (option === "Poll") {
+            if (onCreatePoll) { onCreatePoll(); return }
+            toast({ title: "Unavailable", description: "Open this chat to start a poll", variant: "destructive" })
+            return
+        }
+        if (option === "Send Ticket") {
+            if (onSendTicket) { onSendTicket(); return }
+            toast({ title: "Unavailable", description: "Open this chat to send a ticket", variant: "destructive" })
+            return
+        }
+        if (option === "Share Action") {
+            if (onShareAction) { onShareAction(); return }
+            toast({ title: "Unavailable", description: "Open this chat to share an action", variant: "destructive" })
             return
         }
         toast({ title: "Coming soon", description: option })

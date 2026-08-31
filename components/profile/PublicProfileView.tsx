@@ -32,6 +32,7 @@ import axios from 'axios';
 import baseUrl from '@/helpers/baseUrl';
 import { createOrGetPreferredDmChat } from '@/services/secureChatService';
 import Navigation from '@/components/Navigation';
+import GalleryRing from '@/components/ui/gallery-ring';
 import { Header } from '@/components/Header';
 import { useUserInfo } from '@/hooks/use-user-info';
 import { useAuthToken } from '@/hooks/use-auth-token';
@@ -189,10 +190,23 @@ interface SubAction {
   };
 }
 
-const WelcomeProfilePage: React.FC = () => {
+interface PublicProfileViewProps {
+  /** Whose profile to show. Falls back to the /welcome/[userId] route param. */
+  userId?: string;
+  /**
+   * Rendered inside a dialog rather than as a page: no app Header, no mobile
+   * Navigation, and no full-viewport height.
+   */
+  embedded?: boolean;
+}
+
+const PublicProfileView: React.FC<PublicProfileViewProps> = ({
+  userId: userIdProp,
+  embedded = false,
+}) => {
   const params = useParams();
   const router = useRouter();
-  const userId = params.userId as string;
+  const userId = (userIdProp ?? (params?.userId as string)) as string;
   const [user, setUser] = useState<UserData>({});
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(true);
@@ -1497,8 +1511,10 @@ const WelcomeProfilePage: React.FC = () => {
   if (loading) {
     return (
       <>
-        {isHydrated && isLoggedIn && <Header />}
-        <div className={`min-h-screen ${accent.bgPage} flex items-center justify-center`}>
+        {!embedded && isHydrated && isLoggedIn && <Header />}
+        <div
+          className={`${embedded ? 'min-h-[16rem]' : 'min-h-screen'} ${accent.bgPage} flex items-center justify-center`}
+        >
           <Loader2 className="w-10 h-10 text-white/30 animate-spin" />
         </div>
       </>
@@ -1507,9 +1523,15 @@ const WelcomeProfilePage: React.FC = () => {
 
   return (
     <>
-      {isHydrated && isLoggedIn && <Header />}
-      <div className={`min-h-screen ${accent.bgPage}`}>
-        <div className="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-8 space-y-4 sm:space-y-5 mobile-bottom-padding">
+      {!embedded && isHydrated && isLoggedIn && <Header />}
+      <div className={embedded ? accent.bgPage : `min-h-screen ${accent.bgPage}`}>
+        <div
+          className={
+            embedded
+              ? 'px-3 sm:px-4 py-4 space-y-4'
+              : 'max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-8 space-y-4 sm:space-y-5 mobile-bottom-padding'
+          }
+        >
 
           {/* Profile header card */}
           <div className={`rounded-2xl p-4 sm:p-6 md:p-8 ${accent.bgCard}`}>
@@ -1556,15 +1578,42 @@ const WelcomeProfilePage: React.FC = () => {
             <div className="flex flex-col sm:flex-row gap-5 sm:gap-7 items-center sm:items-start">
               {shouldShowProfileMedia && (
                 <div className="relative flex-shrink-0">
-                  <div className={`w-28 h-28 sm:w-36 sm:h-36 rounded-full overflow-hidden border-4 bg-white/10 ${accent.ring} ${accent.ringGlow}`}>
-                    {getDisplayImage() ? (
-                      <img src={getDisplayImage()} alt={user.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <User className="w-10 h-10 sm:w-14 sm:h-14 text-white/30" />
-                      </div>
-                    )}
-                  </div>
+                  {/*
+                    A green ring marks a profile that has photos behind it, and the
+                    picture becomes the way in. Same component as the chat list and
+                    chat header use, so the signal reads identically everywhere.
+                  */}
+                  {shouldShowGallery ? (
+                    <button
+                      type="button"
+                      onClick={() => setIsGalleryModalOpen(true)}
+                      aria-label={`View ${gallery.length} ${gallery.length === 1 ? 'photo' : 'photos'}`}
+                      title={`View ${gallery.length} ${gallery.length === 1 ? 'photo' : 'photos'}`}
+                      className="rounded-full transition-transform hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+                    >
+                      <GalleryRing active size="lg" gapClassName={accent.bgCard}>
+                        <span className="block w-28 h-28 sm:w-36 sm:h-36 rounded-full overflow-hidden bg-white/10">
+                          {getDisplayImage() ? (
+                            <img src={getDisplayImage()} alt={user.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="w-full h-full flex items-center justify-center">
+                              <User className="w-10 h-10 sm:w-14 sm:h-14 text-white/30" />
+                            </span>
+                          )}
+                        </span>
+                      </GalleryRing>
+                    </button>
+                  ) : (
+                    <div className={`w-28 h-28 sm:w-36 sm:h-36 rounded-full overflow-hidden border-4 bg-white/10 ${accent.ring} ${accent.ringGlow}`}>
+                      {getDisplayImage() ? (
+                        <img src={getDisplayImage()} alt={user.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <User className="w-10 h-10 sm:w-14 sm:h-14 text-white/30" />
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 whitespace-nowrap">
                     <span className="bg-black/75 backdrop-blur-sm text-white/90 text-xs px-3 py-1 rounded-full font-medium">
                       {isOrg ? 'Professional QC identity' : 'Private QC identity'}
@@ -2097,7 +2146,7 @@ const WelcomeProfilePage: React.FC = () => {
 
         </div>
 
-        {isHydrated && isLoggedIn && (
+        {!embedded && isHydrated && isLoggedIn && (
           <div className='lg:hidden'>
             <Navigation />
           </div>
@@ -2321,4 +2370,4 @@ const WelcomeProfilePage: React.FC = () => {
   );
 };
 
-export default WelcomeProfilePage;
+export default PublicProfileView;

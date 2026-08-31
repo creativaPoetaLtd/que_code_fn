@@ -2,7 +2,6 @@
 
 import {
   BarChart3,
-  CalendarDays,
   DollarSign,
   FileText,
   HandCoins,
@@ -11,6 +10,7 @@ import {
   MonitorUp,
   NotebookText,
   PiggyBank,
+  Share2,
   Ticket,
   Users,
   WalletCards,
@@ -67,10 +67,11 @@ export default function OptionsDropdown({
           action: () => onOptionSelect('Request Money'),
         },
         {
+          // Hands a ticket the user owns over to the other person
           icon: <Ticket size={18} />,
-          label: 'Ticket',
+          label: 'Send ticket',
           color: 'text-violet-600 dark:text-violet-300',
-          action: () => onOptionSelect('Ticket'),
+          action: () => onOptionSelect('Send Ticket'),
         },
       ],
     },
@@ -78,10 +79,11 @@ export default function OptionsDropdown({
       title: 'Share',
       options: [
         {
-          icon: <CalendarDays size={18} />,
-          label: 'Event',
-          color: 'text-indigo-600 dark:text-indigo-300',
-          action: () => onOptionSelect('Event'),
+          // Posts an action card in the chat — nothing changes hands
+          icon: <Share2 size={18} />,
+          label: 'Share action',
+          color: 'text-violet-600 dark:text-violet-300',
+          action: () => onOptionSelect('Share Action'),
         },
         {
           icon: <Users size={18} />,

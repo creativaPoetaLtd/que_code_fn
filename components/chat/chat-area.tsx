@@ -5,6 +5,15 @@ import { Send } from "lucide-react"
 import ChatHeader from "./chat-header"
 import MessageItem from "./message-item"
 import MessageInput from "./message-input"
+import PinnedNotesBar from "./pinned-notes-bar"
+import PinnedMessagesBar from "./pinned-messages-bar"
+import PinsPanel from "./pins-panel"
+import NotesPanel from "./notes-panel"
+import SharedNoteDialog from "./shared-note-dialog"
+import { useChatNotes } from "@/hooks/use-chat-notes"
+import { useChatPins } from "@/hooks/use-chat-pins"
+import { usePinMessageMutation, useUnpinMessageMutation } from "@/states/chatSlice"
+import { toast } from "@/hooks/use-toast"
 import type { Conversation, Message, LegacyMessage } from "@/types/chat.types"
 import type { ReplyPreview } from "@/types/chat.types"
 
@@ -68,6 +77,11 @@ interface ChatAreaProps {
     onVerifySecurity?: () => void
     onCreateContribution?: () => void
     onCreateGroup?: () => void
+    onSendTicket?: () => void
+    onShareAction?: () => void
+    onCreatePoll?: () => void
+    onCreateSharedNote?: () => void
+    onLeaveGroup?: () => void
     isGroupAdmin?: boolean
     typingUsers?: any[]
     onlineUsers?: any[]
@@ -87,12 +101,66 @@ export default function ChatArea({
     onVerifySecurity,
     onCreateContribution,
     onCreateGroup,
+    onSendTicket,
+    onShareAction,
+    onCreatePoll,
+    onCreateSharedNote,
+    onLeaveGroup,
     isGroupAdmin = false,
     typingUsers = [],
     onlineUsers = [],
 }: ChatAreaProps) {
     const messagesEndRef = useRef<HTMLDivElement>(null)
     const [replyToMessage, setReplyToMessage] = useState<ReplyPreview | null>(null)
+
+    // Shared notes are chat furniture, not messages: the bar and the header badge read
+    // the same cache entry, and the editor is mounted once here for both entry points.
+    const { notes } = useChatNotes(conversation.id)
+    const [openNoteId, setOpenNoteId] = useState<string | null>(null)
+    const [notesPanelOpen, setNotesPanelOpen] = useState(false)
+
+    // Pinned items: the bar, the list, and jumping back into the thread
+    const { pins } = useChatPins(conversation.id, messages as Message[])
+    const [pinsPanelOpen, setPinsPanelOpen] = useState(false)
+    const [highlightedId, setHighlightedId] = useState<string | null>(null)
+    const messageRefs = useRef<Record<string, HTMLDivElement | null>>({})
+    const [pinMessage] = usePinMessageMutation()
+    const [unpinMessage] = useUnpinMessageMutation()
+
+    // In a group the pinned bar is shared furniture, so only admins may change it
+    const canPin = !conversation.isGroup || isGroupAdmin
+    const pinnedIds = new Set(pins.map(pin => pin.messageId))
+
+    const handleTogglePin = async (messageId: string, nextPinned: boolean) => {
+        try {
+            if (nextPinned) {
+                await pinMessage({ chatId: conversation.id, messageId }).unwrap()
+            } else {
+                await unpinMessage({ chatId: conversation.id, messageId }).unwrap()
+            }
+        } catch (err: any) {
+            toast({
+                title: nextPinned ? "Could not pin" : "Could not unpin",
+                description: err?.data?.message || "Please try again.",
+                variant: "destructive",
+            })
+        }
+    }
+
+    /** Scroll a pinned message back into view and flash it so it's findable */
+    const handleJumpTo = (messageId: string) => {
+        const node = messageRefs.current[messageId]
+        if (!node) {
+            toast({
+                title: "Not loaded yet",
+                description: "Scroll up to load older messages, then try again.",
+            })
+            return
+        }
+        node.scrollIntoView({ behavior: "smooth", block: "center" })
+        setHighlightedId(messageId)
+        setTimeout(() => setHighlightedId(current => (current === messageId ? null : current)), 2000)
+    }
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -120,7 +188,23 @@ export default function ChatArea({
                     onSendMoney={onSendMoney}
                     onRequestMoney={onRequestMoney}
                     onCreateContribution={onCreateContribution}
+                    onOpenNotes={() => setNotesPanelOpen(true)}
+                    noteCount={notes.length}
+                    onOpenPins={() => setPinsPanelOpen(true)}
+                    pinCount={pins.length}
+                    onLeaveGroup={onLeaveGroup}
                     isGroupAdmin={isGroupAdmin}
+                />
+                <PinnedMessagesBar
+                    pins={pins}
+                    onJumpTo={handleJumpTo}
+                    onOpenList={() => setPinsPanelOpen(true)}
+                    onUnpin={canPin ? messageId => handleTogglePin(messageId, false) : undefined}
+                />
+                <PinnedNotesBar
+                    chatId={conversation.id}
+                    onOpenNote={setOpenNoteId}
+                    onOpenList={() => setNotesPanelOpen(true)}
                 />
             </div>
             {/* Messages */}
@@ -135,13 +219,25 @@ export default function ChatArea({
                                 const showSep   = dateKey !== lastDateKey
                                 lastDateKey     = dateKey
 
+                                // LegacyMessage ids can be numeric; pins are keyed by string
+                                const messageKey = String(message.id)
+
                                 return (
-                                    <div key={message.id}>
+                                    <div key={messageKey}>
                                         {showSep && <DateSeparator date={msgDate} />}
-                                        <div className="mb-0.5">
+                                        <div
+                                            ref={node => { messageRefs.current[messageKey] = node }}
+                                            className={`mb-0.5 rounded-lg transition-colors duration-500 ${
+                                                highlightedId === messageKey
+                                                    ? "bg-emerald-100/60 dark:bg-emerald-900/20"
+                                                    : ""
+                                            }`}
+                                        >
                                             <MessageItem
                                                 message={message}
                                                 onReply={(reply) => setReplyToMessage(reply)}
+                                                isPinned={pinnedIds.has(messageKey)}
+                                                onTogglePin={canPin ? handleTogglePin : undefined}
                                             />
                                         </div>
                                     </div>
@@ -202,8 +298,33 @@ export default function ChatArea({
                     onRequestMoney={onRequestMoney}
                     onCreateContribution={onCreateContribution}
                     onCreateGroup={onCreateGroup}
+                    onSendTicket={onSendTicket}
+                    onShareAction={onShareAction}
+                    onCreatePoll={onCreatePoll}
+                    onCreateSharedNote={onCreateSharedNote}
                 />
             </div>
+
+            <PinsPanel
+                isOpen={pinsPanelOpen}
+                onClose={() => setPinsPanelOpen(false)}
+                pins={pins}
+                onJumpTo={handleJumpTo}
+                onUnpin={canPin ? messageId => handleTogglePin(messageId, false) : undefined}
+            />
+
+            <NotesPanel
+                isOpen={notesPanelOpen}
+                onClose={() => setNotesPanelOpen(false)}
+                chatId={conversation.id}
+                onOpenNote={setOpenNoteId}
+            />
+
+            <SharedNoteDialog
+                isOpen={Boolean(openNoteId)}
+                onClose={() => setOpenNoteId(null)}
+                noteId={openNoteId || undefined}
+            />
         </div>
     )
 }

@@ -237,6 +237,118 @@ class SocketService {
         }
     }
 
+    onPollUpdated(callback: (poll: any) => void) {
+        if (this.socket) {
+            this.socket.on("poll_updated", callback)
+        }
+    }
+
+    offPollUpdated(callback?: (poll: any) => void) {
+        if (this.socket) {
+            if (callback) {
+                this.socket.off("poll_updated", callback)
+            } else {
+                this.socket.off("poll_updated")
+            }
+        }
+    }
+
+    onSharedNoteUpdated(callback: (note: any) => void) {
+        if (this.socket) {
+            this.socket.on("shared_note_updated", callback)
+        }
+    }
+
+    offSharedNoteUpdated(callback?: (note: any) => void) {
+        if (this.socket) {
+            if (callback) {
+                this.socket.off("shared_note_updated", callback)
+            } else {
+                this.socket.off("shared_note_updated")
+            }
+        }
+    }
+
+    onMessageDeleted(callback: (data: any) => void) {
+        if (this.socket) {
+            this.socket.on("message_deleted", callback)
+        }
+    }
+
+    offMessageDeleted(callback?: (data: any) => void) {
+        if (this.socket) {
+            if (callback) {
+                this.socket.off("message_deleted", callback)
+            } else {
+                this.socket.off("message_deleted")
+            }
+        }
+    }
+
+    onMessageEdited(callback: (data: any) => void) {
+        if (this.socket) {
+            this.socket.on("message_edited", callback)
+        }
+    }
+
+    offMessageEdited(callback?: (data: any) => void) {
+        if (this.socket) {
+            if (callback) {
+                this.socket.off("message_edited", callback)
+            } else {
+                this.socket.off("message_edited")
+            }
+        }
+    }
+
+    onSharedNoteDeleted(callback: (data: any) => void) {
+        if (this.socket) {
+            this.socket.on("shared_note_deleted", callback)
+        }
+    }
+
+    offSharedNoteDeleted(callback?: (data: any) => void) {
+        if (this.socket) {
+            if (callback) {
+                this.socket.off("shared_note_deleted", callback)
+            } else {
+                this.socket.off("shared_note_deleted")
+            }
+        }
+    }
+
+    onMessagePinned(callback: (data: any) => void) {
+        if (this.socket) {
+            this.socket.on("message_pinned", callback)
+        }
+    }
+
+    offMessagePinned(callback?: (data: any) => void) {
+        if (this.socket) {
+            if (callback) {
+                this.socket.off("message_pinned", callback)
+            } else {
+                this.socket.off("message_pinned")
+            }
+        }
+    }
+
+    onMessageUnpinned(callback: (data: any) => void) {
+        if (this.socket) {
+            this.socket.on("message_unpinned", callback)
+        }
+    }
+
+    offMessageUnpinned(callback?: (data: any) => void) {
+        if (this.socket) {
+            if (callback) {
+                this.socket.off("message_unpinned", callback)
+            } else {
+                this.socket.off("message_unpinned")
+            }
+        }
+    }
+
     onMessageRead(callback: (data: any) => void) {
         if (this.socket) {
             this.socket.on("message_read", callback)

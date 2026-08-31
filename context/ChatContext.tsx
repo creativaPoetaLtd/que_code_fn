@@ -19,11 +19,13 @@ import { toast } from "@/hooks/use-toast";
 import { notificationService } from "@/services/notificationService";
 import { getChatPreviewText } from "@/utils/chatPreview";
 import {
+    editSecureTextMessage,
     fetchSecureChatMessages,
     markSecureChatAsRead,
     sendSecureReactionMessage,
     sendSecureTextMessage,
 } from "@/services/secureChatService";
+import baseUrl from "@/helpers/baseUrl";
 
 interface ChatContextType {
     isConnected: boolean;
@@ -34,6 +36,7 @@ interface ChatContextType {
     onlineUsers: OnlineUser[];
     participantsStatus: Record<string, ChatParticipantStatus[]>;
     setActiveChat: (chatId: string | null) => void;
+    editMessage: (chatId: string, messageId: string, content: string) => Promise<void>;
     sendMessage: (
         chatId: string,
         content: string,
@@ -74,6 +77,8 @@ const toNotificationMessageType = (messageType: MessageType): NotificationMessag
     if (messageType === "escrow") return "money";
     return messageType;
 };
+
+const DELETED_MESSAGE_PLACEHOLDER = "This message was deleted";
 
 export const ChatProvider = ({ children }: ChatProviderProps) => {
     const { getToken, getUserId } = useAuthToken();
@@ -621,6 +626,71 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
             });
         };
 
+        // A deleted message keeps its place in the thread, but loses its content
+        const handleMessageDeleted = (data: {
+            chatId: string;
+            messageId: string;
+            deletedAt: string;
+            deletedBy: string;
+        }) => {
+            setMessages((prev: Record<string, Message[]>) => ({
+                ...prev,
+                [data.chatId]: (prev[data.chatId] || []).map((msg: Message) =>
+                    msg.id === data.messageId
+                        ? { ...msg, content: "", deletedAt: data.deletedAt, deletedBy: data.deletedBy }
+                        : msg
+                ),
+            }));
+
+            // Keep the conversation list honest when the deleted one was the latest
+            setConversations((prev: Conversation[]) =>
+                prev.map((conv: Conversation) => {
+                    if (conv.id !== data.chatId || !conv.lastMessage) return conv;
+                    return {
+                        ...conv,
+                        lastMessage: {
+                            ...conv.lastMessage,
+                            content: DELETED_MESSAGE_PLACEHOLDER,
+                            messageType: "text" as const,
+                        },
+                    };
+                })
+            );
+        };
+
+        // An edit arrives with the new text in a plain chat; in a secure one the text is
+        // per-device ciphertext, so the client re-reads it instead.
+        const handleMessageEdited = (data: {
+            chatId: string;
+            messageId: string;
+            content?: string;
+            editedAt: string;
+            securityMode?: string;
+        }) => {
+            if (data.securityMode === "secure_dm_v1") {
+                if (data.chatId === activeChat) {
+                    setSecureMessagesRefreshKey((current) => current + 1);
+                }
+                return;
+            }
+
+            setMessages((prev: Record<string, Message[]>) => ({
+                ...prev,
+                [data.chatId]: (prev[data.chatId] || []).map((msg: Message) =>
+                    msg.id === data.messageId
+                        ? { ...msg, content: data.content ?? msg.content, editedAt: data.editedAt }
+                        : msg
+                ),
+            }));
+
+            setConversations((prev: Conversation[]) =>
+                prev.map((conv: Conversation) => {
+                    if (conv.id !== data.chatId || !conv.lastMessage || !data.content) return conv;
+                    return { ...conv, lastMessage: { ...conv.lastMessage, content: data.content } };
+                })
+            );
+        };
+
         const handleReactionUpdated = (data: {
             chatId: string;
             messageId: string;
@@ -637,6 +707,8 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         };
 
         socketService.onNewMessage(handleNewMessage);
+        socketService.onMessageDeleted(handleMessageDeleted);
+        socketService.onMessageEdited(handleMessageEdited);
         socketService.onSecureMessageAvailable(handleSecureMessageAvailable);
         socketService.onMessageDelivered(handleMessageDelivered);
         socketService.onMessagesRead(handleMessagesRead);
@@ -656,6 +728,8 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
 
         return () => {
             socketService.offNewMessage(handleNewMessage);
+            socketService.offMessageDeleted(handleMessageDeleted);
+            socketService.offMessageEdited(handleMessageEdited);
             socketService.offSecureMessageAvailable(handleSecureMessageAvailable);
             socketService.offMessageDelivered(handleMessageDelivered);
             socketService.offMessagesRead(handleMessagesRead);
@@ -910,6 +984,59 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         }
     }, [activeChat, activeConversation?.securityMode, refetchMessages]);
 
+    /**
+     * Edit the text of a message you sent. A secure conversation has to re-encrypt the
+     * new text for every device, so it takes a different route than a plain chat.
+     */
+    const editMessage = useCallback(async (
+        chatId: string,
+        messageId: string,
+        content: string
+    ) => {
+        const trimmed = content.trim();
+        if (!trimmed) return;
+
+        const conversation = conversations.find((item) => item.id === chatId);
+
+        if (conversation?.securityMode === "secure_dm_v1") {
+            if (!token || !userId) {
+                throw new Error("Your session is not ready for secure messaging yet.");
+            }
+            await editSecureTextMessage({
+                token,
+                userId,
+                chatId,
+                messageId,
+                conversation,
+                content: trimmed,
+            });
+            setSecureMessagesRefreshKey((current) => current + 1);
+        } else {
+            const response = await fetch(`${baseUrl}/chats/${chatId}/messages/${messageId}`, {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({ content: trimmed }),
+            });
+            if (!response.ok) {
+                const payload = await response.json().catch(() => null);
+                throw new Error(payload?.message || "Failed to edit the message");
+            }
+        }
+
+        // The socket broadcast updates every other client; patch this one directly so
+        // the bubble settles immediately.
+        const editedAt = new Date().toISOString();
+        setMessages((prev: Record<string, Message[]>) => ({
+            ...prev,
+            [chatId]: (prev[chatId] || []).map((msg: Message) =>
+                msg.id === messageId ? { ...msg, content: trimmed, editedAt } : msg
+            ),
+        }));
+    }, [conversations, token, userId]);
+
     const sendMessage = useCallback((
         chatId: string,
         content: string,
@@ -989,7 +1116,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
 
             void (async () => {
                 try {
-                    await sendSecureTextMessage({
+                    const sent = await sendSecureTextMessage({
                         token,
                         userId,
                         chatId,
@@ -997,6 +1124,26 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
                         content: trimmedContent,
                         replyToMessageId: replyToMessageId || undefined,
                     });
+
+                    // Promote the optimistic copy to the real id. The refetch below
+                    // merges by id, so a temp id left in place would sit alongside the
+                    // server's copy as a duplicate rather than being replaced by it.
+                    if (sent?.id) {
+                        setMessages((prev: Record<string, Message[]>) => ({
+                            ...prev,
+                            [chatId]: (prev[chatId] || []).map((message) =>
+                                message.id === tempMessageId
+                                    ? {
+                                        ...message,
+                                        id: sent.id,
+                                        status: sent.status || message.status,
+                                        createdAt: sent.createdAt || message.createdAt,
+                                    }
+                                    : message
+                            )
+                        }));
+                    }
+
                     setSecureMessagesRefreshKey((current) => current + 1);
                     refetchChats();
                 } catch (error: any) {
@@ -1292,6 +1439,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         participantsStatus,
         setActiveChat,
         sendMessage,
+        editMessage,
         markMessagesAsRead,
         startTyping,
         stopTyping,

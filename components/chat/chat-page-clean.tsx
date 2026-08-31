@@ -12,7 +12,7 @@ import type { Conversation, OutsideMessage } from '@/types/chat.types';
 import OutsideMessageDetail from '@/components/chat/outside-message-detail';
 import { useSidebar } from '@/context/SidebarContext';
 import { cn } from '@/lib/utils';
-import { useDeleteGroupMutation } from '@/states/groupSlice';
+import { useDeleteGroupMutation, useLeaveGroupMutation } from '@/states/groupSlice';
 import GroupDialogs from '@/components/chat/GroupDialogs';
 import { toast } from '@/hooks/use-toast';
 import {
@@ -24,6 +24,10 @@ import SendMoneyModal from '@/components/chat/send-money-modal';
 import RequestMoneyModal from '@/components/chat/request-money-modal';
 import CreateContributionModal from '@/components/chat/create-contribution-modal';
 import CreateGroupModalUpdated from '@/components/chat/create-group-modal';
+import ShareActionModal from '@/components/chat/share-action-modal';
+import ProfilePreviewModal from '@/components/chat/profile-preview-modal';
+import CreatePollModal from '@/components/chat/create-poll-modal';
+import SharedNoteDialog from '@/components/chat/shared-note-dialog';
 import { getGroupById } from '@/helpers/api';
 import AddContactModal from '@/components/chat/add-contact-modal';
 import UserProfileModal from '@/components/chat/user-profile-modal';
@@ -78,6 +82,7 @@ export default function ChatPageClean() {
 
   const [deleteGroupMutation, { isLoading: isDeleting }] =
     useDeleteGroupMutation();
+  const [leaveGroupMutation, { isLoading: isLeaving }] = useLeaveGroupMutation();
 
   const [showMobileConversationList, setShowMobileConversationList] =
     useState(true);
@@ -87,6 +92,17 @@ export default function ChatPageClean() {
     useState(false);
   const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] =
     useState(false);
+  // Which flavour of the action modal is open: a ticket handover or an action share.
+  // The mode is kept while closing so the dialog does not swap labels mid-animation.
+  const [actionModal, setActionModal] = useState<{
+    isOpen: boolean;
+    mode: 'transfer' | 'share';
+  }>({ isOpen: false, mode: 'share' });
+  const [isCreatePollModalOpen, setIsCreatePollModalOpen] =
+    useState(false);
+  const [isSharedNoteDialogOpen, setIsSharedNoteDialogOpen] =
+    useState(false);
+  const [isProfilePreviewOpen, setIsProfilePreviewOpen] = useState(false);
   const [selectedOutsideMessage, setSelectedOutsideMessage] =
     useState<OutsideMessage | null>(null);
   const [isGroupSettingsModalOpen, setIsGroupSettingsModalOpen] =
@@ -94,6 +110,13 @@ export default function ChatPageClean() {
   const [isSecureIdentityDialogOpen, setIsSecureIdentityDialogOpen] =
     useState(false);
   const [deleteDialog, setDeleteDialog] = useState<{
+    isOpen: boolean;
+    groupId: string | null;
+  }>({
+    isOpen: false,
+    groupId: null,
+  });
+  const [leaveDialog, setLeaveDialog] = useState<{
     isOpen: boolean;
     groupId: string | null;
   }>({
@@ -118,6 +141,7 @@ export default function ChatPageClean() {
     participants: conversation.participants || [],
     unreadCount: conversation.unreadCount || 0,
     isOnline: conversation.isOnline || false,
+    hasGallery: conversation.hasGallery,
     memberCount: conversation.memberCount,
     lastMessage: conversation.lastMessage || null,
   });
@@ -280,10 +304,18 @@ export default function ChatPageClean() {
     setShowMobileConversationList(false);
   };
 
+  /** The other person in a DM — whose public profile the header opens */
+  const dmParticipantId = selectedChat && !selectedChat.isGroup
+    ? selectedChat.participants?.find(p => p.userId !== currentUserId)?.userId ?? null
+    : null;
+
   const handleViewProfile = () => {
     if (selectedChat?.isGroup) {
       setIsGroupProfileModalOpen(true);
+    } else if (dmParticipantId) {
+      setIsProfilePreviewOpen(true);
     } else {
+      // No resolvable participant (e.g. support chats) — fall back to the basic card
       setIsUserProfileModalOpen(true);
     }
   };
@@ -337,6 +369,34 @@ export default function ChatPageClean() {
       toast({
         title: 'Delete failed',
         description: 'Could not delete the group. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleLeaveGroup = () => {
+    if (selectedChat?.isGroup && selectedChat.groupId) {
+      setLeaveDialog({ isOpen: true, groupId: selectedChat.groupId });
+    }
+  };
+
+  const handleConfirmLeaveGroup = async (groupId: string, groupName: string) => {
+    if (!token) return;
+    try {
+      await leaveGroupMutation({ groupId, token }).unwrap();
+      toast({
+        title: 'Left group',
+        description: `You are no longer a member of ${groupName}.`,
+      });
+      setLeaveDialog({ isOpen: false, groupId: null });
+      setSelectedChat(null);
+      setActiveChat(null);
+      setShowMobileConversationList(true);
+    } catch (err: any) {
+      toast({
+        title: 'Could not leave',
+        description:
+          err?.data?.message || 'Could not leave the group. Please try again.',
         variant: 'destructive',
       });
     }
@@ -408,6 +468,15 @@ export default function ChatPageClean() {
                 setIsCreateContributionModalOpen(true)
               }
               onCreateGroup={() => setIsCreateGroupModalOpen(true)}
+              onSendTicket={() =>
+                setActionModal({ isOpen: true, mode: 'transfer' })
+              }
+              onShareAction={() =>
+                setActionModal({ isOpen: true, mode: 'share' })
+              }
+              onCreatePoll={() => setIsCreatePollModalOpen(true)}
+              onCreateSharedNote={() => setIsSharedNoteDialogOpen(true)}
+              onLeaveGroup={handleLeaveGroup}
               isGroupAdmin={isGroupAdmin}
               onViewProfile={handleViewProfile}
               onInviteToGroup={handleInviteToGroup}
@@ -471,6 +540,32 @@ export default function ChatPageClean() {
         token={token}
       />
 
+      <ProfilePreviewModal
+        isOpen={isProfilePreviewOpen}
+        onClose={() => setIsProfilePreviewOpen(false)}
+        userId={dmParticipantId}
+        name={selectedChat?.name}
+      />
+
+      <ShareActionModal
+        isOpen={actionModal.isOpen}
+        onClose={() => setActionModal(prev => ({ ...prev, isOpen: false }))}
+        mode={actionModal.mode}
+        conversation={selectedChat}
+      />
+
+      <CreatePollModal
+        isOpen={isCreatePollModalOpen}
+        onClose={() => setIsCreatePollModalOpen(false)}
+        conversation={selectedChat}
+      />
+
+      <SharedNoteDialog
+        isOpen={isSharedNoteDialogOpen}
+        onClose={() => setIsSharedNoteDialogOpen(false)}
+        chatId={selectedChat?.id}
+      />
+
       <AddContactModal
         isOpen={isAddContactModalOpen}
         onClose={() => setIsAddContactModalOpen(false)}
@@ -516,16 +611,27 @@ export default function ChatPageClean() {
         contactName={selectedChat?.name || 'Contact'}
       />
 
-      {/* Delete Group confirmation dialog (role-gated in ChatHeader) */}
+      {/* Leave / Delete confirmations (both role-gated in ChatHeader) */}
       <GroupDialogs
-        leaveDialog={{ isOpen: false, groupId: null }}
+        leaveDialog={leaveDialog}
         deleteDialog={deleteDialog}
-        groups={conversations as any[]}
-        isLeaving={false}
+        // Both dialogs look names up by group id, while a conversation is keyed by
+        // chat id — map across so they show the real name instead of "group".
+        groups={conversations
+          .filter(conversation => conversation.isGroup && conversation.groupId)
+          .map(conversation => ({
+            id: conversation.groupId,
+            name: conversation.name,
+          }))}
+        isLeaving={isLeaving}
         isDeleting={isDeleting}
-        onLeaveGroup={() => {}}
+        onLeaveGroup={(groupId, groupName) =>
+          handleConfirmLeaveGroup(groupId, groupName)
+        }
         onDeleteGroup={groupId => handleConfirmDeleteGroup(groupId)}
-        onCloseLeaveDialog={() => {}}
+        onCloseLeaveDialog={() =>
+          setLeaveDialog({ isOpen: false, groupId: null })
+        }
         onCloseDeleteDialog={() =>
           setDeleteDialog({ isOpen: false, groupId: null })
         }
