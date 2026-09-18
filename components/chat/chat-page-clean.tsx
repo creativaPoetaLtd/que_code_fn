@@ -28,6 +28,7 @@ import ShareActionModal from '@/components/chat/share-action-modal';
 import ProfilePreviewModal from '@/components/chat/profile-preview-modal';
 import CreatePollModal from '@/components/chat/create-poll-modal';
 import SharedNoteDialog from '@/components/chat/shared-note-dialog';
+import WhiteboardDialog from '@/components/chat/whiteboard-dialog';
 import { getGroupById } from '@/helpers/api';
 import AddContactModal from '@/components/chat/add-contact-modal';
 import UserProfileModal from '@/components/chat/user-profile-modal';
@@ -101,6 +102,8 @@ export default function ChatPageClean() {
   const [isCreatePollModalOpen, setIsCreatePollModalOpen] =
     useState(false);
   const [isSharedNoteDialogOpen, setIsSharedNoteDialogOpen] =
+    useState(false);
+  const [isWhiteboardDialogOpen, setIsWhiteboardDialogOpen] =
     useState(false);
   const [isProfilePreviewOpen, setIsProfilePreviewOpen] = useState(false);
   const [selectedOutsideMessage, setSelectedOutsideMessage] =
@@ -476,6 +479,7 @@ export default function ChatPageClean() {
               }
               onCreatePoll={() => setIsCreatePollModalOpen(true)}
               onCreateSharedNote={() => setIsSharedNoteDialogOpen(true)}
+              onCreateWhiteboard={() => setIsWhiteboardDialogOpen(true)}
               onLeaveGroup={handleLeaveGroup}
               isGroupAdmin={isGroupAdmin}
               onViewProfile={handleViewProfile}
@@ -563,6 +567,12 @@ export default function ChatPageClean() {
       <SharedNoteDialog
         isOpen={isSharedNoteDialogOpen}
         onClose={() => setIsSharedNoteDialogOpen(false)}
+        chatId={selectedChat?.id}
+      />
+
+      <WhiteboardDialog
+        isOpen={isWhiteboardDialogOpen}
+        onClose={() => setIsWhiteboardDialogOpen(false)}
         chatId={selectedChat?.id}
       />
 

@@ -86,6 +86,8 @@ export default function OptionsDropdown({
           action: () => onOptionSelect('Share Action'),
         },
         {
+          // In a DM: invite this contact into one of your groups. In a group chat
+          // (no single target to invite), falls back to starting a new group.
           icon: <Users size={18} />,
           label: 'Group',
           color: 'text-cyan-600 dark:text-cyan-300',

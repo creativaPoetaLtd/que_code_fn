@@ -16,6 +16,7 @@ import { usePinMessageMutation, useUnpinMessageMutation } from "@/states/chatSli
 import { toast } from "@/hooks/use-toast"
 import type { Conversation, Message, LegacyMessage } from "@/types/chat.types"
 import type { ReplyPreview } from "@/types/chat.types"
+import { useAuthToken } from "@/hooks/use-auth-token"
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
 
@@ -81,6 +82,7 @@ interface ChatAreaProps {
     onShareAction?: () => void
     onCreatePoll?: () => void
     onCreateSharedNote?: () => void
+    onCreateWhiteboard?: () => void
     onLeaveGroup?: () => void
     isGroupAdmin?: boolean
     typingUsers?: any[]
@@ -105,6 +107,7 @@ export default function ChatArea({
     onShareAction,
     onCreatePoll,
     onCreateSharedNote,
+    onCreateWhiteboard,
     onLeaveGroup,
     isGroupAdmin = false,
     typingUsers = [],
@@ -112,6 +115,18 @@ export default function ChatArea({
 }: ChatAreaProps) {
     const messagesEndRef = useRef<HTMLDivElement>(null)
     const [replyToMessage, setReplyToMessage] = useState<ReplyPreview | null>(null)
+
+    // The other person in a DM — who "Group" in the attachment menu offers to invite
+    // into one of your existing groups. Not resolvable (or not useful) in a group chat.
+    const { getUserId } = useAuthToken()
+    const currentUserId = getUserId()
+    const shareTargetParticipant = !conversation.isGroup
+        ? conversation.participants?.find(p => p.userId !== currentUserId)
+        : undefined
+    const shareTargetUserId = shareTargetParticipant?.userId
+    const shareTargetName = shareTargetParticipant?.user
+        ? `${shareTargetParticipant.user.firstName || ""} ${shareTargetParticipant.user.lastName || ""}`.trim() || undefined
+        : undefined
 
     // Shared notes are chat furniture, not messages: the bar and the header badge read
     // the same cache entry, and the editor is mounted once here for both entry points.
@@ -298,10 +313,13 @@ export default function ChatArea({
                     onRequestMoney={onRequestMoney}
                     onCreateContribution={onCreateContribution}
                     onCreateGroup={onCreateGroup}
+                    shareTargetUserId={shareTargetUserId}
+                    shareTargetName={shareTargetName}
                     onSendTicket={onSendTicket}
                     onShareAction={onShareAction}
                     onCreatePoll={onCreatePoll}
                     onCreateSharedNote={onCreateSharedNote}
+                    onCreateWhiteboard={onCreateWhiteboard}
                 />
             </div>
 

@@ -10,6 +10,8 @@ import { toast } from "@/hooks/use-toast"
 import { useChat } from "@/context/ChatContext"
 import { useTheme } from "@/context/ThemeContext"
 import MediaUploadModal from "./media-upload-modal"
+import ShareToGroupModal from "./share-to-group-modal"
+import ShareLocationModal from "./share-location-modal"
 import { uploadMediaMessage } from "@/services/mediaService"
 import { sendSecureMediaMessage } from "@/services/secureChatService"
 import MentionDropdown, { MentionMember } from "./mention-dropdown"
@@ -56,10 +58,14 @@ interface MessageInputProps {
     onRequestMoney?: () => void
     onCreateContribution?: () => void
     onCreateGroup?: () => void
+    /** The other participant of this DM — lets "Group" offer to invite them into one of your groups */
+    shareTargetUserId?: string
+    shareTargetName?: string
     onSendTicket?: () => void
     onShareAction?: () => void
     onCreatePoll?: () => void
     onCreateSharedNote?: () => void
+    onCreateWhiteboard?: () => void
 }
 
 export default function MessageInput({
@@ -74,15 +80,20 @@ export default function MessageInput({
     onRequestMoney,
     onCreateContribution,
     onCreateGroup,
+    shareTargetUserId,
+    shareTargetName,
     onSendTicket,
     onShareAction,
     onCreatePoll,
     onCreateSharedNote,
+    onCreateWhiteboard,
 }: MessageInputProps) {
     const [messageText, setMessageText]       = useState<string>("")
     const [showOptions, setShowOptions]       = useState<boolean>(false)
     const [showEmojiPicker, setShowEmojiPicker] = useState<boolean>(false)
     const [showMediaModal, setShowMediaModal] = useState<boolean>(false)
+    const [showShareToGroupModal, setShowShareToGroupModal] = useState<boolean>(false)
+    const [showShareLocationModal, setShowShareLocationModal] = useState<boolean>(false)
     const [uploading, setUploading]           = useState<boolean>(false)
     const [uploadProgress, setUploadProgress] = useState<number>(0)
     const [cursorPos, setCursorPos]           = useState<number>(0)
@@ -416,6 +427,9 @@ export default function MessageInput({
             return
         }
         if (option === "Group") {
+            // In a DM, "Group" invites the other participant into one of your existing
+            // groups rather than starting a brand new one.
+            if (shareTargetUserId) { setShowShareToGroupModal(true); return }
             if (onCreateGroup) { onCreateGroup(); return }
             toast({ title: "Unavailable", description: "Unable to open group creation right now", variant: "destructive" })
             return
@@ -423,6 +437,11 @@ export default function MessageInput({
         if (option === "Shared Note") {
             if (onCreateSharedNote) { onCreateSharedNote(); return }
             toast({ title: "Unavailable", description: "Open this chat to start a shared note", variant: "destructive" })
+            return
+        }
+        if (option === "Whiteboard") {
+            if (onCreateWhiteboard) { onCreateWhiteboard(); return }
+            toast({ title: "Unavailable", description: "Open this chat to start a whiteboard", variant: "destructive" })
             return
         }
         if (option === "Poll") {
@@ -433,6 +452,14 @@ export default function MessageInput({
         if (option === "Send Ticket") {
             if (onSendTicket) { onSendTicket(); return }
             toast({ title: "Unavailable", description: "Open this chat to send a ticket", variant: "destructive" })
+            return
+        }
+        if (option === "Location") {
+            if (!currentChatId) {
+                toast({ title: "Unavailable", description: "Open this chat to share your location", variant: "destructive" })
+                return
+            }
+            setShowShareLocationModal(true)
             return
         }
         if (option === "Share Action") {
@@ -649,6 +676,22 @@ export default function MessageInput({
                 onUpload={handleMediaUpload}
                 uploading={uploading}
                 uploadProgress={uploadProgress}
+            />
+
+            {shareTargetUserId && (
+                <ShareToGroupModal
+                    isOpen={showShareToGroupModal}
+                    onClose={() => setShowShareToGroupModal(false)}
+                    token={token}
+                    targetUserId={shareTargetUserId}
+                    targetName={shareTargetName}
+                />
+            )}
+
+            <ShareLocationModal
+                isOpen={showShareLocationModal}
+                onClose={() => setShowShareLocationModal(false)}
+                chatId={currentChatId || undefined}
             />
         </>
     )

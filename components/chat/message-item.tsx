@@ -1,19 +1,21 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 import type { Message, LegacyMessage, ReplyPreview, Reaction } from "@/types/chat.types"
-import { useMemo, useRef, useState, useCallback } from "react"
+import { useMemo, useRef, useState, useCallback, useEffect } from "react"
 import MediaMessageContent from "./media-message-content"
 import { MoneyMessageCard } from "./money-message-card"
 import { EscrowMessageCard } from "./escrow-message-card"
 import { ActionMessageCard, type ActionMessageData } from "./action-message-card"
 import { PollMessageCard, type PollMessageData } from "./poll-message-card"
 import { SharedNoteMessageCard, type SharedNoteMessageData } from "./shared-note-message-card"
+import { LocationMessageCard, type LocationMessageData } from "./location-message-card"
+import { WhiteboardMessageCard, type WhiteboardMessageData } from "./whiteboard-message-card"
 import { GroupContributionCard } from "./group-contribution-card"
 import MessageText from "./message-text"
 import LinkPreviewCard from "./link-preview-card"
 import { extractUrls } from "@/utils/url-utils"
 import { getChatPreviewText } from "@/utils/chatPreview"
-import { Ban, Check, CheckCheck, Clock, Pencil, Pin, PinOff, Reply, Smile, Trash2 } from "lucide-react"
+import { Ban, Check, CheckCheck, ChevronDown, Clock, Pencil, Pin, PinOff, Reply, Smile, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import ReactionPicker from "./reaction-picker"
 import { useChat } from "@/context/ChatContext"
@@ -100,6 +102,8 @@ export default function MessageItem({ message, onReply, isPinned = false, onTogg
     let actionData: ActionMessageData | null = null;
     let pollData: PollMessageData | null = null;
     let sharedNoteData: SharedNoteMessageData | null = null;
+    let locationData: LocationMessageData | null = null;
+    let whiteboardData: WhiteboardMessageData | null = null;
     const isTextMessage = isLegacy || !message.messageType || message.messageType === "text";
     if (!isDeleted && isTextMessage && typeof messageContent === "string" && messageContent.startsWith("{")) {
         try {
@@ -110,6 +114,10 @@ export default function MessageItem({ message, onReply, isPinned = false, onTogg
                 pollData = parsed as PollMessageData;
             } else if (parsed?.type === "shared_note" && parsed.noteId) {
                 sharedNoteData = parsed as SharedNoteMessageData;
+            } else if (parsed?.type === "location" && typeof parsed.latitude === "number" && typeof parsed.longitude === "number") {
+                locationData = parsed as LocationMessageData;
+            } else if (parsed?.type === "whiteboard" && parsed.whiteboardId) {
+                whiteboardData = parsed as WhiteboardMessageData;
             }
         } catch (e) {
             // Not JSON — an ordinary text message
@@ -138,7 +146,7 @@ export default function MessageItem({ message, onReply, isPinned = false, onTogg
         }
     }
 
-    if (!isMediaMessage && !moneyTransferData && !escrowData && !actionData && !pollData && !sharedNoteData) {
+    if (!isMediaMessage && !moneyTransferData && !escrowData && !actionData && !pollData && !sharedNoteData && !locationData && !whiteboardData) {
         if (typeof messageContent === 'object' && messageContent !== null) {
             if (messageContent.content) {
                 messageContent = messageContent.content;
@@ -165,10 +173,27 @@ export default function MessageItem({ message, onReply, isPinned = false, onTogg
     const [swipeOffset, setSwipeOffset] = useState(0)
     const [isSwiping, setIsSwiping] = useState(false)
     const [showReactionPicker, setShowReactionPicker] = useState(false)
+    const [actionsOpen, setActionsOpen] = useState(false)
+    const actionsRef = useRef<HTMLDivElement>(null)
     const startXRef = useRef(0)
     const startYRef = useRef(0)
     const horizontalLockRef = useRef(false)
     const gestureActiveRef = useRef(false)
+
+    useEffect(() => {
+        if (!actionsOpen) return
+        const handler = (e: MouseEvent | TouchEvent) => {
+            if (actionsRef.current && !actionsRef.current.contains(e.target as Node)) {
+                setActionsOpen(false)
+            }
+        }
+        document.addEventListener("mousedown", handler)
+        document.addEventListener("touchstart", handler)
+        return () => {
+            document.removeEventListener("mousedown", handler)
+            document.removeEventListener("touchstart", handler)
+        }
+    }, [actionsOpen])
 
     const { addReaction, removeReaction, activeChat, conversations, editMessage } = useChat()
     const { getUserId } = useAuthToken()
@@ -236,7 +261,7 @@ export default function MessageItem({ message, onReply, isPinned = false, onTogg
     // no text to change.
     const isPlainText = (!messageType || messageType === "text")
         && !isMediaMessage && !moneyTransferData && !escrowData && !actionData
-        && !pollData && !sharedNoteData
+        && !pollData && !sharedNoteData && !locationData && !whiteboardData
     const canModify = !isLegacy && isMe && !isTempMessage && !isDeleted
     const canDelete = canModify
     const canEdit = canModify && isPlainText
@@ -437,14 +462,52 @@ export default function MessageItem({ message, onReply, isPinned = false, onTogg
         setSwipeOffset(0)
     }
 
+    // Collapsed to a single chevron until hovered (desktop) or tapped (touch), so the
+    // row of actions doesn't crowd every bubble. Stays open while the reaction picker is up.
+    const actionsExpanded = actionsOpen || showReactionPicker
+    const closeActions = () => setActionsOpen(false)
+
     const messageActions = (!isLegacy && (onReply || reactionsAllowed || canDelete || canPin)) && !isTempMessage && !isDeleted && !isEditing ? (
-        <div className={cn(
-            "relative z-10 flex shrink-0 items-center gap-0.5 self-end rounded-full border px-1 py-0.5 shadow-sm transition-opacity",
-            "opacity-100 sm:opacity-0 sm:group-hover/message:opacity-100 sm:group-focus-within/message:opacity-100",
-            isMe
-                ? "bg-[#d9fdd3]/95 dark:bg-[#2f5f46]/95 border-emerald-200/70 dark:border-emerald-900/50"
-                : "bg-white/95 dark:bg-darkBg-interactive border-gray-100 dark:border-darkBorder-light"
-        )}>
+        <div
+            ref={actionsRef}
+            className={cn(
+                "group/actions relative z-10 flex shrink-0 items-center gap-0.5 self-end rounded-full border px-0.5 py-0.5 shadow-sm transition-opacity",
+                isMe ? "flex-row-reverse" : "flex-row",
+                actionsExpanded
+                    ? "opacity-100"
+                    : "opacity-100 sm:opacity-0 sm:group-hover/message:opacity-100 sm:group-focus-within/message:opacity-100",
+                isMe
+                    ? "bg-[#d9fdd3]/95 dark:bg-[#2f5f46]/95 border-emerald-200/70 dark:border-emerald-900/50"
+                    : "bg-white/95 dark:bg-darkBg-interactive border-gray-100 dark:border-darkBorder-light"
+            )}
+        >
+            <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setActionsOpen((v) => !v)}
+                aria-label={actionsExpanded ? "Hide message actions" : "Show message actions"}
+                aria-expanded={actionsExpanded}
+                className={cn(
+                    "h-5 w-5 p-0 rounded-full",
+                    isMe
+                        ? "text-gray-600 hover:text-gray-800 hover:bg-emerald-100/80 dark:text-gray-100 dark:hover:text-white dark:hover:bg-white/10"
+                        : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                )}
+            >
+                <ChevronDown
+                    size={12}
+                    className={cn(
+                        "transition-transform duration-150",
+                        actionsExpanded ? "rotate-180" : "sm:group-hover/actions:rotate-180"
+                    )}
+                />
+            </Button>
+
+            <div className={cn(
+                "items-center gap-0.5",
+                actionsExpanded ? "flex" : "hidden sm:group-hover/actions:flex"
+            )}>
             {reactionsAllowed && (
                 <div className="relative">
                     <Button
@@ -465,7 +528,7 @@ export default function MessageItem({ message, onReply, isPinned = false, onTogg
                     {showReactionPicker && (
                         <ReactionPicker
                             isMe={isMe}
-                            onSelect={handleReactionSelect}
+                            onSelect={(emoji) => { closeActions(); handleReactionSelect(emoji) }}
                             onClose={() => setShowReactionPicker(false)}
                         />
                     )}
@@ -477,7 +540,7 @@ export default function MessageItem({ message, onReply, isPinned = false, onTogg
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() => onTogglePin!((message as Message).id, !isPinned)}
+                    onClick={() => { closeActions(); onTogglePin!((message as Message).id, !isPinned) }}
                     aria-label={isPinned ? "Unpin message" : "Pin message"}
                     className={cn(
                         "h-5 w-5 p-0",
@@ -495,7 +558,7 @@ export default function MessageItem({ message, onReply, isPinned = false, onTogg
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={startEditing}
+                    onClick={() => { closeActions(); startEditing() }}
                     aria-label="Edit message"
                     className="h-5 w-5 p-0 text-gray-600 hover:text-gray-800 hover:bg-emerald-100/80 dark:text-gray-100 dark:hover:text-white dark:hover:bg-white/10"
                 >
@@ -508,7 +571,7 @@ export default function MessageItem({ message, onReply, isPinned = false, onTogg
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() => setConfirmingDelete(true)}
+                    onClick={() => { closeActions(); setConfirmingDelete(true) }}
                     aria-label="Delete message"
                     className="h-5 w-5 p-0 text-gray-600 hover:text-red-600 hover:bg-red-50 dark:text-gray-100 dark:hover:text-red-400 dark:hover:bg-red-900/20"
                 >
@@ -521,7 +584,7 @@ export default function MessageItem({ message, onReply, isPinned = false, onTogg
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={handleReply}
+                    onClick={() => { closeActions(); handleReply() }}
                     aria-label="Reply"
                     className={cn(
                         "h-5 w-5 p-0",
@@ -533,6 +596,7 @@ export default function MessageItem({ message, onReply, isPinned = false, onTogg
                     <Reply size={11} />
                 </Button>
             )}
+            </div>
         </div>
     ) : null
     // Render group contribution card
@@ -584,6 +648,16 @@ export default function MessageItem({ message, onReply, isPinned = false, onTogg
                 </div>
             </div>
         );
+    }
+
+    // Render a shared whiteboard as a small live drawing preview
+    if (whiteboardData) {
+        return renderCard(<WhiteboardMessageCard data={whiteboardData} isMe={isMe} />);
+    }
+
+    // Render a shared location as a small map preview that opens in Maps
+    if (locationData) {
+        return renderCard(<LocationMessageCard data={locationData} isMe={isMe} />);
     }
 
     // Render a shared note as a card that opens the collaborative editor

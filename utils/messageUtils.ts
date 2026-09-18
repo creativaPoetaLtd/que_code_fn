@@ -77,6 +77,14 @@ export function parseMessageContent(content: string, messageType: string): strin
             return `🔒 Held ${formatted} in escrow for ${data.payeeName || 'recipient'}`;
         }
 
+        if (data.type === 'location') {
+            return `📍 ${data.label || 'Location'}`;
+        }
+
+        if (data.type === 'whiteboard') {
+            return `🖊️ Whiteboard`;
+        }
+
         if (data.type === 'group_contribution') {
             const amount = data.goalAmount || 0;
             const currency = data.currency || 'RWF';

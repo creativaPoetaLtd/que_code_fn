@@ -317,6 +317,38 @@ class SocketService {
         }
     }
 
+    onWhiteboardUpdated(callback: (board: any) => void) {
+        if (this.socket) {
+            this.socket.on("whiteboard_updated", callback)
+        }
+    }
+
+    offWhiteboardUpdated(callback?: (board: any) => void) {
+        if (this.socket) {
+            if (callback) {
+                this.socket.off("whiteboard_updated", callback)
+            } else {
+                this.socket.off("whiteboard_updated")
+            }
+        }
+    }
+
+    onWhiteboardDeleted(callback: (data: any) => void) {
+        if (this.socket) {
+            this.socket.on("whiteboard_deleted", callback)
+        }
+    }
+
+    offWhiteboardDeleted(callback?: (data: any) => void) {
+        if (this.socket) {
+            if (callback) {
+                this.socket.off("whiteboard_deleted", callback)
+            } else {
+                this.socket.off("whiteboard_deleted")
+            }
+        }
+    }
+
     onMessagePinned(callback: (data: any) => void) {
         if (this.socket) {
             this.socket.on("message_pinned", callback)

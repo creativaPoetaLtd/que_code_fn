@@ -6,16 +6,21 @@ import {
     Calendar,
     Check,
     Loader2,
+    Megaphone,
     Search,
     Send,
     Share2,
+    Target,
     Ticket,
     TriangleAlert,
 } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
 import { useUserInfo } from '@/hooks/use-user-info';
+import { useChat } from '@/context/ChatContext';
 import {
+    getMyGroupContributions,
+    getMyPublicContributions,
     getOrganizationActions,
     getUserQrObjects,
     shareActionToChat,
@@ -50,13 +55,48 @@ interface ShareableAction {
     endsAt?: string | null;
 }
 
+/** One of the user's group contribution campaigns — postable as a live card */
+interface ShareableGroupContribution {
+    contributionId: string;
+    groupId: string;
+    groupName: string;
+    title: string;
+    note?: string | null;
+    goalAmount?: number | null;
+    collectedAmount: number;
+    contributorCount: number;
+    contributionType: 'fixed' | 'flexible';
+    amountPerMember?: number | null;
+    minimumAmount?: number | null;
+    deadline?: string | null;
+    visibilityMode: 'all' | 'admin_only';
+    disbursementPolicy?: 'hold' | 'auto';
+    status: 'active' | 'completed' | 'closed' | 'expired';
+    currency: string;
+}
+
+/** A standalone (public) fundraising campaign — not tied to a single group */
+interface ShareableCampaign {
+    contributionId: string;
+    title: string;
+    note?: string | null;
+    goalAmount?: number | null;
+    collectedAmount: number;
+    contributorCount: number;
+    status: 'active' | 'completed' | 'closed' | 'expired';
+    currency: string;
+    deadline?: string | null;
+}
+
 type Mode = 'transfer' | 'share';
+/** Only meaningful when mode === 'share' — which catalog is currently showing */
+type ShareKind = 'action' | 'contribution' | 'campaign';
 
 interface ShareActionModalProps {
     isOpen: boolean;
     onClose: () => void;
     conversation: Conversation | null;
-    /** 'transfer' hands a ticket over, 'share' posts an action card. Fixed by the caller. */
+    /** 'transfer' hands a ticket over, 'share' posts a card. Fixed by the caller. */
     mode: Mode;
 }
 
@@ -68,30 +108,57 @@ const fmtDate = (value?: string | null) =>
         ? new Date(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
         : null;
 
-/** Small square preview — falls back to a tinted icon when the action has no cover */
+const fmtAmount = (n: number, cur = 'RWF') =>
+    new Intl.NumberFormat('en-RW', {
+        style: 'currency',
+        currency: cur,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+    }).format(n);
+
+/** Small square preview — falls back to a tinted icon when the item has no cover */
 const Thumb: React.FC<{ src?: string; icon: React.ReactNode }> = ({ src, icon }) => (
     <div className="w-11 h-11 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center bg-gray-100 dark:bg-darkBg-interactive text-gray-400">
         {src ? <img src={src} alt="" className="w-full h-full object-cover" /> : icon}
     </div>
 );
 
+const SHARE_KINDS: { kind: ShareKind; label: string; icon: React.ReactNode }[] = [
+    { kind: 'action', label: 'Actions', icon: <Share2 className="w-3.5 h-3.5" /> },
+    { kind: 'contribution', label: 'Contributions', icon: <Target className="w-3.5 h-3.5" /> },
+    { kind: 'campaign', label: 'Campaigns', icon: <Megaphone className="w-3.5 h-3.5" /> },
+];
+
 export default function ShareActionModal({ isOpen, onClose, conversation, mode }: ShareActionModalProps) {
     const { userId: currentUserId, accountType } = useUserInfo();
+    // Same path the composer uses for a normal text message — it picks HTTP vs the
+    // end-to-end encrypted secure-chat flow itself, unlike the plain REST mutation
+    // (which the backend refuses outright for secure conversations).
+    const { sendMessage } = useChat();
 
     const isOrganization = accountType === 'organization';
     const isGroupChat = Boolean(conversation?.isGroup);
+    const isSecureConversation = conversation?.securityMode === 'secure_dm_v1';
+    const isTransfer = mode === 'transfer';
+    const isShare = mode === 'share';
     // Ownership can only move to one person, so transfers are for direct chats between people
     const canTransfer = !isGroupChat && !isOrganization;
     // Asked to transfer where ownership cannot move — explain instead of showing an empty list
-    const transferUnavailable = mode === 'transfer' && !canTransfer;
+    const transferUnavailable = isTransfer && !canTransfer;
 
+    // Which catalog "Share" is browsing — actions, or something money-related to point at
+    const [shareKind, setShareKind] = useState<ShareKind>('action');
     const [search, setSearch] = useState('');
     const [loading, setLoading] = useState(false);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [tickets, setTickets] = useState<TransferableTicket[]>([]);
     const [actions, setActions] = useState<ShareableAction[]>([]);
+    const [groupContributions, setGroupContributions] = useState<ShareableGroupContribution[]>([]);
+    const [campaigns, setCampaigns] = useState<ShareableCampaign[]>([]);
     const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
     const [selectedActionId, setSelectedActionId] = useState<string | null>(null);
+    const [selectedContributionId, setSelectedContributionId] = useState<string | null>(null);
+    const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
     const [note, setNote] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
@@ -110,9 +177,12 @@ export default function ShareActionModal({ isOpen, onClose, conversation, mode }
             : conversation?.name || 'them';
 
     const reset = useCallback(() => {
+        setShareKind('action');
         setSearch('');
         setSelectedTicketId(null);
         setSelectedActionId(null);
+        setSelectedContributionId(null);
+        setSelectedCampaignId(null);
         setNote('');
         setSubmitting(false);
     }, []);
@@ -123,10 +193,11 @@ export default function ShareActionModal({ isOpen, onClose, conversation, mode }
         onClose();
     };
 
-    // Load what this account can offer: an organization shares its published actions,
-    // a person shares (or hands over) the tickets they hold.
+    // Load what this account can offer as an "action": an organization shares its published
+    // actions, a person shares (or hands over) the tickets they hold.
     useEffect(() => {
         if (!isOpen || !currentUserId || transferUnavailable) return;
+        if (isShare && shareKind !== 'action') return;
 
         let cancelled = false;
         setLoading(true);
@@ -204,7 +275,98 @@ export default function ShareActionModal({ isOpen, onClose, conversation, mode }
         return () => {
             cancelled = true;
         };
-    }, [isOpen, currentUserId, isOrganization, transferUnavailable]);
+    }, [isOpen, currentUserId, isOrganization, transferUnavailable, isShare, shareKind]);
+
+    // Load the contribution campaigns running in the user's groups
+    useEffect(() => {
+        if (!isOpen || !isShare || shareKind !== 'contribution' || !currentUserId) return;
+
+        let cancelled = false;
+        setLoading(true);
+        setLoadError(null);
+
+        (async () => {
+            try {
+                const res = await getMyGroupContributions();
+                const list = Array.isArray(res.data?.data) ? res.data.data : [];
+                if (cancelled) return;
+                setGroupContributions(
+                    list.map((c: any): ShareableGroupContribution => ({
+                        contributionId: c.id,
+                        groupId: c.groupId,
+                        groupName: c.groupName || 'Unknown group',
+                        title: c.title,
+                        note: c.note,
+                        goalAmount: c.goalAmount != null ? Number(c.goalAmount) : null,
+                        collectedAmount: Number(c.collectedAmount) || 0,
+                        contributorCount: c.contributorCount || 0,
+                        contributionType: c.type,
+                        amountPerMember: c.amountPerMember != null ? Number(c.amountPerMember) : null,
+                        minimumAmount: c.minimumAmount != null ? Number(c.minimumAmount) : null,
+                        deadline: c.deadline ?? null,
+                        visibilityMode: c.visibilityMode,
+                        disbursementPolicy: c.disbursementPolicy,
+                        status: c.status,
+                        currency: c.currency || 'RWF',
+                    }))
+                );
+            } catch (err: any) {
+                if (!cancelled) {
+                    setLoadError(
+                        err?.response?.data?.message || 'Could not load your contributions. Please try again.'
+                    );
+                }
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [isOpen, isShare, shareKind, currentUserId]);
+
+    // Load the user's standalone (non-group) fundraising campaigns
+    useEffect(() => {
+        if (!isOpen || !isShare || shareKind !== 'campaign' || !currentUserId) return;
+
+        let cancelled = false;
+        setLoading(true);
+        setLoadError(null);
+
+        (async () => {
+            try {
+                const res = await getMyPublicContributions();
+                const list = Array.isArray(res.data?.data) ? res.data.data : [];
+                if (cancelled) return;
+                setCampaigns(
+                    list.map((c: any): ShareableCampaign => ({
+                        contributionId: c.id,
+                        title: c.title,
+                        note: c.note,
+                        goalAmount: c.goalAmount != null ? Number(c.goalAmount) : null,
+                        collectedAmount: Number(c.collectedAmount) || 0,
+                        contributorCount: c.contributorCount || 0,
+                        status: c.status,
+                        currency: c.currency || 'RWF',
+                        deadline: c.deadline ?? null,
+                    }))
+                );
+            } catch (err: any) {
+                if (!cancelled) {
+                    setLoadError(
+                        err?.response?.data?.message || 'Could not load your campaigns. Please try again.'
+                    );
+                }
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [isOpen, isShare, shareKind, currentUserId]);
 
     const query = search.trim().toLowerCase();
     const visibleTickets = useMemo(
@@ -215,9 +377,24 @@ export default function ShareActionModal({ isOpen, onClose, conversation, mode }
         () => (query ? actions.filter(a => a.name.toLowerCase().includes(query)) : actions),
         [actions, query]
     );
+    const visibleContributions = useMemo(
+        () =>
+            query
+                ? groupContributions.filter(
+                    c => c.title.toLowerCase().includes(query) || c.groupName.toLowerCase().includes(query)
+                )
+                : groupContributions,
+        [groupContributions, query]
+    );
+    const visibleCampaigns = useMemo(
+        () => (query ? campaigns.filter(c => c.title.toLowerCase().includes(query)) : campaigns),
+        [campaigns, query]
+    );
 
     const selectedTicket = tickets.find(t => t.qrObjectId === selectedTicketId) || null;
     const selectedAction = actions.find(a => a.actionId === selectedActionId) || null;
+    const selectedContribution = groupContributions.find(c => c.contributionId === selectedContributionId) || null;
+    const selectedCampaign = campaigns.find(c => c.contributionId === selectedCampaignId) || null;
 
     /** Hand a ticket over. The server posts the card so both sides see the same message. */
     const handleTransfer = async () => {
@@ -248,7 +425,7 @@ export default function ShareActionModal({ isOpen, onClose, conversation, mode }
     };
 
     /** Share an action as a card — nothing changes hands */
-    const handleShare = async () => {
+    const handleShareAction = async () => {
         if (!selectedAction || !conversation?.id || !currentUserId) return;
 
         setSubmitting(true);
@@ -275,12 +452,85 @@ export default function ShareActionModal({ isOpen, onClose, conversation, mode }
         }
     };
 
+    /** Post a group contribution as a live card — same shape the group's own admin posts */
+    const handleShareContribution = () => {
+        if (!selectedContribution || !conversation?.id) return;
+
+        // Secure chats are end-to-end encrypted plain text only — there's no card to post there.
+        if (isSecureConversation) {
+            toast({
+                title: 'Not available in secure chats',
+                description: 'Secure conversations only support plain text, so a contribution card can\'t be posted here.',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        const c = selectedContribution;
+        const chatPayload = {
+            type: 'group_contribution',
+            contributionId: c.contributionId,
+            groupId: c.groupId,
+            title: c.title,
+            note: c.note || '',
+            goalAmount: c.goalAmount ?? undefined,
+            collectedAmount: c.collectedAmount,
+            contributorCount: c.contributorCount,
+            contributionType: c.contributionType,
+            amountPerMember: c.amountPerMember ?? undefined,
+            minimumAmount: c.minimumAmount ?? undefined,
+            deadline: c.deadline ?? undefined,
+            visibilityMode: c.visibilityMode,
+            disbursementPolicy: c.disbursementPolicy,
+            status: c.status,
+            currency: c.currency,
+            createdBy: currentUserId,
+            createdByName: nameOf(me),
+            timestamp: new Date().toISOString(),
+        };
+
+        // Fire-and-forget, same as the composer: it shows the card optimistically
+        // and surfaces its own toast if the send fails, so we just close here.
+        sendMessage(conversation.id, JSON.stringify(chatPayload), 'money');
+        toast({
+            title: 'Contribution shared',
+            description: `"${c.title}" was shared in this chat.`,
+        });
+        reset();
+        onClose();
+    };
+
+    /** Point this chat at a standalone campaign — posted as a link, same as sharing it anywhere else */
+    const handleShareCampaign = () => {
+        if (!selectedCampaign || !conversation?.id) return;
+
+        const c = selectedCampaign;
+        const link = typeof window !== 'undefined'
+            ? `${window.location.origin}/contribute/${c.contributionId}`
+            : `/contribute/${c.contributionId}`;
+        const content = [c.title, c.note || null, link].filter(Boolean).join('\n');
+
+        sendMessage(conversation.id, content, 'text');
+        toast({
+            title: 'Campaign shared',
+            description: `"${c.title}" was shared in this chat.`,
+        });
+        reset();
+        onClose();
+    };
+
     const rowClass = (active: boolean) =>
         `w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-colors ${
             active
                 ? 'border-brand-green dark:border-brand-gold bg-brand-green/5 dark:bg-brand-gold/5'
                 : 'border-gray-100 dark:border-darkBorder-light hover:border-gray-300 dark:hover:border-gray-600'
         }`;
+
+    const SelectedBadge = () => (
+        <span className="w-5 h-5 rounded-full bg-brand-green dark:bg-brand-gold flex items-center justify-center flex-shrink-0">
+            <Check className="w-3 h-3 text-white" strokeWidth={3} />
+        </span>
+    );
 
     const emptyList = (message: string) => (
         <div className="text-center py-8">
@@ -289,8 +539,49 @@ export default function ShareActionModal({ isOpen, onClose, conversation, mode }
         </div>
     );
 
-    const isTransfer = mode === 'transfer';
-    const canSubmit = isTransfer ? Boolean(selectedTicket && recipient) : Boolean(selectedAction);
+    const canSubmit = isTransfer
+        ? Boolean(selectedTicket && recipient)
+        : shareKind === 'action'
+            ? Boolean(selectedAction)
+            : shareKind === 'contribution'
+                ? Boolean(selectedContribution)
+                : Boolean(selectedCampaign);
+
+    // A personal note only makes sense where the card doesn't already carry its own —
+    // a shared contribution/campaign keeps whatever note its creator wrote.
+    const showNoteInput = isTransfer || shareKind === 'action';
+
+    const handleSubmit = isTransfer
+        ? handleTransfer
+        : shareKind === 'action'
+            ? handleShareAction
+            : shareKind === 'contribution'
+                ? handleShareContribution
+                : handleShareCampaign;
+
+    const headerIcon = isTransfer
+        ? <Ticket className="w-4 h-4 text-brand-green dark:text-brand-gold" />
+        : shareKind === 'action'
+            ? <Share2 className="w-4 h-4 text-brand-green dark:text-brand-gold" />
+            : shareKind === 'contribution'
+                ? <Target className="w-4 h-4 text-brand-green dark:text-brand-gold" />
+                : <Megaphone className="w-4 h-4 text-brand-green dark:text-brand-gold" />;
+
+    const headerTitle = isTransfer
+        ? 'Send a ticket'
+        : shareKind === 'action'
+            ? 'Share an action'
+            : shareKind === 'contribution'
+                ? 'Share a contribution'
+                : 'Share a campaign';
+
+    const headerSubtitle = isTransfer
+        ? `Hand one of your tickets to ${recipientName}.`
+        : shareKind === 'action'
+            ? `Share an action ${recipientName} can open.`
+            : shareKind === 'contribution'
+                ? `Share a contribution ${recipientName} can view and contribute to.`
+                : `Share a campaign ${recipientName} can view and support.`;
 
     return (
         <Dialog open={isOpen} onOpenChange={next => { if (!next) handleClose(); }}>
@@ -298,21 +589,36 @@ export default function ShareActionModal({ isOpen, onClose, conversation, mode }
                 {/* Header */}
                 <div className="px-5 py-4 border-b border-gray-100 dark:border-darkBorder-light">
                     <div className="flex items-center gap-2">
-                        {isTransfer ? (
-                            <Ticket className="w-4 h-4 text-brand-green dark:text-brand-gold" />
-                        ) : (
-                            <Share2 className="w-4 h-4 text-brand-green dark:text-brand-gold" />
-                        )}
+                        {headerIcon}
                         <p className="font-bold text-gray-900 dark:text-white text-sm">
-                            {isTransfer ? 'Send a ticket' : 'Share an action'}
+                            {headerTitle}
                         </p>
                     </div>
                     <p className="text-gray-500 dark:text-gray-400 text-xs mt-0.5 truncate">
-                        {isTransfer
-                            ? `Hand one of your tickets to ${recipientName}.`
-                            : `Share an action ${recipientName} can open.`}
+                        {headerSubtitle}
                     </p>
                 </div>
+
+                {/* Kind switcher — only "Share" has more than one catalog to browse */}
+                {isShare && (
+                    <div className="px-5 pt-3 flex gap-1.5">
+                        {SHARE_KINDS.map(({ kind, label, icon }) => (
+                            <button
+                                key={kind}
+                                type="button"
+                                onClick={() => { setShareKind(kind); setSearch(''); }}
+                                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                                    shareKind === kind
+                                        ? 'bg-brand-green/10 dark:bg-brand-gold/10 text-brand-green dark:text-brand-gold'
+                                        : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-darkBg-interactive'
+                                }`}
+                            >
+                                {icon}
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+                )}
 
                 {transferUnavailable ? (
                     <div className="p-5 space-y-4">
@@ -340,7 +646,15 @@ export default function ShareActionModal({ isOpen, onClose, conversation, mode }
                         <input
                             value={search}
                             onChange={e => setSearch(e.target.value)}
-                            placeholder={mode === 'transfer' ? 'Search your tickets...' : 'Search actions...'}
+                            placeholder={
+                                isTransfer
+                                    ? 'Search your tickets...'
+                                    : shareKind === 'action'
+                                        ? 'Search actions...'
+                                        : shareKind === 'contribution'
+                                            ? 'Search your contributions...'
+                                            : 'Search your campaigns...'
+                            }
                             className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-gray-50 dark:bg-darkBg-interactive border border-gray-200 dark:border-darkBorder-light text-sm text-gray-900 dark:text-white placeholder:text-gray-400 outline-none focus:border-brand-green dark:focus:border-brand-gold transition-colors"
                         />
                     </div>
@@ -353,7 +667,7 @@ export default function ShareActionModal({ isOpen, onClose, conversation, mode }
                             </div>
                         ) : loadError ? (
                             <p className="text-center text-sm text-red-500 py-8">{loadError}</p>
-                        ) : mode === 'transfer' ? (
+                        ) : isTransfer ? (
                             visibleTickets.length === 0 ? (
                                 emptyList(
                                     search
@@ -386,58 +700,121 @@ export default function ShareActionModal({ isOpen, onClose, conversation, mode }
                                                         .join(' · ') || 'Valid ticket'}
                                                 </p>
                                             </div>
-                                            {active && (
-                                                <span className="w-5 h-5 rounded-full bg-brand-green dark:bg-brand-gold flex items-center justify-center flex-shrink-0">
-                                                    <Check className="w-3 h-3 text-white" strokeWidth={3} />
-                                                </span>
-                                            )}
+                                            {active && <SelectedBadge />}
                                         </button>
                                     );
                                 })
                             )
-                        ) : visibleActions.length === 0 ? (
-                            emptyList(
-                                search
-                                    ? 'No actions match your search.'
-                                    : isOrganization
-                                        ? 'You have no published actions to share yet.'
-                                        : 'No actions to share yet — buy or save one first.'
+                        ) : shareKind === 'action' ? (
+                            visibleActions.length === 0 ? (
+                                emptyList(
+                                    search
+                                        ? 'No actions match your search.'
+                                        : isOrganization
+                                            ? 'You have no published actions to share yet.'
+                                            : 'No actions to share yet — buy or save one first.'
+                                )
+                            ) : (
+                                visibleActions.map(action => {
+                                    const active = selectedActionId === action.actionId;
+                                    const starts = fmtDate(action.startsAt);
+                                    return (
+                                        <button
+                                            key={action.actionId}
+                                            type="button"
+                                            onClick={() => setSelectedActionId(active ? null : action.actionId)}
+                                            className={rowClass(active)}
+                                        >
+                                            <Thumb src={action.coverImage} icon={<Calendar className="w-5 h-5" />} />
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                                                    {action.name}
+                                                </p>
+                                                <p className="text-xs text-gray-400 truncate">
+                                                    {[action.actionType, starts].filter(Boolean).join(' · ') ||
+                                                        action.shortDescription ||
+                                                        'Action'}
+                                                </p>
+                                            </div>
+                                            {active && <SelectedBadge />}
+                                        </button>
+                                    );
+                                })
+                            )
+                        ) : shareKind === 'contribution' ? (
+                            visibleContributions.length === 0 ? (
+                                emptyList(
+                                    search
+                                        ? 'No contributions match your search.'
+                                        : "You're not running any group contributions yet — start one from a group chat first."
+                                )
+                            ) : (
+                                visibleContributions.map(c => {
+                                    const active = selectedContributionId === c.contributionId;
+                                    const goal = c.goalAmount || 0;
+                                    return (
+                                        <button
+                                            key={c.contributionId}
+                                            type="button"
+                                            onClick={() => setSelectedContributionId(active ? null : c.contributionId)}
+                                            className={rowClass(active)}
+                                        >
+                                            <Thumb icon={<Target className="w-5 h-5" />} />
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                                                    {c.title}
+                                                </p>
+                                                <p className="text-xs text-gray-400 truncate">
+                                                    {c.groupName} ·{' '}
+                                                    {goal > 0
+                                                        ? `${fmtAmount(c.collectedAmount, c.currency)} of ${fmtAmount(goal, c.currency)}`
+                                                        : fmtAmount(c.collectedAmount, c.currency)}
+                                                </p>
+                                            </div>
+                                            {active && <SelectedBadge />}
+                                        </button>
+                                    );
+                                })
                             )
                         ) : (
-                            visibleActions.map(action => {
-                                const active = selectedActionId === action.actionId;
-                                const starts = fmtDate(action.startsAt);
-                                return (
-                                    <button
-                                        key={action.actionId}
-                                        type="button"
-                                        onClick={() => setSelectedActionId(active ? null : action.actionId)}
-                                        className={rowClass(active)}
-                                    >
-                                        <Thumb src={action.coverImage} icon={<Calendar className="w-5 h-5" />} />
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                                                {action.name}
-                                            </p>
-                                            <p className="text-xs text-gray-400 truncate">
-                                                {[action.actionType, starts].filter(Boolean).join(' · ') ||
-                                                    action.shortDescription ||
-                                                    'Action'}
-                                            </p>
-                                        </div>
-                                        {active && (
-                                            <span className="w-5 h-5 rounded-full bg-brand-green dark:bg-brand-gold flex items-center justify-center flex-shrink-0">
-                                                <Check className="w-3 h-3 text-white" strokeWidth={3} />
-                                            </span>
-                                        )}
-                                    </button>
-                                );
-                            })
+                            visibleCampaigns.length === 0 ? (
+                                emptyList(
+                                    search
+                                        ? 'No campaigns match your search.'
+                                        : 'You have no campaigns to share yet.'
+                                )
+                            ) : (
+                                visibleCampaigns.map(c => {
+                                    const active = selectedCampaignId === c.contributionId;
+                                    const goal = c.goalAmount || 0;
+                                    return (
+                                        <button
+                                            key={c.contributionId}
+                                            type="button"
+                                            onClick={() => setSelectedCampaignId(active ? null : c.contributionId)}
+                                            className={rowClass(active)}
+                                        >
+                                            <Thumb icon={<Megaphone className="w-5 h-5" />} />
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                                                    {c.title}
+                                                </p>
+                                                <p className="text-xs text-gray-400 truncate">
+                                                    {goal > 0
+                                                        ? `${fmtAmount(c.collectedAmount, c.currency)} of ${fmtAmount(goal, c.currency)}`
+                                                        : fmtAmount(c.collectedAmount, c.currency)}
+                                                </p>
+                                            </div>
+                                            {active && <SelectedBadge />}
+                                        </button>
+                                    );
+                                })
+                            )
                         )}
                     </div>
 
                     {/* Optional note that travels with the card */}
-                    {canSubmit && (
+                    {canSubmit && showNoteInput && (
                         <input
                             value={note}
                             onChange={e => setNote(e.target.value)}
@@ -448,7 +825,7 @@ export default function ShareActionModal({ isOpen, onClose, conversation, mode }
                     )}
 
                     {/* What actually happens on send */}
-                    {mode === 'transfer' && selectedTicket && (
+                    {isTransfer && selectedTicket && (
                         <div className="rounded-xl border border-amber-100 dark:border-amber-900/30 bg-amber-50 dark:bg-amber-900/10 px-3 py-2.5 space-y-1.5">
                             <div className="flex items-center gap-2 text-xs font-semibold text-gray-700 dark:text-gray-200">
                                 <span className="truncate">{nameOf(me)}</span>
@@ -474,14 +851,14 @@ export default function ShareActionModal({ isOpen, onClose, conversation, mode }
                         </button>
                         <button
                             type="button"
-                            onClick={mode === 'transfer' ? handleTransfer : handleShare}
+                            onClick={handleSubmit}
                             disabled={!canSubmit || submitting}
                             className="flex-1 py-2.5 rounded-xl bg-brand-green dark:bg-brand-gold hover:opacity-90 disabled:opacity-40 text-white text-sm font-bold flex items-center justify-center gap-2 transition-opacity"
                         >
                             {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                             {submitting
-                                ? mode === 'transfer' ? 'Transferring...' : 'Sharing...'
-                                : mode === 'transfer' ? 'Transfer & send' : 'Share in chat'}
+                                ? isTransfer ? 'Transferring...' : 'Sharing...'
+                                : isTransfer ? 'Transfer & send' : 'Share in chat'}
                         </button>
                     </div>
                 </div>
