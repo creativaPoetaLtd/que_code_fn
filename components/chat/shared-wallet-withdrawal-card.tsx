@@ -12,6 +12,7 @@ import {
     useCancelSharedWalletWithdrawalMutation,
 } from "@/states/sharedWalletSlice";
 import { toast } from "@/hooks/use-toast";
+import { PinSetupModal } from "@/components/PinSetupModal";
 
 interface SharedWalletWithdrawalMessageData {
     type: "shared_wallet_withdrawal_request";
@@ -64,6 +65,7 @@ export const SharedWalletWithdrawalCard: React.FC<SharedWalletWithdrawalCardProp
 
     const [showPinForm, setShowPinForm] = React.useState(false);
     const [pin, setPin] = React.useState("");
+    const [showPinSetup, setShowPinSetup] = React.useState(false);
 
     const status: string = withdrawal?.status || "pending";
     const approveCount: number = withdrawal?.approveCount ?? 0;
@@ -89,9 +91,21 @@ export const SharedWalletWithdrawalCard: React.FC<SharedWalletWithdrawalCardProp
             setShowPinForm(false);
             setPin("");
         } catch (err: any) {
-            toast({ title: "Could not approve", description: err?.data?.message || "Something went wrong", variant: "destructive" });
+            const errorData = err?.data || {};
+            if (errorData.requiresPinSetup) {
+                setShowPinSetup(true);
+                toast({ title: "PIN Setup Required", description: errorData.message || "Please set up your transaction PIN first", variant: "destructive" });
+            } else {
+                toast({ title: "Could not approve", description: errorData.message || "Something went wrong", variant: "destructive" });
+            }
             setPin("");
         }
+    };
+
+    const handlePinSetupSuccess = () => {
+        toast({ title: "PIN Setup Complete", description: "You can now approve this request." });
+        setShowPinSetup(false);
+        setShowPinForm(true);
     };
 
     const handleDecline = async () => {
@@ -154,6 +168,8 @@ export const SharedWalletWithdrawalCard: React.FC<SharedWalletWithdrawalCardProp
             : 'bg-amber-500';
 
     return (
+        <>
+        <PinSetupModal open={showPinSetup} onOpenChange={setShowPinSetup} onSuccess={handlePinSetupSuccess} />
         <div className={shell}>
             <div className={`h-1 w-full ${stripColor}`} />
 
@@ -252,5 +268,6 @@ export const SharedWalletWithdrawalCard: React.FC<SharedWalletWithdrawalCardProp
                 {fmtTime(data.timestamp)}
             </p>
         </div>
+        </>
     );
 };

@@ -32,7 +32,7 @@ export const SharedWallets: React.FC = () => {
   const cardBase = `bg-white ${accent.darkBgCard} border border-gray-100 dark:border-white/[0.06]`;
 
   return (
-    <section>
+    <section id="shared-wallets-section">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <WalletCards className="w-4 h-4 text-gray-500 dark:text-gray-400" />

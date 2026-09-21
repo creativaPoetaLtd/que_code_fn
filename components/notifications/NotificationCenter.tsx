@@ -23,6 +23,10 @@ import {
     useRespondToInvitationEnhancedMutation,
     useRespondToInvitationByTokenMutation
 } from "@/states/contactSlice"
+import {
+    useGetPendingSharedWalletInvitationsQuery,
+    useRespondToSharedWalletInvitationMutation
+} from "@/states/sharedWalletSlice"
 import type { Notification } from "@/types/notification.types"
 import { formatDistanceToNow } from "date-fns"
 
@@ -41,6 +45,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
     const [respondToContactRequest, { isLoading: isRespondingToContact }] = useRespondToInvitationEnhancedMutation()
     const [respondToContactByToken, { isLoading: isRespondingByToken }] = useRespondToInvitationByTokenMutation()
     const [respondToGroupInvitation, { isLoading: isRespondingToInvitation }] = useRespondToGroupInvitationMutation()
+    const [respondToSharedWalletInvitation, { isLoading: isRespondingToSharedWalletInvitation }] = useRespondToSharedWalletInvitationMutation()
     const [selectedTab, setSelectedTab] = useState<'all' | 'invitations' | 'requests' | 'contacts' | 'groups' | 'messages'>('all')
     const [processingRequestId, setProcessingRequestId] = useState<string | null>(null)
     const [rejectionReason, setRejectionReason] = useState<string>("")
@@ -60,6 +65,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
         page: 1,
         limit: 20
     }, { skip: !token })
+    const { data: pendingSharedWalletInvitations, refetch: refetchSharedWalletInvitations } = useGetPendingSharedWalletInvitationsQuery(undefined)
 
     const getNotificationIcon = (type: string) => {
         switch (type) {
@@ -127,6 +133,23 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
             case 'SHARED_WALLET_WITHDRAWAL_EXECUTED':
                 return <WalletCards className="h-4 w-4 text-green-500" />
             case 'SHARED_WALLET_WITHDRAWAL_DECLINED':
+                return <WalletCards className="h-4 w-4 text-red-500" />
+            case 'SHARED_WALLET_INVITATION':
+                return <WalletCards className="h-4 w-4 text-blue-500" />
+            case 'SHARED_WALLET_INVITATION_ACCEPTED':
+                return <Check className="h-4 w-4 text-green-500" />
+            case 'SHARED_WALLET_INVITATION_REJECTED':
+                return <X className="h-4 w-4 text-gray-500" />
+            case 'SHARED_WALLET_OWNERSHIP_TRANSFERRED':
+                return <ShieldCheck className="h-4 w-4 text-amber-500" />
+            case 'SHARED_WALLET_DELETED':
+                return <Trash2 className="h-4 w-4 text-red-500" />
+            case 'SHARED_WALLET_POLICY_CHANGED':
+            case 'SHARED_WALLET_POLICY_CHANGE_APPROVED':
+                return <ShieldCheck className="h-4 w-4 text-blue-500" />
+            case 'SHARED_WALLET_POLICY_CHANGE_PROPOSED':
+                return <WalletCards className="h-4 w-4 text-amber-500" />
+            case 'SHARED_WALLET_POLICY_CHANGE_DECLINED':
                 return <WalletCards className="h-4 w-4 text-red-500" />
 
             // Contact notifications
@@ -350,6 +373,54 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
         }
     }
 
+    // The notification carries membershipId directly (embedded at creation time) so
+    // responding doesn't depend on the separately-fetched pendingSharedWalletInvitations
+    // list, which only loads once when the notification bell mounts and can be stale for
+    // any invite that arrived afterward - see fallback below for older notifications
+    // created before this field existed.
+    const handleSharedWalletInvitationResponse = async (notification: Notification, action: 'accept' | 'reject') => {
+        const sharedWalletId = notification.data?.sharedWalletId as string
+        let resolvedMembershipId = notification.data?.membershipId as string | undefined
+
+        if (!resolvedMembershipId) {
+            const invitation = pendingSharedWalletInvitations?.data?.find((inv: any) => inv.sharedWalletId === sharedWalletId)
+            if (!invitation) {
+                toast({
+                    title: "Error",
+                    description: "This invitation is no longer available",
+                    variant: "destructive",
+                })
+                return
+            }
+            resolvedMembershipId = invitation.id as string
+        }
+        const membershipId: string = resolvedMembershipId
+
+        setProcessingRequestId(membershipId)
+        try {
+            await respondToSharedWalletInvitation({
+                sharedWalletId,
+                membershipId,
+                action,
+            }).unwrap()
+
+            toast({
+                title: "Success",
+                description: `Shared wallet invitation ${action === 'accept' ? 'accepted' : 'declined'} successfully`,
+            })
+
+            refetchSharedWalletInvitations()
+        } catch (error: any) {
+            toast({
+                title: "Error",
+                description: error?.data?.message || `Failed to ${action === 'accept' ? 'accept' : 'decline'} invitation`,
+                variant: "destructive",
+            })
+        } finally {
+            setProcessingRequestId(null)
+        }
+    }
+
     const handleNotificationClick = (notification: Notification) => {
         if (!notification.isRead) {
             markAsRead(notification.id)
@@ -376,8 +447,10 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
             router.push(`/groups/${notification.data.groupId}`)
             onClose()
         }
-        // Handle navigation for shared wallet notifications
-        else if (notification.data?.sharedWalletId && notification.type.startsWith('SHARED_WALLET_')) {
+        // Handle navigation for shared wallet notifications - SHARED_WALLET_INVITATION is
+        // excluded since it has its own inline Accept/Decline buttons below, same as
+        // GROUP_INVITATION above.
+        else if (notification.data?.sharedWalletId && notification.type.startsWith('SHARED_WALLET_') && notification.type !== 'SHARED_WALLET_INVITATION') {
             router.push(`/wallets/shared/${notification.data.sharedWalletId}`)
             onClose()
         }
@@ -817,6 +890,39 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
                                                     >
                                                         {isRespondingToInvitation ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
                                                         Join Group
+                                                    </Button>
+                                                </div>
+                                            )}
+
+                                        {/* Accept/Decline for shared wallet invitations - uses the
+                                            membershipId embedded directly in the notification data */}
+                                        {notification.type === 'SHARED_WALLET_INVITATION' &&
+                                            notification.data?.sharedWalletId && (
+                                                <div className="flex gap-1.5 sm:gap-2 mt-2">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="h-7 sm:h-8 text-xs px-2 sm:px-3 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-darkBg-card"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            handleSharedWalletInvitationResponse(notification, 'reject')
+                                                        }}
+                                                        disabled={isRespondingToSharedWalletInvitation}
+                                                    >
+                                                        {isRespondingToSharedWalletInvitation ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                                                        Decline
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        className="h-7 sm:h-8 text-xs px-2 sm:px-3"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            handleSharedWalletInvitationResponse(notification, 'accept')
+                                                        }}
+                                                        disabled={isRespondingToSharedWalletInvitation}
+                                                    >
+                                                        {isRespondingToSharedWalletInvitation ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                                                        Join
                                                     </Button>
                                                 </div>
                                             )}

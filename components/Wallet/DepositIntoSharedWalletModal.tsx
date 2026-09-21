@@ -85,7 +85,7 @@ export default function DepositIntoSharedWalletModal({
             <PinSetupModal open={showPinSetup} onOpenChange={setShowPinSetup} onSuccess={handlePinSetupSuccess} />
 
             <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-                <DialogContent className="sm:max-w-md">
+                <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Deposit into {walletName}</DialogTitle>
                         <DialogDescription className="text-gray-600 dark:text-gray-400 text-sm">

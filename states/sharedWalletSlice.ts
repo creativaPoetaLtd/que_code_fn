@@ -31,6 +31,11 @@ export const sharedWalletSlice = apiSlice.injectEndpoints({
             providesTags: (result, error, sharedWalletId) => [{ type: "GroupMember", id: sharedWalletId }],
         }),
 
+        getSharedWalletPendingMembers: builder.query({
+            query: (sharedWalletId: string) => `/shared-wallets/${sharedWalletId}/pending-members`,
+            providesTags: (result, error, sharedWalletId) => [{ type: "GroupMember", id: sharedWalletId }],
+        }),
+
         addSharedWalletMember: builder.mutation({
             query: ({ sharedWalletId, userId }) => ({
                 url: `/shared-wallets/${sharedWalletId}/members`,
@@ -60,6 +65,93 @@ export const sharedWalletSlice = apiSlice.injectEndpoints({
                 method: "POST",
             }),
             invalidatesTags: ["SharedWallets"],
+        }),
+
+        transferSharedWalletOwnership: builder.mutation({
+            query: ({ sharedWalletId, newOwnerUserId }) => ({
+                url: `/shared-wallets/${sharedWalletId}/transfer-ownership`,
+                method: "POST",
+                body: { newOwnerUserId },
+            }),
+            invalidatesTags: (result, error, { sharedWalletId }) => [
+                { type: "GroupMember", id: sharedWalletId },
+                { type: "SharedWallets", id: sharedWalletId },
+            ],
+        }),
+
+        deleteSharedWallet: builder.mutation({
+            query: (sharedWalletId: string) => ({
+                url: `/shared-wallets/${sharedWalletId}`,
+                method: "DELETE",
+            }),
+            invalidatesTags: ["SharedWallets"],
+        }),
+
+        getPendingSharedWalletInvitations: builder.query({
+            query: () => `/shared-wallets/invitations/pending`,
+            providesTags: ["SharedWalletInvitations"],
+        }),
+
+        respondToSharedWalletInvitation: builder.mutation({
+            query: ({ sharedWalletId, membershipId, action }) => ({
+                url: `/shared-wallets/${sharedWalletId}/invitations/${membershipId}/respond`,
+                method: "POST",
+                body: { action },
+            }),
+            invalidatesTags: ["SharedWalletInvitations", "SharedWallets"],
+        }),
+
+        tightenSharedWalletPolicy: builder.mutation({
+            query: (sharedWalletId: string) => ({
+                url: `/shared-wallets/${sharedWalletId}/policy`,
+                method: "PATCH",
+                body: { policy: "approval" },
+            }),
+            invalidatesTags: (result, error, sharedWalletId) => [{ type: "SharedWallets", id: sharedWalletId }],
+        }),
+
+        getPendingSharedWalletPolicyChange: builder.query({
+            query: (sharedWalletId: string) => `/shared-wallets/${sharedWalletId}/policy-changes/pending`,
+            providesTags: (result, error, sharedWalletId) => [{ type: "SharedWalletPolicyChange", id: sharedWalletId }],
+        }),
+
+        proposeSharedWalletPolicyChange: builder.mutation({
+            query: (sharedWalletId: string) => ({
+                url: `/shared-wallets/${sharedWalletId}/policy-changes`,
+                method: "POST",
+            }),
+            invalidatesTags: (result, error, sharedWalletId) => [{ type: "SharedWalletPolicyChange", id: sharedWalletId }],
+        }),
+
+        approveSharedWalletPolicyChange: builder.mutation({
+            query: ({ sharedWalletId, policyChangeId }) => ({
+                url: `/shared-wallets/${sharedWalletId}/policy-changes/${policyChangeId}/approve`,
+                method: "POST",
+            }),
+            invalidatesTags: (result, error, { sharedWalletId }) => [
+                { type: "SharedWalletPolicyChange", id: sharedWalletId },
+                { type: "SharedWallets", id: sharedWalletId },
+            ],
+        }),
+
+        declineSharedWalletPolicyChange: builder.mutation({
+            query: ({ sharedWalletId, policyChangeId }) => ({
+                url: `/shared-wallets/${sharedWalletId}/policy-changes/${policyChangeId}/decline`,
+                method: "POST",
+            }),
+            invalidatesTags: (result, error, { sharedWalletId }) => [
+                { type: "SharedWalletPolicyChange", id: sharedWalletId },
+            ],
+        }),
+
+        cancelSharedWalletPolicyChange: builder.mutation({
+            query: ({ sharedWalletId, policyChangeId }) => ({
+                url: `/shared-wallets/${sharedWalletId}/policy-changes/${policyChangeId}/cancel`,
+                method: "POST",
+            }),
+            invalidatesTags: (result, error, { sharedWalletId }) => [
+                { type: "SharedWalletPolicyChange", id: sharedWalletId },
+            ],
         }),
 
         depositIntoSharedWallet: builder.mutation({
@@ -154,9 +246,20 @@ export const {
     useGetSharedWalletByIdQuery,
     useGetSharedWalletActivityQuery,
     useGetSharedWalletMembersQuery,
+    useGetSharedWalletPendingMembersQuery,
     useAddSharedWalletMemberMutation,
     useRemoveSharedWalletMemberMutation,
     useLeaveSharedWalletMutation,
+    useTransferSharedWalletOwnershipMutation,
+    useDeleteSharedWalletMutation,
+    useGetPendingSharedWalletInvitationsQuery,
+    useRespondToSharedWalletInvitationMutation,
+    useTightenSharedWalletPolicyMutation,
+    useGetPendingSharedWalletPolicyChangeQuery,
+    useProposeSharedWalletPolicyChangeMutation,
+    useApproveSharedWalletPolicyChangeMutation,
+    useDeclineSharedWalletPolicyChangeMutation,
+    useCancelSharedWalletPolicyChangeMutation,
     useDepositIntoSharedWalletMutation,
     useWithdrawFromSharedWalletMutation,
     useProposeSharedWalletWithdrawalMutation,

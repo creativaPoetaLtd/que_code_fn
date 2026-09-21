@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -66,6 +67,7 @@ export default function ChatHeader({
   isGroupAdmin = false,
 }: ChatHeaderProps) {
   const chat = useChat();
+  const router = useRouter();
   const { getToken } = useAuthToken();
   const token = getToken();
 
@@ -218,7 +220,17 @@ export default function ChatHeader({
             !group?.hasFundraising &&
             group?.sharedWalletId && (
               <div className='mt-1'>
-                <SharedWalletBalanceBadge balance={group.walletBalance ?? 0} />
+                <button
+                  type='button'
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    router.push(`/wallets/shared/${group.sharedWalletId}`);
+                  }}
+                  className='cursor-pointer'
+                  aria-label='Open shared wallet'
+                >
+                  <SharedWalletBalanceBadge balance={group.walletBalance ?? 0} />
+                </button>
               </div>
             )}
 

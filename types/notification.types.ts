@@ -220,6 +220,7 @@ export interface Notification {
     sharedWalletId?: string;
     sharedWalletName?: string;
     withdrawalId?: string;
+    membershipId?: string;
 
     // External account data
     externalAccountId?: string;

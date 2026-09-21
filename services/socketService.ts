@@ -679,6 +679,30 @@ class SocketService {
         }
     }
 
+    // Listen for shared wallet policy change proposal updates (vote cast, approved, etc.)
+    onSharedWalletPolicyChangeUpdated(callback: (data: {
+        sharedWalletId: string;
+        groupId: string | null;
+        policyChangeId: string;
+        status: string;
+        approveCount: number;
+        declineCount: number;
+    }) => void) {
+        if (this.socket) {
+            this.socket.on("shared_wallet_policy_change_updated", callback)
+        }
+    }
+
+    offSharedWalletPolicyChangeUpdated(callback?: (data: any) => void) {
+        if (this.socket) {
+            if (callback) {
+                this.socket.off("shared_wallet_policy_change_updated", callback)
+            } else {
+                this.socket.off("shared_wallet_policy_change_updated")
+            }
+        }
+    }
+
     // Group contribution real-time events
     onGroupContributionUpdated(callback: (data: {
         groupId: string;

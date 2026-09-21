@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { Send, HandCoins, QrCode, ScanLine } from 'lucide-react';
+import { Send, HandCoins, QrCode, ScanLine, WalletCards } from 'lucide-react';
 import { useAccent } from '@/hooks/use-accent';
 
 interface QuickActionsProps {
@@ -22,10 +22,16 @@ export const QuickActions: React.FC<QuickActionsProps> = ({ entityId }) => {
     { key: 'request', label: 'Request', icon: <HandCoins className="w-5 h-5" />, go: () => router.push('/home/request') },
     { key: 'receive', label: 'Receive', icon: <QrCode className="w-5 h-5" />, go: () => router.push(`/welcome/${entityId}`) },
     { key: 'scan', label: 'Scan', icon: <ScanLine className="w-5 h-5" />, go: () => router.push('/home/scan') },
+    {
+      key: 'shared',
+      label: 'Shared',
+      icon: <WalletCards className="w-5 h-5" />,
+      go: () => document.getElementById('shared-wallets-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+    },
   ];
 
   return (
-    <div className="grid grid-cols-4 gap-2">
+    <div className="grid grid-cols-5 gap-2">
       {actions.map((a) => (
         <button
           key={a.key}

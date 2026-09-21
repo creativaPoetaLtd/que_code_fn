@@ -61,11 +61,11 @@ export default function AddSharedWalletMemberModal({
             for (const userId of selected) {
                 await addMember({ sharedWalletId, userId }).unwrap()
             }
-            toast({ title: selected.length === 1 ? "Member added" : `${selected.length} members added` })
+            toast({ title: selected.length === 1 ? "Invitation sent" : `${selected.length} invitations sent` })
             onClose()
         } catch (error: any) {
             toast({
-                title: "Could not add member",
+                title: "Could not send invitation",
                 description: error?.data?.message || "Something went wrong",
                 variant: "destructive",
             })
@@ -76,9 +76,9 @@ export default function AddSharedWalletMemberModal({
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
             <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>Add members</DialogTitle>
+                    <DialogTitle>Invite members</DialogTitle>
                     <DialogDescription className="text-gray-600 dark:text-gray-400 text-sm">
-                        Pick from your contacts who aren&apos;t already in this wallet.
+                        Pick from your contacts who aren&apos;t already in this wallet. They&apos;ll need to accept before joining.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -135,7 +135,7 @@ export default function AddSharedWalletMemberModal({
                         className="bg-brand-green dark:bg-brand-gold text-white dark:text-darkBg-main hover:bg-brand-green/90 dark:hover:bg-brand-gold/90"
                     >
                         {isAdding && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                        Add {selected.length > 0 ? `(${selected.length})` : ""}
+                        Invite {selected.length > 0 ? `(${selected.length})` : ""}
                     </Button>
                 </DialogFooter>
             </DialogContent>
