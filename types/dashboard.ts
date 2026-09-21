@@ -243,6 +243,7 @@ export interface WalletSummary {
   wallet: {
     id: string;
     balance: number;
+    heldBalance: number;
     currency: string;
     isActive: boolean;
     entityType: 'user' | 'organization';
@@ -251,6 +252,7 @@ export interface WalletSummary {
   balanceBreakdown: {
     total: number;
     restricted: number;
+    held: number;
     available: number;
   };
   restrictions: WalletRestriction[];

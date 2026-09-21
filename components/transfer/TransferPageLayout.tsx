@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ArrowLeft, CalendarClock, Search, Users } from "lucide-react";
+import { ArrowLeft, CalendarClock, Search, Users, X, Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuthToken } from "@/hooks/use-auth-token";
 import { useGetAcceptedContactsQuery, useSendContactInvitationByPublicIdMutation } from "@/states/contactSlice";
@@ -34,6 +34,8 @@ const TransferPageLayout = () => {
     const [isExistingContact, setIsExistingContact] = useState(false);
     const [activeTab, setActiveTab] = useState<TabType>("all");
     const [isLinkInputOpen, setIsLinkInputOpen] = useState(false);
+    const [selectionMode, setSelectionMode] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
     // Balance state
     const [userId, setUserId] = useState<string>("");
@@ -123,6 +125,40 @@ const TransferPageLayout = () => {
         };
         fetchRecentSends();
     }, []);
+
+    const handleEnterSelectionMode = () => {
+        setActiveTab("all");
+        setSelectedIds(new Set());
+        setSelectionMode(true);
+    };
+
+    const handleExitSelectionMode = () => {
+        setSelectionMode(false);
+        setSelectedIds(new Set());
+    };
+
+    const handleToggleContact = (contact: Contact) => {
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(contact.id)) {
+                next.delete(contact.id);
+            } else {
+                next.add(contact.id);
+            }
+            return next;
+        });
+    };
+
+    const handleContinueSelection = () => {
+        const selected = contacts
+            .filter((c) => selectedIds.has(c.id))
+            .map((c) => ({ id: c.id, name: c.name, phone: c.phone, avatar: c.avatar, type: "user" }));
+
+        if (selected.length === 0) return;
+
+        sessionStorage.setItem("selectedRecipients", JSON.stringify(selected));
+        router.push("/home/transfer/batch");
+    };
 
     const handleContactSelect = (contact: Contact) => {
         // Store contact info and navigate to amount page
@@ -352,26 +388,41 @@ const TransferPageLayout = () => {
             {/* Page Header */}
             <div className="flex items-center gap-4 mb-6">
                 <button
-                    onClick={() => router.push(`/home/${userId}`)}
+                    onClick={() => (selectionMode ? handleExitSelectionMode() : router.push(`/home/${userId}`))}
                     className="p-2 hover:bg-gray-100 dark:hover:bg-darkBg-interactive rounded-full transition text-gray-700 dark:text-gray-300"
                 >
-                    <ArrowLeft className="w-6 h-6" />
+                    {selectionMode ? <X className="w-6 h-6" /> : <ArrowLeft className="w-6 h-6" />}
                 </button>
-                <h1 className="text-xl font-bold text-gray-900 dark:text-white flex-1">Send Money</h1>
-                <button
-                    onClick={() => router.push("/home/transfer/batch")}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 dark:border-darkBorder-light text-xs font-semibold text-gray-600 dark:text-gray-300 hover:border-brand-green dark:hover:border-brand-gold hover:text-brand-green dark:hover:text-brand-gold transition-colors"
-                >
-                    <Users className="w-4 h-4" />
-                    <span className="hidden sm:inline">Multiple</span>
-                </button>
-                <button
-                    onClick={() => router.push("/home/scheduled-transfers")}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 dark:border-darkBorder-light text-xs font-semibold text-gray-600 dark:text-gray-300 hover:border-brand-green dark:hover:border-brand-gold hover:text-brand-green dark:hover:text-brand-gold transition-colors"
-                >
-                    <CalendarClock className="w-4 h-4" />
-                    <span className="hidden sm:inline">Scheduled</span>
-                </button>
+                <h1 className="text-xl font-bold text-gray-900 dark:text-white flex-1">
+                    {selectionMode ? `Select recipients${selectedIds.size > 0 ? ` (${selectedIds.size})` : ""}` : "Send Money"}
+                </h1>
+                {selectionMode ? (
+                    <button
+                        onClick={handleContinueSelection}
+                        disabled={selectedIds.size === 0}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-green dark:bg-brand-gold text-white dark:text-darkBg-main text-sm font-semibold hover:bg-brand-green/90 dark:hover:bg-brand-gold/90 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                    >
+                        <Check className="w-4 h-4" />
+                        Continue
+                    </button>
+                ) : (
+                    <>
+                        <button
+                            onClick={handleEnterSelectionMode}
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 dark:border-darkBorder-light text-xs font-semibold text-gray-600 dark:text-gray-300 hover:border-brand-green dark:hover:border-brand-gold hover:text-brand-green dark:hover:text-brand-gold transition-colors"
+                        >
+                            <Users className="w-4 h-4" />
+                            <span className="hidden sm:inline">Multiple</span>
+                        </button>
+                        <button
+                            onClick={() => router.push("/home/scheduled-transfers")}
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 dark:border-darkBorder-light text-xs font-semibold text-gray-600 dark:text-gray-300 hover:border-brand-green dark:hover:border-brand-gold hover:text-brand-green dark:hover:text-brand-gold transition-colors"
+                        >
+                            <CalendarClock className="w-4 h-4" />
+                            <span className="hidden sm:inline">Scheduled</span>
+                        </button>
+                    </>
+                )}
             </div>
 
             {/* Balance Card */}
@@ -382,11 +433,13 @@ const TransferPageLayout = () => {
             />
 
             {/* Action Buttons Row */}
-            <ActionButtonsRow
-                onScanQR={handleScanQR}
-                onUseLink={handleUseLink}
-                onAddContact={() => setIsAddContactOpen(true)}
-            />
+            {!selectionMode && (
+                <ActionButtonsRow
+                    onScanQR={handleScanQR}
+                    onUseLink={handleUseLink}
+                    onAddContact={() => setIsAddContactOpen(true)}
+                />
+            )}
 
             {/* Add Contact Modal */}
             <AddContactModal
@@ -420,10 +473,12 @@ const TransferPageLayout = () => {
 
             {/* Contact Selection Card */}
             <div className="bg-white dark:bg-darkBg-card rounded-2xl shadow-sm border border-gray-100 dark:border-darkBorder-light overflow-hidden">
-                {/* Tabs */}
-                <div className="px-4 pt-4">
-                    <ContactTabs activeTab={activeTab} onTabChange={setActiveTab} />
-                </div>
+                {/* Tabs - hidden while selecting multiple, which only works against the full contact list */}
+                {!selectionMode && (
+                    <div className="px-4 pt-4">
+                        <ContactTabs activeTab={activeTab} onTabChange={setActiveTab} />
+                    </div>
+                )}
 
                 {/* Search */}
                 <div className="p-4">
@@ -469,6 +524,9 @@ const TransferPageLayout = () => {
                                     key={contact.id}
                                     contact={contact}
                                     onSelect={handleContactSelect}
+                                    selectionMode={selectionMode}
+                                    isSelected={selectedIds.has(contact.id)}
+                                    onToggle={handleToggleContact}
                                 />
                             ))
                         ) : (

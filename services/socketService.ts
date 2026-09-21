@@ -537,6 +537,28 @@ class SocketService {
         }
     }
 
+    // Listen for scheduled-transfer status updates (completed, failed, or cancelled)
+    onScheduledTransferUpdated(callback: (data: {
+        scheduledTransferId: string;
+        status: "scheduled" | "completed" | "cancelled" | "failed";
+        transactionId?: string | null;
+        chatId?: string | null;
+    }) => void) {
+        if (this.socket) {
+            this.socket.on("scheduled_transfer_updated", callback)
+        }
+    }
+
+    offScheduledTransferUpdated(callback?: (data: any) => void) {
+        if (this.socket) {
+            if (callback) {
+                this.socket.off("scheduled_transfer_updated", callback)
+            } else {
+                this.socket.off("scheduled_transfer_updated")
+            }
+        }
+    }
+
     // Reaction methods
     addReaction(chatId: string, messageId: string, emoji: string) {
         if (this.socket) {
@@ -604,6 +626,55 @@ class SocketService {
                 this.socket.off("fundraising_progress_update", callback)
             } else {
                 this.socket.off("fundraising_progress_update")
+            }
+        }
+    }
+
+    // Listen for shared wallet balance updates (deposit or completed withdrawal).
+    // groupId is null for a standalone shared wallet (no attached group).
+    onSharedWalletBalanceUpdate(callback: (data: {
+        sharedWalletId: string;
+        groupId: string | null;
+        balance: number;
+    }) => void) {
+        if (this.socket) {
+            this.socket.on("shared_wallet_balance_update", callback)
+        }
+    }
+
+    offSharedWalletBalanceUpdate(callback?: (data: any) => void) {
+        if (this.socket) {
+            if (callback) {
+                this.socket.off("shared_wallet_balance_update", callback)
+            } else {
+                this.socket.off("shared_wallet_balance_update")
+            }
+        }
+    }
+
+    // Listen for shared wallet withdrawal request updates (vote cast, executed, etc.) -
+    // fans out to every active member's room, not just chat participants, so this fires
+    // for standalone shared wallets too (which have no chat).
+    onSharedWalletWithdrawalUpdated(callback: (data: {
+        sharedWalletId: string;
+        groupId: string | null;
+        withdrawalId: string;
+        status: string;
+        approveCount: number;
+        declineCount: number;
+        transactionId?: string | null;
+    }) => void) {
+        if (this.socket) {
+            this.socket.on("shared_wallet_withdrawal_updated", callback)
+        }
+    }
+
+    offSharedWalletWithdrawalUpdated(callback?: (data: any) => void) {
+        if (this.socket) {
+            if (callback) {
+                this.socket.off("shared_wallet_withdrawal_updated", callback)
+            } else {
+                this.socket.off("shared_wallet_withdrawal_updated")
             }
         }
     }

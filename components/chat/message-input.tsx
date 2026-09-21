@@ -56,6 +56,8 @@ interface MessageInputProps {
     onRequestMoney?: () => void
     onCreateContribution?: () => void
     onCreateGroup?: () => void
+    onSendMultiple?: () => void
+    onCreateSharedWallet?: () => void
 }
 
 export default function MessageInput({
@@ -70,6 +72,8 @@ export default function MessageInput({
     onRequestMoney,
     onCreateContribution,
     onCreateGroup,
+    onSendMultiple,
+    onCreateSharedWallet,
 }: MessageInputProps) {
     const [messageText, setMessageText]       = useState<string>("")
     const [showOptions, setShowOptions]       = useState<boolean>(false)
@@ -410,6 +414,16 @@ export default function MessageInput({
         if (option === "Group") {
             if (onCreateGroup) { onCreateGroup(); return }
             toast({ title: "Unavailable", description: "Unable to open group creation right now", variant: "destructive" })
+            return
+        }
+        if (option === "Send to Multiple") {
+            if (onSendMultiple) { onSendMultiple(); return }
+            toast({ title: "Unavailable", description: "Unable to open multi-send right now", variant: "destructive" })
+            return
+        }
+        if (option === "Shared Wallet") {
+            if (onCreateSharedWallet) { onCreateSharedWallet(); return }
+            toast({ title: "Unavailable", description: "Unable to open shared wallet creation right now", variant: "destructive" })
             return
         }
         toast({ title: "Coming soon", description: option })

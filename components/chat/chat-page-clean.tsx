@@ -24,6 +24,8 @@ import SendMoneyModal from '@/components/chat/send-money-modal';
 import RequestMoneyModal from '@/components/chat/request-money-modal';
 import CreateContributionModal from '@/components/chat/create-contribution-modal';
 import CreateGroupModalUpdated from '@/components/chat/create-group-modal';
+import SendMoneyBatchModal from '@/components/chat/send-money-batch-modal';
+import CreateSharedWalletModal from '@/components/chat/create-shared-wallet-modal';
 import { getGroupById } from '@/helpers/api';
 import AddContactModal from '@/components/chat/add-contact-modal';
 import UserProfileModal from '@/components/chat/user-profile-modal';
@@ -86,6 +88,10 @@ export default function ChatPageClean() {
   const [isCreateContributionModalOpen, setIsCreateContributionModalOpen] =
     useState(false);
   const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] =
+    useState(false);
+  const [isSendMultipleModalOpen, setIsSendMultipleModalOpen] =
+    useState(false);
+  const [isCreateSharedWalletModalOpen, setIsCreateSharedWalletModalOpen] =
     useState(false);
   const [selectedOutsideMessage, setSelectedOutsideMessage] =
     useState<OutsideMessage | null>(null);
@@ -408,6 +414,8 @@ export default function ChatPageClean() {
                 setIsCreateContributionModalOpen(true)
               }
               onCreateGroup={() => setIsCreateGroupModalOpen(true)}
+              onSendMultiple={() => setIsSendMultipleModalOpen(true)}
+              onCreateSharedWallet={() => setIsCreateSharedWalletModalOpen(true)}
               isGroupAdmin={isGroupAdmin}
               onViewProfile={handleViewProfile}
               onInviteToGroup={handleInviteToGroup}
@@ -468,6 +476,17 @@ export default function ChatPageClean() {
       <CreateGroupModalUpdated
         isOpen={isCreateGroupModalOpen}
         onClose={() => setIsCreateGroupModalOpen(false)}
+        token={token}
+      />
+
+      <SendMoneyBatchModal
+        isOpen={isSendMultipleModalOpen}
+        onClose={() => setIsSendMultipleModalOpen(false)}
+      />
+
+      <CreateSharedWalletModal
+        isOpen={isCreateSharedWalletModalOpen}
+        onClose={() => setIsCreateSharedWalletModalOpen(false)}
         token={token}
       />
 

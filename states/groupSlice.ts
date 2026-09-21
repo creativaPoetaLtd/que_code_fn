@@ -21,7 +21,7 @@ export const groupSlice = apiSlice.injectEndpoints({
                     },
                 }
             },
-            invalidatesTags: ["Group"],
+            invalidatesTags: ["Group", "SharedWallets"],
         }),
 
         getGroups: builder.query<{ data: { groups: Group[] } }, string>({

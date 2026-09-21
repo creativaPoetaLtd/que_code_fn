@@ -8,14 +8,15 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
-import { Bell, Users, UserPlus, Check, X, Clock, AlertCircle, Info, Loader2, MessageCircle, Image, Video, Music, File, DollarSign, UserMinus, UserCheck, UserX, ShieldCheck, ShieldAlert, Settings, Trash2, HandCoins } from "lucide-react"
+import { Bell, Users, UserPlus, Check, X, Clock, AlertCircle, Info, Loader2, MessageCircle, Image, Video, Music, File, DollarSign, UserMinus, UserCheck, UserX, ShieldCheck, ShieldAlert, Settings, Trash2, HandCoins, WalletCards } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useNotifications } from "@/context/NotificationContext"
 import { useAuthToken } from "@/hooks/use-auth-token"
 import {
     useRespondToJoinRequestEnhancedMutation,
     useGetPendingJoinRequestsQuery,
-    useGetPendingInvitationsQuery
+    useGetPendingInvitationsQuery,
+    useRespondToGroupInvitationMutation
 } from "@/states/groupSlice"
 import {
     useGetPendingInvitationsUnifiedQuery,
@@ -39,6 +40,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
     const [respondToJoinRequest, { isLoading: isResponding }] = useRespondToJoinRequestEnhancedMutation()
     const [respondToContactRequest, { isLoading: isRespondingToContact }] = useRespondToInvitationEnhancedMutation()
     const [respondToContactByToken, { isLoading: isRespondingByToken }] = useRespondToInvitationByTokenMutation()
+    const [respondToGroupInvitation, { isLoading: isRespondingToInvitation }] = useRespondToGroupInvitationMutation()
     const [selectedTab, setSelectedTab] = useState<'all' | 'invitations' | 'requests' | 'contacts' | 'groups' | 'messages'>('all')
     const [processingRequestId, setProcessingRequestId] = useState<string | null>(null)
     const [rejectionReason, setRejectionReason] = useState<string>("")
@@ -49,7 +51,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
         token!,
         { skip: !token }
     )
-    const { data: pendingInvitations } = useGetPendingInvitationsQuery(
+    const { data: pendingInvitations, refetch: refetchInvitations } = useGetPendingInvitationsQuery(
         token!,
         { skip: !token }
     )
@@ -113,7 +115,20 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
             case 'PAYMENT_REQUEST_RECEIVED':
             case 'payment_request_received':
                 return <HandCoins className="h-4 w-4 text-green-500" />
-                
+
+            // Shared wallet notifications
+            case 'SHARED_WALLET_MEMBER_ADDED':
+                return <UserPlus className="h-4 w-4 text-blue-500" />
+            case 'SHARED_WALLET_DEPOSIT_RECEIVED':
+                return <WalletCards className="h-4 w-4 text-green-500" />
+            case 'SHARED_WALLET_WITHDRAWAL_REQUESTED':
+                return <WalletCards className="h-4 w-4 text-amber-500" />
+            case 'SHARED_WALLET_WITHDRAWAL_APPROVED':
+            case 'SHARED_WALLET_WITHDRAWAL_EXECUTED':
+                return <WalletCards className="h-4 w-4 text-green-500" />
+            case 'SHARED_WALLET_WITHDRAWAL_DECLINED':
+                return <WalletCards className="h-4 w-4 text-red-500" />
+
             // Contact notifications
             case 'CONTACT_REQUEST_RECEIVED':
             case 'contact_request':
@@ -296,6 +311,45 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
         }
     }
 
+    // A GROUP_INVITATION notification only carries groupId - look up the matching
+    // pending GroupMember row (already fetched for the "invitations" tab) to get the
+    // membershipId respondToGroupInvitation actually needs.
+    const handleGroupInvitationResponse = async (groupId: string, action: 'accept' | 'reject') => {
+        const invitation = pendingInvitations?.data?.invitations?.find((inv: any) => inv.groupId === groupId)
+        if (!invitation) {
+            toast({
+                title: "Error",
+                description: "This invitation is no longer available",
+                variant: "destructive",
+            })
+            return
+        }
+
+        setProcessingRequestId(invitation.id)
+        try {
+            await respondToGroupInvitation({
+                membershipId: invitation.id,
+                responseData: { action },
+                token: token!
+            }).unwrap()
+
+            toast({
+                title: "Success",
+                description: `Group invitation ${action === 'accept' ? 'accepted' : 'declined'} successfully`,
+            })
+
+            refetchInvitations()
+        } catch (error: any) {
+            toast({
+                title: "Error",
+                description: error?.data?.message || `Failed to ${action === 'accept' ? 'accept' : 'decline'} invitation`,
+                variant: "destructive",
+            })
+        } finally {
+            setProcessingRequestId(null)
+        }
+    }
+
     const handleNotificationClick = (notification: Notification) => {
         if (!notification.isRead) {
             markAsRead(notification.id)
@@ -312,12 +366,19 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
             router.push(`/chat?chatId=${notification.data.chatId}`)
             onClose()
         } 
-        // Handle navigation for group notifications
+        // Handle navigation for group notifications - GROUP_INVITATION is excluded here
+        // since it has its own inline Accept/Decline buttons below and /groups/{groupId}
+        // has no page (would 404); this only covers other GROUP_* types.
         else if (notification.data?.groupId && (
             notification.type.startsWith('GROUP_') ||
             notification.type.startsWith('group_')
-        )) {
+        ) && notification.type !== 'GROUP_INVITATION' && notification.type !== 'group_invitation') {
             router.push(`/groups/${notification.data.groupId}`)
+            onClose()
+        }
+        // Handle navigation for shared wallet notifications
+        else if (notification.data?.sharedWalletId && notification.type.startsWith('SHARED_WALLET_')) {
+            router.push(`/wallets/shared/${notification.data.sharedWalletId}`)
             onClose()
         }
         // Handle navigation for contact notifications
@@ -725,6 +786,40 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
                                                 </div>
                                             ) : null
                                         )}
+
+                                        {/* Accept/Decline for group invitations - doesn't rely on
+                                            notification.data.actions since respondToGroupInvitation
+                                            needs a membershipId, resolved from pendingInvitations below */}
+                                        {(notification.type === 'GROUP_INVITATION' || notification.type === 'group_invitation') &&
+                                            notification.data?.groupId && (
+                                                <div className="flex gap-1.5 sm:gap-2 mt-2">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="h-7 sm:h-8 text-xs px-2 sm:px-3 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-darkBg-card"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            handleGroupInvitationResponse(notification.data?.groupId as string, 'reject')
+                                                        }}
+                                                        disabled={isRespondingToInvitation}
+                                                    >
+                                                        {isRespondingToInvitation ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                                                        Decline
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        className="h-7 sm:h-8 text-xs px-2 sm:px-3"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            handleGroupInvitationResponse(notification.data?.groupId as string, 'accept')
+                                                        }}
+                                                        disabled={isRespondingToInvitation}
+                                                    >
+                                                        {isRespondingToInvitation ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                                                        Join Group
+                                                    </Button>
+                                                </div>
+                                            )}
                                     </div>
                                 </div>
                             ))

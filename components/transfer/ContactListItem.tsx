@@ -1,9 +1,10 @@
 "use client";
 
 import React from "react";
-import { Send, Star } from "lucide-react";
+import { Send, Star, Check } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 interface Contact {
     id: string;
@@ -17,17 +18,26 @@ interface Contact {
 interface ContactListItemProps {
     contact: Contact;
     onSelect: (contact: Contact) => void;
+    /** When true, tapping the row toggles selection (via `onToggle`) instead of calling `onSelect`. */
+    selectionMode?: boolean;
+    isSelected?: boolean;
+    onToggle?: (contact: Contact) => void;
 }
 
-const ContactListItem = ({ contact, onSelect }: ContactListItemProps) => {
+const ContactListItem = ({ contact, onSelect, selectionMode = false, isSelected = false, onToggle }: ContactListItemProps) => {
     const nameParts = contact.name.split(" ");
     const firstName = nameParts[0] || "";
     const lastName = nameParts.slice(1).join(" ") || "";
 
     return (
         <button
-            onClick={() => onSelect(contact)}
-            className="w-full bg-white dark:bg-darkBg-card p-4 rounded-2xl shadow-sm hover:shadow-md transition-all border border-gray-100 dark:border-darkBorder-light group flex items-start gap-4 hover:bg-gray-50 dark:hover:bg-darkBg-interactive"
+            onClick={() => (selectionMode ? onToggle?.(contact) : onSelect(contact))}
+            className={cn(
+                "w-full bg-white dark:bg-darkBg-card p-4 rounded-2xl shadow-sm hover:shadow-md transition-all border group flex items-start gap-4 hover:bg-gray-50 dark:hover:bg-darkBg-interactive",
+                selectionMode && isSelected
+                    ? "border-brand-green dark:border-brand-gold bg-brand-green/5 dark:bg-brand-gold/5"
+                    : "border-gray-100 dark:border-darkBorder-light"
+            )}
         >
             {/* Avatar */}
             <div className="relative flex-shrink-0">
@@ -73,10 +83,23 @@ const ContactListItem = ({ contact, onSelect }: ContactListItemProps) => {
                 )}
             </div>
 
-            {/* Send Icon */}
-            <div className="w-10 h-10 bg-gray-50 dark:bg-darkBg-main rounded-xl flex items-center justify-center group-hover:bg-green-100 dark:group-hover:bg-brand-gold/10 transition-colors flex-shrink-0 self-center">
-                <Send className="w-5 h-5 text-gray-400 group-hover:text-brand-green dark:group-hover:text-brand-gold" />
-            </div>
+            {/* Trailing indicator: checkbox in selection mode, Send icon otherwise */}
+            {selectionMode ? (
+                <div
+                    className={cn(
+                        "w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 self-center transition-colors",
+                        isSelected
+                            ? "bg-brand-green dark:bg-brand-gold border-brand-green dark:border-brand-gold"
+                            : "border-gray-300 dark:border-darkBorder-medium"
+                    )}
+                >
+                    {isSelected && <Check className="w-4 h-4 text-white dark:text-darkBg-main" />}
+                </div>
+            ) : (
+                <div className="w-10 h-10 bg-gray-50 dark:bg-darkBg-main rounded-xl flex items-center justify-center group-hover:bg-green-100 dark:group-hover:bg-brand-gold/10 transition-colors flex-shrink-0 self-center">
+                    <Send className="w-5 h-5 text-gray-400 group-hover:text-brand-green dark:group-hover:text-brand-gold" />
+                </div>
+            )}
         </button>
     );
 };

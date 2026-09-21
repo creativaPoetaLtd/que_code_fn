@@ -68,6 +68,14 @@ export enum NotificationType {
   WALLET_RESTRICTION_REMOVED = 'WALLET_RESTRICTION_REMOVED',
   LOW_BALANCE_WARNING = 'LOW_BALANCE_WARNING',
 
+  // Shared wallet notifications (group-attached or standalone)
+  SHARED_WALLET_MEMBER_ADDED = 'SHARED_WALLET_MEMBER_ADDED',
+  SHARED_WALLET_DEPOSIT_RECEIVED = 'SHARED_WALLET_DEPOSIT_RECEIVED',
+  SHARED_WALLET_WITHDRAWAL_REQUESTED = 'SHARED_WALLET_WITHDRAWAL_REQUESTED',
+  SHARED_WALLET_WITHDRAWAL_APPROVED = 'SHARED_WALLET_WITHDRAWAL_APPROVED',
+  SHARED_WALLET_WITHDRAWAL_DECLINED = 'SHARED_WALLET_WITHDRAWAL_DECLINED',
+  SHARED_WALLET_WITHDRAWAL_EXECUTED = 'SHARED_WALLET_WITHDRAWAL_EXECUTED',
+
   // Action notifications (Tickets, Services, etc.)
   ACTION_CREATED = 'ACTION_CREATED',
   ACTION_UPDATED = 'ACTION_UPDATED',
@@ -207,6 +215,11 @@ export interface Notification {
     balance?: number;
     restrictionType?: string;
     thresholdAmount?: number;
+
+    // Shared wallet data
+    sharedWalletId?: string;
+    sharedWalletName?: string;
+    withdrawalId?: string;
 
     // External account data
     externalAccountId?: string;

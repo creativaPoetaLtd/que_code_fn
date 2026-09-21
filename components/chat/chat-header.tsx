@@ -16,6 +16,7 @@ import { useChat } from '@/context/ChatContext';
 import { useGetGroupByIdQuery } from '@/states/groupSlice';
 import { useAuthToken } from '@/hooks/use-auth-token';
 import FundraisingProgressBadge from './fundraising-progress-badge';
+import SharedWalletBalanceBadge from './shared-wallet-balance-badge';
 import { socketService } from '@/services/socketService';
 import { getInitials, isPlaceholderAvatar } from '@/utils/avatar';
 import {
@@ -123,6 +124,23 @@ export default function ChatHeader({
     };
   }, [conversation.isGroup, conversation.groupId, refetchGroupData]);
 
+  // Listen for real-time shared wallet balance updates (deposit or completed withdrawal)
+  useEffect(() => {
+    if (!conversation.isGroup || !conversation.groupId) return;
+
+    const handleBalanceUpdate = (data: any) => {
+      if (data.groupId === conversation.groupId) {
+        refetchGroupData();
+      }
+    };
+
+    socketService.onSharedWalletBalanceUpdate(handleBalanceUpdate);
+
+    return () => {
+      socketService.offSharedWalletBalanceUpdate(handleBalanceUpdate);
+    };
+  }, [conversation.isGroup, conversation.groupId, refetchGroupData]);
+
   const getOnlineStatus = () => {
     if (conversation.isGroup) {
       return `${conversation.isOnline ? 1 : 0} online`;
@@ -195,8 +213,17 @@ export default function ChatHeader({
               </div>
             )}
 
-          {/* Online Status (only show if not fundraising) */}
-          {!(conversation.isGroup && group?.hasFundraising) && (
+          {/* Shared Wallet Balance for Groups (fundraising badge takes priority if both are somehow set) */}
+          {conversation.isGroup &&
+            !group?.hasFundraising &&
+            group?.sharedWalletId && (
+              <div className='mt-1'>
+                <SharedWalletBalanceBadge balance={group.walletBalance ?? 0} />
+              </div>
+            )}
+
+          {/* Online Status (only show if not fundraising/shared wallet) */}
+          {!(conversation.isGroup && (group?.hasFundraising || group?.sharedWalletId)) && (
             <p className='text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate'>
               {getOnlineStatus()}
             </p>

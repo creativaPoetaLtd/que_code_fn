@@ -67,6 +67,12 @@ export default function OptionsDropdown({
           action: () => onOptionSelect('Request Money'),
         },
         {
+          icon: <Users size={18} />,
+          label: 'Send to multiple',
+          color: 'text-indigo-600 dark:text-indigo-300',
+          action: () => onOptionSelect('Send to Multiple'),
+        },
+        {
           icon: <Ticket size={18} />,
           label: 'Ticket',
           color: 'text-violet-600 dark:text-violet-300',

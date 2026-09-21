@@ -35,6 +35,10 @@ interface SchedulePickerProps {
     schedule: ScheduleState;
     onChange: (schedule: ScheduleState) => void;
     minDate: string;
+    /** Skip the built-in "Send now / Schedule for later" toggle - use when the caller
+     * already has its own control for that choice (e.g. an outer tab/mode picker) and
+     * guarantees `schedule.enabled` is true whenever this is mounted. */
+    hideModeToggle?: boolean;
 }
 
 const frequencies: { value: RecurrenceState["frequency"]; label: string }[] = [
@@ -57,41 +61,43 @@ const endOptions: { value: RecurrenceState["endMode"]; label: string }[] = [
 const fieldClass =
     "w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-darkBorder-light bg-gray-50 dark:bg-darkBg-main text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-green/30 dark:focus:ring-brand-gold/30 [color-scheme:light] dark:[color-scheme:dark]";
 
-const SchedulePicker = ({ schedule, onChange, minDate }: SchedulePickerProps) => {
+const SchedulePicker = ({ schedule, onChange, minDate, hideModeToggle = false }: SchedulePickerProps) => {
     const update = (patch: Partial<ScheduleState>) => onChange({ ...schedule, ...patch });
     const updateRecurrence = (patch: Partial<RecurrenceState>) =>
         onChange({ ...schedule, recurrence: { ...schedule.recurrence, ...patch } });
 
     return (
         <div className="bg-white dark:bg-darkBg-card rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-darkBorder-light mb-6">
-            <div className="grid grid-cols-2 gap-2 mb-5">
-                <button
-                    type="button"
-                    onClick={() => update({ enabled: false })}
-                    className={cn(
-                        "flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-semibold border transition-all",
-                        !schedule.enabled
-                            ? "bg-brand-green dark:bg-brand-gold text-white dark:text-darkBg-main border-transparent shadow-md"
-                            : "bg-gray-50 dark:bg-darkBg-main text-gray-600 dark:text-gray-400 border-gray-200 dark:border-darkBorder-light"
-                    )}
-                >
-                    <Zap size={15} /> Send now
-                </button>
-                <button
-                    type="button"
-                    onClick={() => update({ enabled: true })}
-                    className={cn(
-                        "flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-semibold border transition-all",
-                        schedule.enabled
-                            ? "bg-brand-green dark:bg-brand-gold text-white dark:text-darkBg-main border-transparent shadow-md"
-                            : "bg-gray-50 dark:bg-darkBg-main text-gray-600 dark:text-gray-400 border-gray-200 dark:border-darkBorder-light"
-                    )}
-                >
-                    <Calendar size={15} /> Schedule for later
-                </button>
-            </div>
+            {!hideModeToggle && (
+                <div className="grid grid-cols-2 gap-2 mb-5">
+                    <button
+                        type="button"
+                        onClick={() => update({ enabled: false })}
+                        className={cn(
+                            "flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-semibold border transition-all",
+                            !schedule.enabled
+                                ? "bg-brand-green dark:bg-brand-gold text-white dark:text-darkBg-main border-transparent shadow-md"
+                                : "bg-gray-50 dark:bg-darkBg-main text-gray-600 dark:text-gray-400 border-gray-200 dark:border-darkBorder-light"
+                        )}
+                    >
+                        <Zap size={15} /> Send now
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => update({ enabled: true })}
+                        className={cn(
+                            "flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-semibold border transition-all",
+                            schedule.enabled
+                                ? "bg-brand-green dark:bg-brand-gold text-white dark:text-darkBg-main border-transparent shadow-md"
+                                : "bg-gray-50 dark:bg-darkBg-main text-gray-600 dark:text-gray-400 border-gray-200 dark:border-darkBorder-light"
+                        )}
+                    >
+                        <Calendar size={15} /> Schedule for later
+                    </button>
+                </div>
+            )}
 
-            {schedule.enabled && (
+            {(hideModeToggle || schedule.enabled) && (
                 <div className="animate-fadeIn space-y-4">
                     <div className="grid grid-cols-2 gap-3">
                         <div>
@@ -123,7 +129,7 @@ const SchedulePicker = ({ schedule, onChange, minDate }: SchedulePickerProps) =>
                         <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5 flex items-center gap-1.5">
                             <Repeat size={12} /> Repeat
                         </label>
-                        <div className="grid grid-cols-5 gap-1.5">
+                        <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
                             {frequencies.map((f) => (
                                 <button
                                     key={f.value}

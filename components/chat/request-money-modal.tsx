@@ -152,7 +152,7 @@ export default function RequestMoneyModal({ isOpen, onClose, conversation }: Req
     return (
     <>
         <Dialog open={isOpen} onOpenChange={(open) => !open && !isSubmitting && !createdRequestId && onClose()}>
-            <DialogContent className="sm:max-w-md dark:bg-darkBg-card dark:border-darkBorder-light">
+            <DialogContent className="sm:max-w-lg dark:bg-darkBg-card dark:border-darkBorder-light">
                 <DialogHeader>
                     <div className="flex items-center">
                         <div className="bg-brand-green/10 dark:bg-brand-gold/10 p-2 rounded-full mr-3">
@@ -214,12 +214,12 @@ export default function RequestMoneyModal({ isOpen, onClose, conversation }: Req
                                 : 'bg-gray-50 dark:bg-darkBg-interactive border-gray-200 dark:border-darkBorder-light'
                         }`}
                     >
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
                             {allowEditAmount
-                                ? <Pencil size={15} className="text-brand-green dark:text-brand-gold" />
-                                : <Lock size={15} className="text-gray-400" />
+                                ? <Pencil size={15} className="text-brand-green dark:text-brand-gold flex-shrink-0" />
+                                : <Lock size={15} className="text-gray-400 flex-shrink-0" />
                             }
-                            <div className="text-left">
+                            <div className="text-left min-w-0">
                                 <p className={`text-sm font-medium ${allowEditAmount ? 'text-brand-green dark:text-brand-gold' : 'text-gray-700 dark:text-gray-300'}`}>
                                     {allowEditAmount ? 'Amount is negotiable' : 'Amount is fixed'}
                                 </p>
@@ -228,7 +228,7 @@ export default function RequestMoneyModal({ isOpen, onClose, conversation }: Req
                                 </p>
                             </div>
                         </div>
-                        <div className={`w-9 h-5 rounded-full transition-colors relative ${allowEditAmount ? 'bg-brand-green dark:bg-brand-gold' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                        <div className={`w-9 h-5 rounded-full transition-colors relative flex-shrink-0 ml-2 ${allowEditAmount ? 'bg-brand-green dark:bg-brand-gold' : 'bg-gray-300 dark:bg-gray-600'}`}>
                             <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${allowEditAmount ? 'translate-x-4' : 'translate-x-0.5'}`} />
                         </div>
                     </button>

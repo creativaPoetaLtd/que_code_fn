@@ -68,6 +68,8 @@ interface ChatAreaProps {
     onVerifySecurity?: () => void
     onCreateContribution?: () => void
     onCreateGroup?: () => void
+    onSendMultiple?: () => void
+    onCreateSharedWallet?: () => void
     isGroupAdmin?: boolean
     typingUsers?: any[]
     onlineUsers?: any[]
@@ -87,6 +89,8 @@ export default function ChatArea({
     onVerifySecurity,
     onCreateContribution,
     onCreateGroup,
+    onSendMultiple,
+    onCreateSharedWallet,
     isGroupAdmin = false,
     typingUsers = [],
     onlineUsers = [],
@@ -202,6 +206,8 @@ export default function ChatArea({
                     onRequestMoney={onRequestMoney}
                     onCreateContribution={onCreateContribution}
                     onCreateGroup={onCreateGroup}
+                    onSendMultiple={onSendMultiple}
+                    onCreateSharedWallet={onCreateSharedWallet}
                 />
             </div>
         </div>

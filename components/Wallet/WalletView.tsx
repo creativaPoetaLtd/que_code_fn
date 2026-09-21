@@ -65,6 +65,7 @@ import QuickActions from '@/components/Wallet/QuickActions';
 import RecentActivity from '@/components/Wallet/RecentActivity';
 import SpendingInsights from '@/components/Wallet/SpendingInsights';
 import Contributions from '@/components/Wallet/Contributions';
+import SharedWallets from '@/components/Wallet/SharedWallets';
 import BudgetsPanel from '@/components/Wallet/BudgetsPanel';
 import IncomingRulesPanel from '@/components/Wallet/IncomingRulesPanel';
 
@@ -417,12 +418,15 @@ export const WalletView: React.FC<WalletViewProps> = ({
   const { balanceBreakdown, restrictions, items } = summary;
 
   // Alerts: reserved budgets exceed balance, or nothing left to spend
+  const hasHeld = balanceBreakdown.held > 0;
   const overBudget = balanceBreakdown.restricted > balanceBreakdown.total;
   const lowBalance = balanceBreakdown.total > 0 && balanceBreakdown.available <= 0 && !overBudget;
   const alert = overBudget
     ? `Your category budgets (${balanceBreakdown.restricted.toLocaleString()} ${currency}) exceed your balance (${balanceBreakdown.total.toLocaleString()} ${currency}).`
     : lowBalance
-    ? 'All your funds are reserved by category budgets — nothing is freely available to spend.'
+    ? hasHeld
+      ? `Nothing is freely available to spend — ${balanceBreakdown.held.toLocaleString()} ${currency} is reserved by pending scheduled transfers/holds${balanceBreakdown.restricted > 0 ? ' and category budgets' : ''}.`
+      : 'All your funds are reserved by category budgets — nothing is freely available to spend.'
     : null;
 
   return (
@@ -465,7 +469,7 @@ export const WalletView: React.FC<WalletViewProps> = ({
             {showBalance ? money(balanceBreakdown.total, currency) : `${hidden} ${currency}`}
           </div>
 
-          <div className="relative mt-4 grid grid-cols-2 gap-3">
+          <div className={`relative mt-4 grid gap-3 ${hasHeld ? 'grid-cols-3' : 'grid-cols-2'}`}>
             <div className="rounded-xl bg-white/10 backdrop-blur-sm p-3">
               <div className="flex items-center gap-1 text-xs opacity-80">
                 <TrendingUp className="w-3.5 h-3.5" /> Available
@@ -482,6 +486,16 @@ export const WalletView: React.FC<WalletViewProps> = ({
                 {showBalance ? money(balanceBreakdown.restricted, currency) : hidden}
               </div>
             </div>
+            {hasHeld && (
+              <div className="rounded-xl bg-white/10 backdrop-blur-sm p-3" title="Reserved by pending scheduled transfers or holds">
+                <div className="flex items-center gap-1 text-xs opacity-80">
+                  <Clock className="w-3.5 h-3.5" /> Held
+                </div>
+                <div className="mt-1 text-base font-semibold break-words">
+                  {showBalance ? money(balanceBreakdown.held, currency) : hidden}
+                </div>
+              </div>
+            )}
           </div>
 
           {balanceBreakdown.total > 0 && (
@@ -758,7 +772,10 @@ export const WalletView: React.FC<WalletViewProps> = ({
         {/* Recent activity */}
         <RecentActivity walletId={summary.wallet.id} entityId={entityId} currency={currency} />
 
-        {/* Shared wallets / contributions */}
+        {/* Shared wallets the user is a member of */}
+        <SharedWallets />
+
+        {/* Fundraising contributions */}
         <Contributions currency={currency} />
       </div>
 
