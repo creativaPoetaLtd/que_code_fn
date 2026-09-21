@@ -2,7 +2,6 @@
 
 import {
   BarChart3,
-  CalendarDays,
   DollarSign,
   FileText,
   HandCoins,
@@ -11,6 +10,7 @@ import {
   MonitorUp,
   NotebookText,
   PiggyBank,
+  Share2,
   Ticket,
   Users,
   WalletCards,
@@ -74,9 +74,9 @@ export default function OptionsDropdown({
         },
         {
           icon: <Ticket size={18} />,
-          label: 'Ticket',
+          label: 'Send ticket',
           color: 'text-violet-600 dark:text-violet-300',
-          action: () => onOptionSelect('Ticket'),
+          action: () => onOptionSelect('Send Ticket'),
         },
       ],
     },
@@ -84,12 +84,15 @@ export default function OptionsDropdown({
       title: 'Share',
       options: [
         {
-          icon: <CalendarDays size={18} />,
-          label: 'Event',
-          color: 'text-indigo-600 dark:text-indigo-300',
-          action: () => onOptionSelect('Event'),
+          // Posts an action card in the chat — nothing changes hands
+          icon: <Share2 size={18} />,
+          label: 'Share action',
+          color: 'text-violet-600 dark:text-violet-300',
+          action: () => onOptionSelect('Share Action'),
         },
         {
+          // In a DM: invite this contact into one of your groups. In a group chat
+          // (no single target to invite), falls back to starting a new group.
           icon: <Users size={18} />,
           label: 'Group',
           color: 'text-cyan-600 dark:text-cyan-300',

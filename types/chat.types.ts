@@ -53,6 +53,8 @@ export interface Conversation {
   avatar?: string;
   memberCount?: number;
   isOnline: boolean | number;
+  /** The other person has a visible photo gallery — drives the gold avatar ring */
+  hasGallery?: boolean;
   participants: Participant[];
   email?: string;
   phone?: string;
@@ -142,6 +144,11 @@ export interface Message extends MediaData {
     deliveryConfirmed?: boolean;
     mentions?: MentionData[];
     reactions?: ReactionRow[];
+    /** Set when the sender deleted it; the message renders as a tombstone */
+    deletedAt?: string | null;
+    deletedBy?: string | null;
+    /** Set the first time the sender edits the text */
+    editedAt?: string | null;
 }
 
 export interface LegacyMessage {

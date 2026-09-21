@@ -68,6 +68,11 @@ const getSecureDeviceState = async (token: string, userId: string) => {
   return state;
 };
 
+// A message that reaches the UI with no content is a data problem, not an empty
+// message - showing a blank bubble hides it. Name it instead, the same way an
+// undecryptable envelope is named.
+const EMPTY_CONTENT_PLACEHOLDER = "[Message unavailable on this device]";
+
 const parseSecureControlMessage = (content: string) => {
   try {
     const payload = JSON.parse(content);
@@ -291,6 +296,7 @@ const decryptSecureApiMessage = async ({
     sender: rawMessage.sender,
     readBy: rawMessage.readBy || [],
     deliveryConfirmed: Boolean(rawMessage.deliveredAt),
+    editedAt: rawMessage.editedAt || null,
   } satisfies Message;
 };
 
@@ -320,9 +326,37 @@ export const fetchSecureChatMessages = async ({
 
   const decryptedMessages = await Promise.all(
     ((payload?.data?.messages as any[]) || []).map(async (rawMessage) => {
-      // Plain (non-E2EE) messages - money/escrow holds, etc. - carry their real
-      // content already; there's no envelope to decrypt.
-      if (!rawMessage.isEncrypted) {
+      // A deleted message has no content left to decrypt - its envelopes were
+      // destroyed on purpose. It renders as a tombstone.
+      if (rawMessage.deletedAt) {
+        return {
+          id: rawMessage.id,
+          chatId: rawMessage.chatId,
+          content: "",
+          messageType: rawMessage.messageType,
+          replyToMessageId: rawMessage.replyToMessageId || null,
+          replyTo: null,
+          reactions: [],
+          status: rawMessage.status,
+          deliveredAt: rawMessage.deliveredAt || undefined,
+          readAt: rawMessage.readAt || undefined,
+          createdAt: rawMessage.createdAt,
+          sender: rawMessage.sender,
+          readBy: rawMessage.readBy || [],
+          deliveryConfirmed: Boolean(rawMessage.deliveredAt),
+          deletedAt: rawMessage.deletedAt,
+          deletedBy: rawMessage.deletedBy || null,
+          editedAt: rawMessage.editedAt || null,
+        } satisfies Message;
+      }
+
+      // Plain (non-E2EE) messages - money/escrow holds, action cards, etc. - carry
+      // their real content already; there's no envelope to decrypt. The envelope's
+      // presence is what decides, not `isEncrypted`: the API omits that flag on some
+      // deployments, and trusting it sends every encrypted message down this branch
+      // where its content is blank, producing empty bubbles. The server already drops
+      // encrypted messages this device holds no key for, so "no envelope" means plain.
+      if (!rawMessage.encryptedEnvelope) {
         return {
           id: rawMessage.id,
           chatId: rawMessage.chatId,
@@ -338,6 +372,7 @@ export const fetchSecureChatMessages = async ({
           sender: rawMessage.sender,
           readBy: rawMessage.readBy || [],
           deliveryConfirmed: Boolean(rawMessage.deliveredAt),
+          editedAt: rawMessage.editedAt || null,
         } satisfies Message;
       }
       try {
@@ -386,7 +421,11 @@ export const fetchSecureChatMessages = async ({
       continue;
     }
 
-    visibleMessages.push(message);
+    visibleMessages.push(
+      message.content || message.deletedAt
+        ? message
+        : { ...message, content: EMPTY_CONTENT_PLACEHOLDER },
+    );
   }
 
   return visibleMessages;
@@ -458,6 +497,73 @@ export const createOrGetPreferredDmChat = async ({
     ...secureChat,
     usedSecure: true,
   };
+};
+
+/**
+ * Edit a secure message: encrypt the new text for every device in the chat and swap
+ * the envelopes. There is no in-place edit at the crypto layer, so this mirrors
+ * sendSecureTextMessage exactly, aimed at an existing message id.
+ */
+export const editSecureTextMessage = async ({
+  token,
+  userId,
+  chatId,
+  messageId,
+  conversation,
+  content,
+}: {
+  token: string;
+  userId: string;
+  chatId: string;
+  messageId: string;
+  conversation: Conversation;
+  content: string;
+}) => {
+  const state = await getSecureDeviceState(token, userId);
+  const recipientUserId = getConversationRecipient(conversation, userId);
+
+  const sendAttempt = async ({
+    forceRefresh,
+    useOneTimePreKeys,
+  }: {
+    forceRefresh: boolean;
+    useOneTimePreKeys: boolean;
+  }) => {
+    const [senderDevices, recipientDevices] = await Promise.all([
+      fetchPublicDeviceBundles(token, userId, { forceRefresh }),
+      fetchPublicDeviceBundles(token, recipientUserId, { forceRefresh }),
+    ]);
+    const targetDevices = useOneTimePreKeys
+      ? [...senderDevices, ...recipientDevices]
+      : withoutOneTimePreKeys([...senderDevices, ...recipientDevices]);
+
+    const { recipientPayloads } = await encryptSecureTextForRecipients({
+      content,
+      senderUserId: userId,
+      senderState: state,
+      recipientDevices: targetDevices,
+    });
+
+    return fetchJson(`${getApiBaseUrl()}/e2ee/chats/${chatId}/messages/${messageId}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        "x-qc-device-id": state.deviceId,
+      },
+      body: JSON.stringify({ recipientPayloads }),
+    });
+  };
+
+  const payload = await sendWithStalePreKeyRetry({
+    attempt: sendAttempt,
+    cacheKeys: [`bundles:${userId}`, `bundles:${recipientUserId}`],
+  });
+
+  bundleCache.delete(`bundles:${userId}`);
+  bundleCache.delete(`bundles:${recipientUserId}`);
+
+  return payload?.data;
 };
 
 export const sendSecureTextMessage = async ({
