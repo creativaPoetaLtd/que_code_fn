@@ -1,3 +1,4 @@
+# Trigger redeploy: retry after Netlify Blobs upload 401 (2026-09-24)
 [[redirects]]
 from = "/*"
 to = "/index.html"
