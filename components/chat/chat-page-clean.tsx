@@ -24,6 +24,8 @@ import SendMoneyModal from '@/components/chat/send-money-modal';
 import RequestMoneyModal from '@/components/chat/request-money-modal';
 import CreateContributionModal from '@/components/chat/create-contribution-modal';
 import CreateGroupModalUpdated from '@/components/chat/create-group-modal';
+import SendMoneyBatchModal from '@/components/chat/send-money-batch-modal';
+import CreateSharedWalletModal from '@/components/chat/create-shared-wallet-modal';
 import ShareActionModal from '@/components/chat/share-action-modal';
 import ProfilePreviewModal from '@/components/chat/profile-preview-modal';
 import CreatePollModal from '@/components/chat/create-poll-modal';
@@ -93,7 +95,11 @@ export default function ChatPageClean() {
     useState(false);
   const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] =
     useState(false);
-  // Which flavour of the action modal is open: a ticket handover or an action share.
+  const [isSendMultipleModalOpen, setIsSendMultipleModalOpen] =
+    useState(false);
+  const [isCreateSharedWalletModalOpen, setIsCreateSharedWalletModalOpen] =
+    useState(false);
+    // Which flavour of the action modal is open: a ticket handover or an action share.
   // The mode is kept while closing so the dialog does not swap labels mid-animation.
   const [actionModal, setActionModal] = useState<{
     isOpen: boolean;
@@ -471,6 +477,8 @@ export default function ChatPageClean() {
                 setIsCreateContributionModalOpen(true)
               }
               onCreateGroup={() => setIsCreateGroupModalOpen(true)}
+              onSendMultiple={() => setIsSendMultipleModalOpen(true)}
+              onCreateSharedWallet={() => setIsCreateSharedWalletModalOpen(true)}
               onSendTicket={() =>
                 setActionModal({ isOpen: true, mode: 'transfer' })
               }
@@ -541,6 +549,17 @@ export default function ChatPageClean() {
       <CreateGroupModalUpdated
         isOpen={isCreateGroupModalOpen}
         onClose={() => setIsCreateGroupModalOpen(false)}
+        token={token}
+      />
+
+      <SendMoneyBatchModal
+        isOpen={isSendMultipleModalOpen}
+        onClose={() => setIsSendMultipleModalOpen(false)}
+      />
+
+      <CreateSharedWalletModal
+        isOpen={isCreateSharedWalletModalOpen}
+        onClose={() => setIsCreateSharedWalletModalOpen(false)}
         token={token}
       />
 

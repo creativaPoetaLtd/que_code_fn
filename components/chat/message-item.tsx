@@ -5,6 +5,7 @@ import { useMemo, useRef, useState, useCallback, useEffect } from "react"
 import MediaMessageContent from "./media-message-content"
 import { MoneyMessageCard } from "./money-message-card"
 import { EscrowMessageCard } from "./escrow-message-card"
+import { SharedWalletWithdrawalCard } from "./shared-wallet-withdrawal-card"
 import { ActionMessageCard, type ActionMessageData } from "./action-message-card"
 import { PollMessageCard, type PollMessageData } from "./poll-message-card"
 import { SharedNoteMessageCard, type SharedNoteMessageData } from "./shared-note-message-card"
@@ -83,6 +84,7 @@ export default function MessageItem({ message, onReply, isPinned = false, onTogg
     let moneyTransferData = null;
     let groupContributionData = null;
     let escrowData = null;
+    let sharedWalletWithdrawalData = null;
     let isOldMoneyMessage = false;
 
     // Parse escrow hold data
@@ -128,13 +130,20 @@ export default function MessageItem({ message, onReply, isPinned = false, onTogg
     if (!isDeleted && isMoneyMessage && messageContent) {
         try {
             const parsed = JSON.parse(messageContent);
-            const isTransferLike = (parsed.type === 'money_transfer' || parsed.type === 'group_donation') && parsed.transactionId && parsed.amount;
+            const isTransferLike =
+                (parsed.type === 'money_transfer' || parsed.type === 'group_donation' ||
+                    parsed.type === 'shared_wallet_deposit' || parsed.type === 'shared_wallet_withdrawal') &&
+                parsed.transactionId && parsed.amount;
             const isRequestLike = parsed.type === 'money_request' && parsed.requestId && parsed.amount;
             const isContributionLike = parsed.type === 'group_contribution' && parsed.contributionId && parsed.groupId;
+            const isScheduledTransferLike = parsed.type === 'scheduled_transfer' && parsed.scheduledTransferId && parsed.amount;
+            const isSharedWalletWithdrawalRequestLike = parsed.type === 'shared_wallet_withdrawal_request' && parsed.withdrawalId && parsed.amount;
 
             if (isContributionLike) {
                 groupContributionData = parsed;
-            } else if (isTransferLike || isRequestLike) {
+            } else if (isSharedWalletWithdrawalRequestLike) {
+                sharedWalletWithdrawalData = parsed;
+            } else if (isTransferLike || isRequestLike || isScheduledTransferLike) {
                 moneyTransferData = parsed;
             } else {
                 // Old format - just has note text
@@ -146,7 +155,7 @@ export default function MessageItem({ message, onReply, isPinned = false, onTogg
         }
     }
 
-    if (!isMediaMessage && !moneyTransferData && !escrowData && !actionData && !pollData && !sharedNoteData && !locationData && !whiteboardData) {
+    if (!isMediaMessage && !moneyTransferData && !escrowData && !actionData && !pollData && !sharedNoteData && !locationData && !whiteboardData && !sharedWalletWithdrawalData) {
         if (typeof messageContent === 'object' && messageContent !== null) {
             if (messageContent.content) {
                 messageContent = messageContent.content;
@@ -679,6 +688,15 @@ export default function MessageItem({ message, onReply, isPinned = false, onTogg
     if (isEscrowMessage && escrowData) {
         return renderCard(
             <EscrowMessageCard data={escrowData} isMe={isMe} chatId={!isLegacy ? message.chatId : undefined} />
+        );
+    }
+
+    // Render shared wallet withdrawal request as a special card
+    if (isMoneyMessage && sharedWalletWithdrawalData) {
+        return (
+            <div className={cn("mb-4", isMe ? "ml-auto" : "mr-auto")}>
+                <SharedWalletWithdrawalCard data={sharedWalletWithdrawalData} isMe={isMe} chatId={!isLegacy ? message.chatId : undefined} />
+            </div>
         );
     }
 

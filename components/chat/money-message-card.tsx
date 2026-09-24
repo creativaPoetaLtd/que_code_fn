@@ -3,7 +3,8 @@
 import React from "react";
 import {
     Download, CheckCircle, ArrowRight, Heart, TrendingUp,
-    Lock, Pencil, X, CircleDollarSign, Clock, Ban
+    Lock, Pencil, X, CircleDollarSign, Clock, Ban, CalendarClock,
+    ArrowDownToLine, ArrowUpFromLine
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +16,7 @@ import { toast } from "@/hooks/use-toast";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface MoneyTransferData {
-    type: 'money_transfer' | 'group_donation';
+    type: 'money_transfer' | 'group_donation' | 'shared_wallet_deposit' | 'shared_wallet_withdrawal';
     amount: number;
     currency: string;
     senderName: string;
@@ -45,8 +46,21 @@ interface MoneyRequestData {
     timestamp: string;
 }
 
+interface ScheduledTransferData {
+    type: 'scheduled_transfer';
+    scheduledTransferId: string;
+    amount: number;
+    currency: string;
+    senderName: string;
+    recipientName: string;
+    scheduledFor: string;
+    status: 'scheduled' | 'completed' | 'cancelled' | 'failed';
+    transactionId?: string | null;
+    timestamp: string;
+}
+
 interface MoneyMessageCardProps {
-    data: MoneyTransferData | MoneyRequestData;
+    data: MoneyTransferData | MoneyRequestData | ScheduledTransferData;
     isMe: boolean;
     chatId?: string;
 }
@@ -361,6 +375,9 @@ function MoneyRequestCard({ data, isMe, chatId }: { data: MoneyRequestData; isMe
 function MoneyTransferCard({ data, isMe }: { data: MoneyTransferData; isMe: boolean }) {
     const [downloadReceipt, { isLoading }] = useDownloadTransactionReceiptMutation();
     const isGroupDonation = data.type === 'group_donation';
+    const isSharedWalletDeposit = data.type === 'shared_wallet_deposit';
+    const isSharedWalletWithdrawal = data.type === 'shared_wallet_withdrawal';
+    const hasReceipt = data.type === 'money_transfer' || data.type === 'group_donation' || data.type === 'shared_wallet_deposit';
 
     const handleDownload = async () => {
         try {
@@ -382,17 +399,41 @@ function MoneyTransferCard({ data, isMe }: { data: MoneyTransferData; isMe: bool
 
     const accentColor = isGroupDonation
         ? 'bg-blue-500'
-        : 'bg-brand-green dark:bg-brand-gold';
+        : isSharedWalletDeposit
+            ? 'bg-emerald-500'
+            : isSharedWalletWithdrawal
+                ? 'bg-amber-500'
+                : 'bg-brand-green dark:bg-brand-gold';
 
     const shell = `
         w-[260px] rounded-2xl overflow-hidden shadow-sm border
         ${isGroupDonation
             ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-100 dark:border-blue-800/30'
-            : isMe
-                ? 'bg-white dark:bg-darkBg-card border-brand-green/20 dark:border-brand-gold/20'
-                : 'bg-white dark:bg-darkBg-card border-gray-100 dark:border-darkBorder-light'
+            : isSharedWalletDeposit
+                ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-800/30'
+                : isSharedWalletWithdrawal
+                    ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-800/30'
+                    : isMe
+                        ? 'bg-white dark:bg-darkBg-card border-brand-green/20 dark:border-brand-gold/20'
+                        : 'bg-white dark:bg-darkBg-card border-gray-100 dark:border-darkBorder-light'
         }
     `.trim();
+
+    const headerLabel = isGroupDonation
+        ? 'Donation'
+        : isSharedWalletDeposit
+            ? 'Added to Wallet'
+            : isSharedWalletWithdrawal
+                ? 'Wallet Withdrawal'
+                : 'Money Sent';
+
+    const amountColor = isGroupDonation
+        ? 'text-blue-600 dark:text-blue-300'
+        : isSharedWalletDeposit
+            ? 'text-emerald-600 dark:text-emerald-300'
+            : isSharedWalletWithdrawal
+                ? 'text-amber-600 dark:text-amber-300'
+                : 'text-brand-green dark:text-brand-gold';
 
     return (
         <div className={shell}>
@@ -404,10 +445,14 @@ function MoneyTransferCard({ data, isMe }: { data: MoneyTransferData; isMe: bool
                 <div className="flex items-center gap-1.5">
                     {isGroupDonation
                         ? <Heart className="w-3.5 h-3.5 text-blue-500 fill-current" />
-                        : <CircleDollarSign className="w-3.5 h-3.5 text-brand-green dark:text-brand-gold" />
+                        : isSharedWalletDeposit
+                            ? <ArrowDownToLine className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                            : isSharedWalletWithdrawal
+                                ? <ArrowUpFromLine className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                                : <CircleDollarSign className="w-3.5 h-3.5 text-brand-green dark:text-brand-gold" />
                     }
                     <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                        {isGroupDonation ? 'Donation' : 'Money Sent'}
+                        {headerLabel}
                     </span>
                 </div>
                 <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400">
@@ -416,7 +461,7 @@ function MoneyTransferCard({ data, isMe }: { data: MoneyTransferData; isMe: bool
             </div>
 
             {/* Group badge */}
-            {isGroupDonation && data.groupName && (
+            {(isGroupDonation || isSharedWalletDeposit || isSharedWalletWithdrawal) && data.groupName && (
                 <div className="mx-3 mb-1 flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-blue-100/60 dark:bg-blue-900/30">
                     <TrendingUp className="w-3 h-3 text-blue-600 dark:text-blue-400" />
                     <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 truncate">{data.groupName}</p>
@@ -425,7 +470,7 @@ function MoneyTransferCard({ data, isMe }: { data: MoneyTransferData; isMe: bool
 
             {/* Amount */}
             <div className="px-3 py-2 text-center">
-                <p className={`text-2xl font-bold tracking-tight ${isGroupDonation ? 'text-blue-600 dark:text-blue-300' : 'text-brand-green dark:text-brand-gold'}`}>
+                <p className={`text-2xl font-bold tracking-tight ${amountColor}`}>
                     {fmt(data.amount, data.currency)}
                 </p>
             </div>
@@ -457,20 +502,117 @@ function MoneyTransferCard({ data, isMe }: { data: MoneyTransferData; isMe: bool
                     <span className="text-[10px] text-gray-400 font-mono truncate max-w-[140px]">{data.referenceId}</span>
                     <span className="text-[10px] text-gray-400">{fmtTime(data.timestamp)}</span>
                 </div>
-                <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleDownload}
-                    disabled={isLoading}
-                    className={`w-full h-8 text-xs ${isGroupDonation
-                        ? 'border-blue-200 text-blue-600 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-400'
-                        : 'border-brand-green/30 text-brand-green hover:bg-brand-green/5 dark:border-brand-gold/30 dark:text-brand-gold'
-                    }`}
-                >
-                    <Download className="w-3 h-3 mr-1.5" />
-                    {isLoading ? 'Downloading…' : 'Download Receipt'}
-                </Button>
+                {hasReceipt && (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleDownload}
+                        disabled={isLoading}
+                        className={`w-full h-8 text-xs ${isGroupDonation
+                            ? 'border-blue-200 text-blue-600 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-400'
+                            : 'border-brand-green/30 text-brand-green hover:bg-brand-green/5 dark:border-brand-gold/30 dark:text-brand-gold'
+                        }`}
+                    >
+                        <Download className="w-3 h-3 mr-1.5" />
+                        {isLoading ? 'Downloading…' : 'Download Receipt'}
+                    </Button>
+                )}
             </div>
+        </div>
+    );
+}
+
+// ─── Scheduled Transfer Card ────────────────────────────────────────────────────
+
+function ScheduledTransferCard({ data, isMe }: { data: ScheduledTransferData; isMe: boolean }) {
+    const { status } = data;
+
+    const statusPill = () => {
+        if (status === 'completed') return (
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400">
+                <CheckCircle className="w-2.5 h-2.5" /> Completed
+            </span>
+        );
+        if (status === 'cancelled') return (
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                <Ban className="w-2.5 h-2.5" /> Cancelled
+            </span>
+        );
+        if (status === 'failed') return (
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400">
+                <X className="w-2.5 h-2.5" /> Failed
+            </span>
+        );
+        return (
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
+                <Clock className="w-2.5 h-2.5" /> Scheduled
+            </span>
+        );
+    };
+
+    const shell = `
+        w-[260px] rounded-2xl overflow-hidden shadow-sm border
+        ${status === 'completed'
+            ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800/40'
+            : status === 'failed'
+                ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/40'
+                : status === 'cancelled'
+                    ? 'bg-gray-50 dark:bg-gray-800/30 border-gray-200 dark:border-gray-700'
+                    : isMe
+                        ? 'bg-white dark:bg-darkBg-card border-brand-green/20 dark:border-brand-gold/20'
+                        : 'bg-white dark:bg-darkBg-card border-gray-100 dark:border-darkBorder-light'
+        }
+    `.trim();
+
+    const stripColor = status === 'completed'
+        ? 'bg-green-500'
+        : status === 'failed'
+            ? 'bg-red-500'
+            : status === 'cancelled'
+                ? 'bg-gray-400'
+                : 'bg-brand-green dark:bg-brand-gold';
+
+    return (
+        <div className={shell}>
+            <div className={`h-1 w-full ${stripColor}`} />
+
+            <div className="flex items-center justify-between px-3 pt-2.5 pb-1">
+                <div className="flex items-center gap-1.5">
+                    <CalendarClock className="w-3.5 h-3.5 text-brand-green dark:text-brand-gold" />
+                    <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                        Scheduled Payment
+                    </span>
+                </div>
+                {statusPill()}
+            </div>
+
+            <div className="px-3 py-2 text-center">
+                <p className="text-2xl font-bold tracking-tight text-brand-green dark:text-brand-gold">
+                    {fmt(data.amount, data.currency)}
+                </p>
+            </div>
+
+            <div className="flex items-center gap-1 px-3 pb-2">
+                <div className="flex-1 min-w-0">
+                    <p className="text-[10px] text-gray-400 uppercase">From</p>
+                    <p className="text-xs font-semibold text-gray-700 dark:text-gray-200 truncate">{data.senderName}</p>
+                </div>
+                <ArrowRight className="w-3 h-3 text-gray-300 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                    <p className="text-[10px] text-gray-400 uppercase">To</p>
+                    <p className="text-xs font-semibold text-gray-700 dark:text-gray-200 truncate">{data.recipientName}</p>
+                </div>
+            </div>
+
+            {status === 'scheduled' && (
+                <p className="px-3 pb-2 text-[11px] text-gray-500 dark:text-gray-400 text-center">
+                    Sends on {fmtTime(data.scheduledFor)}
+                </p>
+            )}
+
+            <p className="text-[10px] text-gray-300 dark:text-gray-600 text-right px-3 pb-2">
+                {fmtTime(data.timestamp)}
+            </p>
         </div>
     );
 }
@@ -480,6 +622,9 @@ function MoneyTransferCard({ data, isMe }: { data: MoneyTransferData; isMe: bool
 export const MoneyMessageCard: React.FC<MoneyMessageCardProps> = ({ data, isMe, chatId }) => {
     if (data.type === 'money_request') {
         return <MoneyRequestCard data={data as MoneyRequestData} isMe={isMe} chatId={chatId} />;
+    }
+    if (data.type === 'scheduled_transfer') {
+        return <ScheduledTransferCard data={data as ScheduledTransferData} isMe={isMe} />;
     }
     return <MoneyTransferCard data={data as MoneyTransferData} isMe={isMe} />;
 };

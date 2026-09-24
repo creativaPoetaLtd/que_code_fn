@@ -78,6 +78,8 @@ interface ChatAreaProps {
     onVerifySecurity?: () => void
     onCreateContribution?: () => void
     onCreateGroup?: () => void
+    onSendMultiple?: () => void
+    onCreateSharedWallet?: () => void
     onSendTicket?: () => void
     onShareAction?: () => void
     onCreatePoll?: () => void
@@ -103,6 +105,8 @@ export default function ChatArea({
     onVerifySecurity,
     onCreateContribution,
     onCreateGroup,
+    onSendMultiple,
+    onCreateSharedWallet,
     onSendTicket,
     onShareAction,
     onCreatePoll,
@@ -313,6 +317,8 @@ export default function ChatArea({
                     onRequestMoney={onRequestMoney}
                     onCreateContribution={onCreateContribution}
                     onCreateGroup={onCreateGroup}
+                    onSendMultiple={onSendMultiple}
+                    onCreateSharedWallet={onCreateSharedWallet}
                     shareTargetUserId={shareTargetUserId}
                     shareTargetName={shareTargetName}
                     onSendTicket={onSendTicket}

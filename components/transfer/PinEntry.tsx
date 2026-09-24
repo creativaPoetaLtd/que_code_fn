@@ -25,20 +25,20 @@ const PinEntry = ({ pin, setPin, showPin, setShowPin, error }: PinEntryProps) =>
     };
 
     return (
-        <div className="bg-white dark:bg-darkBg-card rounded-3xl p-8 shadow-sm border border-gray-100 dark:border-darkBorder-light mb-8 text-center animate-fadeIn">
-            <div className="flex justify-center mb-6">
-                <div className="w-16 h-16 bg-brand-green/10 dark:bg-brand-gold/10 rounded-2xl flex items-center justify-center">
-                    <Lock className="w-8 h-8 text-brand-green dark:text-brand-gold" />
+        <div className="bg-white dark:bg-darkBg-card rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-darkBorder-light mb-4 text-center animate-fadeIn">
+            <div className="flex justify-center mb-2.5">
+                <div className="w-10 h-10 bg-brand-green/10 dark:bg-brand-gold/10 rounded-xl flex items-center justify-center">
+                    <Lock className="w-5 h-5 text-brand-green dark:text-brand-gold" />
                 </div>
             </div>
 
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Security Check</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">
-                Please enter your secure 4-digit PIN to authorize this transfer.
+            <h3 className="text-base font-bold text-gray-900 dark:text-white mb-0.5">Security Check</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                Enter your 4-digit PIN to authorize this transfer.
             </p>
 
             {/* PIN Display Containers */}
-            <div className="flex justify-center gap-4 mb-8 h-12 items-center">
+            <div className="flex justify-center gap-3 mb-3 h-9 items-center">
                 {[...Array(maxLength)].map((_, i) => (
                     <div
                         key={i}
@@ -48,14 +48,14 @@ const PinEntry = ({ pin, setPin, showPin, setShowPin, error }: PinEntryProps) =>
                                 ? "bg-brand-green dark:bg-brand-gold border-transparent scale-110 shadow-lg"
                                 : "bg-gray-50 dark:bg-darkBg-main border-gray-100 dark:border-darkBorder-light",
                             showPin
-                                ? "w-10 h-12 rounded-2xl"
+                                ? "w-8 h-9 rounded-xl"
                                 : i < pin.length
-                                    ? "w-4 h-4 rounded-full"
-                                    : "w-4 h-4 rounded-full"
+                                    ? "w-3 h-3 rounded-full"
+                                    : "w-3 h-3 rounded-full"
                         )}
                     >
                         {showPin && i < pin.length && (
-                            <span className="text-white dark:text-darkBg-main font-black text-xl animate-scaleIn">
+                            <span className="text-white dark:text-darkBg-main font-black text-base animate-scaleIn">
                                 {pin[i]}
                             </span>
                         )}
@@ -64,24 +64,24 @@ const PinEntry = ({ pin, setPin, showPin, setShowPin, error }: PinEntryProps) =>
             </div>
 
             {error && (
-                <p className="text-sm text-red-500 mb-6 bg-red-50 dark:bg-red-900/10 p-2 rounded-xl border border-red-100 dark:border-red-900/20">
+                <p className="text-xs text-red-500 mb-2.5 bg-red-50 dark:bg-red-900/10 p-1.5 rounded-lg border border-red-100 dark:border-red-900/20">
                     {error}
                 </p>
             )}
 
             {/* Numeric Keypad */}
-            <div className="grid grid-cols-3 gap-4 max-w-[280px] mx-auto">
+            <div className="grid grid-cols-3 gap-2 max-w-[220px] mx-auto">
                 {numbers.map((n, i) => (
                     <button
                         key={i}
                         disabled={!n && n !== "0"}
                         onClick={() => handleKeyPress(n)}
                         className={cn(
-                            "h-16 rounded-2xl flex items-center justify-center text-xl font-bold transition-all active:scale-95",
+                            "h-11 rounded-xl flex items-center justify-center text-base font-bold transition-all active:scale-95",
                             !n ? "pointer-events-none" : "bg-gray-50 dark:bg-darkBg-main text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-darkBg-interactive"
                         )}
                     >
-                        {n === "DEL" ? <Delete className="w-6 h-6" /> : n}
+                        {n === "DEL" ? <Delete className="w-4 h-4" /> : n}
                     </button>
                 ))}
             </div>
@@ -89,7 +89,7 @@ const PinEntry = ({ pin, setPin, showPin, setShowPin, error }: PinEntryProps) =>
             <button
                 type="button"
                 onClick={() => setShowPin(!showPin)}
-                className="mt-8 text-xs font-semibold text-gray-500 hover:text-brand-green dark:hover:text-brand-gold flex items-center justify-center gap-2 mx-auto"
+                className="mt-3 text-xs font-semibold text-gray-500 hover:text-brand-green dark:hover:text-brand-gold flex items-center justify-center gap-2 mx-auto"
             >
                 {showPin ? <EyeOff size={14} /> : <Eye size={14} />}
                 {showPin ? "Hide PIN" : "Show PIN"}

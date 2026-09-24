@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { DollarSign, X, ArrowRight, Send, Wallet, AlertCircle, Loader2, Lock } from "lucide-react"
+import { DollarSign, X, ArrowRight, Send, Wallet, AlertCircle, Loader2, Lock, CalendarClock } from "lucide-react"
 import type { Conversation } from "@/types"
 import { toast } from "@/hooks/use-toast"
 import Input from "../ui/Input-ant"
@@ -13,6 +13,12 @@ import { useCreateEscrowMutation } from "@/states/escrowSlice"
 import { useChat } from "@/context/ChatContext"
 import { useAuthToken } from "@/hooks/use-auth-token"
 import { PinSetupModal } from "@/components/PinSetupModal"
+import SchedulePicker, { ScheduleState, defaultScheduleState } from "@/components/transfer/SchedulePicker"
+import { scheduleTransfer } from "@/helpers/api"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { formatCurrency } from "@/utils/currency"
+
+type SendMode = "now" | "hold" | "schedule"
 
 interface SendMoneyModalProps {
     isOpen: boolean
@@ -39,14 +45,26 @@ export default function SendMoneyModal({ isOpen, onClose, recipient = "", curren
     const [animateAmount, setAnimateAmount] = useState<boolean>(false)
     const [pin, setPin] = useState<string>("")
     const [showPinSetup, setShowPinSetup] = useState<boolean>(false)
-    const [holdUntilConfirmed, setHoldUntilConfirmed] = useState<boolean>(false)
+    const [mode, setMode] = useState<SendMode>("now")
     const [releaseMode, setReleaseMode] = useState<"manual" | "auto_timeout">("manual")
     const [autoReleaseDays, setAutoReleaseDays] = useState<number>(3)
+    const [schedule, setSchedule] = useState<ScheduleState>(defaultScheduleState)
+    const [notifyRecipientNow, setNotifyRecipientNow] = useState<boolean>(false)
+    const [scheduling, setScheduling] = useState<boolean>(false)
 
-    const submitting = loading || escrowLoading
+    const submitting = loading || escrowLoading || scheduling
     // currentConversation is typed as the legacy Group|Contact union, but callers actually pass
     // the richer chat object (cast `as any` at the call site) - participants lives there at runtime.
     const payeeUserId = (currentConversation as any)?.participants?.find((p: { userId: string }) => p.userId !== userId)?.userId
+
+    // Derived from `mode` so handleSubmit's existing branching (which reads these two
+    // flags) doesn't need to change - the tabs are just a cleaner way to set them.
+    const holdUntilConfirmed = mode === "hold"
+
+    const handleModeChange = (next: SendMode) => {
+        setMode(next)
+        setSchedule((prev) => ({ ...prev, enabled: next === "schedule" }))
+    }
 
     const walletBalance = walletData?.data?.balance || null
     const loadingBalance = !walletData && isOpen
@@ -58,9 +76,11 @@ export default function SendMoneyModal({ isOpen, onClose, recipient = "", curren
             setNote("")
             setPin("")
             setAnimateAmount(false)
-            setHoldUntilConfirmed(false)
+            setMode("now")
             setReleaseMode("manual")
             setAutoReleaseDays(3)
+            setSchedule(defaultScheduleState)
+            setNotifyRecipientNow(false)
             if (userId) {
                 refetchBalance()
             }
@@ -79,7 +99,7 @@ export default function SendMoneyModal({ isOpen, onClose, recipient = "", curren
             if (walletBalance !== null && amount > walletBalance) {
                 toast({
                     title: "Insufficient Balance",
-                    description: `You only have $${walletBalance.toFixed(2)} in your wallet`,
+                    description: `You only have ${formatCurrency(walletBalance)} in your wallet`,
                     variant: "destructive",
                 })
                 return
@@ -125,7 +145,43 @@ export default function SendMoneyModal({ isOpen, onClose, recipient = "", curren
         }
 
         try {
-            if (holdUntilConfirmed && payeeUserId) {
+            if (schedule.enabled && payeeUserId) {
+                setScheduling(true)
+                const scheduledDateTime = new Date(`${schedule.date}T${schedule.time}`)
+                const recurrence = schedule.recurrence.frequency !== "none"
+                    ? {
+                        frequency: schedule.recurrence.frequency,
+                        interval: schedule.recurrence.interval,
+                        ...(schedule.recurrence.endMode === "date" && schedule.recurrence.endDate
+                            ? { endDate: schedule.recurrence.endDate }
+                            : {}),
+                        ...(schedule.recurrence.endMode === "count"
+                            ? { maxOccurrences: schedule.recurrence.maxOccurrences }
+                            : {}),
+                    }
+                    : undefined
+
+                const result = await scheduleTransfer({
+                    receiverUserId: payeeUserId,
+                    amount,
+                    description: note,
+                    pin,
+                    scheduledFor: scheduledDateTime.toISOString(),
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    recurrence,
+                    notifyRecipientNow,
+                })
+
+                if (result.success) {
+                    toast({
+                        title: "Payment Scheduled",
+                        description: result.message || `${formatCurrency(amount)} will be sent to ${currentConversation?.name} on ${scheduledDateTime.toLocaleDateString()}`,
+                    })
+
+                    refetchBalance()
+                    onClose()
+                }
+            } else if (holdUntilConfirmed && payeeUserId) {
                 const autoReleaseAt = releaseMode === "auto_timeout"
                     ? new Date(Date.now() + autoReleaseDays * 24 * 60 * 60 * 1000).toISOString()
                     : undefined
@@ -143,7 +199,7 @@ export default function SendMoneyModal({ isOpen, onClose, recipient = "", curren
                 if (result.success) {
                     toast({
                         title: "Funds Held in Escrow",
-                        description: result.message || `$${amount.toFixed(2)} is held until you release it to ${currentConversation?.name}`,
+                        description: result.message || `${formatCurrency(amount)} is held until you release it to ${currentConversation?.name}`,
                     })
 
                     if (result.chatMessage && addMessage) {
@@ -167,7 +223,7 @@ export default function SendMoneyModal({ isOpen, onClose, recipient = "", curren
                     const actionText = currentConversation?.isGroup ? 'donated' : 'sent';
                     toast({
                         title: currentConversation?.isGroup ? "Donation Sent Successfully!" : "Money Sent Successfully!",
-                        description: result.message || `$${amount.toFixed(2)} ${actionText} to ${currentConversation?.name}`,
+                        description: result.message || `${formatCurrency(amount)} ${actionText} to ${currentConversation?.name}`,
                     })
 
                     if (result.data?.message && addMessage) {
@@ -184,7 +240,7 @@ export default function SendMoneyModal({ isOpen, onClose, recipient = "", curren
                 }
             }
         } catch (error: any) {
-            const errorData = error?.data || {}
+            const errorData = error?.data || error?.response?.data || {}
 
             if (errorData.requiresPinSetup) {
                 setShowPinSetup(true)
@@ -214,6 +270,7 @@ export default function SendMoneyModal({ isOpen, onClose, recipient = "", curren
             }
         } finally {
             setPin("")
+            setScheduling(false)
         }
     }
 
@@ -248,7 +305,7 @@ export default function SendMoneyModal({ isOpen, onClose, recipient = "", curren
                 <div className="flex items-center gap-2 mb-4 px-4 py-2 bg-brand-green/10 dark:bg-brand-gold/10 rounded-lg">
                     <Wallet className="h-4 w-4 text-brand-green dark:text-brand-gold" />
                     <span className="text-sm font-medium text-brand-green dark:text-brand-gold">
-                        Available: ${walletBalance.toFixed(2)}
+                        Available: {formatCurrency(walletBalance)}
                     </span>
                 </div>
             ) : null}
@@ -257,16 +314,16 @@ export default function SendMoneyModal({ isOpen, onClose, recipient = "", curren
                 className={`relative mt-4 mb-6 transition-all duration-500 transform ${animateAmount ? "scale-110 opacity-100" : "scale-95 opacity-0"}`}
             >
                 <div className="absolute inset-y-0 left-0 flex items-center pl-4">
-                    <DollarSign size={20} className="text-gray-500 dark:text-gray-400" />
+                    <span className="text-sm font-bold text-gray-500 dark:text-gray-400">RWF</span>
                 </div>
                 <Input
                     type="number"
                     min={0}
-                    step={0.01}
-                    className="pl-10 text-2xl font-bold rounded-lg h-16 w-48"
+                    step={1}
+                    className="pl-14 text-2xl font-bold rounded-lg h-16 w-56"
                     value={amount === 0 ? "" : amount}
                     onChange={(e) => setAmount(Number(e.target.value))}
-                    placeholder="0.00"
+                    placeholder="0"
                 />
             </div>
 
@@ -278,7 +335,7 @@ export default function SendMoneyModal({ isOpen, onClose, recipient = "", curren
             )}
 
             <div className="flex flex-wrap justify-center gap-3 mt-4">
-                {[10, 25, 50, 100, 200, 500].map((quickAmount) => (
+                {[1000, 2000, 5000, 10000, 20000, 50000].map((quickAmount) => (
                     <Button
                         key={quickAmount}
                         variant={amount === quickAmount ? "outline" : "secondary"}
@@ -286,63 +343,91 @@ export default function SendMoneyModal({ isOpen, onClose, recipient = "", curren
                         onClick={() => setAmount(quickAmount)}
                         disabled={walletBalance !== null && quickAmount > walletBalance}
                     >
-                        ${quickAmount}
+                        {formatCurrency(quickAmount)}
                     </Button>
                 ))}
             </div>
 
             {!currentConversation?.isGroup && payeeUserId && (
                 <div className="w-full mt-6 border-t border-gray-200 dark:border-gray-700 pt-4">
-                    <label className="flex items-start gap-3 cursor-pointer">
-                        <input
-                            type="checkbox"
-                            className="mt-1 h-4 w-4"
-                            checked={holdUntilConfirmed}
-                            onChange={(e) => setHoldUntilConfirmed(e.target.checked)}
-                        />
-                        <span>
-                            <span className="flex items-center gap-1.5 font-medium text-sm text-gray-900 dark:text-white">
-                                <Lock className="h-3.5 w-3.5" />
-                                Hold until confirmed (escrow)
-                            </span>
-                            <span className="block text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                Money leaves your spendable balance now but only reaches {currentConversation?.name || "the recipient"} when you release it
-                            </span>
-                        </span>
-                    </label>
+                    <Tabs value={mode} onValueChange={(v) => handleModeChange(v as SendMode)}>
+                        <TabsList className="w-full grid grid-cols-3 h-auto bg-gray-100 dark:bg-darkBg-interactive border-gray-200 dark:border-darkBorder-light">
+                            <TabsTrigger
+                                value="now"
+                                className="whitespace-normal text-center leading-tight text-xs sm:text-sm px-1.5 py-2 sm:px-3 text-gray-600 dark:text-gray-300 data-[state=active]:bg-white dark:data-[state=active]:bg-darkBg-card"
+                            >
+                                Send now
+                            </TabsTrigger>
+                            <TabsTrigger
+                                value="hold"
+                                className="whitespace-normal text-center leading-tight text-xs sm:text-sm px-1.5 py-2 sm:px-3 text-gray-600 dark:text-gray-300 data-[state=active]:bg-white dark:data-[state=active]:bg-darkBg-card"
+                            >
+                                <span className="sm:hidden">Hold</span>
+                                <span className="hidden sm:inline">Hold until confirmed</span>
+                            </TabsTrigger>
+                            <TabsTrigger
+                                value="schedule"
+                                className="whitespace-normal text-center leading-tight text-xs sm:text-sm px-1.5 py-2 sm:px-3 text-gray-600 dark:text-gray-300 data-[state=active]:bg-white dark:data-[state=active]:bg-darkBg-card"
+                            >
+                                <span className="sm:hidden">Schedule</span>
+                                <span className="hidden sm:inline">Schedule for later</span>
+                            </TabsTrigger>
+                        </TabsList>
 
-                    {holdUntilConfirmed && (
-                        <div className="mt-3 pl-7 space-y-2">
-                            <label className="flex items-center gap-2 text-sm">
+                        <TabsContent value="hold" className="space-y-3">
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                                Money leaves your spendable balance now but only reaches {currentConversation?.name || "the recipient"} when you release it.
+                            </p>
+                            <div className="space-y-2">
+                                <label className="flex items-center gap-2 text-sm">
+                                    <input
+                                        type="radio"
+                                        name="releaseMode"
+                                        checked={releaseMode === "manual"}
+                                        onChange={() => setReleaseMode("manual")}
+                                    />
+                                    Release manually, whenever I confirm
+                                </label>
+                                <label className="flex items-center gap-2 text-sm">
+                                    <input
+                                        type="radio"
+                                        name="releaseMode"
+                                        checked={releaseMode === "auto_timeout"}
+                                        onChange={() => setReleaseMode("auto_timeout")}
+                                    />
+                                    Auto-release after
+                                    <Input
+                                        type="number"
+                                        min={1}
+                                        max={90}
+                                        value={autoReleaseDays}
+                                        onChange={(e) => setAutoReleaseDays(Number(e.target.value))}
+                                        onFocus={() => setReleaseMode("auto_timeout")}
+                                        className="w-16 h-8 text-center"
+                                    />
+                                    days
+                                </label>
+                            </div>
+                        </TabsContent>
+
+                        <TabsContent value="schedule" className="space-y-3">
+                            <SchedulePicker
+                                schedule={schedule}
+                                onChange={setSchedule}
+                                minDate={new Date().toISOString().split("T")[0]}
+                                hideModeToggle
+                            />
+                            <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
                                 <input
-                                    type="radio"
-                                    name="releaseMode"
-                                    checked={releaseMode === "manual"}
-                                    onChange={() => setReleaseMode("manual")}
+                                    type="checkbox"
+                                    className="h-4 w-4"
+                                    checked={notifyRecipientNow}
+                                    onChange={(e) => setNotifyRecipientNow(e.target.checked)}
                                 />
-                                Release manually, whenever I confirm
+                                Let {currentConversation?.name || "them"} know now, before it sends
                             </label>
-                            <label className="flex items-center gap-2 text-sm">
-                                <input
-                                    type="radio"
-                                    name="releaseMode"
-                                    checked={releaseMode === "auto_timeout"}
-                                    onChange={() => setReleaseMode("auto_timeout")}
-                                />
-                                Auto-release after
-                                <Input
-                                    type="number"
-                                    min={1}
-                                    max={90}
-                                    value={autoReleaseDays}
-                                    onChange={(e) => setAutoReleaseDays(Number(e.target.value))}
-                                    onFocus={() => setReleaseMode("auto_timeout")}
-                                    className="w-16 h-8 text-center"
-                                />
-                                days
-                            </label>
-                        </div>
-                    )}
+                        </TabsContent>
+                    </Tabs>
                 </div>
             )}
         </div>
@@ -389,8 +474,8 @@ export default function SendMoneyModal({ isOpen, onClose, recipient = "", curren
                 </div>
                 <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-3">
                     <div className="flex justify-between items-center">
-                        <span className="text-gray-600 dark:text-gray-400">Amount</span>
-                        <span className="text-2xl font-bold text-gray-900 dark:text-white">${amount.toFixed(2)}</span>
+                        <span className="text-gray-600 dark:text-gray-400 flex-shrink-0">Amount</span>
+                        <span className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white text-right break-words">{formatCurrency(amount)}</span>
                     </div>
                 </div>
             </div>
@@ -431,7 +516,7 @@ export default function SendMoneyModal({ isOpen, onClose, recipient = "", curren
             />
 
             <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-                <DialogContent className="sm:max-w-md">
+                <DialogContent className="sm:max-w-xl max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
                         <div className="flex items-center">
                             <div className="bg-brand-green/10 dark:bg-brand-gold/10 p-2 rounded-full mr-3">
@@ -475,6 +560,11 @@ export default function SendMoneyModal({ isOpen, onClose, recipient = "", curren
                                     <>
                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                         Processing...
+                                    </>
+                                ) : schedule.enabled && payeeUserId ? (
+                                    <>
+                                        <CalendarClock size={16} className="mr-1" />
+                                        Schedule
                                     </>
                                 ) : holdUntilConfirmed && payeeUserId ? (
                                     <>

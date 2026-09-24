@@ -2,11 +2,10 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, AlertCircle, Users, CalendarClock } from "lucide-react";
+import { ArrowLeft, Loader2, Users, CalendarClock } from "lucide-react";
 import { useSidebar } from "@/context/SidebarContext";
 import { useAuthToken } from "@/hooks/use-auth-token";
 import { useAccent } from "@/hooks/use-accent";
-import { useGetAcceptedContactsQuery } from "@/states/contactSlice";
 import { cn } from "@/lib/utils";
 import Navigation from "@/components/Navigation";
 import { Header } from "@/components/Header";
@@ -35,8 +34,7 @@ const BatchTransferPage = () => {
     const accent = useAccent();
 
     const [step, setStep] = useState<1 | 2 | 3>(1);
-    const [searchQuery, setSearchQuery] = useState("");
-    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [recipients, setRecipients] = useState<BatchContact[]>([]);
     const [amounts, setAmounts] = useState<Record<string, string>>({});
     const [splitTotal, setSplitTotal] = useState("");
     const [schedule, setSchedule] = useState<ScheduleState>(defaultScheduleState);
@@ -61,30 +59,30 @@ const BatchTransferPage = () => {
         batchId?: string;
     } | null>(null);
 
-    const token = getToken();
-    const { data: contactsData, isLoading: isContactsLoading } = useGetAcceptedContactsQuery(token || "", {
-        skip: !token,
-    });
-
-    const contacts: BatchContact[] = useMemo(() => {
-        if (!contactsData?.contacts) return [];
-        return contactsData.contacts.map((contact: any) => ({
-            id: contact.otherUser.id,
-            name: `${contact.otherUser.firstName} ${contact.otherUser.lastName}`,
-            phone: contact.otherUser.phone || "",
-            avatar: contact.otherUser.profile?.profileImage || null,
-        }));
-    }, [contactsData]);
-
     const contactsById = useMemo(() => {
         const map: Record<string, BatchContact> = {};
-        contacts.forEach((c) => (map[c.id] = c));
+        recipients.forEach((c) => (map[c.id] = c));
         return map;
-    }, [contacts]);
+    }, [recipients]);
 
-    const filteredContacts = contacts.filter(
-        (c) => c.name.toLowerCase().includes(searchQuery.toLowerCase()) || c.phone.includes(searchQuery)
-    );
+    // Recipients are chosen on the main Transfer page, not here - read what was picked
+    // there and bail back if someone lands on this page with nothing selected.
+    useEffect(() => {
+        const raw = sessionStorage.getItem("selectedRecipients");
+        let parsed: BatchContact[] = [];
+        try {
+            parsed = raw ? JSON.parse(raw) : [];
+        } catch {
+            parsed = [];
+        }
+
+        if (!Array.isArray(parsed) || parsed.length === 0) {
+            router.replace("/home/transfer");
+            return;
+        }
+
+        setRecipients(parsed);
+    }, [router]);
 
     useEffect(() => {
         const checkPin = async () => {
@@ -116,20 +114,14 @@ const BatchTransferPage = () => {
         fetchBalance();
     }, [getToken]);
 
-    const toggleContact = (id: string) => {
-        setSelectedIds((prev) => {
-            const next = new Set(prev);
-            if (next.has(id)) {
-                next.delete(id);
-                setAmounts((a) => {
-                    const copy = { ...a };
-                    delete copy[id];
-                    return copy;
-                });
-            } else {
-                next.add(id);
-            }
-            return next;
+    // Selection already happened on the main Transfer page - tapping the checkmark here
+    // just drops that person from this batch instead of toggling a bigger list.
+    const removeRecipient = (id: string) => {
+        setRecipients((prev) => prev.filter((c) => c.id !== id));
+        setAmounts((prev) => {
+            const copy = { ...prev };
+            delete copy[id];
+            return copy;
         });
         setError("");
     };
@@ -139,7 +131,7 @@ const BatchTransferPage = () => {
         setError("");
     };
 
-    const selectedContacts = contacts.filter((c) => selectedIds.has(c.id));
+    const selectedContacts = recipients;
     const total = selectedContacts.reduce((sum, c) => sum + (parseFloat(amounts[c.id]) || 0), 0);
 
     const handleSplitEvenly = () => {
@@ -245,7 +237,6 @@ const BatchTransferPage = () => {
                     senderOrganizationId,
                     recipients,
                     pin,
-                    description: "Batch transfer",
                     scheduledFor: scheduledDateTime.toISOString(),
                     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                     recurrence,
@@ -273,7 +264,6 @@ const BatchTransferPage = () => {
                 senderOrganizationId,
                 recipients,
                 pin,
-                description: "Batch transfer",
                 idempotencyKey,
             });
 
@@ -370,33 +360,17 @@ const BatchTransferPage = () => {
                                     </div>
                                 )}
 
-                                <div className="relative mb-4">
-                                    <input
-                                        type="text"
-                                        placeholder="Search contacts"
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="w-full px-4 py-3 bg-gray-50 dark:bg-darkBg-main rounded-xl border border-gray-200 dark:border-darkBorder-light text-gray-900 dark:text-white placeholder-gray-400"
-                                    />
-                                </div>
-
                                 <div className="space-y-2 max-h-[420px] overflow-y-auto mb-4">
-                                    {isContactsLoading ? (
-                                        <div className="py-10 text-center text-gray-500">Loading contacts...</div>
-                                    ) : filteredContacts.length > 0 ? (
-                                        filteredContacts.map((contact) => (
-                                            <BatchRecipientRow
-                                                key={contact.id}
-                                                contact={contact}
-                                                isSelected={selectedIds.has(contact.id)}
-                                                amount={amounts[contact.id] || ""}
-                                                onToggle={() => toggleContact(contact.id)}
-                                                onAmountChange={(value) => setAmountFor(contact.id, value)}
-                                            />
-                                        ))
-                                    ) : (
-                                        <div className="py-10 text-center text-gray-500">No contacts found.</div>
-                                    )}
+                                    {recipients.map((contact) => (
+                                        <BatchRecipientRow
+                                            key={contact.id}
+                                            contact={contact}
+                                            isSelected
+                                            amount={amounts[contact.id] || ""}
+                                            onToggle={() => removeRecipient(contact.id)}
+                                            onAmountChange={(value) => setAmountFor(contact.id, value)}
+                                        />
+                                    ))}
                                 </div>
 
                                 {selectedContacts.length > 0 && (
@@ -534,13 +508,6 @@ const BatchTransferPage = () => {
                                 >
                                     {resultSummary.scheduled ? "View Scheduled Batch" : "Done"}
                                 </button>
-                            </div>
-                        )}
-
-                        {!isContactsLoading && contacts.length === 0 && step === 1 && (
-                            <div className="mt-4 flex items-start gap-2.5 p-4 bg-gray-50 dark:bg-darkBg-interactive rounded-2xl text-sm text-gray-500 dark:text-gray-400">
-                                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                                Add some contacts first from the main transfer page before sending to multiple people.
                             </div>
                         )}
                     </div>

@@ -9,7 +9,9 @@ import {
     useGetEscrowByIdQuery,
     useReleaseEscrowMutation,
     useFulfillEscrowMutation,
-    useRefundEscrowMutation,
+    useProposeSettlementMutation,
+    useAcceptSettlementMutation,
+    useDeclineSettlementMutation,
     useDisputeEscrowMutation,
 } from "@/states/escrowSlice";
 import { toast } from "@/hooks/use-toast";
@@ -59,17 +61,25 @@ export const EscrowMessageCard: React.FC<EscrowMessageCardProps> = ({ data, isMe
 
     const [releaseEscrow, { isLoading: releasing }] = useReleaseEscrowMutation();
     const [fulfillEscrow, { isLoading: fulfilling }] = useFulfillEscrowMutation();
-    const [refundEscrow, { isLoading: refunding }] = useRefundEscrowMutation();
+    const [proposeSettlement, { isLoading: proposing }] = useProposeSettlementMutation();
+    const [acceptSettlement, { isLoading: accepting }] = useAcceptSettlementMutation();
+    const [declineSettlement, { isLoading: declining }] = useDeclineSettlementMutation();
     const [disputeEscrow, { isLoading: disputing }] = useDisputeEscrowMutation();
 
-    const [showDisputeForm, setShowDisputeForm] = React.useState(false);
+    const [activeForm, setActiveForm] = React.useState<null | "dispute" | "propose">(null);
     const [disputeReason, setDisputeReason] = React.useState("");
+    const [proposeAmount, setProposeAmount] = React.useState(String(data.amount));
+    const [proposeNote, setProposeNote] = React.useState("");
 
     const status: string = escrow?.status || "held";
     const isPayer = Boolean(escrow?.payerUserId && currentUserId && escrow.payerUserId === currentUserId);
     const isPayee = Boolean(escrow?.payeeUserId && currentUserId && escrow.payeeUserId === currentUserId);
     const isHeld = status === "held";
     const isFulfilled = Boolean(escrow?.fulfilledAt);
+    const hasProposal = Boolean(escrow?.proposedByUserId);
+    const isProposer = hasProposal && escrow?.proposedByUserId === currentUserId;
+    const proposerName = escrow?.proposedByUserId === escrow?.payerUserId ? data.payerName : data.payeeName;
+    const otherName = isPayer ? data.payeeName : data.payerName;
 
     const handleRelease = async () => {
         try {
@@ -89,12 +99,36 @@ export const EscrowMessageCard: React.FC<EscrowMessageCardProps> = ({ data, isMe
         }
     };
 
-    const handleRefund = async () => {
+    const handlePropose = async () => {
+        const amount = Number(proposeAmount);
+        if (isNaN(amount) || amount < 0 || amount > data.amount) {
+            toast({ title: "Invalid amount", description: `Enter an amount between 0 and ${fmt(data.amount, data.currency)}`, variant: "destructive" });
+            return;
+        }
         try {
-            await refundEscrow({ escrowId: data.escrowId, chatId }).unwrap();
-            toast({ title: "Escrow cancelled", description: `${fmt(data.amount, data.currency)} returned to your balance` });
+            await proposeSettlement({ escrowId: data.escrowId, chatId, payeeAmount: amount, note: proposeNote || undefined }).unwrap();
+            toast({ title: "Proposal sent", description: `Waiting for ${otherName} to respond` });
+            setActiveForm(null);
         } catch (err: any) {
-            toast({ title: "Could not cancel", description: err?.data?.message || "Something went wrong", variant: "destructive" });
+            toast({ title: "Could not propose", description: err?.data?.message || "Something went wrong", variant: "destructive" });
+        }
+    };
+
+    const handleAccept = async () => {
+        try {
+            await acceptSettlement({ escrowId: data.escrowId, chatId }).unwrap();
+            toast({ title: "Settlement accepted", description: "Funds have been split as agreed" });
+        } catch (err: any) {
+            toast({ title: "Could not accept", description: err?.data?.message || "Something went wrong", variant: "destructive" });
+        }
+    };
+
+    const handleDecline = async () => {
+        try {
+            await declineSettlement({ escrowId: data.escrowId, chatId }).unwrap();
+            toast({ title: "Proposal declined" });
+        } catch (err: any) {
+            toast({ title: "Could not decline", description: err?.data?.message || "Something went wrong", variant: "destructive" });
         }
     };
 
@@ -106,7 +140,7 @@ export const EscrowMessageCard: React.FC<EscrowMessageCardProps> = ({ data, isMe
         try {
             await disputeEscrow({ escrowId: data.escrowId, chatId, reason: disputeReason }).unwrap();
             toast({ title: "Dispute raised", description: "An admin will review this escrow" });
-            setShowDisputeForm(false);
+            setActiveForm(null);
         } catch (err: any) {
             toast({ title: "Could not raise dispute", description: err?.data?.message || "Something went wrong", variant: "destructive" });
         }
@@ -116,6 +150,11 @@ export const EscrowMessageCard: React.FC<EscrowMessageCardProps> = ({ data, isMe
         if (status === "released") return (
             <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400">
                 <CheckCircle className="w-2.5 h-2.5" /> Released
+            </span>
+        );
+        if (status === "settled") return (
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400">
+                <CheckCircle className="w-2.5 h-2.5" /> Settled
             </span>
         );
         if (status === "refunded") return (
@@ -142,7 +181,7 @@ export const EscrowMessageCard: React.FC<EscrowMessageCardProps> = ({ data, isMe
 
     const shell = `
         w-[260px] rounded-2xl overflow-hidden shadow-sm border
-        ${status === "released"
+        ${status === "released" || status === "settled"
             ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800/40'
             : status === "disputed"
                 ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/40'
@@ -154,7 +193,7 @@ export const EscrowMessageCard: React.FC<EscrowMessageCardProps> = ({ data, isMe
         }
     `.trim();
 
-    const stripColor = status === "released"
+    const stripColor = status === "released" || status === "settled"
         ? 'bg-green-500'
         : status === "disputed"
             ? 'bg-red-500'
@@ -216,9 +255,9 @@ export const EscrowMessageCard: React.FC<EscrowMessageCardProps> = ({ data, isMe
                 <div className="px-3 pb-3 space-y-2">
                     <div className="h-px bg-gray-100 dark:bg-darkBorder-light" />
 
-                    {!showDisputeForm ? (
+                    {activeForm === null ? (
                         <>
-                            {isFulfilled && (
+                            {isFulfilled && !hasProposal && (
                                 <p className="text-[11px] text-center text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-1">
                                     <CheckCircle className="w-3 h-3 flex-shrink-0" />
                                     {isPayee
@@ -231,32 +270,85 @@ export const EscrowMessageCard: React.FC<EscrowMessageCardProps> = ({ data, isMe
                                 </p>
                             )}
 
-                            {isPayer && (
-                                <div className="flex gap-2">
-                                    {!isFulfilled && (
-                                        <Button size="sm" variant="outline" onClick={handleRefund} disabled={releasing || refunding} className="flex-1 h-8 text-xs">
-                                            {refunding ? <span className="animate-pulse">…</span> : 'Cancel'}
+                            {hasProposal ? (
+                                <div className="space-y-2">
+                                    <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 border-l-2 border-blue-400 px-2 py-1.5">
+                                        <p className="text-[11px] text-blue-800 dark:text-blue-300">
+                                            {isProposer ? "Your proposal: " : `${proposerName} proposed: `}
+                                            {fmt(Number(escrow.proposedPayeeAmount), data.currency)} to {data.payeeName}, {fmt(Number(escrow.proposedPayerAmount), data.currency)} back to {data.payerName}
+                                        </p>
+                                        {escrow.proposedNote && (
+                                            <p className="text-[11px] text-blue-700 dark:text-blue-400 italic mt-0.5">&quot;{escrow.proposedNote}&quot;</p>
+                                        )}
+                                    </div>
+                                    {isProposer ? (
+                                        <p className="text-[11px] text-gray-500 text-center">Waiting for {otherName} to respond</p>
+                                    ) : (
+                                        <div className="flex gap-2">
+                                            <Button size="sm" variant="outline" onClick={handleDecline} disabled={accepting || declining} className="flex-1 h-8 text-xs">
+                                                {declining ? <span className="animate-pulse">…</span> : 'Decline'}
+                                            </Button>
+                                            <Button size="sm" onClick={handleAccept} disabled={accepting || declining} className="flex-1 h-8 text-xs bg-brand-green hover:bg-brand-green/90 dark:bg-brand-gold dark:hover:bg-brand-gold/90 text-white">
+                                                {accepting ? <span className="animate-pulse">…</span> : 'Accept'}
+                                            </Button>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <>
+                                    {isPayer && (
+                                        <Button size="sm" onClick={handleRelease} disabled={releasing} className="w-full h-8 text-xs bg-brand-green hover:bg-brand-green/90 dark:bg-brand-gold dark:hover:bg-brand-gold/90 text-white">
+                                            {releasing ? <span className="animate-pulse">…</span> : 'Release'}
                                         </Button>
                                     )}
-                                    <Button size="sm" onClick={handleRelease} disabled={releasing || refunding} className="flex-1 h-8 text-xs bg-brand-green hover:bg-brand-green/90 dark:bg-brand-gold dark:hover:bg-brand-gold/90 text-white">
-                                        {releasing ? <span className="animate-pulse">…</span> : 'Release'}
-                                    </Button>
-                                </div>
-                            )}
 
-                            {isPayee && !isFulfilled && (
-                                <Button size="sm" variant="outline" onClick={handleFulfill} disabled={fulfilling} className="w-full h-8 text-xs">
-                                    {fulfilling ? <span className="animate-pulse">…</span> : 'Mark as Fulfilled'}
-                                </Button>
+                                    {isPayee && !isFulfilled && (
+                                        <Button size="sm" variant="outline" onClick={handleFulfill} disabled={fulfilling} className="w-full h-8 text-xs">
+                                            {fulfilling ? <span className="animate-pulse">…</span> : 'Mark as Fulfilled'}
+                                        </Button>
+                                    )}
+
+                                    <button
+                                        onClick={() => { setProposeAmount(String(data.amount)); setActiveForm("propose"); }}
+                                        className="w-full text-[11px] text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 text-center"
+                                    >
+                                        Propose a settlement
+                                    </button>
+                                </>
                             )}
 
                             <button
-                                onClick={() => setShowDisputeForm(true)}
+                                onClick={() => setActiveForm("dispute")}
                                 className="w-full text-[11px] text-red-500 hover:text-red-600 text-center"
                             >
                                 Raise a dispute
                             </button>
                         </>
+                    ) : activeForm === "propose" ? (
+                        <div className="space-y-2">
+                            <p className="text-[11px] text-gray-500">Amount to send to {data.payeeName} (rest returns to {data.payerName}):</p>
+                            <Input
+                                type="number"
+                                min={0}
+                                max={data.amount}
+                                value={proposeAmount}
+                                onChange={(e) => setProposeAmount(e.target.value)}
+                                className="h-8 text-xs"
+                                autoFocus
+                            />
+                            <Input
+                                placeholder="Add a note (optional)"
+                                value={proposeNote}
+                                onChange={(e) => setProposeNote(e.target.value)}
+                                className="h-8 text-xs"
+                            />
+                            <div className="flex gap-2">
+                                <Button size="sm" variant="outline" onClick={() => setActiveForm(null)} disabled={proposing} className="flex-1 h-8 text-xs">Cancel</Button>
+                                <Button size="sm" onClick={handlePropose} disabled={proposing} className="flex-1 h-8 text-xs bg-brand-green hover:bg-brand-green/90 dark:bg-brand-gold dark:hover:bg-brand-gold/90 text-white">
+                                    {proposing ? <span className="animate-pulse">…</span> : 'Send Proposal'}
+                                </Button>
+                            </div>
+                        </div>
                     ) : (
                         <div className="space-y-2">
                             <Input
@@ -267,7 +359,7 @@ export const EscrowMessageCard: React.FC<EscrowMessageCardProps> = ({ data, isMe
                                 autoFocus
                             />
                             <div className="flex gap-2">
-                                <Button size="sm" variant="outline" onClick={() => setShowDisputeForm(false)} disabled={disputing} className="flex-1 h-8 text-xs">Cancel</Button>
+                                <Button size="sm" variant="outline" onClick={() => setActiveForm(null)} disabled={disputing} className="flex-1 h-8 text-xs">Cancel</Button>
                                 <Button size="sm" onClick={handleDispute} disabled={disputing} className="flex-1 h-8 text-xs bg-red-500 hover:bg-red-600 text-white">
                                     {disputing ? <span className="animate-pulse">…</span> : 'Submit'}
                                 </Button>

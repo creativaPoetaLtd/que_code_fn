@@ -626,6 +626,36 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
             });
         };
 
+        const handleScheduledTransferUpdated = (data: {
+            scheduledTransferId: string;
+            status: "scheduled" | "completed" | "cancelled" | "failed";
+            transactionId?: string | null;
+            chatId?: string | null;
+        }) => {
+            // Update every message across all chats that references this scheduledTransferId
+            setMessages(prev => {
+                const updated = { ...prev };
+                for (const chatId of Object.keys(updated)) {
+                    updated[chatId] = updated[chatId].map(msg => {
+                        if (msg.messageType !== "money") return msg;
+                        try {
+                            const parsed = JSON.parse(msg.content);
+                            if (parsed?.type === "scheduled_transfer" && parsed.scheduledTransferId === data.scheduledTransferId) {
+                                return {
+                                    ...msg,
+                                    content: JSON.stringify({ ...parsed, status: data.status, transactionId: data.transactionId ?? parsed.transactionId }),
+                                };
+                            }
+                        } catch {
+                            // not JSON, skip
+                        }
+                        return msg;
+                    });
+                }
+                return updated;
+            });
+        };
+
         // A deleted message keeps its place in the thread, but loses its content
         const handleMessageDeleted = (data: {
             chatId: string;
@@ -724,6 +754,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         socketService.onError(handleError);
         socketService.onMoneyReceived(handleMoneyReceived);
         socketService.onPaymentRequestUpdated(handlePaymentRequestUpdated);
+        socketService.onScheduledTransferUpdated(handleScheduledTransferUpdated);
         socketService.onReactionUpdated(handleReactionUpdated);
 
         return () => {
@@ -744,6 +775,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
             socketService.offError(handleError);
             socketService.offMoneyReceived(handleMoneyReceived);
             socketService.offPaymentRequestUpdated(handlePaymentRequestUpdated);
+            socketService.offScheduledTransferUpdated(handleScheduledTransferUpdated);
             socketService.offReactionUpdated(handleReactionUpdated);
         };
     }, [isConnected, activeChat, userId, refetchMessages, sortConversations, conversations, token, refetchChats, updateSecureConversationPreview]);

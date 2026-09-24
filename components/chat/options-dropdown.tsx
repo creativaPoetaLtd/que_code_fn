@@ -67,7 +67,12 @@ export default function OptionsDropdown({
           action: () => onOptionSelect('Request Money'),
         },
         {
-          // Hands a ticket the user owns over to the other person
+          icon: <Users size={18} />,
+          label: 'Send to multiple',
+          color: 'text-indigo-600 dark:text-indigo-300',
+          action: () => onOptionSelect('Send to Multiple'),
+        },
+        {
           icon: <Ticket size={18} />,
           label: 'Send ticket',
           color: 'text-violet-600 dark:text-violet-300',

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -16,6 +17,7 @@ import { useChat } from '@/context/ChatContext';
 import { useGetGroupByIdQuery } from '@/states/groupSlice';
 import { useAuthToken } from '@/hooks/use-auth-token';
 import FundraisingProgressBadge from './fundraising-progress-badge';
+import SharedWalletBalanceBadge from './shared-wallet-balance-badge';
 import { socketService } from '@/services/socketService';
 import { getInitials, isPlaceholderAvatar } from '@/utils/avatar';
 import GalleryRing from '@/components/ui/gallery-ring';
@@ -82,6 +84,7 @@ export default function ChatHeader({
   isGroupAdmin = false,
 }: ChatHeaderProps) {
   const chat = useChat();
+  const router = useRouter();
   const { getToken } = useAuthToken();
   const token = getToken();
 
@@ -137,6 +140,23 @@ export default function ChatHeader({
 
     return () => {
       socketService.offFundraisingProgress(handleProgressUpdate);
+    };
+  }, [conversation.isGroup, conversation.groupId, refetchGroupData]);
+
+  // Listen for real-time shared wallet balance updates (deposit or completed withdrawal)
+  useEffect(() => {
+    if (!conversation.isGroup || !conversation.groupId) return;
+
+    const handleBalanceUpdate = (data: any) => {
+      if (data.groupId === conversation.groupId) {
+        refetchGroupData();
+      }
+    };
+
+    socketService.onSharedWalletBalanceUpdate(handleBalanceUpdate);
+
+    return () => {
+      socketService.offSharedWalletBalanceUpdate(handleBalanceUpdate);
     };
   }, [conversation.isGroup, conversation.groupId, refetchGroupData]);
 
@@ -225,8 +245,27 @@ export default function ChatHeader({
               </div>
             )}
 
-          {/* Online Status (only show if not fundraising) */}
-          {!(conversation.isGroup && group?.hasFundraising) && (
+          {/* Shared Wallet Balance for Groups (fundraising badge takes priority if both are somehow set) */}
+          {conversation.isGroup &&
+            !group?.hasFundraising &&
+            group?.sharedWalletId && (
+              <div className='mt-1'>
+                <button
+                  type='button'
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    router.push(`/wallets/shared/${group.sharedWalletId}`);
+                  }}
+                  className='cursor-pointer'
+                  aria-label='Open shared wallet'
+                >
+                  <SharedWalletBalanceBadge balance={group.walletBalance ?? 0} />
+                </button>
+              </div>
+            )}
+
+          {/* Online Status (only show if not fundraising/shared wallet) */}
+          {!(conversation.isGroup && (group?.hasFundraising || group?.sharedWalletId)) && (
             <p className='text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate'>
               {getOnlineStatus()}
             </p>

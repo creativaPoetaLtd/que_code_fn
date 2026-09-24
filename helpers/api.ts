@@ -187,6 +187,7 @@ export interface ScheduleTransferParams {
   scheduledFor: string;
   timezone?: string;
   recurrence?: ScheduleRecurrenceInput;
+  notifyRecipientNow?: boolean;
 }
 
 export const scheduleTransfer = async (params: ScheduleTransferParams) => {
@@ -300,6 +301,7 @@ export const createScheduledBatchTransfer = async (params: {
   scheduledFor: string;
   timezone: string;
   recurrence?: ScheduleRecurrenceInput | null;
+  notifyRecipientNow?: boolean;
 }) => {
   const res = await apiPost('/scheduled-transfers/batch', params);
   return res.data;

@@ -9,6 +9,9 @@ export interface CreateGroupRequest {
     adminId?: string
     hasFundraising?: boolean
     fundraisingTarget?: number
+    hasSharedWallet?: boolean
+    withdrawalPolicy?: 'free' | 'approval'
+    pin?: string
     expirationDate?: string
     expirationType?: 'custom_date' | 'target_reached' | 'deadline_reached' | 'never'
     hasAdditionalInfo?: boolean
@@ -34,6 +37,8 @@ export interface Group {
     fundraisingTarget?: number
     fundraisingCurrentAmount: number
     fundraisingProgress?: number
+    sharedWalletId?: string
+    withdrawalPolicy?: 'free' | 'approval'
     walletId?: string
     walletBalance?: number
     expirationDate?: string

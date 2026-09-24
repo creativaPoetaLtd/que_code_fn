@@ -54,9 +54,34 @@ export const escrowSlice = apiSlice.injectEndpoints({
             ]
         }),
 
-        refundEscrow: builder.mutation({
+        proposeSettlement: builder.mutation({
+            query: ({ escrowId, payeeAmount, note }) => ({
+                url: `/escrows/${escrowId}/propose`,
+                method: "POST",
+                body: { payeeAmount, note }
+            }),
+            invalidatesTags: (result, error, { escrowId, chatId }) => [
+                "Escrow",
+                { type: "Escrow", id: escrowId },
+                { type: "ChatMessage", id: chatId }
+            ]
+        }),
+
+        acceptSettlement: builder.mutation({
             query: ({ escrowId }) => ({
-                url: `/escrows/${escrowId}/refund`,
+                url: `/escrows/${escrowId}/accept`,
+                method: "POST"
+            }),
+            invalidatesTags: (result, error, { escrowId, chatId }) => [
+                "Escrow",
+                { type: "Escrow", id: escrowId },
+                { type: "ChatMessage", id: chatId }
+            ]
+        }),
+
+        declineSettlement: builder.mutation({
+            query: ({ escrowId }) => ({
+                url: `/escrows/${escrowId}/decline`,
                 method: "POST"
             }),
             invalidatesTags: (result, error, { escrowId, chatId }) => [
@@ -87,6 +112,8 @@ export const {
     useGetEscrowByIdQuery,
     useReleaseEscrowMutation,
     useFulfillEscrowMutation,
-    useRefundEscrowMutation,
+    useProposeSettlementMutation,
+    useAcceptSettlementMutation,
+    useDeclineSettlementMutation,
     useDisputeEscrowMutation,
 } = escrowSlice;
