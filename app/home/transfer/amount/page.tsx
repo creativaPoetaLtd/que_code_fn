@@ -28,7 +28,8 @@ import StepIndicator from "@/components/transfer/StepIndicator";
 import RequestLoadingSkeleton from "@/components/transfer/RequestLoadingSkeleton";
 import { PinSetupModal } from "@/components/PinSetupModal";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, AlertCircle, ScanLine, CalendarClock } from "lucide-react";
+import SplitBillComposer from "@/components/bills/SplitBillComposer";
+import { Loader2, AlertCircle, ScanLine, CalendarClock, Split } from "lucide-react";
 import { isTokenExpired, getUserIdFromToken } from "@/utils/jwtUtils";
 import { useAccent } from "@/hooks/use-accent";
 
@@ -97,6 +98,7 @@ const AmountPageInner = () => {
     const [selectedCategory, setSelectedCategory] = useState<any>(null);
     const [applyConstraints, setApplyConstraints] = useState(false);
     const [schedule, setSchedule] = useState<ScheduleState>(defaultScheduleState);
+    const [splitEnabled, setSplitEnabled] = useState(false);
 
     const [isOrganization, setIsOrganization] = useState(false);
     const [organizationCategory, setOrganizationCategory] = useState<any>(null);
@@ -222,7 +224,9 @@ const AmountPageInner = () => {
             setError("Minimum amount is RWF 100");
             return;
         }
-        if (currentBalance !== null && numAmount > currentBalance) {
+        // A split doesn't move money yet, and each person pays only their own share,
+        // so the full amount needn't fit in the organizer's balance.
+        if (!splitEnabled && currentBalance !== null && numAmount > currentBalance) {
             setError("Insufficient balance");
             return;
         }
@@ -434,6 +438,17 @@ const AmountPageInner = () => {
     const isQRFlow = !!requestId && !!requestMeta;
     const allowEditAmount = requestMeta ? requestMeta.allowEditAmount : true;
 
+    // Splitting is a person-to-person/business feature: not for payment requests, scheduled
+    // transfers, raw wallet ids, or when sending from an organization/sub-action wallet.
+    const selectedSender = getSelectedSenderFromSession();
+    const canSplit =
+        !isQRFlow &&
+        !schedule.enabled &&
+        recipient.type !== "wallet" &&
+        !recipient.walletId &&
+        (!selectedSender || selectedSender.type === "user");
+    const splitActive = splitEnabled && canSplit;
+
     return (
         <div className={`flex flex-col min-h-screen bg-gray-50 ${accent.darkBgPage}`}>
             <Navigation hideBottomNav />
@@ -516,8 +531,46 @@ const AmountPageInner = () => {
                                     />
                                 )}
 
+                                {canSplit && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setSplitEnabled((v) => !v)}
+                                        className={cn(
+                                            "w-full flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 mb-6 text-left transition",
+                                            splitEnabled
+                                                ? "border-brand-green dark:border-brand-gold bg-brand-green/5 dark:bg-brand-gold/5"
+                                                : "border-gray-100 dark:border-darkBorder-light bg-white dark:bg-darkBg-card"
+                                        )}
+                                    >
+                                        <span className="flex items-center gap-3">
+                                            <span className="w-9 h-9 rounded-xl bg-brand-green/10 dark:bg-brand-gold/10 flex items-center justify-center">
+                                                <Split className="w-4 h-4 text-brand-green dark:text-brand-gold" />
+                                            </span>
+                                            <span>
+                                                <span className="block text-sm font-semibold text-gray-900 dark:text-white">Split this payment</span>
+                                                <span className="block text-xs text-gray-500 dark:text-gray-400">
+                                                    Everyone pays their own share directly to {recipient.name}
+                                                </span>
+                                            </span>
+                                        </span>
+                                        <span
+                                            className={cn(
+                                                "w-10 h-6 rounded-full transition relative shrink-0",
+                                                splitEnabled ? "bg-brand-green dark:bg-brand-gold" : "bg-gray-200 dark:bg-gray-700"
+                                            )}
+                                        >
+                                            <span
+                                                className={cn(
+                                                    "absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all",
+                                                    splitEnabled ? "left-[18px]" : "left-0.5"
+                                                )}
+                                            />
+                                        </span>
+                                    </button>
+                                )}
+
                                 {/* Scheduling — hidden for request flows, which need immediate fulfillment */}
-                                {!isQRFlow && (
+                                {!isQRFlow && !splitActive && (
                                     <SchedulePicker
                                         schedule={schedule}
                                         onChange={setSchedule}
@@ -525,8 +578,8 @@ const AmountPageInner = () => {
                                     />
                                 )}
 
-                                {/* Category selector — hidden for request flows */}
-                                {!isQRFlow && (
+                                {/* Category selector — hidden for request flows and splits */}
+                                {!isQRFlow && !splitActive && (
                                     <CategorySelector
                                         categories={categories}
                                         selectedCategoryId={selectedCategory?.id}
@@ -549,7 +602,7 @@ const AmountPageInner = () => {
                                     onClick={handleContinue}
                                     className="w-full bg-brand-green dark:bg-brand-gold text-white dark:text-darkBg-main font-bold py-4 rounded-2xl shadow-lg hover:opacity-90 transition-all flex items-center justify-center gap-2"
                                 >
-                                    Continue to PIN
+                                    {splitActive ? "Continue to split" : "Continue to PIN"}
                                 </button>
 
                                 {isQRFlow && (
@@ -561,6 +614,12 @@ const AmountPageInner = () => {
                                     </button>
                                 )}
                             </div>
+                        ) : splitActive ? (
+                            <SplitBillComposer
+                                recipient={{ id: recipient.id, name: recipient.name, type: recipient.type }}
+                                total={parseFloat(amount)}
+                                onBack={() => setStep(1)}
+                            />
                         ) : (
                             <div className="animate-fadeIn">
                                 {/* Summary card above PIN */}

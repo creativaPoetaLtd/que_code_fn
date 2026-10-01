@@ -13,7 +13,7 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { HandCoins, ArrowUpRight, ArrowDownLeft, Clock, CheckCircle2, XCircle, ChevronRight } from "lucide-react"
+import { HandCoins, ArrowUpRight, ArrowDownLeft, Clock, CheckCircle2, XCircle, ChevronRight, Receipt } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { UserAvatar } from "@/components/UserAvatar"
 import type { PaymentRequest } from "@/types/dashboard"
@@ -194,10 +194,16 @@ export default function RequestsPage() {
                                 <div className={`p-2 ${accent.lightIconBg} rounded-lg ${accent.lightIconColor}`}>
                                     <HandCoins size={24} />
                                 </div>
-                                <div>
+                                <div className="flex-1">
                                     <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Money Requests</h1>
                                     <p className="text-sm text-gray-500 dark:text-gray-400 uppercase tracking-wider font-medium">Manage your pending payments</p>
                                 </div>
+                                <button
+                                    onClick={() => router.push("/home/bills")}
+                                    className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg ${accent.lightIconBg} ${accent.lightIconColor} hover:opacity-80 transition-opacity`}
+                                >
+                                    <Receipt className="w-3.5 h-3.5" /> Split payments
+                                </button>
                             </div>
                         </div>
 

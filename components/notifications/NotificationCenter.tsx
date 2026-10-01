@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
-import { Bell, Users, UserPlus, Check, X, Clock, AlertCircle, Info, Loader2, MessageCircle, Image, Video, Music, File, DollarSign, UserMinus, UserCheck, UserX, ShieldCheck, ShieldAlert, Settings, Trash2, HandCoins, WalletCards } from "lucide-react"
+import { Bell, Users, UserPlus, Check, X, Clock, AlertCircle, Info, Loader2, MessageCircle, Image, Video, Music, File, DollarSign, UserMinus, UserCheck, UserX, ShieldCheck, ShieldAlert, Settings, Trash2, HandCoins, WalletCards, Receipt } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useNotifications } from "@/context/NotificationContext"
 import { useAuthToken } from "@/hooks/use-auth-token"
@@ -151,6 +151,18 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
                 return <WalletCards className="h-4 w-4 text-amber-500" />
             case 'SHARED_WALLET_POLICY_CHANGE_DECLINED':
                 return <WalletCards className="h-4 w-4 text-red-500" />
+
+            // Split payment (bill) notifications
+            case 'BILL_SHARE_ASSIGNED':
+            case 'BILL_REMINDER':
+                return <Receipt className="h-4 w-4 text-amber-500" />
+            case 'BILL_SHARE_PAID':
+            case 'BILL_SHARE_COVERED':
+            case 'BILL_COMPLETED':
+                return <Receipt className="h-4 w-4 text-green-500" />
+            case 'BILL_SHARE_DECLINED':
+            case 'BILL_CANCELLED':
+                return <Receipt className="h-4 w-4 text-red-500" />
 
             // Contact notifications
             case 'CONTACT_REQUEST_RECEIVED':
