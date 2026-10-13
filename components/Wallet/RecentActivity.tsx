@@ -2,10 +2,11 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowDownLeft, ArrowUpRight, Receipt, ChevronRight, History } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Receipt, ChevronRight, History, HandCoins, Users } from 'lucide-react';
 import { getWalletHistory, downloadTransactionReceipt } from '@/helpers/api';
 import { toast } from '@/hooks/use-toast';
 import { useAccent } from '@/hooks/use-accent';
+import SplitBillHistoryDialog, { splitBillRowInfo } from '@/components/bills/SplitBillHistoryDialog';
 
 interface RecentActivityProps {
   walletId: string;
@@ -28,6 +29,7 @@ export const RecentActivity: React.FC<RecentActivityProps> = ({ walletId, entity
   const [tx, setTx] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [openSplit, setOpenSplit] = useState<any | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -86,6 +88,37 @@ export const RecentActivity: React.FC<RecentActivityProps> = ({ walletId, entity
       ) : (
         <div className="space-y-2">
           {tx.map((t) => {
+            const split = splitBillRowInfo(t);
+            if (split) {
+              const covered = split.sign === '';
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setOpenSplit(t)}
+                  className={`${cardBase} w-full text-left rounded-2xl p-3 flex items-center gap-3`}
+                >
+                  <span
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                      covered
+                        ? 'bg-gray-100 text-gray-600 dark:bg-white/[0.06] dark:text-gray-300'
+                        : 'bg-green-100 text-green-600 dark:bg-green-500/10 dark:text-green-400'
+                    }`}
+                  >
+                    {covered ? <HandCoins className="w-4 h-4" /> : <Users className="w-4 h-4" />}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{split.title}</p>
+                    <p className="text-[11px] text-gray-400 truncate">
+                      {split.subtitle} · {new Date(t.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <p className={`text-sm font-semibold shrink-0 ${covered ? 'text-gray-500 dark:text-gray-400' : 'text-green-600 dark:text-green-400'}`}>
+                    {split.sign}
+                    {Number(split.amount || 0).toLocaleString()} {t.currency || currency}
+                  </p>
+                </button>
+              );
+            }
             const outgoing = t.senderWalletId === walletId;
             const other = outgoing ? t.receiverWallet : t.senderWallet;
             const cur = t.currency || currency;
@@ -130,6 +163,8 @@ export const RecentActivity: React.FC<RecentActivityProps> = ({ walletId, entity
           })}
         </div>
       )}
+
+      {openSplit && <SplitBillHistoryDialog transaction={openSplit} onClose={() => setOpenSplit(null)} />}
     </section>
   );
 };

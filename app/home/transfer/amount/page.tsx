@@ -406,7 +406,7 @@ const AmountPageInner = () => {
                                 <AlertCircle className="text-red-500" size={26} />
                             </div>
                             <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
-                                Couldn't load request
+                                Couldn&apos;t load request
                             </h3>
                             <p className="text-sm text-red-600 dark:text-red-400 mb-6">
                                 {error || "No request details found. The link may be invalid or expired."}
@@ -479,7 +479,7 @@ const AmountPageInner = () => {
                                             {" "}is requesting payment
                                         </p>
                                         {requestMeta.note && (
-                                            <p className="text-xs text-gray-400 dark:text-gray-500 truncate italic">"{requestMeta.note}"</p>
+                                            <p className="text-xs text-gray-400 dark:text-gray-500 truncate italic">&ldquo;{requestMeta.note}&rdquo;</p>
                                         )}
                                     </div>
                                 </div>

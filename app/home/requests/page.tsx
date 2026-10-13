@@ -242,7 +242,7 @@ export default function RequestsPage() {
                                         {sentRequests.length === 0 ? (
                                             <div className="text-center py-12 bg-white dark:bg-darkBg-card rounded-xl border border-dashed border-gray-200 dark:border-darkBorder-light">
                                                 <ArrowUpRight size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
-                                                <p className="text-gray-500 dark:text-gray-400">You haven't sent any payment requests yet</p>
+                                                <p className="text-gray-500 dark:text-gray-400">You haven&apos;t sent any payment requests yet</p>
                                             </div>
                                         ) : (
                                             sentRequests.map(req => (

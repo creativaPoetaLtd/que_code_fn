@@ -37,6 +37,7 @@ import {
 import socketService from "@/services/socketService"
 import { useAccent } from "@/hooks/use-accent"
 import SharePinDialog from "@/components/bills/SharePinDialog"
+import FindPersonByLink, { FoundPerson } from "@/components/bills/FindPersonByLink"
 
 interface BillShare {
     id: string
@@ -156,6 +157,22 @@ export default function BillDetail({ billId }: { billId: string }) {
             avatar: c.otherUser.avatar,
         }))
         .filter((c: any) => !existingPayerIds.has(c.id) && !(bill.recipient?.type === "user" && bill.recipient.id === c.id))
+
+    const reassignTo = async (person: { id: string; name: string }) => {
+        if (!reassignTarget) return
+        await takeAction(`Reassigned to ${person.name}`, () =>
+            reassignShare({ billId, shareId: reassignTarget.id, newPayerId: person.id }).unwrap()
+        )
+        setReassignTarget(null)
+    }
+
+    const validateReassign = (person: FoundPerson) => {
+        if (existingPayerIds.has(person.id)) return `${person.name} already has a share in this split.`
+        if (bill.recipient?.type === "user" && bill.recipient.id === person.id) {
+            return `${person.name} is receiving this payment, so they can't pay a share.`
+        }
+        return null
+    }
 
     return (
         <>
@@ -408,13 +425,7 @@ export default function BillDetail({ billId }: { billId: string }) {
                                 <button
                                     key={c.id}
                                     disabled={reassigning}
-                                    onClick={async () => {
-                                        if (!reassignTarget) return
-                                        await takeAction(`Reassigned to ${c.name}`, () =>
-                                            reassignShare({ billId, shareId: reassignTarget.id, newPayerId: c.id }).unwrap()
-                                        )
-                                        setReassignTarget(null)
-                                    }}
+                                    onClick={() => reassignTo(c)}
                                     className="w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-darkBg-interactive text-left"
                                 >
                                     <Avatar className="h-8 w-8">
@@ -426,6 +437,10 @@ export default function BillDetail({ billId }: { billId: string }) {
                             ))}
                         </div>
                     )}
+                    <div className="pt-3 border-t border-gray-100 dark:border-darkBorder-light">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Or give it to someone who isn&apos;t a contact:</p>
+                        <FindPersonByLink onFound={reassignTo} validate={validateReassign} disabled={reassigning} />
+                    </div>
                 </DialogContent>
             </Dialog>
 

@@ -11,6 +11,7 @@ import { useAuthToken } from "@/hooks/use-auth-token"
 import { getCurrentUserId } from "@/utils/tokenUtils"
 import { useGetAcceptedContactsQuery } from "@/states/contactSlice"
 import { useCreateBillMutation } from "@/states/billSlice"
+import FindPersonByLink, { FoundPerson } from "./FindPersonByLink"
 
 interface SplitRecipient {
     id: string
@@ -59,6 +60,8 @@ export default function SplitBillComposer({ recipient, total, currency = "RWF", 
     const [amounts, setAmounts] = useState<Record<string, string>>({})
     const [customized, setCustomized] = useState(false)
     const [search, setSearch] = useState("")
+    // People added by profile link or QR who aren't in the contact list.
+    const [addedPeople, setAddedPeople] = useState<ContactRow[]>([])
 
     const [createBill, { isLoading: creating }] = useCreateBillMutation()
     const { data: contactsData, isLoading: loadingContacts } = useGetAcceptedContactsQuery(token!, { skip: !token })
@@ -75,8 +78,23 @@ export default function SplitBillComposer({ recipient, total, currency = "RWF", 
         [contactsData, recipient.id]
     )
 
-    const filteredContacts = contacts.filter((c) => c.name.toLowerCase().includes(search.toLowerCase()))
-    const nameOf = (id: string) => (id === myId ? "You" : contacts.find((c) => c.id === id)?.name || "Someone")
+    const people = useMemo(() => [...addedPeople, ...contacts], [addedPeople, contacts])
+    const filteredContacts = people.filter((c) => c.name.toLowerCase().includes(search.toLowerCase()))
+    const nameOf = (id: string) => (id === myId ? "You" : people.find((c) => c.id === id)?.name || "Someone")
+
+    const validateFound = (person: FoundPerson) => {
+        if (person.id === myId) return "That's your own profile. Use \"Include me\" to take a share."
+        if (person.id === recipient.id) return `${person.name} is receiving this payment, so they can't pay a share.`
+        if (selectedIds.includes(person.id)) return `${person.name} is already in this split.`
+        return null
+    }
+
+    const handleFound = (person: FoundPerson) => {
+        if (!people.some((p) => p.id === person.id)) setAddedPeople((prev) => [person, ...prev])
+        setCustomized(false)
+        setSelectedIds((prev) => [...prev, person.id])
+        toast({ title: `${person.name} added to the split` })
+    }
 
     const participantIds = useMemo(
         () => [...(includeMe && myId ? [myId] : []), ...selectedIds],
@@ -188,7 +206,7 @@ export default function SplitBillComposer({ recipient, total, currency = "RWF", 
                             <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading contacts...
                         </div>
                     ) : filteredContacts.length === 0 ? (
-                        <p className="text-center text-sm text-gray-500 py-6">No contacts to show.</p>
+                        <p className="text-center text-sm text-gray-500 py-6">No contacts to show. You can add people by link or QR below.</p>
                     ) : (
                         filteredContacts.map((c) => (
                             <label key={c.id} className="flex items-center gap-3 px-2 py-2 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-darkBg-interactive">
@@ -202,6 +220,10 @@ export default function SplitBillComposer({ recipient, total, currency = "RWF", 
                         ))
                     )}
                 </div>
+
+                <p className="text-sm font-semibold text-gray-900 dark:text-white mt-4 mb-1">Someone who isn&apos;t a contact?</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Add them with their profile link or by scanning their QR code.</p>
+                <FindPersonByLink onFound={handleFound} validate={validateFound} disabled={creating} />
             </div>
 
             {participantIds.length > 0 && (
