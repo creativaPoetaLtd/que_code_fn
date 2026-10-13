@@ -93,6 +93,37 @@ export interface Transaction {
   processedAt?: string;
   name?: string;
   date?: string;
+  // Split bills (set by the history endpoint)
+  splitBill?: SplitBillGroup;
+  coveredShare?: CoveredShare;
+}
+
+/** On the recipient's side, every payment into one split folded into a single row. */
+export interface SplitBillGroup {
+  billId: string;
+  title: string;
+  status: string;
+  currency: string;
+  totalAmount: number;
+  receivedAmount: number;
+  paymentsCount: number;
+  payments: {
+    transactionId: string;
+    payerName: string | null;
+    paidByName: string | null;
+    covered: boolean;
+    amount: number;
+    paidAt: string;
+  }[];
+}
+
+/** Someone else paid this user's share of a split. The user's balance didn't move. */
+export interface CoveredShare {
+  billId: string;
+  title: string;
+  amount: number;
+  coveredById: string | null;
+  coveredByName: string | null;
 }
 
 export interface TransactionResponse {

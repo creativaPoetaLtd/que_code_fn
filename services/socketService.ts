@@ -823,6 +823,29 @@ class SocketService {
         }
     }
 
+    // Split payment (bill) updates: a share was paid/covered/declined/reassigned, or the bill
+    // was completed/cancelled. Fans out to the organizer and every payer.
+    onBillUpdated(callback: (data: {
+        billId: string;
+        status?: string;
+        shareId?: string;
+        shareStatus?: string;
+    }) => void) {
+        if (this.socket) {
+            this.socket.on("bill_updated", callback)
+        }
+    }
+
+    offBillUpdated(callback?: (data: any) => void) {
+        if (this.socket) {
+            if (callback) {
+                this.socket.off("bill_updated", callback)
+            } else {
+                this.socket.off("bill_updated")
+            }
+        }
+    }
+
     // Listen for shared wallet policy change proposal updates (vote cast, approved, etc.)
     onSharedWalletPolicyChangeUpdated(callback: (data: {
         sharedWalletId: string;

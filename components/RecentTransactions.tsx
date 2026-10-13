@@ -8,6 +8,7 @@ import { getUserIdFromToken, isTokenExpired } from '@/utils/jwtUtils';
 import { CheckCircle, Clock, AlertCircle, RefreshCcw } from 'lucide-react';
 import { UserAvatar } from '@/components/UserAvatar';
 import { TransactionDetailsModal } from '@/components/TransactionDetailsModal';
+import SplitBillHistoryDialog, { splitBillRowInfo } from '@/components/bills/SplitBillHistoryDialog';
 
 export const RecentTransactions: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -91,6 +92,20 @@ export const RecentTransactions: React.FC = () => {
   };
 
   const getTransactionDisplayInfo = (transaction: Transaction) => {
+    const split = splitBillRowInfo(transaction);
+    if (split) {
+      return {
+        amount: split.amount,
+        counterpartyName: split.title,
+        transactionType: 'Split',
+        isOutgoing: false,
+        isToOrganization: false,
+        status: transaction.status || 'completed',
+        counterpartyProfileImage: undefined as string | undefined,
+        split,
+      };
+    }
+
     // Determine if it's outgoing based on sender ownership matching current identity
     const isOutgoing =
       transaction.senderWallet?.userId === currentUserId ||
@@ -137,7 +152,7 @@ export const RecentTransactions: React.FC = () => {
     const status = transaction.status || 'completed'; // 'completed', 'pending', 'failed'
     const transactionType = isOutgoing ? 'Sent' : 'Received';
 
-    return { amount, counterpartyName, transactionType, isOutgoing, isToOrganization, status, counterpartyProfileImage };
+    return { amount, counterpartyName, transactionType, isOutgoing, isToOrganization, status, counterpartyProfileImage, split: null };
   };
 
   if (loading) {
@@ -200,7 +215,11 @@ export const RecentTransactions: React.FC = () => {
       {/* Mobile & Desktop List View */}
       <div className="divide-y divide-gray-100 dark:divide-darkBorder-light">
         {displayedTransactions.map((transaction) => {
-          const { amount, counterpartyName, transactionType, isOutgoing, isToOrganization, status, counterpartyProfileImage } = getTransactionDisplayInfo(transaction);
+          const { amount, counterpartyName, transactionType, isOutgoing, isToOrganization, status, counterpartyProfileImage, split } = getTransactionDisplayInfo(transaction);
+          const sign = split ? split.sign : isOutgoing ? '-' : '+';
+          const amountColor = split?.sign === ''
+            ? 'text-gray-500 dark:text-gray-400'
+            : isOutgoing ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400';
 
           // Determine circle color based on transaction type
           const getCircleColor = () => {
@@ -262,10 +281,10 @@ export const RecentTransactions: React.FC = () => {
 
                   {/* Second line: Amount */}
                   <div className="flex items-center justify-between gap-2">
-                    <span className={`text-sm font-medium ${isOutgoing ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                      {isOutgoing ? '-' : '+'} RWF {isNaN(Math.abs(amount)) ? '0' : Math.abs(amount).toLocaleString()}
+                    <span className={`text-sm font-medium ${amountColor}`}>
+                      {sign} RWF {isNaN(Math.abs(amount)) ? '0' : Math.abs(amount).toLocaleString()}
                     </span>
-                    <button
+                    {!split && <button
                         onClick={(e) => {
                             e.stopPropagation();
                             const recipientData = {
@@ -283,7 +302,7 @@ export const RecentTransactions: React.FC = () => {
                         className="p-1.5 rounded-full bg-gray-50 dark:bg-darkBg-interactive text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                     >
                         <RefreshCcw size={14} />
-                    </button>
+                    </button>}
                   </div>
                 </div>
               </div>
@@ -293,7 +312,10 @@ export const RecentTransactions: React.FC = () => {
       </div>
 
       {/* Transaction Details Modal */}
-      {selectedTransaction && (
+      {selectedTransaction && splitBillRowInfo(selectedTransaction) && (
+        <SplitBillHistoryDialog transaction={selectedTransaction} onClose={() => setSelectedTransaction(null)} />
+      )}
+      {selectedTransaction && !splitBillRowInfo(selectedTransaction) && (
         <TransactionDetailsModal
           transaction={selectedTransaction}
           currentUserId={currentUserId}
