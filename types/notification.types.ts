@@ -253,6 +253,7 @@ export interface NotificationContextType {
   notifications: Notification[];
   unreadCount: number;
   markAsRead: (id: string) => void;
+  markAllAsRead?: () => void;
   clearAll?: () => void;
   addNotification?: (notification: Notification) => void;
   clearNotifications?: () => void;

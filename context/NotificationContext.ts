@@ -132,9 +132,41 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     }, [])
 
     const markAsRead = useCallback((notificationId: string) => {
+        const target = notifications.find((notif) => notif.id === notificationId)
+        // Already read - nothing to persist, and decrementing again would under-count.
+        if (!target || target.isRead) {
+            return
+        }
+
         setNotifications((prev) => prev.map((notif) => (notif.id === notificationId ? { ...notif, isRead: true } : notif)))
         setUnreadCount((prev) => Math.max(0, prev - 1))
-    }, [])
+
+        // This used to only flip local state - the server's unreadCount (what the
+        // badge re-hydrates from on every mount/reload) never actually changed, so
+        // notifications the user had already "read" kept inflating the count forever.
+        if (authToken) {
+            fetch(`${baseUrl}/notifications/${notificationId}/read`, {
+                method: "PATCH",
+                headers: { Authorization: `Bearer ${authToken}` },
+            }).catch((error) => {
+                console.error("Failed to persist notification read state:", error)
+            })
+        }
+    }, [authToken, notifications])
+
+    const markAllAsRead = useCallback(() => {
+        setNotifications((prev) => prev.map((notif) => ({ ...notif, isRead: true })))
+        setUnreadCount(0)
+
+        if (authToken) {
+            fetch(`${baseUrl}/notifications/mark-all-read`, {
+                method: "PATCH",
+                headers: { Authorization: `Bearer ${authToken}` },
+            }).catch((error) => {
+                console.error("Failed to persist mark-all-read:", error)
+            })
+        }
+    }, [authToken])
 
     const clearNotifications = useCallback(() => {
         setNotifications([])
@@ -469,6 +501,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         unreadCount,
         addNotification,
         markAsRead,
+        markAllAsRead,
         clearNotifications,
         removeNotification,
         dismissNotificationsByIds,

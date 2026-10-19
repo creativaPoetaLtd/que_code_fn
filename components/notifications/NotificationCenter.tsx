@@ -36,7 +36,7 @@ interface NotificationCenterProps {
 }
 
 const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose }) => {
-    const { notifications, unreadCount, markAsRead, removeContactRequestNotification } = useNotifications()
+    const { notifications, unreadCount, markAsRead, markAllAsRead, removeContactRequestNotification } = useNotifications()
     const { getToken } = useAuthToken()
     const token = getToken()
     const router = useRouter()
@@ -522,13 +522,25 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl h-[85vh] sm:h-auto sm:max-h-[85vh] flex flex-col bg-white dark:bg-darkBg-card border-gray-200 dark:border-darkBorder-light p-0 gap-0">
                 <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b border-gray-200 dark:border-darkBorder-light">
-                    <DialogTitle className="flex items-center gap-2 text-base sm:text-lg text-gray-900 dark:text-white">
-                        <Bell className="h-4 w-4 sm:h-5 sm:w-5" />
-                        Notifications
-                        {unreadCount > 0 && (
-                            <Badge variant="destructive" className="ml-2 text-xs px-1.5 py-0.5">
-                                {unreadCount}
-                            </Badge>
+                    <DialogTitle className="flex items-center justify-between gap-2 text-base sm:text-lg text-gray-900 dark:text-white">
+                        <span className="flex items-center gap-2">
+                            <Bell className="h-4 w-4 sm:h-5 sm:w-5" />
+                            Notifications
+                            {unreadCount > 0 && (
+                                <Badge variant="destructive" className="ml-2 text-xs px-1.5 py-0.5">
+                                    {unreadCount}
+                                </Badge>
+                            )}
+                        </span>
+                        {unreadCount > 0 && markAllAsRead && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => markAllAsRead()}
+                                className="text-xs font-normal text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+                            >
+                                Mark all read
+                            </Button>
                         )}
                     </DialogTitle>
                 </DialogHeader>

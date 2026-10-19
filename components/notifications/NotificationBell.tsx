@@ -5,34 +5,18 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Bell } from "lucide-react"
 import { useNotifications } from "@/context/NotificationContext"
-import { useGetPendingInvitationsUnifiedQuery } from "@/states/contactSlice"
-import { useGetPendingJoinRequestsQuery } from "@/states/groupSlice"
-import { useAuthToken } from "@/hooks/use-auth-token"
 import NotificationCenter from "./NotificationCenter"
 
 const NotificationBell: React.FC = () => {
     const { unreadCount } = useNotifications()
-    const { getToken } = useAuthToken()
-    const token = getToken()
     const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false)
 
-    // Get pending contact requests count to include in notification count
-    const { data: pendingContactRequests } = useGetPendingInvitationsUnifiedQuery({
-        token: token!,
-        page: 1,
-        limit: 20
-    }, { skip: !token })
-
-    // Get pending group join requests count to include in notification count
-    const { data: pendingJoinRequests } = useGetPendingJoinRequestsQuery(
-        token!,
-        { skip: !token }
-    )
-
-    // Combine notification count with pending contact requests and group join requests
-    const contactRequestsCount = pendingContactRequests?.invitations?.length || 0
-    const joinRequestsCount = pendingJoinRequests?.data?.requests?.length || 0
-    const totalUnreadCount = unreadCount + contactRequestsCount + joinRequestsCount
+    // unreadCount already reflects every pending contact/group-join request - each one
+    // has its own CONTACT_REQUEST_RECEIVED / GROUP_JOIN_REQUEST notification row. This
+    // used to also add the separately-fetched pending-request list lengths on top,
+    // double counting the same items and inflating the badge past what was actually
+    // unread (see NotificationCenter's own title badge, which uses unreadCount alone -
+    // the two badges disagreeing was itself a symptom of this bug).
 
     return (
         <>
@@ -43,12 +27,12 @@ const NotificationBell: React.FC = () => {
                 onClick={() => setIsNotificationCenterOpen(true)}
             >
                 <Bell className="h-5 w-5" />
-                {totalUnreadCount > 0 && (
+                {unreadCount > 0 && (
                     <Badge
                         variant="destructive"
                         className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
                     >
-                        {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
+                        {unreadCount > 99 ? '99+' : unreadCount}
                     </Badge>
                 )}
             </Button>
