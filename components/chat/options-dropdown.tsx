@@ -153,7 +153,7 @@ export default function OptionsDropdown({
   if (!isOpen) return null;
 
   return (
-    <div className='absolute bottom-12 left-0 z-50 w-[20rem] max-w-[calc(100vw-2rem)]'>
+    <div className='absolute bottom-12 left-0 z-50 w-[22rem] max-w-[calc(100vw-2rem)]'>
       <div className='max-h-[70vh] overflow-y-auto rounded-xl border border-gray-100 bg-white p-2 shadow-xl dark:border-darkBorder-light dark:bg-darkBg-card'>
         {sections.map(section => (
           <div key={section.title} className='space-y-1 pb-2 last:pb-0'>
@@ -173,7 +173,9 @@ export default function OptionsDropdown({
                   >
                     {option.icon}
                   </span>
-                  <span className='truncate text-xs font-semibold text-gray-700 dark:text-gray-200'>
+                  {/* Wraps rather than truncating — "Photo / video" and
+                      "Screen share" were being cut off mid-word */}
+                  <span className='min-w-0 text-xs font-semibold leading-tight text-gray-700 dark:text-gray-200'>
                     {option.label}
                   </span>
                 </button>

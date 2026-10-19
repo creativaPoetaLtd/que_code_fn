@@ -2,9 +2,70 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Bell, X } from 'lucide-react';
+import { Bell, X, Share, SquarePlus } from 'lucide-react';
 import { usePushNotifications } from '@/hooks/use-push-notifications';
 import { useAuthToken } from '@/hooks/use-auth-token';
+import { isIOSDevice } from '@/services/webPushService';
+
+const IOS_INSTALL_DISMISSED_KEY = 'qc_ios_install_prompt_dismissed';
+
+/**
+ * iPhone/iPad Safari has no `beforeinstallprompt` API and never delivers web push
+ * unless the app is added to the Home Screen first (iOS 16.4+ restriction) — there is
+ * no way to request push permission from a regular Safari tab. This banner is the only
+ * place iOS users are told that, with the manual Share -> Add to Home Screen steps.
+ */
+function IOSInstallForPushPrompt() {
+  const [dismissed, setDismissed] = useState(true);
+
+  useEffect(() => {
+    setDismissed(window.localStorage.getItem(IOS_INSTALL_DISMISSED_KEY) === 'true');
+  }, []);
+
+  const handleDismiss = () => {
+    window.localStorage.setItem(IOS_INSTALL_DISMISSED_KEY, 'true');
+    setDismissed(true);
+  };
+
+  if (dismissed) {
+    return null;
+  }
+
+  return (
+    <div className="fixed bottom-4 right-4 left-4 sm:left-auto z-50 sm:max-w-sm bg-white dark:bg-darkBg-card rounded-lg shadow-xl border border-gray-200 dark:border-darkBorder-light p-4">
+      <button
+        onClick={handleDismiss}
+        className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
+        aria-label="Dismiss"
+      >
+        <X size={16} />
+      </button>
+      <div className="flex items-start gap-3">
+        <div className="p-2 bg-brand-green/10 dark:bg-brand-gold/10 rounded-full">
+          <Bell size={20} className="text-brand-green dark:text-brand-gold" />
+        </div>
+        <div className="flex-1">
+          <h3 className="font-semibold text-sm mb-1">Enable notifications on iPhone</h3>
+          <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+            iPhone only delivers message notifications to the installed app, not this browser tab. Add QiewCode to your Home Screen first:
+          </p>
+          <ol className="text-xs text-gray-600 dark:text-gray-400 mb-3 space-y-1 list-decimal list-inside">
+            <li className="flex items-center gap-1 flex-wrap">
+              Tap <Share size={14} className="inline text-brand-green dark:text-brand-gold" /> Share in Safari's toolbar
+            </li>
+            <li className="flex items-center gap-1 flex-wrap">
+              Tap <SquarePlus size={14} className="inline text-brand-green dark:text-brand-gold" /> "Add to Home Screen"
+            </li>
+            <li>Open QiewCode from the Home Screen icon, then enable notifications there</li>
+          </ol>
+          <Button onClick={handleDismiss} variant="outline" size="sm" className="w-full">
+            Got it
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function PushNotificationPrompt() {
   const [showPrompt, setShowPrompt] = useState(false);
@@ -74,7 +135,15 @@ export default function PushNotificationPrompt() {
     setShowPrompt(false);
   };
 
-  if (!token || !isConfigured || !isSupported || requiresInstall || isSubscribed || !showPrompt) {
+  if (!token || !isConfigured || !isSupported) {
+    return null;
+  }
+
+  if (requiresInstall) {
+    return isIOSDevice() ? <IOSInstallForPushPrompt /> : null;
+  }
+
+  if (isSubscribed || !showPrompt) {
     return null;
   }
 

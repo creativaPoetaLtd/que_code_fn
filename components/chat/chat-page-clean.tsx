@@ -40,6 +40,7 @@ import ContactRequestModal from '@/components/chat/contact-request';
 import AddMemberModal from '@/components/chat/add-member-modal';
 import GroupSettingsModal from '@/components/chat/group-settings-modal';
 import { Header } from '@/components/Header';
+import { MessageSquare } from 'lucide-react';
 
 export default function ChatPageClean() {
   const router = useRouter();
@@ -417,16 +418,17 @@ export default function ChatPageClean() {
       ?.user as any;
   };
 
+  // h-[100dvh] rather than min-h-screen: 100vh overshoots the visible area on
+  // mobile, which left the page itself scrolling behind an already full-height chat.
   return (
-    <div className='flex flex-col min-h-screen bg-gray-50 dark:bg-darkBg-main'>
+    <div className='flex h-[100dvh] flex-col overflow-hidden bg-gray-50 dark:bg-darkBg-main'>
       {/* Desktop Sidebar - Always visible on desktop */}
       <Navigation hideBottomNav={isChatActive} />
 
       {/* Main Content */}
       <main
         className={cn(
-          'flex flex-col transition-all duration-300',
-          'h-[100dvh] overflow-hidden',
+          'flex min-h-0 flex-1 flex-col overflow-hidden transition-all duration-300',
           isExpanded ? 'lg:ml-64' : 'lg:ml-20'
         )}
       >
@@ -441,8 +443,8 @@ export default function ChatPageClean() {
         </div>
 
         {!isConnected && (
-          <div className='flex-shrink-0 bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-300 px-4 py-2'>
-            <p className='text-sm'>Connecting to chat server...</p>
+          <div className='flex-shrink-0 bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-300 px-4 py-1'>
+            <p className='text-center text-xs'>Connecting to chat server...</p>
           </div>
         )}
 
@@ -512,12 +514,25 @@ export default function ChatPageClean() {
               }}
             />
           ) : (
-            <div className='flex-1 flex items-center justify-center bg-gray-50 dark:bg-darkBg-card'>
-              <div className='text-center'>
-                <h3 className='text-lg font-medium text-gray-900 dark:text-white mb-2'>
+            <div
+              className={cn(
+                'flex-1 items-center justify-center bg-gray-50 px-6 dark:bg-darkBg-card',
+                // On mobile the list already fills the screen, so the placeholder
+                // only shows once the list has been swapped out.
+                showMobileConversationList ? 'hidden md:flex' : 'flex'
+              )}
+            >
+              <div className='max-w-xs text-center'>
+                <div className='mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-brand-green/10 dark:bg-brand-gold/10'>
+                  <MessageSquare
+                    size={20}
+                    className='text-brand-green dark:text-brand-gold'
+                  />
+                </div>
+                <h3 className='text-sm font-semibold text-gray-900 dark:text-white'>
                   Select a conversation
                 </h3>
-                <p className='text-gray-500 dark:text-gray-400'>
+                <p className='mt-1 text-xs text-gray-500 dark:text-gray-400'>
                   Choose a conversation from the list to start chatting
                 </p>
               </div>

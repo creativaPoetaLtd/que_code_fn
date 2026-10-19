@@ -40,27 +40,22 @@ export const useNotificationListener = () => {
       });
     };
 
-    // Listen for fundraising progress updates
-    const handleFundraisingProgress = (data: any) => {
-      notificationService.notifyGroupDonation({
-        groupName: data.groupName,
-        donorName: data.donorName,
-        amount: data.donationAmount,
-      });
-    };
+    // Note: "fundraising_progress_update" is intentionally not turned into a toast here.
+    // It fires alongside "group_donation_received" for the same donation event (see
+    // chatMoneyController), and is consumed elsewhere (group-details-content.tsx,
+    // chat-header.tsx) purely to update the progress bar UI. Notifying on both would
+    // show the user two toasts/sounds for one donation.
 
     // Register socket listeners
     socketService.onContactRequest(handleContactRequest);
     socketService.onGroupInvitation(handleGroupInvitation);
     socketService.onGroupDonation(handleGroupDonation);
-    socketService.onFundraisingProgress(handleFundraisingProgress);
 
     // Cleanup
     return () => {
       socketService.offContactRequest(handleContactRequest);
       socketService.offGroupInvitation(handleGroupInvitation);
       socketService.offGroupDonation(handleGroupDonation);
-      socketService.offFundraisingProgress(handleFundraisingProgress);
     };
   }, [getUserId]);
 };

@@ -7,6 +7,7 @@ import { NotebookText, PencilLine, Users } from "lucide-react";
 import { noteSlice, useGetSharedNoteQuery, type SharedNoteData } from "@/states/noteSlice";
 import socketService from "@/services/socketService";
 import SharedNoteDialog from "./shared-note-dialog";
+import { MessageCardAction, MessageCardChip, MessageCardShell } from "./message-card-shell";
 
 /** What the chat message carries — enough to render before the note loads */
 export interface SharedNoteMessageData {
@@ -68,27 +69,31 @@ export const SharedNoteMessageCard: React.FC<SharedNoteMessageCardProps> = ({ da
 
     return (
         <>
-            <div
-                className={`w-[280px] rounded-2xl overflow-hidden shadow-sm border bg-white dark:bg-darkBg-card ${
-                    isMe
-                        ? "border-yellow-200 dark:border-yellow-800/40"
-                        : "border-gray-100 dark:border-darkBorder-light"
-                }`}
-            >
-                <div className="h-1 w-full bg-yellow-400" />
-
-                <div className="flex items-center justify-between px-3 pt-2.5 pb-1">
-                    <div className="flex items-center gap-1.5">
-                        <NotebookText className="w-3.5 h-3.5 text-yellow-500" />
-                        <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                            Shared note
-                        </span>
-                    </div>
-                    <span className="inline-flex items-center gap-1 text-[10px] text-gray-400">
+            <MessageCardShell
+                accentBarClassName="bg-yellow-400"
+                borderClassName={isMe ? "border-yellow-200 dark:border-yellow-800/40" : undefined}
+                icon={<NotebookText className="w-3.5 h-3.5 flex-shrink-0 text-yellow-500" />}
+                label="Shared note"
+                headerMeta={
+                    <MessageCardChip>
                         <Users className="w-2.5 h-2.5" /> Everyone can edit
-                    </span>
-                </div>
-
+                    </MessageCardChip>
+                }
+                action={
+                    <MessageCardAction
+                        onClick={() => setEditorOpen(true)}
+                        className="bg-yellow-400 text-gray-900 hover:bg-yellow-500"
+                    >
+                        <PencilLine className="w-3 h-3" /> Open note
+                    </MessageCardAction>
+                }
+                footerLeft={
+                    note?.lastEditedByName && editedAt
+                        ? `Edited by ${note.lastEditedByName} · ${editedAt}`
+                        : `Started by ${note?.createdByName || data.createdByName}`
+                }
+                footerRight={fmtTime(data.timestamp)}
+            >
                 <button
                     type="button"
                     onClick={() => setEditorOpen(true)}
@@ -105,28 +110,7 @@ export const SharedNoteMessageCard: React.FC<SharedNoteMessageCardProps> = ({ da
                         <p className="text-[11px] text-gray-400 italic mt-0.5">Empty note</p>
                     )}
                 </button>
-
-                <div className="px-3 pb-3">
-                    <button
-                        type="button"
-                        onClick={() => setEditorOpen(true)}
-                        className="w-full h-8 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-gray-900 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
-                    >
-                        <PencilLine className="w-3 h-3" /> Open note
-                    </button>
-                </div>
-
-                <div className="flex items-center justify-between gap-2 px-3 pb-2">
-                    <span className="text-[10px] text-gray-400 truncate">
-                        {note?.lastEditedByName && editedAt
-                            ? `Edited by ${note.lastEditedByName} · ${editedAt}`
-                            : `Started by ${note?.createdByName || data.createdByName}`}
-                    </span>
-                    <span className="text-[10px] text-gray-300 dark:text-gray-600 flex-shrink-0">
-                        {fmtTime(data.timestamp)}
-                    </span>
-                </div>
-            </div>
+            </MessageCardShell>
 
             <SharedNoteDialog
                 isOpen={editorOpen}

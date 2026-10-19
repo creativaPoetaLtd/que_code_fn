@@ -4,23 +4,28 @@ import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import { Copy, CreditCard, Send, Share2, User, Download, Square, Plus, Check, QrCode } from 'lucide-react';
 import baseUrl from '@/helpers/baseUrl';
-import { getUserBalance, getEntityBalance } from '@/helpers/api';
 import { useAuthToken } from '@/hooks/use-auth-token';
+import { cn } from '@/lib/utils';
+import { DASHBOARD_SURFACE } from './Dashboard/DashboardCard';
 
 interface AccountInfoProps {
     userId: string;
+    /**
+     * "full" keeps the standalone card (profile link, large QR, its own action
+     * grid). "compact" is the dashboard sidebar form: the hero already carries
+     * the actions, so this is just the code and the link to share it.
+     */
+    variant?: 'full' | 'compact';
 }
 
-const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
+const AccountInfo: React.FC<AccountInfoProps> = ({ userId, variant = 'full' }) => {
+    const isCompact = variant === 'compact';
     const router = useRouter();
     const { getToken } = useAuthToken();
 
     const [user, setUser] = useState({ firstName: '', lastName: '', qrCode: '' });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [balance, setBalance] = useState<number | null>(null);
-    const [balanceLoading, setBalanceLoading] = useState(true);
-    const [balanceError, setBalanceError] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
 
     useEffect(() => {
@@ -31,29 +36,6 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
                 return;
             }
             await fetchUserDataById(userId);
-            // Fetch wallet balance - try both user and organization
-            setBalanceLoading(true);
-            setBalanceError(null);
-            try {
-                // First try as user
-                let response;
-                try {
-                    response = await getEntityBalance(userId, 'user');
-                } catch (userError) {
-                    // If user fails, try as organization
-                    response = await getEntityBalance(userId, 'organization');
-                }
-
-                if (response.success && response.data) {
-                    setBalance(Number(response.data.availableBalance));
-                } else {
-                    setBalanceError('Invalid balance data received');
-                }
-            } catch (err) {
-                setBalanceError('Could not fetch balance');
-            } finally {
-                setBalanceLoading(false);
-            }
         };
 
         const fetchUserDataById = async (id: string) => {
@@ -196,37 +178,52 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
 
 
     return (
-        <div className="bg-white dark:bg-darkBg-card rounded-2xl shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-100 dark:border-darkBorder-light overflow-hidden">
+        <div className={cn(DASHBOARD_SURFACE, "overflow-hidden")}>
             {/* Header with Profile Link */}
-            <div className="p-4 sm:p-6 border-b border-gray-100 dark:border-darkBorder-light flex justify-end">
-                <button
-                    onClick={() => window.open(`${process.env.NEXT_PUBLIC_FRONTEND_URL}/welcome/${userId}`, '_blank')}
-                    className="flex items-center gap-2 px-4 py-2 rounded-full border-2 border-brand-green dark:border-brand-gold text-brand-green dark:text-brand-gold hover:bg-brand-green/5 dark:hover:bg-brand-gold/5 transition-colors text-sm font-medium"
-                >
-                    <User size={18} />
-                    <span>See your profile page</span>
-                </button>
-            </div>
+            {!isCompact && (
+            <div className="px-4 py-3 border-b border-gray-100 dark:border-darkBorder-light flex justify-end">
+    <button
+        onClick={() => window.location.href = `${process.env.NEXT_PUBLIC_FRONTEND_URL}/welcome/${userId}`}
+        className="flex items-center gap-2 px-4 py-2 rounded-full border-2 border-brand-green dark:border-brand-gold text-brand-green dark:text-brand-gold hover:bg-brand-green/5 dark:hover:bg-brand-gold/5 transition-colors text-sm font-medium"
+    >
+        <User size={18} />
+        <span>See your profile page</span>
+    </button>
+</div>
+            )}
+
+            {isCompact && (
+                <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3 dark:border-darkBorder-light">
+                    <h3 className="truncate text-sm font-semibold text-[#00313A] dark:text-white">Receive</h3>
+                    <button
+                        type="button"
+                        onClick={() => window.location.href = `${process.env.NEXT_PUBLIC_FRONTEND_URL}/welcome/${userId}`}
+                        className="text-xs font-semibold text-brand-green transition-opacity hover:opacity-70 dark:text-brand-gold"
+                    >
+                        Profile
+                    </button>
+                </div>
+            )}
 
             {/* QR Code Section */}
-            <div className="p-6 sm:p-8 flex flex-col items-center">
-                <div className="bg-brand-green/10 dark:bg-brand-gold/10 border-2 border-brand-green dark:border-brand-gold p-6 sm:p-8 rounded-3xl mb-6">
+            <div className="p-4 flex flex-col items-center">
+                <div className="bg-brand-green/10 dark:bg-brand-gold/10 border-2 border-brand-green dark:border-brand-gold p-4 rounded-2xl mb-4">
                     {user.qrCode ? (
                         <img
                             src={user.qrCode}
                             alt="QR Code"
-                            className="w-48 sm:w-56 h-auto object-contain"
+                            className={`${isCompact ? "w-36" : "w-40 sm:w-44"} h-auto object-contain`}
                         />
                     ) : (
-                        <div className="w-48 sm:w-56 h-48 sm:h-56 bg-gray-300 rounded-lg flex items-center justify-center">
+                        <div className={`${isCompact ? "w-36 h-36" : "w-40 sm:w-44 h-40 sm:h-44"} bg-gray-300 rounded-lg flex items-center justify-center`}>
                             <span className="text-gray-600">No QR Code</span>
                         </div>
                     )}
                 </div>
 
                 {/* Share Link Section */}
-                <div className="w-full max-w-2xl mb-6">
-                    <div className="flex flex-row items-center gap-2 sm:gap-3 bg-gray-50 dark:bg-darkBg-interactive rounded-2xl p-2 sm:p-4 border border-gray-200 dark:border-darkBorder-light">
+                <div className={`w-full max-w-2xl ${isCompact ? "" : "mb-4"}`}>
+                    <div className="flex flex-row items-center gap-2 bg-gray-50 dark:bg-darkBg-interactive rounded-2xl p-2 border border-gray-200 dark:border-darkBorder-light">
                         <input
                             type="text"
                             value={userLink}
@@ -254,11 +251,12 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
                     </div>
                 </div>
 
-                {/* Action Buttons */}
-                <div className="w-full grid grid-cols-4 gap-2 sm:gap-4">
+                {/* Action Buttons — the dashboard hero already carries these */}
+                {!isCompact && (
+                <div className="w-full grid grid-cols-4 gap-2">
                     <button
                         onClick={() => router.push('/home/transfer')}
-                        className="flex flex-col items-center justify-center gap-1 sm:gap-2 p-2 sm:p-4 rounded-2xl border-2 border-gray-200 dark:border-darkBorder-light hover:border-brand-green dark:hover:border-brand-gold hover:bg-brand-green/5 dark:hover:bg-brand-gold/5 transition-colors group"
+                        className="flex flex-col items-center justify-center gap-1 p-2 sm:p-3 rounded-xl border-2 border-gray-200 dark:border-darkBorder-light hover:border-brand-green dark:hover:border-brand-gold hover:bg-brand-green/5 dark:hover:bg-brand-gold/5 transition-colors group"
                     >
                         <Send size={24} className="text-green-500 dark:text-brand-gold group-hover:text-brand-green dark:group-hover:text-brand-gold" />
                         <span className="text-[10px] sm:text-sm font-normal text-gray-700 dark:text-gray-300">Send</span>
@@ -266,7 +264,7 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
 
                     <button 
                         onClick={() => router.push('/home/request')}
-                        className="flex flex-col items-center justify-center gap-1 sm:gap-2 p-2 sm:p-4 rounded-2xl border-2 border-gray-200 dark:border-darkBorder-light hover:border-brand-green dark:hover:border-brand-gold hover:bg-brand-green/5 dark:hover:bg-brand-gold/5 transition-colors group"
+                        className="flex flex-col items-center justify-center gap-1 p-2 sm:p-3 rounded-xl border-2 border-gray-200 dark:border-darkBorder-light hover:border-brand-green dark:hover:border-brand-gold hover:bg-brand-green/5 dark:hover:bg-brand-gold/5 transition-colors group"
                     >
                         <Download size={24} className="text-green-500 dark:text-brand-gold group-hover:text-brand-green dark:group-hover:text-brand-gold" />
                         <span className="text-[10px] sm:text-sm font-normal text-gray-700 dark:text-gray-300">Request</span>
@@ -274,17 +272,18 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId }) => {
 
                     <button
                         onClick={() => router.push('/home/scan')}
-                        className="flex flex-col items-center justify-center gap-1 sm:gap-2 p-2 sm:p-4 rounded-2xl border-2 border-gray-200 dark:border-darkBorder-light hover:border-brand-green dark:hover:border-brand-gold hover:bg-brand-green/5 dark:hover:bg-brand-gold/5 transition-colors group"
+                        className="flex flex-col items-center justify-center gap-1 p-2 sm:p-3 rounded-xl border-2 border-gray-200 dark:border-darkBorder-light hover:border-brand-green dark:hover:border-brand-gold hover:bg-brand-green/5 dark:hover:bg-brand-gold/5 transition-colors group"
                     >
                         <QrCode size={24} className="text-green-500 dark:text-brand-gold group-hover:text-brand-green dark:group-hover:text-brand-gold" />
                         <span className="text-[10px] sm:text-sm font-normal text-gray-700 dark:text-gray-300">Scan QR</span>
                     </button>
 
-                    <button className="flex flex-col items-center justify-center gap-1 sm:gap-2 p-2 sm:p-4 rounded-2xl border-2 border-gray-200 dark:border-darkBorder-light hover:border-brand-green dark:hover:border-brand-gold hover:bg-brand-green/5 dark:hover:bg-brand-gold/5 transition-colors group">
+                    <button className="flex flex-col items-center justify-center gap-1 p-2 sm:p-3 rounded-xl border-2 border-gray-200 dark:border-darkBorder-light hover:border-brand-green dark:hover:border-brand-gold hover:bg-brand-green/5 dark:hover:bg-brand-gold/5 transition-colors group">
                         <Plus size={24} className="text-green-500 dark:text-brand-gold group-hover:text-brand-green dark:group-hover:text-brand-gold" />
                         <span className="text-[10px] sm:text-sm font-normal text-gray-700 dark:text-gray-300 whitespace-nowrap">Top up</span>
                     </button>
                 </div>
+                )}
             </div>
             
         </div>

@@ -80,9 +80,9 @@ export default function OutsideMessagesTab({
 
   if (isLoading) {
     return (
-      <div className='flex items-center justify-center h-32'>
-        <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-[#00B512]'></div>
-        <span className='ml-2 text-gray-500'>Loading messages...</span>
+      <div className='flex items-center justify-center gap-2.5 py-10'>
+        <div className='animate-spin rounded-full h-7 w-7 border-b-2 border-[#00B512]'></div>
+        <span className='text-sm text-gray-500'>Loading messages...</span>
       </div>
     );
   }
@@ -90,8 +90,8 @@ export default function OutsideMessagesTab({
   return (
     <div className='flex flex-col flex-1 min-h-0 overflow-hidden'>
       {/* Section header */}
-      <div className='px-4 py-2 bg-gray-50 dark:bg-darkBg-interactive border-b border-gray-100 dark:border-darkBorder-light flex items-center justify-between flex-shrink-0'>
-        <p className='text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide'>
+      <div className='px-4 py-1.5 bg-gray-50 dark:bg-darkBg-interactive border-b border-gray-100 dark:border-darkBorder-light flex items-center justify-between flex-shrink-0'>
+        <p className='text-[11px] font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider'>
           Inbox {unreadCount > 0 && `· ${unreadCount} unread`}
         </p>
         <button
@@ -102,7 +102,8 @@ export default function OutsideMessagesTab({
         </button>
       </div>
 
-      <div className='flex-1 overflow-y-auto'>
+      {/* Bottom gutter clears the fixed mobile bottom nav */}
+      <div className='flex-1 overflow-y-auto overscroll-contain pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-2'>
         {outsideMessages.length === 0 ? (
           <div className='flex flex-col items-center justify-center h-full py-12 text-center'>
             <Inbox size={32} className='text-gray-300 dark:text-gray-600 mb-2' />

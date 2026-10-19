@@ -89,22 +89,32 @@ export default function ConversationItem({
       : Check
     : null;
 
+  // The timestamp / unread column sits where the hover "quick send" button appears,
+  // so in DMs it fades out instead of being covered by it.
+  const metaFadeOnHover = conversation.isGroup
+    ? ''
+    : 'transition-opacity duration-150 group-hover:opacity-0';
+
   return (
     <div
       className={cn(
-        'relative h-[48px] border-b border-gray-100 px-3 dark:border-darkBorder-light cursor-pointer hover:bg-gray-50 dark:hover:bg-darkBg-interactive transition-all duration-200',
+        // The selected/unread accent is painted as an inset bar rather than a left
+        // border so switching rows never nudges the row content sideways.
+        'relative cursor-pointer border-b border-gray-100 px-3 py-2 transition-colors duration-150 dark:border-darkBorder-light',
+        'before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-transparent',
+        'hover:bg-gray-50 dark:hover:bg-darkBg-interactive',
         isSupport &&
           !isActive &&
-          'bg-emerald-50/70 dark:bg-emerald-950/20 border-l-4 border-l-emerald-500',
+          'bg-emerald-50/70 dark:bg-emerald-950/20 before:bg-emerald-500',
         isActive
-          ? 'bg-brand-green/10 dark:bg-brand-gold/10 border-l-4 border-l-brand-green dark:border-l-brand-gold'
+          ? 'bg-brand-green/10 dark:bg-brand-gold/10 before:bg-brand-green dark:before:bg-brand-gold'
           : hasUnread
-            ? 'bg-gray-50 dark:bg-darkBg-card border-l-2 border-l-brand-green dark:border-l-brand-gold'
+            ? 'bg-gray-50 dark:bg-darkBg-card before:bg-brand-green dark:before:bg-brand-gold'
             : ''
       )}
       onClick={onClick}
     >
-      <div className='grid h-full grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-2.5'>
+      <div className='flex items-center gap-3'>
         <div className='relative h-10 w-10 flex-shrink-0'>
           {isSupport ? (
             <div className='flex h-10 w-10 items-center justify-center rounded-full bg-emerald-600 text-white'>
@@ -139,62 +149,77 @@ export default function ConversationItem({
           )}
         </div>
 
-        <div className='flex h-10 min-w-0 flex-col justify-center'>
-          <p
-            className={cn(
-              'm-0 truncate text-[14px] font-semibold leading-[15px]',
-              hasUnread && !isActive && 'font-bold text-gray-900 dark:text-white'
-            )}
-          >
-            {conversation.name || 'Unknown Contact'}
-          </p>
-          <p
-            className={cn(
-              'm-0 mt-1 min-w-0 truncate text-[12px] leading-[14px]',
-              hasUnread && !isActive
-                ? 'font-semibold text-gray-900 dark:text-white'
-                : 'text-gray-500 dark:text-gray-400'
-            )}
-          >
-            {PreviewStatusIcon && (
-              <PreviewStatusIcon
-                className={cn(
-                  'mr-1 inline h-3.5 w-3.5 align-[-2px]',
-                  isReadPreview ? 'text-[#34b7f1]' : 'text-gray-500'
-                )}
-              />
-            )}
-            {conversation.isGroup && conversation.memberCount && (
-              <span className='mr-1.5 hidden rounded-full bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600 dark:bg-darkBg-interactive dark:text-gray-400 sm:inline-block'>
-                {conversation.isOnline ? 1 : 0}/{conversation.memberCount}
-              </span>
-            )}
-            {MediaPreviewIcon && (
-              <MediaPreviewIcon className='mr-1.5 inline h-3.5 w-3.5 align-[-2px]' />
-            )}
-            {lastMessagePreview}
-          </p>
-        </div>
+        <div className='min-w-0 flex-1'>
+          {/* Name + time share a baseline */}
+          <div className='flex items-baseline gap-2'>
+            <p
+              className={cn(
+                'm-0 min-w-0 flex-1 truncate text-[14px] leading-[18px]',
+                hasUnread && !isActive
+                  ? 'font-bold text-gray-900 dark:text-white'
+                  : 'font-semibold'
+              )}
+            >
+              {conversation.name || 'Unknown Contact'}
+            </p>
+            <span
+              className={cn(
+                'shrink-0 whitespace-nowrap text-[11px] leading-[14px]',
+                metaFadeOnHover,
+                hasUnread
+                  ? 'font-semibold text-brand-green dark:text-brand-gold'
+                  : 'text-gray-500'
+              )}
+            >
+              {formatTimestampWithoutSeconds(conversation.timestamp) || ''}
+            </span>
+          </div>
 
-        <div className='flex h-full min-w-[44px] flex-col items-end justify-start pt-[7px] leading-none'>
-          <span
-            className={cn(
-              'whitespace-nowrap text-[10px] leading-[11px]',
-              hasUnread
-                ? 'font-semibold text-brand-green dark:text-brand-gold'
-                : 'text-gray-500'
-            )}
-          >
-            {formatTimestampWithoutSeconds(conversation.timestamp) || ''}
-          </span>
-          {hasUnread && (
-            <Badge className='mt-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-brand-green px-1.5 py-0 text-[10px] text-white dark:bg-brand-gold dark:text-darkBg-main'>
-              {conversation.unreadCount}
-            </Badge>
-          )}
-          {isMuted && !hasUnread && (
-            <BellOff className='mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-400 dark:text-gray-500' />
-          )}
+          {/* Preview + unread/mute indicators */}
+          <div className='mt-0.5 flex items-center gap-2'>
+            <p
+              className={cn(
+                'm-0 min-w-0 flex-1 truncate text-[12px] leading-[16px]',
+                hasUnread && !isActive
+                  ? 'font-semibold text-gray-900 dark:text-white'
+                  : 'text-gray-500 dark:text-gray-400'
+              )}
+            >
+              {PreviewStatusIcon && (
+                <PreviewStatusIcon
+                  className={cn(
+                    'mr-1 inline h-3.5 w-3.5 align-[-2px]',
+                    isReadPreview ? 'text-[#34b7f1]' : 'text-gray-500'
+                  )}
+                />
+              )}
+              {conversation.isGroup && conversation.memberCount && (
+                <span className='mr-1.5 hidden rounded-full bg-gray-100 px-1.5 py-0.5 text-[11px] text-gray-600 dark:bg-darkBg-interactive dark:text-gray-400 sm:inline-block'>
+                  {conversation.isOnline ? 1 : 0}/{conversation.memberCount}
+                </span>
+              )}
+              {MediaPreviewIcon && (
+                <MediaPreviewIcon className='mr-1.5 inline h-3.5 w-3.5 align-[-2px]' />
+              )}
+              {lastMessagePreview}
+            </p>
+
+            <div
+              className={cn(
+                'flex shrink-0 items-center gap-1',
+                metaFadeOnHover
+              )}
+            >
+              {hasUnread && (
+                <Badge className='flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-brand-green px-1.5 py-0 text-[10px] leading-none text-white dark:bg-brand-gold dark:text-darkBg-main'>
+                  {conversation.unreadCount}
+                </Badge>
+              )}
+              {isMuted && (
+                <BellOff className='h-3.5 w-3.5 shrink-0 text-gray-400 dark:text-gray-500' />
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>

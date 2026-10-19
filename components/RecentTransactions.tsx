@@ -8,6 +8,8 @@ import { getUserIdFromToken, isTokenExpired } from '@/utils/jwtUtils';
 import { CheckCircle, Clock, AlertCircle, RefreshCcw } from 'lucide-react';
 import { UserAvatar } from '@/components/UserAvatar';
 import { TransactionDetailsModal } from '@/components/TransactionDetailsModal';
+import { cn } from '@/lib/utils';
+import { DASHBOARD_SURFACE } from './Dashboard/DashboardCard';
 
 export const RecentTransactions: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -142,11 +144,11 @@ export const RecentTransactions: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-darkBg-card rounded-2xl shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-100 dark:border-darkBorder-light overflow-hidden">
-        <div className="flex justify-between items-center p-3 sm:p-4 border-b border-gray-100 dark:border-darkBorder-light">
-          <h3 className="text-base sm:text-lg text-[#00313A] dark:text-white font-semibold">Recent transactions</h3>
+      <div className={cn(DASHBOARD_SURFACE, "overflow-hidden")}>
+        <div className="flex justify-between items-center px-4 py-2.5 border-b border-gray-100 dark:border-darkBorder-light">
+          <h3 className="text-sm font-semibold text-[#00313A] dark:text-white">Recent transactions</h3>
         </div>
-        <div className="p-6 text-center">
+        <div className="px-4 py-8 text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-green dark:border-brand-gold mx-auto"></div>
           <p className="text-gray-600 dark:text-gray-400 mt-3">Loading transactions...</p>
         </div>
@@ -156,11 +158,11 @@ export const RecentTransactions: React.FC = () => {
 
   if (error) {
     return (
-      <div className="bg-white dark:bg-darkBg-card rounded-2xl shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-100 dark:border-darkBorder-light overflow-hidden">
-        <div className="flex justify-between items-center p-3 sm:p-4 border-b border-gray-100 dark:border-darkBorder-light">
-          <h3 className="text-base sm:text-lg text-[#00313A] dark:text-white font-semibold">Recent transactions</h3>
+      <div className={cn(DASHBOARD_SURFACE, "overflow-hidden")}>
+        <div className="flex justify-between items-center px-4 py-2.5 border-b border-gray-100 dark:border-darkBorder-light">
+          <h3 className="text-sm font-semibold text-[#00313A] dark:text-white">Recent transactions</h3>
         </div>
-        <div className="p-6 text-center">
+        <div className="px-4 py-8 text-center">
           <p className="text-red-500 dark:text-red-400 font-medium">{error}</p>
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-2">Unable to load transactions</p>
         </div>
@@ -171,11 +173,11 @@ export const RecentTransactions: React.FC = () => {
   const displayedTransactions = transactions.slice(0, 5);
   if (displayedTransactions.length === 0) {
     return (
-      <div className="bg-white dark:bg-darkBg-card rounded-2xl shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-100 dark:border-darkBorder-light overflow-hidden">
-        <div className="flex justify-between items-center p-3 sm:p-4 border-b border-gray-100 dark:border-darkBorder-light">
-          <h3 className="text-base sm:text-lg text-[#00313A] dark:text-white font-semibold">Recent transactions</h3>
+      <div className={cn(DASHBOARD_SURFACE, "overflow-hidden")}>
+        <div className="flex justify-between items-center px-4 py-2.5 border-b border-gray-100 dark:border-darkBorder-light">
+          <h3 className="text-sm font-semibold text-[#00313A] dark:text-white">Recent transactions</h3>
         </div>
-        <div className="p-6 text-center">
+        <div className="px-4 py-8 text-center">
           <p className="text-gray-500 dark:text-gray-400">No transactions found.</p>
           <p className="text-gray-400 dark:text-gray-500 text-sm mt-1">Start by sending or receiving money!</p>
         </div>
@@ -184,16 +186,15 @@ export const RecentTransactions: React.FC = () => {
   }
 
   return (
-    <div className="bg-white dark:bg-darkBg-card rounded-2xl shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-100 dark:border-darkBorder-light overflow-hidden">
+    <div className={cn(DASHBOARD_SURFACE, "overflow-hidden")}>
       {/* Header */}
-      <div className="flex justify-between items-center p-3 sm:p-4 border-b border-gray-100 dark:border-darkBorder-light">
-        <h3 className="text-base sm:text-lg text-[#00313A] dark:text-white font-semibold">Recent transactions</h3>
+      <div className="flex justify-between items-center px-4 py-2.5 border-b border-gray-100 dark:border-darkBorder-light">
+        <h3 className="text-sm font-semibold text-[#00313A] dark:text-white">Recent transactions</h3>
         <button
           onClick={() => router.push('/transactions')}
-          className="relative text-sm text-brand-green dark:text-brand-gold hover:text-brand-green/80 dark:hover:text-brand-goldHover transition-colors duration-200 font-medium group"
+          className="text-xs font-semibold text-brand-green transition-opacity hover:opacity-70 dark:text-brand-gold"
         >
           View all
-          <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-brand-green dark:bg-brand-gold group-hover:w-full transition-all duration-300 ease-out"></span>
         </button>
       </div>
 
@@ -237,54 +238,55 @@ export const RecentTransactions: React.FC = () => {
           return (
             <div
               key={transaction.id}
-              className="p-3 sm:p-4 hover:bg-gray-100/50 dark:hover:bg-darkBg-interactive transition-colors duration-200 cursor-pointer"
+              className="group/txn px-4 py-2.5 hover:bg-gray-100/50 dark:hover:bg-darkBg-interactive transition-colors duration-200 cursor-pointer"
               onClick={() => setSelectedTransaction(transaction)}
             >
+              {/* Who and when on the left, how much on the right — the amount used
+                  to sit on its own line under the name, which doubled the row's
+                  height for two short strings. */}
               <div className="flex items-center gap-3">
                 <UserAvatar
                   userId={(isOutgoing ? transaction.receiverWallet?.userId : transaction.senderWallet?.userId) ?? undefined}
                   profileImage={counterpartyProfileImage}
                   firstName={counterpartyName.split(' ')[0]}
                   lastName={counterpartyName.split(' ')[1] || ''}
-                  className="w-10 h-10"
+                  className="w-9 h-9 flex-shrink-0"
                   userType={isToOrganization ? 'organization' : 'user'}
                 />
 
-                {/* Transaction details */}
-                <div className="flex-1 min-w-0">
-                  {/* First line: Name and Date */}
-                  <div className="flex justify-between items-center gap-2 mb-1">
-                    <p className="font-medium text-gray-900 dark:text-white truncate text-sm">{counterpartyName}</p>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
-                      {getRelativeTime(transaction.createdAt)}
-                    </span>
-                  </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-gray-900 dark:text-white">{counterpartyName}</p>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    {getRelativeTime(transaction.createdAt)}
+                  </span>
+                </div>
 
-                  {/* Second line: Amount */}
-                  <div className="flex items-center justify-between gap-2">
-                    <span className={`text-sm font-medium ${isOutgoing ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                      {isOutgoing ? '-' : '+'} RWF {isNaN(Math.abs(amount)) ? '0' : Math.abs(amount).toLocaleString()}
-                    </span>
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            const recipientData = {
-                                id: isOutgoing ? transaction.receiverWallet?.userId : transaction.senderWallet?.userId,
-                                name: counterpartyName,
-                                phone: '',
-                                avatar: counterpartyProfileImage || '',
-                                type: isToOrganization ? 'organization' : 'user'
-                            };
-                            sessionStorage.setItem('selectedRecipient', JSON.stringify(recipientData));
-                            sessionStorage.setItem('initialAmount', transaction.amount.toString());
-                            router.push('/home/transfer/amount');
-                        }}
-                        title="Send again"
-                        className="p-1.5 rounded-full bg-gray-50 dark:bg-darkBg-interactive text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                    >
-                        <RefreshCcw size={14} />
-                    </button>
-                  </div>
+                <div className="flex flex-shrink-0 items-center gap-1.5">
+                  <span className={`whitespace-nowrap text-[13px] font-semibold tabular-nums sm:text-sm ${isOutgoing ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                    {isOutgoing ? '-' : '+'} RWF {isNaN(Math.abs(amount)) ? '0' : Math.abs(amount).toLocaleString()}
+                  </span>
+                  {/* Hidden until hover on pointer devices; always visible on touch,
+                      where there is no hover to reveal it */}
+                  <button
+                      onClick={(e) => {
+                          e.stopPropagation();
+                          const recipientData = {
+                              id: isOutgoing ? transaction.receiverWallet?.userId : transaction.senderWallet?.userId,
+                              name: counterpartyName,
+                              phone: '',
+                              avatar: counterpartyProfileImage || '',
+                              type: isToOrganization ? 'organization' : 'user'
+                          };
+                          sessionStorage.setItem('selectedRecipient', JSON.stringify(recipientData));
+                          sessionStorage.setItem('initialAmount', transaction.amount.toString());
+                          router.push('/home/transfer/amount');
+                      }}
+                      title="Send again"
+                      aria-label="Send again"
+                      className="rounded-full p-1.5 text-gray-400 opacity-100 transition hover:text-blue-600 focus-visible:opacity-100 sm:opacity-0 sm:group-hover/txn:opacity-100 dark:hover:text-blue-400"
+                  >
+                      <RefreshCcw size={14} />
+                  </button>
                 </div>
               </div>
             </div>

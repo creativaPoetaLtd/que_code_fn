@@ -83,7 +83,7 @@ export default function PinnedNotesBar({ chatId, onOpenNote, onOpenList }: Pinne
     }
 
     return (
-        <div className="flex items-center gap-2 px-3 py-2 bg-yellow-50/60 dark:bg-yellow-900/10 border-b border-yellow-100 dark:border-yellow-900/30">
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-yellow-50/60 dark:bg-yellow-900/10 border-b border-yellow-100 dark:border-yellow-900/30">
             <span className="w-7 h-7 rounded-lg bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-500 flex items-center justify-center flex-shrink-0">
                 <NotebookText className="w-3.5 h-3.5" />
             </span>

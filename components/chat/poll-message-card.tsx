@@ -13,6 +13,7 @@ import {
 } from "@/states/pollSlice";
 import socketService from "@/services/socketService";
 import { toast } from "@/hooks/use-toast";
+import { MessageCardAction, MessageCardChip, MessageCardShell } from "./message-card-shell";
 
 /** What the chat message itself carries — enough to render before results arrive */
 export interface PollMessageData {
@@ -167,36 +168,53 @@ export const PollMessageCard: React.FC<PollMessageCardProps> = ({ data, isMe }) 
     const countdown = closesLabel(closesAt);
 
     return (
-        <div
-            className={`w-[280px] rounded-2xl overflow-hidden shadow-sm border bg-white dark:bg-darkBg-card ${
+        <MessageCardShell
+            accentBarClassName={isPollClosed ? "bg-gray-400" : "bg-brand-green dark:bg-brand-gold"}
+            borderClassName={
                 isPollClosed
                     ? "border-gray-200 dark:border-gray-700"
                     : isMe
                         ? "border-brand-green/20 dark:border-brand-gold/20"
-                        : "border-gray-100 dark:border-darkBorder-light"
-            }`}
-        >
-            <div className={`h-1 w-full ${isPollClosed ? "bg-gray-400" : "bg-brand-green dark:bg-brand-gold"}`} />
-
-            {/* Header */}
-            <div className="flex items-center justify-between px-3 pt-2.5 pb-1 gap-2">
-                <div className="flex items-center gap-1.5 min-w-0">
-                    <BarChart3 className="w-3.5 h-3.5 text-brand-green dark:text-brand-gold flex-shrink-0" />
-                    <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide truncate">
-                        {allowMultiple ? "Poll · multiple" : "Poll"}
-                    </span>
-                </div>
-                {isPollClosed ? (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400 flex-shrink-0">
+                        : undefined
+            }
+            icon={<BarChart3 className="w-3.5 h-3.5 flex-shrink-0 text-brand-green dark:text-brand-gold" />}
+            label={allowMultiple ? "Poll · multiple" : "Poll"}
+            headerMeta={
+                isPollClosed ? (
+                    <MessageCardChip className="rounded-full bg-gray-100 px-2 py-0.5 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
                         <CircleSlash className="w-2.5 h-2.5" /> Closed
-                    </span>
+                    </MessageCardChip>
                 ) : countdown ? (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 flex-shrink-0">
+                    <MessageCardChip className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
                         <Clock className="w-2.5 h-2.5" /> {countdown}
-                    </span>
-                ) : null}
-            </div>
-
+                    </MessageCardChip>
+                ) : null
+            }
+            footerLeft={
+                <span className="inline-flex items-center gap-1">
+                    <Users className="w-2.5 h-2.5" />
+                    {poll
+                        ? poll.voterCount === 0
+                            ? "No votes yet"
+                            : `${poll.voterCount} ${poll.voterCount === 1 ? "vote" : "votes"}`
+                        : " "}
+                    {!showResults && poll && poll.voterCount > 0 && " · vote to see results"}
+                </span>
+            }
+            footerRight={fmtTime(data.timestamp)}
+            footerBelow={
+                poll?.canClose && !isPollClosed ? (
+                    <button
+                        type="button"
+                        onClick={handleClose}
+                        disabled={closing}
+                        className="w-full h-7 rounded-lg border border-gray-200 dark:border-darkBorder-light text-[11px] font-semibold text-gray-500 dark:text-gray-400 hover:text-red-500 hover:border-red-200 dark:hover:border-red-900/40 disabled:opacity-40 transition-colors"
+                    >
+                        {closing ? "Closing..." : "Close poll"}
+                    </button>
+                ) : null
+            }
+        >
             {/* Question */}
             <div className="px-3 pt-1">
                 <p className="text-sm font-bold text-gray-900 dark:text-white break-words">{question}</p>
@@ -296,47 +314,18 @@ export const PollMessageCard: React.FC<PollMessageCardProps> = ({ data, isMe }) 
             {/* Confirm bar for multi-answer polls */}
             {allowMultiple && !isPollClosed && pendingDiffers && (
                 <div className="px-3 pb-2">
-                    <button
-                        type="button"
+                    <MessageCardAction
                         onClick={() => submitVote(pending)}
                         disabled={voting}
-                        className="w-full h-8 rounded-lg bg-brand-green dark:bg-brand-gold hover:opacity-90 disabled:opacity-40 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-opacity"
+                        className="bg-brand-green text-white hover:opacity-90 dark:bg-brand-gold dark:text-darkBg-main"
                     >
                         {voting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
                         {hasVoted ? "Update vote" : `Vote (${pending.length})`}
-                    </button>
+                    </MessageCardAction>
                 </div>
             )}
 
-            {/* Footer */}
-            <div className="px-3 pb-2 space-y-1.5">
-                <div className="flex items-center justify-between gap-2">
-                    <span className="inline-flex items-center gap-1 text-[10px] text-gray-400">
-                        <Users className="w-2.5 h-2.5" />
-                        {poll
-                            ? poll.voterCount === 0
-                                ? "No votes yet"
-                                : `${poll.voterCount} ${poll.voterCount === 1 ? "vote" : "votes"}`
-                            : " "}
-                        {!showResults && poll && poll.voterCount > 0 && " · vote to see results"}
-                    </span>
-                    <span className="text-[10px] text-gray-300 dark:text-gray-600 flex-shrink-0">
-                        {fmtTime(data.timestamp)}
-                    </span>
-                </div>
-
-                {poll?.canClose && !isPollClosed && (
-                    <button
-                        type="button"
-                        onClick={handleClose}
-                        disabled={closing}
-                        className="w-full h-7 rounded-lg border border-gray-200 dark:border-darkBorder-light text-[11px] font-semibold text-gray-500 dark:text-gray-400 hover:text-red-500 hover:border-red-200 dark:hover:border-red-900/40 disabled:opacity-40 transition-colors"
-                    >
-                        {closing ? "Closing..." : "Close poll"}
-                    </button>
-                )}
-            </div>
-        </div>
+        </MessageCardShell>
     );
 };
 

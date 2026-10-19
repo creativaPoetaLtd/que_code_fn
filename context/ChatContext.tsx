@@ -323,14 +323,19 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
                 return updatedConversations.sort(sortConversations);
             });
 
-            // Send notification using centralized service
-            notificationService.notifyNewMessage({
-                chatId: message.chatId,
-                senderId: message.sender.id,
-                senderName: message.sender.lastName || message.sender.name,
-                content: message.content,
-                messageType: message.messageType as any,
-            });
+            // Money messages are announced via their own dedicated events
+            // (money_received / group_donation_received / shared_wallet_deposit_received),
+            // which carry the correct amount/sender context. Avoid firing a second,
+            // generic "you got a message" toast + sound for the same event here.
+            if (message.messageType !== "money") {
+                notificationService.notifyNewMessage({
+                    chatId: message.chatId,
+                    senderId: message.sender.id,
+                    senderName: message.sender.lastName || message.sender.name,
+                    content: message.content,
+                    messageType: message.messageType as any,
+                });
+            }
         };
 
         const handleSecureMessageAvailable = (data: {
@@ -596,6 +601,18 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
             }
         };
 
+        const handleSharedWalletDepositReceived = (data: { amount: number; from: string; transactionId: string; chatId: string }) => {
+            notificationService.notifySharedWalletDeposit({
+                amount: data.amount,
+                from: data.from,
+                chatId: data.chatId,
+            });
+
+            if (data.chatId === activeChat) {
+                refetchMessages();
+            }
+        };
+
         const handlePaymentRequestUpdated = (data: {
             requestId: string;
             status: "paid" | "cancelled";
@@ -753,6 +770,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         socketService.onJoinedChat(handleJoinedChat);
         socketService.onError(handleError);
         socketService.onMoneyReceived(handleMoneyReceived);
+        socketService.onSharedWalletDepositReceived(handleSharedWalletDepositReceived);
         socketService.onPaymentRequestUpdated(handlePaymentRequestUpdated);
         socketService.onScheduledTransferUpdated(handleScheduledTransferUpdated);
         socketService.onReactionUpdated(handleReactionUpdated);
@@ -774,6 +792,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
             socketService.offJoinedChat(handleJoinedChat);
             socketService.offError(handleError);
             socketService.offMoneyReceived(handleMoneyReceived);
+            socketService.offSharedWalletDepositReceived(handleSharedWalletDepositReceived);
             socketService.offPaymentRequestUpdated(handlePaymentRequestUpdated);
             socketService.offScheduledTransferUpdated(handleScheduledTransferUpdated);
             socketService.offReactionUpdated(handleReactionUpdated);

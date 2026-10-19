@@ -1,12 +1,11 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { Eye, EyeOff, User, Wifi, WifiOff, MessageCircle, Moon, Sun, ChevronLeft } from "lucide-react";
+import { User, Wifi, WifiOff, MessageCircle, Moon, Sun, ChevronLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import Image from "next/image";
 import baseUrl from "@/helpers/baseUrl";
-import { getUserBalance, getEntityBalance } from '@/helpers/api';
 import { UserAvatar } from "@/components/UserAvatar";
 import { useNotifications } from "@/context/NotificationContext";
 import { useChat } from "@/context/ChatContext";
@@ -24,13 +23,9 @@ interface HeaderProps {
 
 export const Header = ({ showBackButton = false }: HeaderProps) => {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-    const [isBalanceVisible, setIsBalanceVisible] = useState(true);
     const [profileImage, setProfileImage] = useState<string | null>(null);
     const [userName, setUserName] = useState<{ firstName: string; lastName: string } | null>(null);
     const [userId, setUserId] = useState<string>("");
-    const [balance, setBalance] = useState<number | null>(null);
-    const [balanceLoading, setBalanceLoading] = useState(true);
-    const [balanceError, setBalanceError] = useState<string | null>(null);
 
     const router = useRouter();
     const notifications = useNotifications();
@@ -104,41 +99,8 @@ export const Header = ({ showBackButton = false }: HeaderProps) => {
         fetchUser();
     }, [userId, getToken]);
 
-    // Fetch wallet balance
-    useEffect(() => {
-        if (!userId) return;
-        const fetchBalance = async () => {
-            setBalanceLoading(true);
-            setBalanceError(null);
-            try {
-                // First try as user
-                let response;
-                try {
-                    response = await getEntityBalance(userId, 'user');
-                } catch (userError) {
-                    response = await getEntityBalance(userId, 'organization');
-                }
-
-                if (response.success && response.data) {
-                    setBalance(Number(response.data.availableBalance));
-                } else {
-                    setBalanceError('Invalid balance data received');
-                }
-            } catch (err) {
-                setBalanceError('Could not fetch balance');
-            } finally {
-                setBalanceLoading(false);
-            }
-        };
-        fetchBalance();
-    }, [userId]);
-
     const toggleDropdown = () => {
         setIsDropdownOpen(!isDropdownOpen);
-    };
-
-    const toggleBalanceVisibility = () => {
-        setIsBalanceVisible(!isBalanceVisible);
     };
 
     const handleLogout = () => {
@@ -163,7 +125,7 @@ export const Header = ({ showBackButton = false }: HeaderProps) => {
     };
 
     return (
-        <div className="flex justify-between items-center px-3 sm:px-4 py-3 sm:py-4 min-h-16 sm:min-h-18 bg-white dark:bg-transparent">
+        <div className="flex justify-between items-center px-3 sm:px-4 py-3 sm:py-4 min-h-16 sm:min-h-[4.5rem] bg-white dark:bg-transparent">
             {/* Left Section: Title */}
             <div className="flex items-center justify-start gap-2">
                 {showBackButton && (
@@ -175,7 +137,8 @@ export const Header = ({ showBackButton = false }: HeaderProps) => {
                         <ChevronLeft className="h-5 w-5 text-[#00313A] dark:text-white" />
                     </button>
                 )}
-                <Link href="/">
+                {/* The sidebar carries the logo from lg up, so this is the mobile copy */}
+                <Link href="/" className="lg:hidden">
                     <Image
                         src="/Images/qiewcode-logo.png"
                         alt="QiewCode"

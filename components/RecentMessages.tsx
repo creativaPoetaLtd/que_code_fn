@@ -7,6 +7,8 @@ import { useGetUserChatsQuery } from '@/states/chatSlice';
 import { MessageCircle, Send } from 'lucide-react';
 import { UserAvatar } from '@/components/UserAvatar';
 import { parseMessageContent } from '@/utils/messageUtils';
+import { cn } from '@/lib/utils';
+import { DASHBOARD_SURFACE } from './Dashboard/DashboardCard';
 
 interface ChatMessage {
     id: string;
@@ -80,13 +82,13 @@ export const RecentMessages: React.FC = () => {
 
     if (isLoading) {
         return (
-            <div className="bg-white dark:bg-darkBg-card rounded-2xl shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-100 dark:border-darkBorder-light overflow-hidden">
-                <div className="flex justify-between items-center p-3 sm:p-4 border-b border-gray-100 dark:border-darkBorder-light">
-                    <h3 className="text-base sm:text-lg text-[#00313A] dark:text-white font-semibold">
+            <div className={cn(DASHBOARD_SURFACE, "overflow-hidden")}>
+                <div className="flex justify-between items-center px-4 py-2.5 border-b border-gray-100 dark:border-darkBorder-light">
+                    <h3 className="text-sm font-semibold text-[#00313A] dark:text-white">
                         Recent messages
                     </h3>
                 </div>
-                <div className="p-6 text-center">
+                <div className="px-4 py-8 text-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00B512] mx-auto"></div>
                     <p className="text-gray-600 dark:text-gray-400 mt-3">Loading messages...</p>
                 </div>
@@ -96,13 +98,13 @@ export const RecentMessages: React.FC = () => {
 
     if (error) {
         return (
-            <div className="bg-white dark:bg-darkBg-card rounded-2xl shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-100 dark:border-darkBorder-light overflow-hidden">
-                <div className="flex justify-between items-center p-3 sm:p-4 border-b border-gray-100 dark:border-darkBorder-light">
-                    <h3 className="text-base sm:text-lg text-[#00313A] dark:text-white font-semibold">
+            <div className={cn(DASHBOARD_SURFACE, "overflow-hidden")}>
+                <div className="flex justify-between items-center px-4 py-2.5 border-b border-gray-100 dark:border-darkBorder-light">
+                    <h3 className="text-sm font-semibold text-[#00313A] dark:text-white">
                         Recent messages
                     </h3>
                 </div>
-                <div className="p-6 text-center">
+                <div className="px-4 py-8 text-center">
                     <p className="text-red-500 font-medium">Failed to load messages</p>
                     <p className="text-gray-500 dark:text-gray-400 text-sm mt-2">Please try again later</p>
                 </div>
@@ -112,13 +114,13 @@ export const RecentMessages: React.FC = () => {
 
     if (!conversations || conversations.length === 0) {
         return (
-            <div className="bg-white dark:bg-darkBg-card rounded-2xl shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-100 dark:border-darkBorder-light overflow-hidden">
-                <div className="flex justify-between items-center p-3 sm:p-4 border-b border-gray-100 dark:border-darkBorder-light">
-                    <h3 className="text-base sm:text-lg text-[#00313A] dark:text-white font-semibold">
+            <div className={cn(DASHBOARD_SURFACE, "overflow-hidden")}>
+                <div className="flex justify-between items-center px-4 py-2.5 border-b border-gray-100 dark:border-darkBorder-light">
+                    <h3 className="text-sm font-semibold text-[#00313A] dark:text-white">
                         Recent messages
                     </h3>
                 </div>
-                <div className="p-8 text-center">
+                <div className="px-4 py-8 text-center">
                     <div className="w-16 h-16 bg-[#00B512]/10 dark:bg-[#D4AF37]/10 rounded-full flex items-center justify-center mx-auto mb-4">
                         <MessageCircle size={32} className="text-[#00B512] dark:text-[#D4AF37]" />
                     </div>
@@ -137,17 +139,16 @@ export const RecentMessages: React.FC = () => {
     }
 
     return (
-        <div className="bg-white dark:bg-darkBg-card rounded-2xl shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-100 dark:border-darkBorder-light overflow-hidden\">
-            <div className="flex justify-between items-center p-3 sm:p-4 border-b border-gray-100 dark:border-darkBorder-light\">
-                <h3 className="text-base sm:text-lg text-[#00313A] dark:text-white font-semibold">
+        <div className={cn(DASHBOARD_SURFACE, "overflow-hidden")}>
+            <div className="flex justify-between items-center px-4 py-2.5 border-b border-gray-100 dark:border-darkBorder-light">
+                <h3 className="text-sm font-semibold text-[#00313A] dark:text-white">
                     Recent messages
                 </h3>
                 <button
                     onClick={() => router.push('/chat')}
-                    className="relative text-sm text-[#00B512] dark:text-[#D4AF37] hover:text-[#00B512]/80 dark:hover:text-[#C9A530] transition-colors duration-200 font-medium group"
+                    className="text-xs font-semibold text-brand-green transition-opacity hover:opacity-70 dark:text-brand-gold"
                 >
                     View all
-                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#00B512] dark:bg-[#D4AF37] group-hover:w-full transition-all duration-300 ease-out"></span>
                 </button>
             </div>
 
@@ -155,7 +156,7 @@ export const RecentMessages: React.FC = () => {
                 {conversations.map((chat) => (
                     <div
                         key={chat.id}
-                        className="p-3 sm:p-4 hover:bg-gray-50 dark:hover:bg-darkBg-interactive transition-colors duration-200 cursor-pointer"
+                        className="px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-darkBg-interactive transition-colors duration-200 cursor-pointer"
                         onClick={() => router.push('/chat')}
                     >
                         <div className="flex items-start gap-2.5">

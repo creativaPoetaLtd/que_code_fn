@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, ChangeEvent } from "react"
+import { useState, useRef, useEffect, ChangeEvent } from "react"
 import { Button } from "@/components/ui/button"
 import { X, Loader2, Image as ImageIcon, Video, Music, FileText } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
@@ -12,6 +12,12 @@ interface MediaUploadModalProps {
     onUpload: (file: File, caption: string) => void
     uploading?: boolean
     uploadProgress?: number
+    /**
+     * A file the caller already picked. The modal then opens straight on the
+     * preview-and-caption step instead of asking for a file it has been handed.
+     */
+    initialFile?: File | null
+    title?: string
 }
 
 export default function MediaUploadModal({
@@ -19,12 +25,53 @@ export default function MediaUploadModal({
     onClose,
     onUpload,
     uploading = false,
-    uploadProgress = 0
+    uploadProgress = 0,
+    initialFile = null,
+    title = "Upload Media"
 }: MediaUploadModalProps) {
     const [selectedFile, setSelectedFile] = useState<File | null>(null)
     const [previewUrl, setPreviewUrl] = useState<string | null>(null)
     const [caption, setCaption] = useState<string>("")
     const fileInputRef = useRef<HTMLInputElement>(null)
+
+    // Adopt a file chosen before the modal opened, so the picker is the first and
+    // only thing between "Photo / video" and the preview.
+    useEffect(() => {
+        // Closing clears the slate so a later open never shows the last file
+        if (!isOpen) {
+            setSelectedFile(null)
+            setPreviewUrl(null)
+            setCaption("")
+            return
+        }
+        if (!initialFile) return
+
+        const validation = validateMediaFile(initialFile)
+        if (!validation.valid) {
+            toast({
+                title: "Invalid File",
+                description: validation.error,
+                variant: "destructive"
+            })
+            onClose()
+            return
+        }
+
+        setSelectedFile(initialFile)
+        setCaption("")
+
+        const fileType = getFileType(initialFile.type)
+        if (fileType !== 'image' && fileType !== 'video') {
+            setPreviewUrl(null)
+            return
+        }
+
+        const url = URL.createObjectURL(initialFile)
+        setPreviewUrl(url)
+        return () => URL.revokeObjectURL(url)
+        // onClose is intentionally omitted: callers recreate it every render
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen, initialFile])
 
     if (!isOpen) return null
 
@@ -96,7 +143,7 @@ export default function MediaUploadModal({
             <div className="bg-white dark:bg-darkBg-card rounded-lg shadow-xl w-full max-w-2xl mx-4 overflow-hidden">
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b dark:border-darkBorder-light">
-                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Upload Media</h2>
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h2>
                     <Button
                         variant="ghost"
                         size="icon"

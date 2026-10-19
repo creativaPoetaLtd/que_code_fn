@@ -168,20 +168,20 @@ export default function ChatHeader({
   };
 
   return (
-    <div className='flex items-center justify-between gap-1 px-2 sm:px-4 py-2.5 sm:py-3 bg-white dark:bg-darkBg-card border-b border-gray-100 dark:border-darkBorder-light shadow-sm'>
+    <div className='flex items-center gap-2 px-2 sm:px-3.5 py-2 bg-white dark:bg-darkBg-card border-b border-gray-100 dark:border-darkBorder-light shadow-sm'>
       {/* Back Button - Mobile Only */}
       <Button
         variant='ghost'
         size='icon'
         onClick={onBackClick}
-        className='h-9 w-9 flex-shrink-0 md:hidden hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors'
+        className='-ml-1 h-8 w-8 flex-shrink-0 md:hidden hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors'
         aria-label='Back to conversations'
       >
         <ArrowLeft size={18} />
       </Button>
 
       {/* Conversation Info */}
-      <div className='flex items-center gap-2 sm:gap-3 flex-1 min-w-0'>
+      <div className='flex items-center gap-2.5 flex-1 min-w-0'>
         <button
           type='button'
           onClick={onViewProfile}
@@ -192,8 +192,8 @@ export default function ChatHeader({
             <Avatar
               className={
                 conversation.hasGallery
-                  ? 'h-9 w-9 sm:h-10 sm:w-10'
-                  : 'h-9 w-9 sm:h-10 sm:w-10 border-2 border-gray-100 dark:border-darkBorder-light'
+                  ? 'h-9 w-9'
+                  : 'h-9 w-9 border-2 border-gray-100 dark:border-darkBorder-light'
               }
             >
               {!isPlaceholderAvatar(conversation.avatar) && (
@@ -217,15 +217,15 @@ export default function ChatHeader({
 
         <div className='flex-1 min-w-0'>
           <div className='flex items-center gap-2'>
-            <h1 className='text-base sm:text-lg font-semibold text-gray-900 dark:text-white truncate'>
+            <h1 className='text-[15px] font-semibold leading-tight text-gray-900 dark:text-white truncate'>
               {conversation.name || 'Unknown Contact'}
             </h1>
             {isSecureConversation && (
               <Badge
                 variant='secondary'
-                className='hidden sm:inline-flex gap-1 border border-brand-green/20 bg-brand-green/10 text-brand-green'
+                className='hidden sm:inline-flex shrink-0 gap-1 px-1.5 py-0 text-[10px] border border-brand-green/20 bg-brand-green/10 text-brand-green'
               >
-                <Lock size={12} />
+                <Lock size={10} />
                 Secure
               </Badge>
             )}
@@ -235,7 +235,7 @@ export default function ChatHeader({
           {conversation.isGroup &&
             group?.hasFundraising &&
             group.fundraisingTarget && (
-              <div className='mt-1'>
+              <div className='mt-0.5'>
                 <FundraisingProgressBadge
                   currentAmount={
                     group.walletBalance ?? group.fundraisingCurrentAmount ?? 0
@@ -249,7 +249,7 @@ export default function ChatHeader({
           {conversation.isGroup &&
             !group?.hasFundraising &&
             group?.sharedWalletId && (
-              <div className='mt-1'>
+              <div className='mt-0.5'>
                 <button
                   type='button'
                   onClick={(e) => {
@@ -266,7 +266,7 @@ export default function ChatHeader({
 
           {/* Online Status (only show if not fundraising/shared wallet) */}
           {!(conversation.isGroup && (group?.hasFundraising || group?.sharedWalletId)) && (
-            <p className='text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate'>
+            <p className='text-[11px] leading-tight text-gray-500 dark:text-gray-400 truncate'>
               {getOnlineStatus()}
             </p>
           )}
@@ -274,27 +274,25 @@ export default function ChatHeader({
       </div>
 
       {/* Action Buttons */}
-      <div className='flex items-center gap-1'>
-        {/* Quick Actions - Desktop */}
-        <div className='hidden sm:flex items-center gap-1'>
-          {conversation.isGroup && onInviteToGroup && (
-            <Button
-              variant='ghost'
-              size='icon'
-              onClick={onInviteToGroup}
-              className='h-9 w-9 hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors'
-              aria-label='Add members'
-            >
-              <UserPlus size={16} />
-            </Button>
-          )}
-        </div>
+      <div className='flex flex-shrink-0 items-center gap-0.5'>
+        {/* Add members — the dropdown carries the same action on narrow screens */}
+        {conversation.isGroup && onInviteToGroup && (
+          <Button
+            variant='ghost'
+            size='icon'
+            onClick={onInviteToGroup}
+            className='hidden sm:inline-flex h-8 w-8 hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors'
+            aria-label='Add members'
+          >
+            <UserPlus size={16} />
+          </Button>
+        )}
         {onSendMoney && (
           <Button
             variant='ghost'
             size='icon'
             onClick={onSendMoney}
-            className='h-9 w-9 hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors'
+            className='h-8 w-8 hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors'
             aria-label='Send money'
             title='Send money'
           >
@@ -307,7 +305,7 @@ export default function ChatHeader({
             variant='ghost'
             size='icon'
             onClick={onRequestMoney}
-            className='h-9 w-9 hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors'
+            className='h-8 w-8 hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors'
             aria-label='Request money'
             title='Request money'
           >
@@ -320,7 +318,7 @@ export default function ChatHeader({
             variant='ghost'
             size='icon'
             onClick={onCreateContribution}
-            className='h-9 w-9 hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors'
+            className='h-8 w-8 hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors'
             aria-label='Create contribution'
             title='Create contribution'
           >
@@ -332,7 +330,7 @@ export default function ChatHeader({
             variant='ghost'
             size='icon'
             onClick={onOpenNotes}
-            className='relative h-9 w-9 hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors'
+            className='relative h-8 w-8 hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors'
             aria-label={`Shared notes (${noteCount})`}
             title='Shared notes'
           >
@@ -343,17 +341,17 @@ export default function ChatHeader({
           </Button>
         )}
 
-        {/* Profile/Info Button */}
+        {/* Profile/Info — hidden on mobile, where the avatar and the dropdown
+            already open the same screen */}
         <Button
           variant='ghost'
           size='icon'
           onClick={onViewProfile}
-          className='h-9 w-9 hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors'
+          className='hidden sm:inline-flex h-8 w-8 hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors'
           aria-label='View profile'
         >
           <Info size={16} />
         </Button>
-
 
         {/* More Actions Dropdown */}
         <DropdownMenu>
@@ -361,7 +359,7 @@ export default function ChatHeader({
             <Button
               variant='ghost'
               size='icon'
-              className='h-9 w-9 hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors'
+              className='h-8 w-8 hover:bg-gray-100 dark:hover:bg-darkBg-interactive transition-colors'
               aria-label='More options'
             >
               <MoreVertical size={16} />

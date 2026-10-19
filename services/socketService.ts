@@ -654,6 +654,23 @@ class SocketService {
         }
     }
 
+    // Listen for shared wallet deposit events (money sent to a shared wallet via chat)
+    onSharedWalletDepositReceived(callback: (data: { amount: number; from: string; transactionId: string; chatId: string }) => void) {
+        if (this.socket) {
+            this.socket.on("shared_wallet_deposit_received", callback)
+        }
+    }
+
+    offSharedWalletDepositReceived(callback?: (data: any) => void) {
+        if (this.socket) {
+            if (callback) {
+                this.socket.off("shared_wallet_deposit_received", callback)
+            } else {
+                this.socket.off("shared_wallet_deposit_received")
+            }
+        }
+    }
+
     // Listen for payment request status updates (accepted or declined)
     onPaymentRequestUpdated(callback: (data: {
         requestId: string;

@@ -96,6 +96,9 @@ export default function MessageInput({
     const [showOptions, setShowOptions]       = useState<boolean>(false)
     const [showEmojiPicker, setShowEmojiPicker] = useState<boolean>(false)
     const [showMediaModal, setShowMediaModal] = useState<boolean>(false)
+    /** The file taken straight from the OS picker, awaiting a caption */
+    const [pickedFile, setPickedFile]         = useState<File | null>(null)
+    const [pickedKind, setPickedKind]         = useState<"media" | "document">("media")
     const [showShareToGroupModal, setShowShareToGroupModal] = useState<boolean>(false)
     const [showShareLocationModal, setShowShareLocationModal] = useState<boolean>(false)
     const [uploading, setUploading]           = useState<boolean>(false)
@@ -121,6 +124,8 @@ export default function MessageInput({
     const emojiPickerRef  = useRef<HTMLDivElement | null>(null)
     const emojiButtonRef  = useRef<HTMLButtonElement | null>(null)
     const textareaRef     = useRef<HTMLTextAreaElement | null>(null)
+    const mediaInputRef   = useRef<HTMLInputElement | null>(null)
+    const documentInputRef = useRef<HTMLInputElement | null>(null)
 
     const chat   = useChat()
     const { theme } = useTheme()
@@ -411,8 +416,16 @@ export default function MessageInput({
     // ── Attachments / Media ───────────────────────────────────────────────────
     const handleOptionSelect = (option: string) => {
         setShowOptions(false)
+        // Attaching a file is one decision, so go straight to the picker; the
+        // caption step comes after, once there is something to caption.
         if (option === "Media") {
-            setShowMediaModal(true)
+            setPickedKind("media")
+            mediaInputRef.current?.click()
+            return
+        }
+        if (option === "Document") {
+            setPickedKind("document")
+            documentInputRef.current?.click()
             return
         }
         if (option === "Send Money") {
@@ -484,6 +497,21 @@ export default function MessageInput({
         toast({ title: "Coming soon", description: option })
     }
 
+    /** A file came back from the OS picker — move on to preview and caption */
+    const handleFilePicked = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        // Reset the input so picking the same file twice still fires a change
+        e.target.value = ""
+        if (!file) return
+        setPickedFile(file)
+        setShowMediaModal(true)
+    }
+
+    const closeMediaModal = () => {
+        setShowMediaModal(false)
+        setPickedFile(null)
+    }
+
     const handleMediaUpload = async (file: File, caption: string) => {
         if (isSecureChat) {
             if (!currentChatId || !token || !userId || !secureConversation) {
@@ -507,7 +535,7 @@ export default function MessageInput({
                 })
                 if (addMessage) addMessage(message as any)
                 toast({ title: "Secure media sent", description: "Your encrypted media has been sent successfully" })
-                setShowMediaModal(false)
+                closeMediaModal()
             } catch (error: any) {
                 toast({
                     title: "Secure media failed",
@@ -530,7 +558,7 @@ export default function MessageInput({
             if (result.success && result.data) {
                 if (addMessage) addMessage(result.data as any)
                 toast({ title: "Media sent", description: "Your media has been sent successfully" })
-                setShowMediaModal(false)
+                closeMediaModal()
             } else {
                 toast({ title: "Upload failed", description: result.message || "Failed to upload media", variant: "destructive" })
             }
@@ -547,7 +575,7 @@ export default function MessageInput({
         <>
             <div
                 ref={wrapperRef}
-                className="relative bg-white dark:bg-darkBg-card px-3 py-2 sm:px-4 sm:py-3 border-t border-gray-100 dark:border-darkBorder-light"
+                className="relative bg-white dark:bg-darkBg-card px-2.5 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] sm:px-3.5 sm:pt-2.5 sm:pb-[calc(0.625rem+env(safe-area-inset-bottom))] border-t border-gray-100 dark:border-darkBorder-light"
             >
                 {/* @Mention dropdown */}
                 {showMentionDropdown && (
@@ -589,7 +617,7 @@ export default function MessageInput({
                 )}
 
                 {replyToMessage && (
-                    <div className="mb-2 rounded-lg border border-gray-200 dark:border-darkBorder-light bg-gray-50 dark:bg-darkBg-interactive px-3 py-2 flex items-start justify-between gap-2">
+                    <div className="mb-1.5 rounded-lg border border-gray-200 dark:border-darkBorder-light bg-gray-50 dark:bg-darkBg-interactive px-2.5 py-1.5 flex items-start justify-between gap-2">
                         <div className="min-w-0">
                             <p className="text-xs font-semibold text-brand-green dark:text-brand-gold truncate">
                                 Replying to {replyToMessage.senderName}
@@ -610,12 +638,37 @@ export default function MessageInput({
                         </Button>
                     </div>
                 )}
-                {/* Input row */}
-                <div className="flex items-center gap-2">
-                    <div className="relative flex-1" ref={dropdownRef}>
+                {/* Input row — bottom-aligned so the field grows upward past a
+                    composer that stays put, instead of dragging the controls
+                    into the middle of a tall box. */}
+                <div className="flex items-end gap-1.5">
+                    {/* Attach lives beside the field, not inside it, so it never
+                        floats mid-textarea on a long message */}
+                    <div className="relative flex-shrink-0" ref={dropdownRef}>
+                        <button
+                            type="button"
+                            onClick={() => setShowOptions(!showOptions)}
+                            aria-label="Share"
+                            aria-expanded={showOptions}
+                            // Carries its own surface at rest — as a bare glyph it did
+                            // not read as a button until you already pressed it.
+                            className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
+                                showOptions
+                                    ? "bg-brand-green text-white dark:bg-brand-gold dark:text-darkBg-main"
+                                    : "bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:bg-darkBg-interactive dark:text-gray-400 dark:hover:text-gray-200"
+                            }`}
+                        >
+                            <Plus size={20} />
+                        </button>
+                        <OptionsDropdown isOpen={showOptions} onOptionSelect={handleOptionSelect} />
+                    </div>
+
+                    <div className="relative min-w-0 flex-1">
                         <textarea
                             ref={textareaRef}
-                            placeholder={!isConnected ? "Connecting..." : groupId ? "Type a message... use @ to mention" : "Type a message..."}
+                            // Short enough not to wrap and double the field's resting
+                            // height; the @ hint already appears below once you type.
+                            placeholder={!isConnected ? "Connecting..." : "Message"}
                             value={messageText}
                             onChange={handleChange}
                             onKeyDown={handleKeyDown}
@@ -627,38 +680,24 @@ export default function MessageInput({
                             aria-label="Message input"
                             aria-multiline="true"
                             aria-autocomplete={showMentionDropdown ? "list" : "none"}
-                            className="w-full resize-none rounded-2xl bg-gray-50 dark:bg-darkBg-interactive border border-gray-200 dark:border-darkBorder-light py-2.5 pl-11 pr-10 text-base leading-6 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-green dark:focus:ring-brand-gold focus:ring-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden hide-scrollbar"
-                            style={{ minHeight: "44px", height: "44px" }}
+                            className="block w-full resize-none rounded-2xl bg-gray-50 dark:bg-darkBg-interactive border border-gray-200 dark:border-darkBorder-light py-2 pl-3.5 pr-10 text-base leading-6 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-green dark:focus:ring-brand-gold focus:ring-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden hide-scrollbar"
+                            style={{ minHeight: "40px", height: "40px" }}
                         />
 
-                        <button
-                            type="button"
-                            onClick={() => setShowOptions(!showOptions)}
-                            aria-label="Share"
-                            aria-expanded={showOptions}
-                            className={`absolute left-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full transition-colors ${
-                                showOptions
-                                    ? "bg-brand-green text-white dark:bg-brand-gold dark:text-darkBg-main"
-                                    : "text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:text-gray-500 dark:hover:bg-darkBg-card dark:hover:text-gray-300"
-                            }`}
-                        >
-                            <Plus size={18} />
-                        </button>
-                        <OptionsDropdown isOpen={showOptions} onOptionSelect={handleOptionSelect} />
-
+                        {/* Pinned to the last line rather than the field's centre */}
                         <button
                             ref={emojiButtonRef}
                             type="button"
                             onClick={toggleEmojiPicker}
                             aria-label="Open emoji picker"
                             aria-expanded={showEmojiPicker}
-                            className={`absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full transition-colors ${
+                            className={`absolute bottom-1 right-1.5 flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
                                 showEmojiPicker
                                     ? "text-brand-green dark:text-brand-gold"
                                     : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
                             }`}
                         >
-                            <Smile size={15} />
+                            <Smile size={17} />
                         </button>
                     </div>
 
@@ -667,7 +706,7 @@ export default function MessageInput({
                         size="icon"
                         disabled={!canSend}
                         aria-label="Send message"
-                        className={`h-[44px] w-[44px] flex-shrink-0 rounded-full transition-all duration-200 shadow-sm ${
+                        className={`h-10 w-10 flex-shrink-0 rounded-full transition-all duration-200 shadow-sm ${
                             canSend
                                 ? "bg-brand-green dark:bg-brand-gold hover:bg-brand-green/90 dark:hover:bg-brand-gold/90 text-white dark:text-darkBg-main hover:shadow-md"
                                 : "bg-gray-200 dark:bg-darkBg-interactive text-gray-400 cursor-not-allowed"
@@ -678,18 +717,37 @@ export default function MessageInput({
                 </div>
                 {/* Hint shown while typing */}
                 {messageText.length > 0 && (
-                    <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1 pl-1 select-none">
+                    <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 pl-1 select-none">
                         Shift+Enter for new line{groupId ? " · @ to mention" : ""}
                     </p>
                 )}
             </div>
 
+            {/* Hidden pickers — "Photo / video" and "Document" open these straight
+                away, and the modal below only handles the caption afterwards. */}
+            <input
+                ref={mediaInputRef}
+                type="file"
+                className="hidden"
+                accept="image/*,video/*"
+                onChange={handleFilePicked}
+            />
+            <input
+                ref={documentInputRef}
+                type="file"
+                className="hidden"
+                accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain"
+                onChange={handleFilePicked}
+            />
+
             <MediaUploadModal
                 isOpen={showMediaModal}
-                onClose={() => setShowMediaModal(false)}
+                onClose={closeMediaModal}
                 onUpload={handleMediaUpload}
                 uploading={uploading}
                 uploadProgress={uploadProgress}
+                initialFile={pickedFile}
+                title={pickedKind === "document" ? "Send document" : "Send photo or video"}
             />
 
             {shareTargetUserId && (

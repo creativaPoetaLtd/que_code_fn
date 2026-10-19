@@ -81,13 +81,13 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({ userId }) => {
     };
 
     return (
-        <div className="bg-white dark:bg-darkBg-card rounded-2xl px-6 py-2 shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-100 dark:border-darkBorder-light mb-6 mt-2">
+        <div className="bg-white dark:bg-darkBg-card rounded-2xl px-5 py-3.5 shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-100 dark:border-darkBorder-light mb-4">
             <div className="flex justify-between items-start">
                 <div className="flex-1">
                     <h1 className="text-xl font-bold text-[#00313A] dark:text-white mb-1">
                         {getGreeting()}, <span className="text-brand-green dark:text-brand-gold">{userName}</span>
                     </h1>
-                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
                         Welcome back! Here's a quick overview of your QiewCode wallet.
                     </p>
 

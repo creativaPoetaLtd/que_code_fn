@@ -21,12 +21,12 @@ import {
   QrCode,
   Phone,
   Share2,
-  Menu as MenuIcon,
   UserPlus,
   MapPin,
   Image as ImageIcon,
   MessageSquare,
   Pencil,
+  Eye,
 } from 'lucide-react';
 import axios from 'axios';
 import baseUrl from '@/helpers/baseUrl';
@@ -1495,18 +1495,53 @@ const PublicProfileView: React.FC<PublicProfileViewProps> = ({
   const shouldShowGallery = user.showGalleryOnWelcome !== false && gallery.length > 0;
   const shouldShowOrgStats = isOrg && user.showOrgStatsOnWelcome !== false;
   const shouldShowActions = isOrg && user.showActionsOnWelcome !== false;
-  const shouldShowSendMoney = user.showSendMoneyOnWelcome !== false;
+  const shouldShowSendMoney = !isOwner && user.showSendMoneyOnWelcome !== false;
   const shouldShowContactForm = user.showContactFormOnWelcome !== false;
   const shouldShowOtherInfo = user.showOtherInfoOnWelcome !== false;
   const shouldShowSocialLinks = user.showSocialLinksOnWelcome !== false;
   const shouldShowOutsideContactForm = !isLoggedIn && shouldShowContactForm;
   const shouldShowFriendMessageButton =
-    isLoggedIn && !isOrg && shouldShowContactForm && relationshipStatus === 'active';
+    isLoggedIn && !isOwner && !isOrg && shouldShowContactForm && relationshipStatus === 'active';
+  /** Whether each bottom column has anything in it, so neither leaves a hole */
+  const hasContactColumn = () => shouldShowOutsideContactForm || shouldShowFriendMessageButton;
+  const hasDetailsColumn = () => shouldShowOtherInfo || shouldShowFriendshipRequest;
+
   const shouldShowFriendshipRequest =
     !isOrg &&
+    !isOwner &&
     isHydrated &&
     user.showFriendRequestOnWelcome !== false &&
     (!isLoggedIn || relationshipStatus !== 'active');
+
+  const handleShareProfile = () => {
+    const url = `${window.location.origin}/welcome/${userId}`;
+    if (navigator.share) {
+      navigator.share({ title: user.name || 'QC Profile', url });
+    } else {
+      navigator.clipboard.writeText(url);
+      toast({ title: 'Link copied!', description: 'Profile link copied to clipboard.' });
+    }
+  };
+
+  /**
+   * The amount prompt shown to a signed-out visitor. It was written out twice —
+   * once behind the header icon and once in the "Send me" card — with identical
+   * markup, so the two could silently drift apart.
+   */
+  const SendMoneyDialog = ({ trigger }: { trigger: React.ReactNode }) => (
+    <Dialog>
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      <DialogContent>
+        <DialogHeader><DialogTitle>{isOrg ? 'Pay' : 'Send Money'}</DialogTitle></DialogHeader>
+        <form className="space-y-4" onSubmit={e => { e.preventDefault(); handleSubmit(); }}>
+          <CustomInput type="number" placeholder="Enter amount" value={amount} onChange={e => setAmount(e.target.value)} className="h-12 rounded-xl" />
+          <DialogFooter>
+            <CustomButton type="submit" disabled={!amount} className={`w-full h-12 rounded-xl font-bold border-none text-white ${accent.solid}`}>Next</CustomButton>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
 
   if (loading) {
     return (
@@ -1529,18 +1564,38 @@ const PublicProfileView: React.FC<PublicProfileViewProps> = ({
           className={
             embedded
               ? 'px-3 sm:px-4 py-4 space-y-4'
-              : 'max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-8 space-y-4 sm:space-y-5 mobile-bottom-padding'
+              : 'max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 mobile-bottom-padding'
           }
         >
 
+          {/*
+            The owner lands here from their own QR or share link and sees a page
+            addressed to visitors, with no indication of what it is. This names it
+            and puts the link itself — the thing they came to hand out — in reach.
+          */}
+          {isOwner && !embedded && (
+            <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+              <Eye className="w-4 h-4 flex-shrink-0 text-white/40" />
+              <p className="min-w-0 flex-1 text-xs text-white/60">
+                This is your public profile — what visitors see when they scan your QR.
+              </p>
+              <button
+                onClick={handleShareProfile}
+                className="flex-shrink-0 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/20"
+              >
+                Copy link
+              </button>
+            </div>
+          )}
+
           {/* Profile header card */}
-          <div className={`rounded-2xl p-4 sm:p-6 md:p-8 ${accent.bgCard}`}>
+          <div className={`rounded-2xl p-4 sm:p-5 ${accent.bgCard}`}>
 
             {/* Top bar */}
-            <div className="flex items-center justify-between mb-5 sm:mb-8">
-              <div className="flex items-center gap-2 border border-white/20 rounded-full px-3 sm:px-4 py-2">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <div className="flex items-center gap-2 border border-white/20 rounded-full px-3 py-1.5">
                 <div className={`w-2 h-2 rounded-full flex-shrink-0 ${accent.dot}`} />
-                <span className="text-xs font-bold text-white tracking-widest uppercase truncate">
+                <span className="text-[10px] font-bold text-white tracking-widest uppercase truncate">
                   {isOrg ? 'QC PRO PROFILE' : 'QC PROFILE'}
                 </span>
               </div>
@@ -1555,27 +1610,16 @@ const PublicProfileView: React.FC<PublicProfileViewProps> = ({
                   </button>
                 )}
                 <button
-                  onClick={() => {
-                    const url = `${window.location.origin}/welcome/${userId}`;
-                    if (navigator.share) {
-                      navigator.share({ title: user.name || 'QC Profile', url });
-                    } else {
-                      navigator.clipboard.writeText(url);
-                      toast({ title: 'Link copied!', description: 'Profile link copied to clipboard.' });
-                    }
-                  }}
-                  className="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                  onClick={handleShareProfile}
+                  className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors flex-shrink-0"
                 >
                   <Share2 className="w-4 h-4 text-white" />
-                </button>
-                <button className="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
-                  <MenuIcon className="w-4 h-4 text-white" />
                 </button>
               </div>
             </div>
 
             {/* Profile row */}
-            <div className="flex flex-col sm:flex-row gap-5 sm:gap-7 items-center sm:items-start">
+            <div className="flex flex-col sm:flex-row gap-4 sm:gap-5 items-center sm:items-start">
               {shouldShowProfileMedia && (
                 <div className="relative flex-shrink-0">
                   {/*
@@ -1592,210 +1636,220 @@ const PublicProfileView: React.FC<PublicProfileViewProps> = ({
                       className="rounded-full transition-transform hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
                     >
                       <GalleryRing active size="lg" gapClassName={accent.bgCard}>
-                        <span className="block w-28 h-28 sm:w-36 sm:h-36 rounded-full overflow-hidden bg-white/10">
+                        <span className="block w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden bg-white/10">
                           {getDisplayImage() ? (
                             <img src={getDisplayImage()} alt={user.name} className="w-full h-full object-cover" />
                           ) : (
                             <span className="w-full h-full flex items-center justify-center">
-                              <User className="w-10 h-10 sm:w-14 sm:h-14 text-white/30" />
+                              <User className="w-9 h-9 sm:w-11 sm:h-11 text-white/30" />
                             </span>
                           )}
                         </span>
                       </GalleryRing>
                     </button>
                   ) : (
-                    <div className={`w-28 h-28 sm:w-36 sm:h-36 rounded-full overflow-hidden border-4 bg-white/10 ${accent.ring} ${accent.ringGlow}`}>
+                    <div className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-4 bg-white/10 ${accent.ring} ${accent.ringGlow}`}>
                       {getDisplayImage() ? (
                         <img src={getDisplayImage()} alt={user.name} className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <User className="w-10 h-10 sm:w-14 sm:h-14 text-white/30" />
+                          <User className="w-9 h-9 sm:w-11 sm:h-11 text-white/30" />
                         </div>
                       )}
                     </div>
                   )}
-                  <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 whitespace-nowrap">
-                    <span className="bg-black/75 backdrop-blur-sm text-white/90 text-xs px-3 py-1 rounded-full font-medium">
-                      {isOrg ? 'Professional QC identity' : 'Private QC identity'}
-                    </span>
-                  </div>
                 </div>
               )}
 
               <div className="flex-1 min-w-0 mt-2 sm:mt-0 w-full text-center sm:text-left">
-                <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-white mb-3 sm:mb-4 leading-tight">{user.name}</h1>
+                <h1 className="text-xl sm:text-3xl font-bold text-white mb-2 leading-tight">{user.name}</h1>
 
-                <div className="flex flex-wrap gap-2 mb-3 sm:mb-4 justify-center sm:justify-start">
+                <div className="flex flex-wrap gap-1.5 mb-3 justify-center sm:justify-start">
                   {user.showProfileTypeOnWelcome !== false && (
-                    <span className="border border-white/25 rounded-full px-3 py-1 text-xs text-white/80">
+                    <span className="border border-white/25 rounded-full px-2.5 py-0.5 text-[11px] text-white/80">
                       {isOrg ? 'Professional account' : 'Personal account'}
                     </span>
                   )}
-                  <span className="border border-white/25 rounded-full px-3 py-1 text-xs text-white/80">QC verified</span>
+                  <span className="border border-white/25 rounded-full px-2.5 py-0.5 text-[11px] text-white/80">QC verified</span>
                   {isOrg && user.showCategoryOnWelcome !== false && user.categoryName && (
-                    <span className="border border-white/25 rounded-full px-3 py-1 text-xs text-white/80">{user.categoryName}</span>
+                    <span className="border border-white/25 rounded-full px-2.5 py-0.5 text-[11px] text-white/80">{user.categoryName}</span>
                   )}
                   {!isOrg && (
-                    <span className="border border-white/25 rounded-full px-3 py-1 text-xs text-white/80">Friend-only chat</span>
+                    <span className="border border-white/25 rounded-full px-2.5 py-0.5 text-[11px] text-white/80">Friend-only chat</span>
                   )}
                 </div>
 
                 {user.showStatusMessageOnWelcome && user.statusMessage && (
-                  <p className="text-white/60 text-sm mb-4 sm:mb-5 leading-relaxed max-w-xl mx-auto sm:mx-0">{user.statusMessage}</p>
+                  <p className="text-white/60 text-sm mb-4 leading-relaxed max-w-xl mx-auto sm:mx-0">{user.statusMessage}</p>
                 )}
 
                 {/* Icon action buttons */}
-                <div className="flex flex-wrap gap-2 sm:gap-3 justify-center sm:justify-start">
-                  {isLoggedIn ? (
-                    <button
-                      onClick={handleSendMoney}
-                      title={isOrg ? 'Pay' : 'Send Money'}
-                      className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${accent.iconBtn}`}
-                    >
-                      <DollarSign className={`w-5 h-5 ${accent.iconColor}`} />
-                    </button>
-                  ) : (
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <button className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${accent.iconBtn}`}>
-                          <DollarSign className={`w-5 h-5 ${accent.iconColor}`} />
-                        </button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader><DialogTitle>{isOrg ? 'Pay' : 'Send Money'}</DialogTitle></DialogHeader>
-                        <form className="space-y-4" onSubmit={e => { e.preventDefault(); handleSubmit(); }}>
-                          <CustomInput type="number" placeholder="Enter amount" value={amount} onChange={e => setAmount(e.target.value)} className="h-12 rounded-xl" />
-                          <DialogFooter>
-                            <CustomButton type="submit" disabled={!amount} className={`w-full h-12 rounded-xl font-bold border-none text-white ${accent.solid}`}>Next</CustomButton>
-                          </DialogFooter>
-                        </form>
-                      </DialogContent>
-                    </Dialog>
+                <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
+                  {/*
+                    The money action is the point of a public profile, so it is a
+                    labelled button rather than one more unlabelled glyph — and it
+                    now honours showSendMoneyOnWelcome, which previously only hid
+                    the duplicate card further down the page.
+                  */}
+                  {shouldShowSendMoney && (
+                    isLoggedIn ? (
+                      <button
+                        onClick={handleSendMoney}
+                        className={`h-11 px-4 rounded-xl flex items-center gap-2 text-sm font-semibold text-white transition-colors ${accent.solid}`}
+                      >
+                        <DollarSign className="w-4 h-4" />
+                        {isOrg ? 'Pay' : 'Send money'}
+                      </button>
+                    ) : (
+                      <SendMoneyDialog
+                        trigger={
+                          <button className={`h-11 px-4 rounded-xl flex items-center gap-2 text-sm font-semibold text-white transition-colors ${accent.solid}`}>
+                            <DollarSign className="w-4 h-4" />
+                            {isOrg ? 'Pay' : 'Send money'}
+                          </button>
+                        }
+                      />
+                    )
                   )}
 
-                  {!isOrg && isLoggedIn && relationshipStatus === 'active' && (
+                  {!isOrg && isLoggedIn && !isOwner && relationshipStatus === 'active' && (
                     <button
                       onClick={handleSendMessageToFriend}
                       title="Send message"
-                      className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${accent.iconBtn}`}
+                      className={`w-11 h-11 rounded-xl flex items-center justify-center transition-colors ${accent.iconBtn}`}
                     >
                       <MessageSquare className={`w-5 h-5 ${accent.iconColor}`} />
                     </button>
                   )}
 
-                  {!isOrg && isLoggedIn && relationshipStatus !== 'active' && (
-                    <button onClick={handleAddFriend} title="Add Friend" className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${accent.iconBtn}`}>
+                  {!isOrg && isLoggedIn && !isOwner && relationshipStatus !== 'active' && (
+                    <button onClick={handleAddFriend} title="Add Friend" className={`w-11 h-11 rounded-xl flex items-center justify-center transition-colors ${accent.iconBtn}`}>
                       <UserPlus className={`w-5 h-5 ${accent.iconColor}`} />
                     </button>
                   )}
 
                   {isLoggedInAsOrganization && !isOrg && isLoggedIn && (
-                    <button onClick={handleViewUserQRObjects} title="View QR" className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${accent.iconBtn}`}>
+                    <button onClick={handleViewUserQRObjects} title="View QR" className={`w-11 h-11 rounded-xl flex items-center justify-center transition-colors ${accent.iconBtn}`}>
                       <QrCode className={`w-5 h-5 ${accent.iconColor}`} />
                     </button>
                   )}
 
-                  <button
-                    onClick={() => setIsGalleryModalOpen(true)}
-                    disabled={gallery.length === 0}
-                    className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${accent.iconBtn}`}
-                    title="Gallery">
-                    <ImageIcon className={`w-5 h-5 ${accent.iconColor}`} />
-                  </button>
+                  {isOwner && (
+                    <button
+                      onClick={handleShareProfile}
+                      className={`h-11 px-4 rounded-xl flex items-center gap-2 text-sm font-semibold text-white transition-colors ${accent.solid}`}
+                    >
+                      <Share2 className="w-4 h-4" />
+                      Share profile
+                    </button>
+                  )}
+
+                  {gallery.length > 0 && (
+                    <button
+                      onClick={() => setIsGalleryModalOpen(true)}
+                      className={`w-11 h-11 rounded-xl flex items-center justify-center transition-colors ${accent.iconBtn}`}
+                      title="Gallery">
+                      <ImageIcon className={`w-5 h-5 ${accent.iconColor}`} />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* Gallery Strip */}
-            {shouldShowGallery && (
-              <div className="mt-5 sm:mt-7 pt-5 sm:pt-6 border-t border-white/5">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h3 className="text-white font-bold text-lg">{isOrg ? 'Gallery' : 'Status photos'}</h3>
-                    <p className="text-white/40 text-sm">Tap a photo to preview it full screen.</p>
-                  </div>
-                  <button
-                    onClick={() => openGalleryPreview(0)}
-                    className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-colors"
-                  >
-                    Open gallery
-                  </button>
-                </div>
-
-                {galleryLoading ? (
-                  <div className="flex items-center gap-2 text-white/40 text-sm py-3">
-                    <Loader2 className="w-4 h-4 animate-spin" /> Loading gallery...
-                  </div>
-                ) : (
-                  <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-white/15 scrollbar-track-transparent">
-                    {gallery.map((item, index) => (
-                      <button
-                        key={item.id}
-                        onClick={() => openGalleryPreview(index)}
-                        className="relative flex-shrink-0 w-40 sm:w-48 h-28 sm:h-32 rounded-2xl overflow-hidden border border-white/10 snap-start group text-left"
-                        title={item.caption || 'Open photo'}
-                      >
-                        <img
-                          src={item.imageUrl}
-                          alt={item.caption || 'Gallery item'}
-                          className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
-                        <div className="absolute inset-x-0 bottom-0 p-3">
-                          {item.caption ? (
-                            <p className="text-white text-xs font-semibold line-clamp-2">{item.caption}</p>
-                          ) : (
-                            <p className="text-white/70 text-xs">Open photo</p>
-                          )}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Stats row — organisation only */}
-            {shouldShowOrgStats && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mt-6 sm:mt-8 pt-6 sm:pt-8 border-t border-white/5">
-                <div className="bg-white/5 rounded-xl p-3 sm:p-4">
-                  <p className="text-white/40 text-xs mb-1">Scans this week</p>
-                  <p className="text-2xl sm:text-3xl font-black text-white">{orgStatsLoading ? '—' : orgStats?.scansThisWeek || 0}</p>
-                  <p className="text-white/30 text-xs mt-1">QR code scans</p>
-                </div>
-                <div className="bg-white/5 rounded-xl p-3 sm:p-4">
-                  <p className="text-white/40 text-xs mb-1">Total bookings</p>
-                  <p className="text-2xl sm:text-3xl font-black text-white">{orgStatsLoading ? '—' : orgStats?.totalBookings || 0}</p>
-                  <p className="text-white/30 text-xs mt-1">Confirmed reservations</p>
-                </div>
-                <div className="bg-white/5 rounded-xl p-3 sm:p-4">
-                  <p className="text-white/40 text-xs mb-1">Audience rating</p>
-                  <p className="text-lg sm:text-xl font-black text-white">{orgStatsLoading ? '—' : orgStats?.audienceRating.toFixed(1) || '0.0'} / 5</p>
-                  <p className="text-white/30 text-xs mt-1">Customer satisfaction</p>
-                </div>
-                <div className="bg-white/5 rounded-xl p-3 sm:p-4">
-                  <p className="text-white/40 text-xs mb-1">Live actions</p>
-                  <p className="text-2xl sm:text-3xl font-black text-white">{actionsLoading ? '—' : actions.length}</p>
-                  <p className="text-white/30 text-xs mt-1">Tickets & offers</p>
-                </div>
-              </div>
-            )}
           </div>
+
+          {/* Stats row — organisation only */}
+          {shouldShowOrgStats && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="bg-white/5 rounded-xl p-3">
+                <p className="text-white/40 text-xs mb-1">Scans this week</p>
+                <p className="text-xl font-bold text-white">{orgStatsLoading ? '—' : orgStats?.scansThisWeek || 0}</p>
+                <p className="text-white/30 text-xs mt-1">QR code scans</p>
+              </div>
+              <div className="bg-white/5 rounded-xl p-3">
+                <p className="text-white/40 text-xs mb-1">Total bookings</p>
+                <p className="text-xl font-bold text-white">{orgStatsLoading ? '—' : orgStats?.totalBookings || 0}</p>
+                <p className="text-white/30 text-xs mt-1">Confirmed reservations</p>
+              </div>
+              <div className="bg-white/5 rounded-xl p-3">
+                <p className="text-white/40 text-xs mb-1">Audience rating</p>
+                <p className="text-xl font-bold text-white">{orgStatsLoading ? '—' : orgStats?.audienceRating.toFixed(1) || '0.0'} / 5</p>
+                <p className="text-white/30 text-xs mt-1">Customer satisfaction</p>
+              </div>
+              <div className="bg-white/5 rounded-xl p-3">
+                <p className="text-white/40 text-xs mb-1">Live actions</p>
+                <p className="text-xl font-bold text-white">{actionsLoading ? '—' : actions.length}</p>
+                <p className="text-white/30 text-xs mt-1">Tickets & offers</p>
+              </div>
+            </div>
+          )}
+
+          {/* Gallery Strip */}
+          {shouldShowGallery && (
+            <div className={`rounded-2xl p-4 sm:p-5 border border-white/5 ${accent.bgCard}`}>
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div className="min-w-0">
+                  <h3 className="text-white font-semibold text-sm">{isOrg ? 'Gallery' : 'Status photos'}</h3>
+                  <p className="text-white/40 text-xs">Tap a photo to preview it full screen.</p>
+                </div>
+                <button
+                  onClick={() => openGalleryPreview(0)}
+                  className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition-colors"
+                >
+                  Open gallery{gallery.length > 8 ? ` (${gallery.length})` : ''}
+                </button>
+              </div>
+
+              {galleryLoading ? (
+                <div className="flex items-center gap-2 text-white/40 text-sm py-3">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Loading gallery...
+                </div>
+              ) : (
+                /*
+                  A grid rather than a scroll strip: with one or two photos the strip
+                  left most of a full-width card empty. The grid fills the row at any
+                  count, and anything past the first eight lives behind "Open gallery".
+                */
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(8rem,1fr))] gap-3">
+                  {gallery.slice(0, 8).map((item, index) => (
+                    <button
+                      key={item.id}
+                      onClick={() => openGalleryPreview(index)}
+                      className="relative aspect-[4/3] rounded-xl overflow-hidden border border-white/10 group text-left"
+                      title={item.caption || 'Open photo'}
+                    >
+                      <img
+                        src={item.imageUrl}
+                        alt={item.caption || 'Gallery item'}
+                        className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                      <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <div className="absolute inset-x-0 bottom-0 p-3">
+                        {item.caption && item.caption.trim().toLowerCase() !== 'gallery image' && (
+                          <p className="text-white text-[11px] font-medium line-clamp-2">{item.caption}</p>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Organisation: Actions section */}
           {shouldShowActions && (
             <div>
-              <div className="mb-5">
-                <h2 className="text-white font-bold text-xl">Actions</h2>
-                <p className="text-white/40 text-sm mt-0.5">Buy, reserve, vote or access any offer directly from this profile.</p>
+              <div className="mb-3">
+                <h2 className="text-white font-semibold text-base">Actions</h2>
+                <p className="text-white/40 text-xs mt-0.5">Buy, reserve, vote or access any offer directly from this profile.</p>
               </div>
 
               {actionsLoading ? (
-                <div className={`rounded-2xl flex items-center justify-center py-20 border border-white/5 ${accent.bgCard}`}>
+                <div className={`rounded-2xl flex items-center justify-center py-12 border border-white/5 ${accent.bgCard}`}>
                   <Loader2 className="w-8 h-8 text-white/30 animate-spin" />
                 </div>
               ) : actions.length === 0 ? (
-                <div className={`rounded-2xl py-16 text-center border border-white/5 ${accent.bgCard}`}>
+                <div className={`rounded-2xl py-10 text-center border border-white/5 ${accent.bgCard}`}>
                   <Ticket className="w-10 h-10 text-white/20 mx-auto mb-3" />
                   <p className="text-white/30 font-medium">No actions available at the moment</p>
                 </div>
@@ -1811,27 +1865,27 @@ const PublicProfileView: React.FC<PublicProfileViewProps> = ({
                         <img src={actions[0].coverImage} alt={actions[0].name} className="absolute inset-0 w-full h-full object-cover" />
                       ) : (
                         <div className={`absolute inset-0 flex items-center justify-center bg-gradient-to-br ${isOrg ? 'from-blue-950 to-[#080d1a]' : 'from-emerald-950 to-[#060d08]'}`}>
-                          <Ticket className="w-16 h-16 text-blue-800" />
+                          <Ticket className="w-14 h-14 text-white/20" />
                         </div>
                       )}
                     </div>
-                    <div className={`md:w-1/2 p-5 sm:p-7 flex flex-col justify-center ${accent.bgCard}`}>
-                      <div className="flex flex-wrap gap-2 mb-3 sm:mb-4">
-                        <span className="border border-white/20 rounded-full px-3 py-1 text-xs text-white/70">Featured action</span>
+                    <div className={`md:w-1/2 p-4 sm:p-5 flex flex-col justify-center ${accent.bgCard}`}>
+                      <div className="flex flex-wrap gap-1.5 mb-2">
+                        <span className="border border-white/20 rounded-full px-2.5 py-0.5 text-[11px] text-white/70">Featured action</span>
                         {actions[0].status === 'published' && (
-                          <span className="border border-white/20 rounded-full px-3 py-1 text-xs text-white/70">New</span>
+                          <span className="border border-white/20 rounded-full px-2.5 py-0.5 text-[11px] text-white/70">New</span>
                         )}
-                        <span className="border border-white/20 rounded-full px-3 py-1 text-xs text-white/70">Hot</span>
+                        <span className="border border-white/20 rounded-full px-2.5 py-0.5 text-[11px] text-white/70">Hot</span>
                       </div>
-                      <h2 className="text-2xl sm:text-3xl font-black text-white mb-3 leading-tight">{actions[0].name}</h2>
+                      <h2 className="text-lg sm:text-xl font-bold text-white mb-2 leading-tight">{actions[0].name}</h2>
                       {(actions[0].description || actions[0].shortDescription) && (
-                        <p className="text-white/50 text-sm mb-5 line-clamp-3 leading-relaxed">
+                        <p className="text-white/50 text-xs mb-3 line-clamp-3 leading-relaxed">
                           {actions[0].description || actions[0].shortDescription}
                         </p>
                       )}
-                      <div className="flex flex-wrap gap-2 mb-5">
+                      <div className="flex flex-wrap gap-1.5 mb-4">
                         {actions[0].availability.startsAt && (
-                          <span className="border border-white/15 rounded-full px-3 py-1 text-xs text-white/60">
+                          <span className="border border-white/15 rounded-full px-2.5 py-0.5 text-[11px] text-white/60">
                             {formatDate(actions[0].availability.startsAt)}
                           </span>
                         )}
@@ -1844,7 +1898,7 @@ const PublicProfileView: React.FC<PublicProfileViewProps> = ({
                       <div className="flex gap-3">
                         <button
                           onClick={e => { e.stopPropagation(); handleActionClick(actions[0]); }}
-                          className="px-6 py-2.5 bg-blue-500 hover:bg-blue-600 rounded-xl text-white font-bold text-sm transition-colors"
+                          className={`px-5 py-2.5 rounded-xl text-white font-bold text-sm transition-colors ${accent.solid}`}
                         >
                           {actions[0].type === 'vote' ? 'Vote now' :
                            actions[0].type === 'booking' ? 'Book now' :
@@ -1881,7 +1935,7 @@ const PublicProfileView: React.FC<PublicProfileViewProps> = ({
                               {action.type || 'Buy'}
                             </span>
                             {action.minPrice && (
-                              <span className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded-lg font-bold">
+                              <span className={`text-white text-xs px-2 py-0.5 rounded-lg font-bold ${accent.solid}`}>
                                 {action.currency} {parseFloat(action.minPrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </span>
                             )}
@@ -1892,10 +1946,10 @@ const PublicProfileView: React.FC<PublicProfileViewProps> = ({
                               <p className="text-white/50 text-xs line-clamp-2 mb-2">{action.shortDescription}</p>
                             )}
                             <div className="flex items-center justify-between">
-                              <span className={`text-xs font-medium ${action.status === 'published' ? 'text-blue-400' : 'text-white/40'}`}>
+                              <span className={`text-xs font-medium ${action.status === 'published' ? accent.text : 'text-white/40'}`}>
                                 {action.status === 'published' ? 'Available' : action.status}
                               </span>
-                              <span className="bg-blue-500 text-white text-xs px-3 py-1 rounded-lg font-bold">
+                              <span className={`text-white text-xs px-3 py-1 rounded-lg font-bold ${accent.solid}`}>
                                 {action.type === 'vote' ? 'Vote' : action.type === 'booking' ? 'Reserve' : 'Buy'}
                               </span>
                             </div>
@@ -1909,65 +1963,25 @@ const PublicProfileView: React.FC<PublicProfileViewProps> = ({
             </div>
           )}
 
-          {/* Bottom 2-col: Send me + Other infos */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+          {/* Bottom: contact on the left, details on the right */}
+          <div className={`grid grid-cols-1 items-start gap-4 ${hasContactColumn() && hasDetailsColumn() ? 'md:grid-cols-5' : ''}`}>
 
-            {/* Left: Send me + Contact form */}
-            <div className="space-y-5">
-
-              {/* Send me */}
-              {shouldShowSendMoney && (
-              <div className={`rounded-2xl p-5 sm:p-6 border border-white/5 ${accent.bgCard}`}>
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  <div>
-                    <h3 className="text-white font-bold text-lg sm:text-xl">Send me</h3>
-                    <p className="text-white/40 text-sm">Fast, secure and private</p>
-                  </div>
-                  <span className="border border-white/15 text-white/40 text-xs px-2.5 py-1.5 rounded-full flex-shrink-0">
-                    {isOrg ? 'Professional' : 'Private'}
-                  </span>
-                </div>
-                <p className="text-white/40 text-sm mb-5 sm:mb-6">Send money quickly and securely through QC.</p>
-                {isLoggedIn ? (
-                  <button
-                    onClick={handleSendMoney}
-                    className={`w-full py-4 rounded-2xl font-bold text-sm transition-colors text-white ${accent.solid}`}
-                  >
-                    Send me
-                  </button>
-                ) : (
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <button className={`w-full py-4 rounded-2xl font-bold text-sm transition-colors text-white ${accent.solid}`}>
-                        Send me
-                      </button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader><DialogTitle>{isOrg ? 'Pay' : 'Send Money'}</DialogTitle></DialogHeader>
-                      <form className="space-y-4" onSubmit={e => { e.preventDefault(); handleSubmit(); }}>
-                        <CustomInput type="number" placeholder="Enter amount" value={amount} onChange={e => setAmount(e.target.value)} className="h-12 rounded-xl" />
-                        <DialogFooter>
-                          <CustomButton type="submit" disabled={!amount} className={`w-full h-12 rounded-xl font-bold border-none text-white ${accent.solid}`}>Next</CustomButton>
-                        </DialogFooter>
-                      </form>
-                    </DialogContent>
-                  </Dialog>
-                )}
-              </div>
-              )}
+            {/* Left: contact */}
+            {hasContactColumn() && (
+            <div className={`space-y-4 ${hasDetailsColumn() ? 'md:col-span-3' : ''}`}>
 
               {/* Private contact form */}
               {shouldShowOutsideContactForm && (
-              <div className={`rounded-2xl p-5 sm:p-6 border border-white/5 ${accent.bgCard}`}>
-                <h3 className="text-white font-bold text-lg sm:text-xl mb-1">Private contact form</h3>
-                <p className="text-white/40 text-sm mb-6">
+              <div className={`rounded-2xl p-4 sm:p-5 border border-white/5 ${accent.bgCard}`}>
+                <h3 className="text-white font-semibold text-sm mb-1">Private contact form</h3>
+                <p className="text-white/40 text-xs mb-4">
                   {isOrg
                     ? 'Need more information, a partnership or a direct question? Use this form to contact the business securely.'
                     : 'If you are not logged in yet, you can send an outside message through this form.'}
                 </p>
                 <div className="space-y-4">
                   <div>
-                    <label className="text-white/60 text-sm mb-1.5 block">Name</label>
+                    <label className="text-white/60 text-xs mb-1 block">Name</label>
                     <CustomInput
                       placeholder="Your name"
                       value={contactForm.name}
@@ -1976,7 +1990,7 @@ const PublicProfileView: React.FC<PublicProfileViewProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="text-white/60 text-sm mb-1.5 block">Email or phone</label>
+                    <label className="text-white/60 text-xs mb-1 block">Email or phone</label>
                     <CustomInput
                       placeholder="Email or phone"
                       value={contactForm.email}
@@ -1985,7 +1999,7 @@ const PublicProfileView: React.FC<PublicProfileViewProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="text-white/60 text-sm mb-1.5 block">Message</label>
+                    <label className="text-white/60 text-xs mb-1 block">Message</label>
                     <Textarea
                       placeholder="Write your message here..."
                       value={contactForm.message}
@@ -1998,7 +2012,7 @@ const PublicProfileView: React.FC<PublicProfileViewProps> = ({
                     <button
                       onClick={handleContactSubmit}
                       disabled={!contactForm.name || !contactForm.email || !contactForm.message || contactSubmitting}
-                      className={`px-8 py-3 rounded-2xl font-bold text-sm disabled:opacity-40 transition-colors text-white ${accent.solid}`}
+                      className={`px-6 py-2.5 rounded-xl font-bold text-sm disabled:opacity-40 transition-colors text-white ${accent.solid}`}
                     >
                       {contactSubmitting ? 'Sending...' : 'Send message'}
                     </button>
@@ -2008,74 +2022,86 @@ const PublicProfileView: React.FC<PublicProfileViewProps> = ({
               )}
 
               {shouldShowFriendMessageButton && (
-                <div className={`rounded-2xl p-5 sm:p-6 border border-white/5 ${accent.bgCard}`}>
-                  <h3 className="text-white font-bold text-lg sm:text-xl mb-1">Direct messages</h3>
-                  <p className="text-white/40 text-sm mb-6">
+                <div className={`rounded-2xl p-4 sm:p-5 border border-white/5 ${accent.bgCard}`}>
+                  <h3 className="text-white font-semibold text-sm mb-1">Direct messages</h3>
+                  <p className="text-white/40 text-xs mb-4">
                     You are friends. Continue this conversation in your messages tab.
                   </p>
                   <button
                     onClick={handleSendMessageToFriend}
                     disabled={friendMessageLoading}
-                    className={`w-full py-4 rounded-2xl font-bold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-white ${accent.solid}`}
+                    className={`w-full py-3 rounded-xl font-bold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-white ${accent.solid}`}
                   >
                     {friendMessageLoading ? 'Opening chat...' : 'Send message'}
                   </button>
                 </div>
               )}
             </div>
+            )}
 
             {/* Right: Other infos + Friendship */}
-            <div className="space-y-5">
+            {hasDetailsColumn() && (
+            <div className={`space-y-4 ${hasContactColumn() ? 'md:col-span-2' : ''}`}>
 
               {/* Other infos */}
               {shouldShowOtherInfo && (
-              <div className={`rounded-2xl p-5 sm:p-6 border border-white/5 ${accent.bgCard}`}>
-                <h3 className="text-white font-bold text-lg sm:text-xl mb-1">Other infos</h3>
-                <p className="text-white/40 text-sm mb-5">
+              <div className={`rounded-2xl p-4 sm:p-5 border border-white/5 ${accent.bgCard}`}>
+                <h3 className="text-white font-semibold text-sm mb-1">Other infos</h3>
+                <p className="text-white/40 text-xs mb-4">
                   {isOrg ? 'Public details and social links for this professional account.' : 'More ways to stay connected.'}
                 </p>
 
-                {(user.province || user.district || user.sector) && user.showLocationOnWelcome && (
-                  <div className="rounded-xl bg-white/5 border border-white/5 px-4 py-3 mb-3 flex items-center justify-between">
-                    <div>
-                      <p className="text-white/40 text-xs mb-0.5">Address</p>
-                      <p className="text-white font-semibold text-sm">
-                        {[user.district, user.sector, user.province].filter(Boolean).join(', ')}
-                      </p>
+                {/*
+                  Two-up and icon-first. As full-width rows these were ~90px slabs
+                  holding one line of text, with the icon stranded at the far edge
+                  of the card, hundreds of pixels from the value it labelled.
+                */}
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {(user.province || user.district || user.sector) && user.showLocationOnWelcome && (
+                    <div className="flex items-center gap-3 rounded-xl bg-white/5 border border-white/5 px-3 py-2.5">
+                      <MapPin className="w-4 h-4 text-white/30 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-white/40 text-[11px] leading-tight">Address</p>
+                        <p className="text-white font-semibold text-sm truncate">
+                          {[user.district, user.sector, user.province].filter(Boolean).join(', ')}
+                        </p>
+                      </div>
                     </div>
-                    <MapPin className="w-4 h-4 text-white/25 flex-shrink-0" />
-                  </div>
-                )}
+                  )}
 
-                {user.showPhoneOnWelcome && user.phone && (
-                  <div className="rounded-xl bg-white/5 border border-white/5 px-4 py-3 mb-5 flex items-center justify-between">
-                    <div>
-                      <p className="text-white/40 text-xs mb-0.5">Phone number</p>
-                      <p className="text-white font-semibold text-sm">+{user.phone}</p>
-                    </div>
-                    <Phone className="w-4 h-4 text-white/25 flex-shrink-0" />
-                  </div>
-                )}
+                  {user.showPhoneOnWelcome && user.phone && (
+                    <a
+                      href={`tel:+${user.phone}`}
+                      className="flex items-center gap-3 rounded-xl bg-white/5 border border-white/5 px-3 py-2.5 transition-colors hover:bg-white/10"
+                    >
+                      <Phone className="w-4 h-4 text-white/30 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-white/40 text-[11px] leading-tight">Phone number</p>
+                        <p className="text-white font-semibold text-sm truncate">+{user.phone}</p>
+                      </div>
+                    </a>
+                  )}
+                </div>
 
                 {shouldShowSocialLinks && (
-                <div className="flex gap-3">
+                <div className="flex gap-2 mt-3">
                   {user.socialLinks?.instagram && (
-                    <button onClick={() => handleSocialMediaClick('instagram')} className="w-11 h-11 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors">
+                    <button onClick={() => handleSocialMediaClick('instagram')} className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors">
                       <Instagram className="w-4 h-4 text-white/60" />
                     </button>
                   )}
                   {user.socialLinks?.facebook && (
-                    <button onClick={() => handleSocialMediaClick('facebook')} className="w-11 h-11 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors">
+                    <button onClick={() => handleSocialMediaClick('facebook')} className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors">
                       <Facebook className="w-4 h-4 text-white/60" />
                     </button>
                   )}
                   {user.socialLinks?.twitter && (
-                    <button onClick={() => handleSocialMediaClick('twitter')} className="w-11 h-11 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors">
+                    <button onClick={() => handleSocialMediaClick('twitter')} className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors">
                       <Twitter className="w-4 h-4 text-white/60" />
                     </button>
                   )}
                   {user.socialLinks?.linkedin && (
-                    <button onClick={() => handleSocialMediaClick('linkedin')} className="w-11 h-11 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors">
+                    <button onClick={() => handleSocialMediaClick('linkedin')} className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors">
                       <Linkedin className="w-4 h-4 text-white/60" />
                     </button>
                   )}
@@ -2086,8 +2112,8 @@ const PublicProfileView: React.FC<PublicProfileViewProps> = ({
 
               {/* Friendship request — only when not already friends */}
               {shouldShowFriendshipRequest && (
-                <div className={`rounded-2xl p-5 sm:p-6 border border-white/5 ${accent.bgCard}`}>
-                  <h3 className="text-white font-bold text-lg sm:text-xl mb-3">Friendship request</h3>
+                <div className={`rounded-2xl p-4 sm:p-5 border border-white/5 ${accent.bgCard}`}>
+                  <h3 className="text-white font-semibold text-sm mb-3">Friendship request</h3>
                   <div className="mb-3">
                     <div className="inline-flex items-center gap-2 border border-white/20 rounded-full px-3 py-1.5">
                       <div className={`w-2 h-2 rounded-full ${
@@ -2103,7 +2129,7 @@ const PublicProfileView: React.FC<PublicProfileViewProps> = ({
                       </span>
                     </div>
                   </div>
-                  <p className="text-white/40 text-sm mb-5">Send a friendship request to unlock more private interactions on QC.</p>
+                  <p className="text-white/40 text-xs mb-4">Send a friendship request to unlock more private interactions on QC.</p>
                   {isLoggedIn ? (
                     <button
                       onClick={handleAddFriend}
@@ -2123,15 +2149,15 @@ const PublicProfileView: React.FC<PublicProfileViewProps> = ({
                 </div>
               )}
             </div>
+            )}
           </div>
 
           {/* Join QC footer — non-logged-in */}
           {isHydrated && !isLoggedIn && (
-            <div className={`rounded-2xl p-5 sm:p-6 border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-5 ${accent.bgCard}`}>
+            <div className={`rounded-2xl p-4 sm:p-5 border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-5 ${accent.bgCard}`}>
               <div>
-                <h3 className="text-white font-bold text-lg sm:text-xl mb-1">Join QC</h3>
-                <p className="text-white/40 text-sm">Create an account or log in to access the full QC experience.</p>
-                <p className="text-white/20 text-xs mt-1">Create an account or log in to continue on QC.</p>
+                <h3 className="text-white font-semibold text-sm mb-1">Join QC</h3>
+                <p className="text-white/40 text-xs">Create an account or log in to access the full QC experience.</p>
               </div>
               <div className="flex gap-3 flex-shrink-0">
                 <button onClick={handleSignupClick} className="px-6 py-2.5 border border-white/25 rounded-full text-white text-sm hover:bg-white/10 transition-colors">
@@ -2149,6 +2175,30 @@ const PublicProfileView: React.FC<PublicProfileViewProps> = ({
         {!embedded && isHydrated && isLoggedIn && (
           <div className='lg:hidden'>
             <Navigation />
+          </div>
+        )}
+
+        {/*
+          On a phone the pay button scrolls away with the identity card, and this
+          page exists to be paid from. A signed-out visitor gets it pinned instead.
+          Signed-in users already have the bottom nav in this space, so they do not
+          get one — the two would stack.
+        */}
+        {!embedded && isHydrated && !isLoggedIn && shouldShowSendMoney && (
+          <div className="md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-black/80 backdrop-blur-md px-3 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
+            <div className="flex items-center gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs text-white/40">{isOrg ? 'Pay' : 'Send money to'}</p>
+                <p className="truncate text-sm font-semibold text-white">{user.name}</p>
+              </div>
+              <SendMoneyDialog
+                trigger={
+                  <button className={`flex-shrink-0 h-11 px-6 rounded-xl text-sm font-bold text-white transition-colors ${accent.solid}`}>
+                    {isOrg ? 'Pay' : 'Send money'}
+                  </button>
+                }
+              />
+            </div>
           </div>
         )}
       </div>

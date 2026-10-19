@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import AccountInfo from "./AccountInfo";
 import { Header } from "./Header";
-import { WelcomeSection } from "./WelcomeSection";
+import { WalletHero } from "./Dashboard/WalletHero";
 import { RecentMessages } from "./RecentMessages";
 import { RecentTransactions } from "./RecentTransactions";
 import { useParams, useRouter } from 'next/navigation';
@@ -11,7 +11,6 @@ import Navigation from "./Navigation";
 import { useAuthToken } from '@/hooks/use-auth-token';
 import { useSidebar } from '@/context/SidebarContext';
 import { cn } from '@/lib/utils';
-import { BackButton } from "./shared/BackButton";
 
 export const HomePageLayout = () => {
     const params = useParams();
@@ -193,43 +192,44 @@ export const HomePageLayout = () => {
 
     return (
         <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-transparent">
-            {/* Desktop Sidebar */}
+            {/* Renders the desktop sidebar and the mobile bottom bar — one copy covers both */}
             <Navigation />
 
             {/* Main Content */}
             <main className={cn(
-                "flex-1 flex flex-col p-4 sm:p-6 lg:p-8 transition-all duration-300",
+                "flex-1 flex flex-col p-3 sm:p-4 lg:p-6 transition-all duration-300",
                 isExpanded ? "lg:ml-64" : "lg:ml-20"
             )}>
-                <div className="flex-1 overflow-y-auto pb-28 sm:pb-24 lg:pb-8">
+                {/* Capped so the dashboard stops stretching on wide monitors — unbounded,
+                    the hero pushed the balance and the actions to opposite edges with
+                    a thousand pixels of nothing between them. No effect below 1440px. */}
+                <div className="w-full max-w-[1440px] mx-auto flex-1 overflow-y-auto pb-24 lg:pb-4">
                     {/* Header */}
-                    <div className="mb-4">
+                    <div className="mb-3">
                         <Header />
                     </div>
 
+                    {/* Balance and the four primary actions, full width */}
+                    <WalletHero userId={userId} />
 
-
-                    {/* Welcome Section */}
-                    <WelcomeSection userId={userId} />
-
-                    {/* Content */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 mt-6 sm:mt-8">
-                        <div className="space-y-3 sm:space-y-4 lg:space-y-6">
-                            <AccountInfo userId={userId} />
+                    {/*
+                      Activity takes two thirds; the QR and messages are utilities,
+                      so they sit in a narrower rail rather than splitting the page
+                      down the middle with a full-size QR at the top left.
+                    */}
+                    <div className="mt-4 grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
+                        <div className="space-y-4 lg:col-span-2">
+                            <RecentTransactions />
                             <RecentActions userId={userId} />
                         </div>
-                        <div className="space-y-4 sm:space-y-6 lg:space-y-8">
+                        <div className="space-y-4">
+                            <AccountInfo userId={userId} variant="compact" />
                             <RecentMessages />
-                            <RecentTransactions />
                         </div>
                     </div>
                 </div>
             </main>
 
-            {/* Bottom Navigation for small devices */}
-            <div className="lg:hidden">
-                <Navigation />
-            </div>
         </div>
     );
 };

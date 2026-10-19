@@ -170,6 +170,20 @@ class NotificationService {
     });
   }
 
+  async notifySharedWalletDeposit(data: {
+    amount: number;
+    from: string;
+    chatId: string;
+  }) {
+    await this.notify({
+      type: NotificationType.MONEY,
+      title: '💰 Shared Wallet Deposit',
+      message: `${data.from} deposited $${data.amount.toFixed(2)} into the shared wallet`,
+      url: `${window.location.origin}/transactions`,
+      chatId: data.chatId,
+    });
+  }
+
   async notifyGroupInvitation(data: {
     groupName: string;
     inviterName: string;

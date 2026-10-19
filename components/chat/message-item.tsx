@@ -31,16 +31,37 @@ interface MessageItemProps {
     isPinned?: boolean
     /** Absent when the viewer may not pin here (a group member who isn't an admin) */
     onTogglePin?: (messageId: string, nextPinned: boolean) => void
+    /** Opens a run of messages from one sender — carries the name and the full top corners */
+    isFirstInGroup?: boolean
+    /** Closes that run — carries the avatar, the timestamp and the delivery status */
+    isLastInGroup?: boolean
 }
 
 const SWIPE_REPLY_TRIGGER = 56
 const SWIPE_REPLY_MAX = 72
 
+/**
+ * How wide a bubble may get. Stepped per breakpoint rather than a percentage because
+ * the bubble's parent is a shrink-to-fit flex item — a percentage there resolves
+ * against the text's own width and wraps short messages for no reason.
+ * The md step dips below sm on purpose: that is where the conversation sidebar
+ * appears and the thread column gets narrower, not wider.
+ */
+const BUBBLE_MAX_WIDTH =
+    "max-w-[20rem] sm:max-w-[25rem] md:max-w-[22rem] lg:max-w-[28rem] xl:max-w-[34rem] 2xl:max-w-[40rem]"
+
 function isLegacyMessage(message: Message | LegacyMessage): message is LegacyMessage {
     return 'isMe' in message && 'message' in message;
 }
 
-export default function MessageItem({ message, onReply, isPinned = false, onTogglePin }: MessageItemProps) {
+export default function MessageItem({
+    message,
+    onReply,
+    isPinned = false,
+    onTogglePin,
+    isFirstInGroup = true,
+    isLastInGroup = true,
+}: MessageItemProps) {
     const isLegacy = isLegacyMessage(message);
     const isMe = isLegacy ? message.isMe : (message as any).isMe || false;
 
@@ -210,9 +231,28 @@ export default function MessageItem({ message, onReply, isPinned = false, onTogg
     const activeConversation = activeChat
         ? conversations.find((conversation) => conversation.id === activeChat)
         : null
-    const shouldShowSenderName = Boolean(activeConversation?.isGroup && !isMe)
-    const shouldShowIncomingAvatar = Boolean(activeConversation?.isGroup && !isMe)
+    // In a group, an incoming run is labelled once at the top and signed once at the
+    // bottom — repeating the name and avatar on every message buries the content.
+    const isIncomingGroupMessage = Boolean(activeConversation?.isGroup && !isMe)
+    const shouldShowSenderName = isIncomingGroupMessage && isFirstInGroup
+    const shouldShowIncomingAvatar = isIncomingGroupMessage && isLastInGroup
+    /** Keeps bubbles in a run flush with the one that carries the avatar */
+    const needsAvatarSpacer = isIncomingGroupMessage && !isLastInGroup
     const reactionsAllowed = true
+
+    /**
+     * Square off the corners facing the rest of the run so a group reads as one
+     * block, while the outer corners stay round.
+     */
+    const bubbleRadius = cn(
+        "rounded-2xl",
+        isMe
+            ? cn(!isFirstInGroup && "rounded-tr-md", !isLastInGroup && "rounded-br-md")
+            : cn(!isFirstInGroup && "rounded-tl-md", !isLastInGroup && "rounded-bl-md")
+    )
+
+    /** Tight inside a run, with a clear break between runs */
+    const rowSpacing = isLastInGroup ? "mb-2" : "mb-0.5"
 
     // Aggregate raw reaction rows into display format
     const aggregatedReactions: Reaction[] = useMemo(() => {
@@ -341,10 +381,14 @@ export default function MessageItem({ message, onReply, isPinned = false, onTogg
      * their own delete control. Anything you sent can be taken back, not just text.
      */
     const renderCard = (card: React.ReactNode) => (
-        <div className={cn("mb-4 flex", isMe ? "justify-end" : "justify-start")}>
+        <div className={cn("mb-2 flex", isMe ? "justify-end" : "justify-start")}>
             <div className="group/message relative">
                 {card}
 
+                {/* These hang outside the card, so they hang towards the middle of
+                    the thread. Anchored to the outer edge they pushed past the
+                    scroll container and gave the whole thread a horizontal
+                    scrollbar. */}
                 {canPin && (
                     <button
                         type="button"
@@ -352,7 +396,9 @@ export default function MessageItem({ message, onReply, isPinned = false, onTogg
                         aria-label={isPinned ? "Unpin message" : "Pin message"}
                         className={cn(
                             "absolute -top-1.5 h-6 w-6 rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm transition-opacity hover:text-emerald-600 dark:border-darkBorder-light dark:bg-darkBg-card dark:text-gray-300 dark:hover:text-emerald-400 opacity-100 sm:opacity-0 sm:group-hover/message:opacity-100 flex items-center justify-center",
-                            canDelete ? "-right-8" : "-right-1.5"
+                            isMe
+                                ? (canDelete ? "-left-8" : "-left-1.5")
+                                : (canDelete ? "-right-8" : "-right-1.5")
                         )}
                     >
                         {isPinned ? <PinOff size={11} /> : <Pin size={11} />}
@@ -364,7 +410,10 @@ export default function MessageItem({ message, onReply, isPinned = false, onTogg
                         type="button"
                         onClick={() => setConfirmingDelete(true)}
                         aria-label="Delete message"
-                        className="absolute -top-1.5 -right-1.5 h-6 w-6 rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm transition-opacity hover:text-red-600 dark:border-darkBorder-light dark:bg-darkBg-card dark:text-gray-300 dark:hover:text-red-400 opacity-100 sm:opacity-0 sm:group-hover/message:opacity-100 flex items-center justify-center"
+                        className={cn(
+                            "absolute -top-1.5 h-6 w-6 rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm transition-opacity hover:text-red-600 dark:border-darkBorder-light dark:bg-darkBg-card dark:text-gray-300 dark:hover:text-red-400 opacity-100 sm:opacity-0 sm:group-hover/message:opacity-100 flex items-center justify-center",
+                            isMe ? "-left-1.5" : "-right-1.5"
+                        )}
                     >
                         <Trash2 size={11} />
                     </button>
@@ -625,18 +674,21 @@ export default function MessageItem({ message, onReply, isPinned = false, onTogg
     // A deleted message: same slot in the thread, nothing left of what it said
     if (isDeleted) {
         return (
-            <div className={cn("flex mb-1.5 sm:mb-2", isMe ? "justify-end" : "justify-start")}>
+            <div className={cn("flex items-end", rowSpacing, isMe ? "justify-end" : "justify-start")}>
                 {shouldShowIncomingAvatar && (
-                    <Avatar className="h-7 w-7 mt-0.5 mr-2 flex-shrink-0">
+                    <Avatar className="h-7 w-7 mr-2 flex-shrink-0">
                         {avatar && <AvatarImage src={avatar} alt={senderDisplayName} />}
                         <AvatarFallback className="text-[10px] font-semibold">
                             {getInitials(senderDisplayName)}
                         </AvatarFallback>
                     </Avatar>
                 )}
+                {needsAvatarSpacer && <div className="w-7 mr-2 flex-shrink-0" aria-hidden />}
                 <div
                     className={cn(
-                        "max-w-[18rem] sm:max-w-md rounded-lg border border-dashed px-2.5 py-1.5",
+                        BUBBLE_MAX_WIDTH,
+                        bubbleRadius,
+                        "border border-dashed px-2.5 py-1.5",
                         isMe
                             ? "border-emerald-300/70 bg-[#d9fdd3]/40 dark:border-emerald-800/60 dark:bg-[#2f5f46]/40"
                             : "border-gray-200 bg-gray-50 dark:border-darkBorder-light dark:bg-darkBg-interactive"
@@ -701,15 +753,16 @@ export default function MessageItem({ message, onReply, isPinned = false, onTogg
     }
 
     return (
-        <div className={cn("flex mb-1.5 sm:mb-2", isMe ? "justify-end" : "justify-start")}>
+        <div className={cn("flex items-end", rowSpacing, isMe ? "justify-end" : "justify-start")}>
             {shouldShowIncomingAvatar && (
-                <Avatar className="h-7 w-7 mt-0.5 mr-2 flex-shrink-0">
+                <Avatar className="h-7 w-7 mr-2 flex-shrink-0">
                     {avatar && <AvatarImage src={avatar} alt={senderDisplayName} />}
                     <AvatarFallback className="text-[10px] font-semibold">
                         {getInitials(senderDisplayName)}
                     </AvatarFallback>
                 </Avatar>
             )}
+            {needsAvatarSpacer && <div className="w-7 mr-2 flex-shrink-0" aria-hidden />}
 
             <div className="relative group/message flex items-end gap-1">
                 {!isLegacy && onReply && (
@@ -741,12 +794,14 @@ export default function MessageItem({ message, onReply, isPinned = false, onTogg
                         touchAction: "pan-y",
                     }}
                     className={cn(
-                        "relative max-w-[18rem] sm:max-w-md rounded-lg px-2.5 py-1.5 shadow-sm",
+                        BUBBLE_MAX_WIDTH,
+                        bubbleRadius,
+                        "relative px-3 py-1.5 shadow-sm",
                         isMe ? "bg-[#d9fdd3] text-gray-950 dark:bg-[#2f5f46] dark:text-gray-50" : "bg-white dark:bg-[#1f2c26] border border-gray-100 dark:border-darkBorder-light text-gray-900 dark:text-gray-50",
                         isOldMoneyMessage ? "border-2 border-yellow-400 dark:border-yellow-600" : ""
                     )}
                 >
-                {shouldShowSenderName && <p className="text-[11px] leading-3 font-semibold mb-0.5 text-gray-700 dark:text-gray-300">{senderDisplayName}</p>}
+                {shouldShowSenderName && <p className="text-[11px] leading-4 font-semibold mb-0.5 text-gray-700 dark:text-gray-300">{senderDisplayName}</p>}
 
                 {replyTo && (
                     <div className={cn(
@@ -838,18 +893,22 @@ export default function MessageItem({ message, onReply, isPinned = false, onTogg
                     </>
                 )}
 
-                <div className={cn("flex items-center justify-end gap-1 text-[10px] leading-3 mt-0.5", isMe ? "text-gray-600 dark:text-gray-200" : "text-gray-500 dark:text-gray-500")}>
-                    {!isLegacy && (message as Message).editedAt && (
-                        <span className="italic opacity-70">edited</span>
-                    )}
-                    <span>{timestamp}</span>
-                    {StatusIcon && (
-                        <StatusIcon
-                            size={13}
-                            className={statusTone}
-                        />
-                    )}
-                </div>
+                {/* One timestamp per run, not per message — but anything still in
+                    flight or since edited says so on its own line. */}
+                {(isLastInGroup || isTempMessage || Boolean(!isLegacy && (message as Message).editedAt)) && (
+                    <div className={cn("flex items-center justify-end gap-1 text-[10px] leading-3 mt-0.5", isMe ? "text-gray-600 dark:text-gray-200" : "text-gray-500 dark:text-gray-500")}>
+                        {!isLegacy && (message as Message).editedAt && (
+                            <span className="italic opacity-70">edited</span>
+                        )}
+                        <span>{timestamp}</span>
+                        {StatusIcon && (
+                            <StatusIcon
+                                size={13}
+                                className={statusTone}
+                            />
+                        )}
+                    </div>
+                )}
 
                 {confirmingDelete && (
                     <div className="mt-1.5 rounded-md border border-red-200 bg-red-50 px-2 py-1.5 dark:border-red-900/40 dark:bg-red-900/20">

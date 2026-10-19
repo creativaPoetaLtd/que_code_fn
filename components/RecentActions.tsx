@@ -15,6 +15,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import CreateGroupModal from '@/components/chat/create-group-modal';
 import { toast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+import { DASHBOARD_SURFACE } from './Dashboard/DashboardCard';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -571,11 +573,11 @@ export const RecentActions = ({ userId }: RecentActionsProps) => {
     : tickets.length > 0 || voteItems.length > 0 || pendingContributions.length > 0 || campaigns.length > 0;
 
   return (
-    <div className="bg-white dark:bg-darkBg-card rounded-2xl shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-100 dark:border-darkBorder-light overflow-hidden">
+    <div className={cn(DASHBOARD_SURFACE, "overflow-hidden")}>
 
       {/* Header */}
       <div className="flex justify-between items-center px-4 py-3 border-b border-gray-100 dark:border-darkBorder-light">
-        <h3 className="text-base font-semibold text-[#00313A] dark:text-white">Recent Actions</h3>
+        <h3 className="text-sm font-semibold text-[#00313A] dark:text-white">Recent actions</h3>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -632,11 +634,11 @@ export const RecentActions = ({ userId }: RecentActionsProps) => {
       </div>
 
       {/* Body */}
-      <div className="p-3 space-y-4">
+      <div className="p-3 space-y-3">
         {loading ? (
-          <div className="py-8 text-center text-sm text-gray-400 dark:text-gray-500">Loading…</div>
+          <div className="py-6 text-center text-sm text-gray-400 dark:text-gray-500">Loading…</div>
         ) : !hasContent ? (
-          <div className="py-8 text-center text-sm text-gray-400 dark:text-gray-500">
+          <div className="py-4 text-center text-xs text-gray-400 dark:text-gray-500">
             {isOrganization ? 'No actions yet' : 'No tickets or contributions yet'}
           </div>
         ) : isOrganization ? (

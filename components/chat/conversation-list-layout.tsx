@@ -100,10 +100,10 @@ export default function ConversationListLayout({
     <div
       className={`${
         showOnMobile ? 'flex' : 'hidden'
-      } md:flex flex-col w-full md:w-80 lg:w-96 border-r border-gray-100 dark:border-darkBorder-light bg-white dark:bg-darkBg-card h-full overflow-hidden`}
+      } md:flex flex-col w-full md:w-[19rem] lg:w-80 xl:w-96 flex-shrink-0 border-r border-gray-100 dark:border-darkBorder-light bg-white dark:bg-darkBg-card h-full overflow-hidden`}
     >
       {/* Header - Fixed */}
-      <div className='flex-shrink-0 px-3 pt-3 pb-2 border-b border-gray-100 dark:border-darkBorder-light bg-white dark:bg-darkBg-card space-y-2'>
+      <div className='flex-shrink-0 px-3.5 pt-3 pb-2.5 border-b border-gray-100 dark:border-darkBorder-light bg-white dark:bg-darkBg-card space-y-2.5'>
         <QuickActions
           onAddContact={onAddContact}
           onStartNewChat={() => setIsStartChatModalOpen(true)}
@@ -115,10 +115,10 @@ export default function ConversationListLayout({
       </div>
 
       {/* Tab Navigation */}
-      <div className='flex-shrink-0 border-b border-gray-100 dark:border-darkBorder-light flex'>
+      <div className='flex flex-shrink-0 border-b border-gray-100 dark:border-darkBorder-light'>
         <button
           onClick={() => setActiveTab('chats')}
-          className={`flex-1 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+          className={`flex-1 px-4 py-2 text-[13px] font-semibold border-b-2 -mb-px transition-colors ${
             activeTab === 'chats'
               ? 'text-brand-green dark:text-brand-gold border-brand-green dark:border-brand-gold'
               : 'text-gray-600 dark:text-gray-400 border-transparent hover:text-gray-900 dark:hover:text-gray-300'
@@ -128,7 +128,7 @@ export default function ConversationListLayout({
         </button>
         <button
           onClick={() => setActiveTab('outside-messages')}
-          className={`flex-1 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+          className={`flex-1 px-4 py-2 text-[13px] font-semibold border-b-2 -mb-px transition-colors ${
             activeTab === 'outside-messages'
               ? 'text-brand-green dark:text-brand-gold border-brand-green dark:border-brand-gold'
               : 'text-gray-600 dark:text-gray-400 border-transparent hover:text-gray-900 dark:hover:text-gray-300'
@@ -141,7 +141,7 @@ export default function ConversationListLayout({
       {/* Chats Tab Content */}
       {activeTab === 'chats' && (
         <>
-          <div className='px-3 py-1.5 border-b border-gray-100 dark:border-darkBorder-light'>
+          <div className='flex-shrink-0 px-3.5 py-2 border-b border-gray-100 dark:border-darkBorder-light'>
             <ConversationFilters
               activeFilter={activeFilter}
               onFilterChange={setActiveFilter}
@@ -151,14 +151,14 @@ export default function ConversationListLayout({
             />
           </div>
 
-          {/* Content Area */}
-          <div className='flex-1 overflow-y-auto mobile-bottom-padding'>
+          {/* Content Area — bottom gutter clears the fixed mobile bottom nav */}
+          <div className='flex-1 overflow-y-auto overscroll-contain pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-2'>
             {activeFilter === 'groups' ? (
               // Groups-specific rendering
               groupsLoading ? (
-                <div className='flex items-center justify-center h-32'>
-                  <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-[#00B512]'></div>
-                  <span className='ml-2 text-gray-500'>Loading groups...</span>
+                <div className='flex items-center justify-center gap-2.5 py-10'>
+                  <div className='animate-spin rounded-full h-7 w-7 border-b-2 border-[#00B512]'></div>
+                  <span className='text-sm text-gray-500'>Loading groups...</span>
                 </div>
               ) : (
                 <div>
@@ -169,8 +169,8 @@ export default function ConversationListLayout({
                       {/* Show conversation groups first */}
                       {filteredConversations.length > 0 && (
                         <>
-                          <div className='px-4 py-2 bg-gray-50 border-b border-gray-100'>
-                            <p className='text-xs font-medium text-gray-600 uppercase tracking-wide'>
+                          <div className='sticky top-0 z-10 px-4 py-1.5 bg-gray-50 border-b border-gray-100 dark:bg-darkBg-interactive dark:border-darkBorder-light'>
+                            <p className='text-[11px] font-semibold text-gray-600 uppercase tracking-wider dark:text-gray-400'>
                               Group Conversations (
                               {filteredConversations.length})
                             </p>
@@ -197,37 +197,35 @@ export default function ConversationListLayout({
                       {/* Show additional groups */}
                       {filteredGroups.length > 0 && (
                         <>
-                          <div className='px-4 py-2 bg-gray-50 border-b border-gray-100'>
-                            <p className='text-xs font-medium text-gray-600 uppercase tracking-wide'>
+                          <div className='sticky top-0 z-10 px-4 py-1.5 bg-gray-50 border-b border-gray-100 dark:bg-darkBg-interactive dark:border-darkBorder-light'>
+                            <p className='text-[11px] font-semibold text-gray-600 uppercase tracking-wider dark:text-gray-400'>
                               Available Groups ({filteredGroups.length})
                             </p>
                           </div>
                           {filteredGroups.map((group: any) => (
                             <div
                               key={group.id}
-                              className='p-3 sm:p-4 border-b border-gray-100 dark:border-darkBorder-light cursor-pointer hover:bg-gray-50 dark:hover:bg-darkBg-interactive hover:border-l-2 hover:border-l-brand-green dark:hover:border-l-brand-gold transition-all duration-200'
+                              className='relative px-4 py-2.5 border-b border-gray-100 dark:border-darkBorder-light cursor-pointer transition-colors duration-150 hover:bg-gray-50 dark:hover:bg-darkBg-interactive before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-transparent hover:before:bg-brand-green dark:hover:before:bg-brand-gold'
                               onClick={() => onJoinGroup?.(group)}
                             >
-                              <div className='flex items-center gap-2 sm:gap-3'>
+                              <div className='flex items-center gap-3'>
                                 <div className='relative flex-shrink-0'>
                                   <div className='bg-brand-green dark:bg-brand-gold h-10 w-10 rounded-full flex items-center justify-center text-white dark:text-darkBg-main'>
                                     <Send size={18} />
                                   </div>
                                 </div>
-                                <div className='flex-1 min-w-0'>
-                                  <div className='flex justify-between items-center'>
-                                    <p className='font-medium truncate text-sm sm:text-base'>
+                                <div className='min-w-0 flex-1'>
+                                  <div className='flex items-baseline gap-2'>
+                                    <p className='min-w-0 flex-1 truncate text-[14px] font-semibold leading-[18px]'>
                                       {group.name}
                                     </p>
-                                    <span className='text-xs text-gray-500 whitespace-nowrap ml-1'>
+                                    <span className='shrink-0 whitespace-nowrap text-[11px] leading-[14px] text-gray-500'>
                                       {group.memberCount || 0} members
                                     </span>
                                   </div>
-                                  <div className='flex justify-between items-center mt-1'>
-                                    <p className='text-xs sm:text-sm text-gray-500 truncate max-w-[70%]'>
-                                      {group.description || 'No description'}
-                                    </p>
-                                  </div>
+                                  <p className='mt-1 truncate text-[12px] leading-[16px] text-gray-500 dark:text-gray-400'>
+                                    {group.description || 'No description'}
+                                  </p>
                                 </div>
                               </div>
                             </div>
@@ -236,8 +234,8 @@ export default function ConversationListLayout({
                       )}
                     </div>
                   ) : (
-                    <div className='text-center py-8'>
-                      <p className='text-gray-500 mb-4'>No groups found</p>
+                    <div className='flex flex-col items-center px-6 py-12 text-center'>
+                      <p className='mb-4 text-sm text-gray-500'>No groups found</p>
                       <Button
                         onClick={() => setIsJoinGroupByLinkModalOpen(true)}
                         variant='outline'
@@ -253,9 +251,9 @@ export default function ConversationListLayout({
               )
             ) : // Regular conversations rendering
             isLoading ? (
-              <div className='flex items-center justify-center h-32'>
-                <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-[#00B512]'></div>
-                <span className='ml-2 text-gray-500'>
+              <div className='flex items-center justify-center gap-2.5 py-10'>
+                <div className='animate-spin rounded-full h-7 w-7 border-b-2 border-[#00B512]'></div>
+                <span className='text-sm text-gray-500'>
                   Loading conversations...
                 </span>
               </div>
@@ -269,7 +267,8 @@ export default function ConversationListLayout({
                       onClick={() => onConversationSelect(conversation)}
                     />
 
-                    {/* Quick Send Money Button - Only for users */}
+                    {/* Quick Send Money — takes over the timestamp column on hover,
+                        which fades out so the two never overlap */}
                     {!conversation.isGroup && (
                       <Button
                         variant='ghost'
@@ -278,7 +277,7 @@ export default function ConversationListLayout({
                           e.stopPropagation();
                           onQuickSendMoney(conversation);
                         }}
-                        className='absolute right-4 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-gray-100 dark:hover:bg-darkBg-interactive h-8 w-8'
+                        className='absolute right-2.5 top-1/2 h-8 w-8 -translate-y-1/2 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100 hover:bg-gray-100 dark:hover:bg-darkBg-interactive'
                         aria-label='Quick send money'
                       >
                         <Send

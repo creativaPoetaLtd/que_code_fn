@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(perl -pi -e 's/\\\\Qcn\\(\"flex mb-1.5 sm:mb-2\", isMe\\\\E/cn\\(\"flex mb-1 sm:mb-1.5\", isMe/g; s/\\\\Qcn\\(\"mb-4 flex\", isMe\\\\E/cn\\(\"mb-2 flex\", isMe/g' components/chat/message-item.tsx)",
+      "Bash(perl -pi -e \"s/size=\\\\{40\\\\} className='mb-3 text-gray-400'/size={28} className='mb-2 text-gray-400'/g\" components/chat/empty-state.tsx)",
+      "Bash(perl -i -pe 's/^/    / if $. >= 365 && $. <= 460 && /\\\\S/' components/chat/chat-area.tsx)",
+      "Bash(perl -i -pe 's/setShowMediaModal\\\\\\(false\\\\\\)/closeMediaModal\\(\\)/ if $. == 538 || $. == 561' components/chat/message-input.tsx)",
+      "Bash(perl -i -pe 's/className=\"bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400\"/className=\"rounded-full bg-gray-100 px-2 py-0.5 text-gray-500 dark:bg-gray-800 dark:text-gray-400\"/; s/className=\"bg-amber-100 text-amber-700 dark:bg-amber-900\\\\/40 dark:text-amber-400\"/className=\"rounded-full bg-amber-100 px-2 py-0.5 text-amber-700 dark:bg-amber-900\\\\/40 dark:text-amber-400\"/' components/chat/poll-message-card.tsx)"
+    ]
+  }
+}

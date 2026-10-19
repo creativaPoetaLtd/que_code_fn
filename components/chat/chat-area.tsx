@@ -1,7 +1,7 @@
 "use client"
 
-import { useRef, useEffect, useState } from "react"
-import { Send } from "lucide-react"
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { ChevronDown, Send } from "lucide-react"
 import ChatHeader from "./chat-header"
 import MessageItem from "./message-item"
 import MessageInput from "./message-input"
@@ -48,16 +48,64 @@ function getMessageDate(message: Message | LegacyMessage): Date {
     return new Date()
 }
 
+function getDateKey(date: Date): string {
+    return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
+}
+
+// ─── Message grouping ─────────────────────────────────────────────────────────
+
+/** Consecutive messages from one sender within this window read as a single turn */
+const GROUP_WINDOW_MS = 5 * 60 * 1000
+
+/** Identifies who sent a message, so a run from one person can be grouped */
+function getSenderKey(message: Message | LegacyMessage): string {
+    if ((message as any).isMe === true) return "self"
+    const sender: any = (message as any).sender
+    if (sender && typeof sender === "object") {
+        return String(sender.id ?? sender.userId ?? sender.username ?? sender.email ?? "unknown")
+    }
+    return String(sender ?? "unknown")
+}
+
+/**
+ * Money transfers, polls, locations and the like render as full cards rather than
+ * bubbles, so they stand alone: they neither join the run above them nor let the
+ * message below them join one.
+ */
+function isStandaloneMessage(message: Message | LegacyMessage): boolean {
+    const messageType = (message as any).messageType
+    if (messageType && messageType !== "text") return true
+    const content = (message as any).content
+    return typeof content === "string" && content.trimStart().startsWith("{")
+}
+
+interface MessageRow {
+    message: Message | LegacyMessage
+    key: string
+    date: Date
+    showDateSeparator: boolean
+    isFirstInGroup: boolean
+    isLastInGroup: boolean
+}
+
 // ─── DateSeparator component ──────────────────────────────────────────────────
 
+/**
+ * Sticks to the top of the thread while its day scrolls past, so you always know
+ * what day you're reading. Relies on being a direct child of the scroll container —
+ * a sticky element can't escape its parent's box.
+ */
 function DateSeparator({ date }: { date: Date }) {
     return (
-        <div className="flex items-center gap-3 my-5 px-1 select-none" aria-label={`Messages from ${formatDateLabel(date)}`}>
-            <div className="flex-1 h-px bg-gray-200 dark:bg-darkBorder-medium" />
-            <span className="text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-400 px-4 py-1.5 rounded-full bg-gray-100 dark:bg-darkBg-interactive border border-gray-200 dark:border-darkBorder-light whitespace-nowrap tracking-wide">
+        <div className="sticky top-0 z-20 flex justify-center py-1 select-none pointer-events-none">
+            {/* Fully opaque, not translucent: messages scroll underneath it, and a
+                see-through pill just read as two overlapping labels. */}
+            <span
+                className="rounded-full border border-gray-200 bg-gray-100 px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-gray-500 shadow-sm whitespace-nowrap dark:border-darkBorder-light dark:bg-darkBg-interactive dark:text-gray-400"
+                aria-label={`Messages from ${formatDateLabel(date)}`}
+            >
                 {formatDateLabel(date)}
             </span>
-            <div className="flex-1 h-px bg-gray-200 dark:bg-darkBorder-medium" />
         </div>
     )
 }
@@ -181,9 +229,97 @@ export default function ChatArea({
         setTimeout(() => setHighlightedId(current => (current === messageId ? null : current)), 2000)
     }
 
-    useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+    // Precompute where each message sits in its sender's run, so a burst of messages
+    // reads as one turn instead of a stack of identical islands.
+    const rows = useMemo<MessageRow[]>(() => {
+        const list = messages as Array<Message | LegacyMessage>
+        return list.map((message, index) => {
+            const date = getMessageDate(message)
+            const dateKey = getDateKey(date)
+            const previous = list[index - 1]
+            const next = list[index + 1]
+            const standalone = isStandaloneMessage(message)
+
+            const showDateSeparator =
+                !previous || getDateKey(getMessageDate(previous)) !== dateKey
+
+            const joinsPrevious =
+                Boolean(previous) &&
+                !showDateSeparator &&
+                !standalone &&
+                !isStandaloneMessage(previous) &&
+                getSenderKey(previous) === getSenderKey(message) &&
+                date.getTime() - getMessageDate(previous).getTime() < GROUP_WINDOW_MS
+
+            const nextStartsNewDay =
+                Boolean(next) && getDateKey(getMessageDate(next)) !== dateKey
+
+            const joinsNext =
+                Boolean(next) &&
+                !nextStartsNewDay &&
+                !standalone &&
+                !isStandaloneMessage(next) &&
+                getSenderKey(next) === getSenderKey(message) &&
+                getMessageDate(next).getTime() - date.getTime() < GROUP_WINDOW_MS
+
+            return {
+                message,
+                // LegacyMessage ids can be numeric; pins are keyed by string
+                key: String(message.id),
+                date,
+                showDateSeparator,
+                isFirstInGroup: !joinsPrevious,
+                isLastInGroup: !joinsNext,
+            }
+        })
     }, [messages])
+
+    // ── Scroll position ───────────────────────────────────────────────────────
+    // Following the thread should not mean being yanked away from history: new
+    // messages only pull the view down when you were already at the bottom.
+    const scrollRef = useRef<HTMLDivElement>(null)
+    const atBottomRef = useRef(true)
+    const openConversationRef = useRef<string | null>(null)
+    const [isAwayFromLatest, setIsAwayFromLatest] = useState(false)
+    const [hasUnseenBelow, setHasUnseenBelow] = useState(false)
+
+    const handleScroll = useCallback(() => {
+        const el = scrollRef.current
+        if (!el) return
+        const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120
+        atBottomRef.current = atBottom
+        setIsAwayFromLatest(!atBottom)
+        if (atBottom) setHasUnseenBelow(false)
+    }, [])
+
+    const jumpToLatest = useCallback(() => {
+        atBottomRef.current = true
+        setIsAwayFromLatest(false)
+        setHasUnseenBelow(false)
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
+    }, [])
+
+    useEffect(() => {
+        const el = scrollRef.current
+        if (!el) return
+
+        // Opening a conversation lands at the latest message outright — animating
+        // through the whole history is just a long crawl.
+        if (openConversationRef.current !== conversation.id) {
+            openConversationRef.current = conversation.id
+            atBottomRef.current = true
+            setIsAwayFromLatest(false)
+            setHasUnseenBelow(false)
+            el.scrollTop = el.scrollHeight
+            return
+        }
+
+        if (atBottomRef.current) {
+            messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
+        } else {
+            setHasUnseenBelow(true)
+        }
+    }, [messages, conversation.id])
 
     return (
         <div
@@ -227,80 +363,104 @@ export default function ChatArea({
                 />
             </div>
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-3 sm:p-4">
-                {messages.length > 0 ? (
-                    <>
-                        {(() => {
-                            let lastDateKey = ""
-                            return (messages as Array<Message | LegacyMessage>).map((message) => {
-                                const msgDate   = getMessageDate(message)
-                                const dateKey   = `${msgDate.getFullYear()}-${msgDate.getMonth()}-${msgDate.getDate()}`
-                                const showSep   = dateKey !== lastDateKey
-                                lastDateKey     = dateKey
-
-                                // LegacyMessage ids can be numeric; pins are keyed by string
-                                const messageKey = String(message.id)
-
-                                return (
-                                    <div key={messageKey}>
-                                        {showSep && <DateSeparator date={msgDate} />}
-                                        <div
-                                            ref={node => { messageRefs.current[messageKey] = node }}
-                                            className={`mb-0.5 rounded-lg transition-colors duration-500 ${
-                                                highlightedId === messageKey
-                                                    ? "bg-emerald-100/60 dark:bg-emerald-900/20"
-                                                    : ""
-                                            }`}
-                                        >
-                                            <MessageItem
-                                                message={message}
-                                                onReply={(reply) => setReplyToMessage(reply)}
-                                                isPinned={pinnedIds.has(messageKey)}
-                                                onTogglePin={canPin ? handleTogglePin : undefined}
-                                            />
-                                        </div>
+            <div className="relative flex min-h-0 flex-1">
+                <div
+                    ref={scrollRef}
+                    onScroll={handleScroll}
+                    // overflow-x-hidden: nothing in a thread should scroll sideways,
+                    // and a single overhanging control shouldn't be able to cause it
+                    className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-2.5 py-2 sm:px-4 sm:py-2.5"
+                >
+                    {messages.length > 0 ? (
+                        <>
+                            {rows.map(({ message, key, date, showDateSeparator, isFirstInGroup, isLastInGroup }) => (
+                                // Separator and message are siblings, not nested: sticky
+                                // positioning is bounded by the parent element's box.
+                                <Fragment key={key}>
+                                    {showDateSeparator && <DateSeparator date={date} />}
+                                    <div
+                                        ref={node => { messageRefs.current[key] = node }}
+                                        className={`rounded-lg transition-colors duration-500 ${
+                                            highlightedId === key
+                                                ? "bg-emerald-100/60 dark:bg-emerald-900/20"
+                                                : ""
+                                        }`}
+                                    >
+                                        <MessageItem
+                                            message={message}
+                                            onReply={(reply) => setReplyToMessage(reply)}
+                                            isPinned={pinnedIds.has(key)}
+                                            onTogglePin={canPin ? handleTogglePin : undefined}
+                                            isFirstInGroup={isFirstInGroup}
+                                            isLastInGroup={isLastInGroup}
+                                        />
                                     </div>
-                                )
-                            })
-                        })()}
+                                </Fragment>
+                            ))}
 
-                        {typingUsers.length > 0 && (
-                            <div className="flex items-center gap-2 p-3 bg-white dark:bg-darkBg-card rounded-lg border border-gray-100 dark:border-darkBorder-light mb-4">
-                                <div className="flex space-x-1">
-                                    <div className="w-2 h-2 bg-brand-green dark:bg-brand-gold rounded-full animate-bounce" />
-                                    <div
-                                        className="w-2 h-2 bg-brand-green dark:bg-brand-gold rounded-full animate-bounce"
-                                        style={{ animationDelay: "0.1s" }}
-                                    />
-                                    <div
-                                        className="w-2 h-2 bg-brand-green dark:bg-brand-gold rounded-full animate-bounce"
-                                        style={{ animationDelay: "0.2s" }}
-                                    />
+                            {typingUsers.length > 0 && (
+                                <div className="mt-1 inline-flex items-center gap-2 rounded-full bg-white dark:bg-darkBg-card px-3 py-1.5 border border-gray-100 dark:border-darkBorder-light">
+                                    <div className="flex space-x-1">
+                                        <div className="w-2 h-2 bg-brand-green dark:bg-brand-gold rounded-full animate-bounce" />
+                                        <div
+                                            className="w-2 h-2 bg-brand-green dark:bg-brand-gold rounded-full animate-bounce"
+                                            style={{ animationDelay: "0.1s" }}
+                                        />
+                                        <div
+                                            className="w-2 h-2 bg-brand-green dark:bg-brand-gold rounded-full animate-bounce"
+                                            style={{ animationDelay: "0.2s" }}
+                                        />
+                                    </div>
+                                    <span className="text-xs text-gray-600 dark:text-gray-400">
+                                        {typingUsers.length === 1
+                                            ? "Someone is typing..."
+                                            : `${typingUsers.length} people are typing...`}
+                                    </span>
                                 </div>
-                                <span className="text-sm text-gray-600 dark:text-gray-400">
-                                    {typingUsers.length === 1
-                                        ? "Someone is typing..."
-                                        : `${typingUsers.length} people are typing...`}
-                                </span>
-                            </div>
-                        )}
+                            )}
 
-                        <div ref={messagesEndRef} className="h-4" />
-                    </>
-                ) : (
-                    <div className="flex items-center justify-center h-full text-gray-600 dark:text-gray-400">
-                        <div className="bg-white dark:bg-darkBg-card rounded-lg p-8 shadow-md border border-gray-100 dark:border-darkBorder-light text-center max-w-md">
-                            <div className="w-16 h-16 bg-brand-green/10 dark:bg-brand-gold/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <Send size={24} className="text-brand-green dark:text-brand-gold" />
+                            <div ref={messagesEndRef} className="h-1" />
+                        </>
+                    ) : (
+                        <div className="flex items-center justify-center h-full px-4 text-gray-600 dark:text-gray-400">
+                            <div className="bg-white dark:bg-darkBg-card rounded-xl px-6 py-5 shadow-sm border border-gray-100 dark:border-darkBorder-light text-center max-w-sm">
+                                <div className="w-11 h-11 bg-brand-green/10 dark:bg-brand-gold/10 rounded-full flex items-center justify-center mx-auto mb-2.5">
+                                    <Send size={18} className="text-brand-green dark:text-brand-gold" />
+                                </div>
+                                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                                    No messages yet
+                                </h3>
+                                <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
+                                    Send a message to start the conversation.
+                                </p>
                             </div>
-                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                                No messages yet
-                            </h3>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
-                                Send a message to start the conversation.
-                            </p>
                         </div>
-                    </div>
+                    )}
+                </div>
+
+                {/* Back to the latest message, with a nudge when something arrived
+                    while you were reading further up */}
+                {isAwayFromLatest && messages.length > 0 && (
+                    <button
+                        type="button"
+                        onClick={jumpToLatest}
+                        aria-label={hasUnseenBelow ? "Jump to new messages" : "Jump to latest message"}
+                        className="absolute bottom-3 right-3 z-20 flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-2.5 py-1.5 shadow-md transition-colors hover:bg-gray-50 dark:border-darkBorder-light dark:bg-darkBg-card dark:hover:bg-darkBg-interactive"
+                    >
+                        <ChevronDown
+                            size={16}
+                            className={
+                                hasUnseenBelow
+                                    ? "text-brand-green dark:text-brand-gold"
+                                    : "text-gray-500 dark:text-gray-400"
+                            }
+                        />
+                        {hasUnseenBelow && (
+                            <span className="text-[11px] font-semibold text-brand-green dark:text-brand-gold">
+                                New
+                            </span>
+                        )}
+                    </button>
                 )}
             </div>
 
