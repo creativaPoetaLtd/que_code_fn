@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
-import { Bell, Users, UserPlus, Check, X, Clock, AlertCircle, Info, Loader2, MessageCircle, Image, Video, Music, File, DollarSign, UserMinus, UserCheck, UserX, ShieldCheck, ShieldAlert, Settings, Trash2, HandCoins, WalletCards } from "lucide-react"
+import { Bell, Users, UserPlus, Check, X, Clock, AlertCircle, Info, Loader2, MessageCircle, Image as ImageIcon, Video, Music, File, DollarSign, UserMinus, UserCheck, UserX, ShieldCheck, ShieldAlert, Settings, Trash2, HandCoins, WalletCards, Receipt } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useNotifications } from "@/context/NotificationContext"
 import { useAuthToken } from "@/hooks/use-auth-token"
@@ -152,6 +152,18 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
             case 'SHARED_WALLET_POLICY_CHANGE_DECLINED':
                 return <WalletCards className="h-4 w-4 text-red-500" />
 
+            // Split payment (bill) notifications
+            case 'BILL_SHARE_ASSIGNED':
+            case 'BILL_REMINDER':
+                return <Receipt className="h-4 w-4 text-amber-500" />
+            case 'BILL_SHARE_PAID':
+            case 'BILL_SHARE_COVERED':
+            case 'BILL_COMPLETED':
+                return <Receipt className="h-4 w-4 text-green-500" />
+            case 'BILL_SHARE_DECLINED':
+            case 'BILL_CANCELLED':
+                return <Receipt className="h-4 w-4 text-red-500" />
+
             // Contact notifications
             case 'CONTACT_REQUEST_RECEIVED':
             case 'contact_request':
@@ -185,7 +197,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
                 return <MessageCircle className="h-4 w-4 text-blue-500" />
             case 'CHAT_MESSAGE_IMAGE':
             case 'chat_message_image':
-                return <Image className="h-4 w-4 text-green-500" />
+                return <ImageIcon className="h-4 w-4 text-green-500" />
             case 'CHAT_MESSAGE_VIDEO':
             case 'chat_message_video':
                 return <Video className="h-4 w-4 text-purple-500" />
@@ -697,11 +709,11 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
                                                 </p>
                                             </div>
                                             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mt-0.5 truncate">
-                                                wants to join "{request.group?.name}"
+                                                wants to join &ldquo;{request.group?.name}&rdquo;
                                             </p>
                                             {request.additionalInfo && (
                                                 <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mt-1 italic line-clamp-2">
-                                                    "{request.additionalInfo}"
+                                                    &ldquo;{request.additionalInfo}&rdquo;
                                                 </p>
                                             )}
 

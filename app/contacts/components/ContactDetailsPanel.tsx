@@ -294,7 +294,8 @@ export function ContactDetailsPanel({ contact, isOpen, onClose }: ContactDetails
                                                         ? "text-gray-900 dark:text-white"
                                                         : "text-brand-green dark:text-brand-gold"
                                                 )}>
-                                                    {txn.senderWallet?.userId === userId ? '-' : '+'}RWF {parseFloat(txn.amount).toLocaleString()}
+                                                    {/* A covered split share came from their wallet, not yours: no +/- */}
+                                                    {txn.coveredShare ? '' : txn.senderWallet?.userId === userId ? '-' : '+'}RWF {parseFloat(txn.amount).toLocaleString()}
                                                 </span>
                                             </button>
                                         ))

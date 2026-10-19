@@ -10,6 +10,7 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { TransactionDetailsModal } from '@/components/TransactionDetailsModal';
 import { cn } from '@/lib/utils';
 import { DASHBOARD_SURFACE } from './Dashboard/DashboardCard';
+import SplitBillHistoryDialog, { splitBillRowInfo } from '@/components/bills/SplitBillHistoryDialog';
 
 export const RecentTransactions: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -93,6 +94,20 @@ export const RecentTransactions: React.FC = () => {
   };
 
   const getTransactionDisplayInfo = (transaction: Transaction) => {
+    const split = splitBillRowInfo(transaction);
+    if (split) {
+      return {
+        amount: split.amount,
+        counterpartyName: split.title,
+        transactionType: 'Split',
+        isOutgoing: false,
+        isToOrganization: false,
+        status: transaction.status || 'completed',
+        counterpartyProfileImage: undefined as string | undefined,
+        split,
+      };
+    }
+
     // Determine if it's outgoing based on sender ownership matching current identity
     const isOutgoing =
       transaction.senderWallet?.userId === currentUserId ||
@@ -139,7 +154,7 @@ export const RecentTransactions: React.FC = () => {
     const status = transaction.status || 'completed'; // 'completed', 'pending', 'failed'
     const transactionType = isOutgoing ? 'Sent' : 'Received';
 
-    return { amount, counterpartyName, transactionType, isOutgoing, isToOrganization, status, counterpartyProfileImage };
+    return { amount, counterpartyName, transactionType, isOutgoing, isToOrganization, status, counterpartyProfileImage, split: null };
   };
 
   if (loading) {
@@ -201,7 +216,11 @@ export const RecentTransactions: React.FC = () => {
       {/* Mobile & Desktop List View */}
       <div className="divide-y divide-gray-100 dark:divide-darkBorder-light">
         {displayedTransactions.map((transaction) => {
-          const { amount, counterpartyName, transactionType, isOutgoing, isToOrganization, status, counterpartyProfileImage } = getTransactionDisplayInfo(transaction);
+          const { amount, counterpartyName, transactionType, isOutgoing, isToOrganization, status, counterpartyProfileImage, split } = getTransactionDisplayInfo(transaction);
+          const sign = split ? split.sign : isOutgoing ? '-' : '+';
+          const amountColor = split?.sign === ''
+            ? 'text-gray-500 dark:text-gray-400'
+            : isOutgoing ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400';
 
           // Determine circle color based on transaction type
           const getCircleColor = () => {
@@ -262,31 +281,34 @@ export const RecentTransactions: React.FC = () => {
                 </div>
 
                 <div className="flex flex-shrink-0 items-center gap-1.5">
-                  <span className={`whitespace-nowrap text-[13px] font-semibold tabular-nums sm:text-sm ${isOutgoing ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                    {isOutgoing ? '-' : '+'} RWF {isNaN(Math.abs(amount)) ? '0' : Math.abs(amount).toLocaleString()}
+                  <span className={`whitespace-nowrap text-[13px] font-semibold tabular-nums sm:text-sm ${amountColor}`}>
+                    {sign} RWF {isNaN(Math.abs(amount)) ? '0' : Math.abs(amount).toLocaleString()}
                   </span>
                   {/* Hidden until hover on pointer devices; always visible on touch,
-                      where there is no hover to reveal it */}
-                  <button
-                      onClick={(e) => {
-                          e.stopPropagation();
-                          const recipientData = {
-                              id: isOutgoing ? transaction.receiverWallet?.userId : transaction.senderWallet?.userId,
-                              name: counterpartyName,
-                              phone: '',
-                              avatar: counterpartyProfileImage || '',
-                              type: isToOrganization ? 'organization' : 'user'
-                          };
-                          sessionStorage.setItem('selectedRecipient', JSON.stringify(recipientData));
-                          sessionStorage.setItem('initialAmount', transaction.amount.toString());
-                          router.push('/home/transfer/amount');
-                      }}
-                      title="Send again"
-                      aria-label="Send again"
-                      className="rounded-full p-1.5 text-gray-400 opacity-100 transition hover:text-blue-600 focus-visible:opacity-100 sm:opacity-0 sm:group-hover/txn:opacity-100 dark:hover:text-blue-400"
-                  >
-                      <RefreshCcw size={14} />
-                  </button>
+                      where there is no hover to reveal it. Not shown for a split-bill
+                      row — there's nothing to "send again" for a bill split. */}
+                  {!split && (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            const recipientData = {
+                                id: isOutgoing ? transaction.receiverWallet?.userId : transaction.senderWallet?.userId,
+                                name: counterpartyName,
+                                phone: '',
+                                avatar: counterpartyProfileImage || '',
+                                type: isToOrganization ? 'organization' : 'user'
+                            };
+                            sessionStorage.setItem('selectedRecipient', JSON.stringify(recipientData));
+                            sessionStorage.setItem('initialAmount', transaction.amount.toString());
+                            router.push('/home/transfer/amount');
+                        }}
+                        title="Send again"
+                        aria-label="Send again"
+                        className="rounded-full p-1.5 text-gray-400 opacity-100 transition hover:text-blue-600 focus-visible:opacity-100 sm:opacity-0 sm:group-hover/txn:opacity-100 dark:hover:text-blue-400"
+                    >
+                        <RefreshCcw size={14} />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -295,7 +317,10 @@ export const RecentTransactions: React.FC = () => {
       </div>
 
       {/* Transaction Details Modal */}
-      {selectedTransaction && (
+      {selectedTransaction && splitBillRowInfo(selectedTransaction) && (
+        <SplitBillHistoryDialog transaction={selectedTransaction} onClose={() => setSelectedTransaction(null)} />
+      )}
+      {selectedTransaction && !splitBillRowInfo(selectedTransaction) && (
         <TransactionDetailsModal
           transaction={selectedTransaction}
           currentUserId={currentUserId}

@@ -12,6 +12,7 @@ import { useGetAcceptedContactsQuery } from '@/states/contactSlice';
 import { Combobox } from '@/components/ui/combobox';
 import { X } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import SplitBillHistoryDialog, { splitBillRowInfo } from '@/components/bills/SplitBillHistoryDialog';
 
 interface TransactionListProps {
   transactions?: Transaction[];
@@ -182,6 +183,19 @@ const TransactionListInner = ({ transactions: propTransactions, toolbarInHeader 
   };
 
   const getTransactionDisplayInfo = (transaction: Transaction) => {
+    const split = splitBillRowInfo(transaction);
+    if (split) {
+      return {
+        amount: split.amount,
+        counterpartyName: split.title,
+        counterpartyEmail: split.subtitle,
+        counterpartyProfileImage: undefined as string | undefined,
+        counterpartyType: 'group' as const,
+        isOutgoing: false,
+        split,
+      };
+    }
+
     // Determine if it's outgoing based on sender ownership matching current identity
     const isOutgoing =
       transaction.senderWallet?.userId === currentUserId ||
@@ -224,7 +238,21 @@ const TransactionListInner = ({ transactions: propTransactions, toolbarInHeader 
       counterpartyName = transaction.description || (isOutgoing ? 'Money Sent' : 'Money Received');
     }
 
-    return { amount, counterpartyName, counterpartyEmail, counterpartyProfileImage, counterpartyType, isOutgoing };
+    return { amount, counterpartyName, counterpartyEmail, counterpartyProfileImage, counterpartyType, isOutgoing, split: null };
+  };
+
+  // A covered share was paid from someone else's wallet: shown without +/- in a neutral color.
+  const amountStyle = (amount: number, split: ReturnType<typeof splitBillRowInfo>) => {
+    if (split) {
+      return {
+        sign: split.sign,
+        amountClass: split.sign === '' ? 'text-gray-500 dark:text-gray-400' : 'text-green-600 dark:text-green-400',
+      };
+    }
+    return {
+      sign: amount < 0 ? '-' : '+',
+      amountClass: amount < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400',
+    };
   };
 
   useEffect(() => {
@@ -434,7 +462,8 @@ const TransactionListInner = ({ transactions: propTransactions, toolbarInHeader 
           </thead>
           <tbody>
             {filteredTransactions.map((transaction) => {
-              const { amount, counterpartyName, counterpartyEmail, counterpartyProfileImage, counterpartyType, isOutgoing } = getTransactionDisplayInfo(transaction);
+              const { amount, counterpartyName, counterpartyEmail, counterpartyProfileImage, counterpartyType, isOutgoing, split } = getTransactionDisplayInfo(transaction);
+              const { sign, amountClass } = amountStyle(amount, split);
               const isSelected = selectedTransactions.has(transaction.id);
               const sourceLabel = transaction.senderSubActionId ? 'Sub-Action Wallet' : 'Wallet';
               const destinationLabel = (transaction.resolvedReceiverWalletId || transaction.receiverWalletId) ? 'Wallet' : 'Account';
@@ -463,10 +492,10 @@ const TransactionListInner = ({ transactions: propTransactions, toolbarInHeader 
                       </div>
                     </div>
                   </td>
-                  <td className="py-4 px-4 text-sm text-gray-600 dark:text-gray-300">{isOutgoing ? 'Payment Sent' : 'Payment Received'}</td>
+                  <td className="py-4 px-4 text-sm text-gray-600 dark:text-gray-300">{split ? (split.sign === '' ? 'Covered for you' : 'Split payment') : isOutgoing ? 'Payment Sent' : 'Payment Received'}</td>
                   <td className="py-4 px-4">
-                    <span className={`text-sm font-semibold ${amount < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                      {amount < 0 ? '-' : '+'}RWF {isNaN(Math.abs(amount)) ? '0' : Math.abs(amount).toLocaleString()}
+                    <span className={`text-sm font-semibold ${amountClass}`}>
+                      {sign}RWF {isNaN(Math.abs(amount)) ? '0' : Math.abs(amount).toLocaleString()}
                     </span>
                   </td>
                   <td className="py-4 px-4">
@@ -491,20 +520,24 @@ const TransactionListInner = ({ transactions: propTransactions, toolbarInHeader 
                     >
                       View
                     </button>
-                    <button
-                      onClick={() => handleResend(transaction)}
-                      title="Resend"
-                      className="p-1 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors"
-                    >
-                      <RefreshCcw className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleChat(transaction)}
-                      title="Chat"
-                      className="p-1 text-gray-500 hover:text-green-600 dark:text-gray-400 dark:hover:text-green-400 transition-colors"
-                    >
-                      <MessageCircle className="w-4 h-4" />
-                    </button>
+                    {!split && (
+                      <>
+                        <button
+                          onClick={() => handleResend(transaction)}
+                          title="Resend"
+                          className="p-1 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors"
+                        >
+                          <RefreshCcw className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleChat(transaction)}
+                          title="Chat"
+                          className="p-1 text-gray-500 hover:text-green-600 dark:text-gray-400 dark:hover:text-green-400 transition-colors"
+                        >
+                          <MessageCircle className="w-4 h-4" />
+                        </button>
+                      </>
+                    )}
                   </td>
                 </tr>
               );
@@ -531,7 +564,8 @@ const TransactionListInner = ({ transactions: propTransactions, toolbarInHeader 
           <span className="text-sm text-gray-600 dark:text-gray-400">Select all</span>
         </div>
         {filteredTransactions.map((transaction) => {
-          const { amount, counterpartyName, counterpartyEmail, counterpartyProfileImage, counterpartyType, isOutgoing } = getTransactionDisplayInfo(transaction);
+          const { amount, counterpartyName, counterpartyEmail, counterpartyProfileImage, counterpartyType, isOutgoing, split } = getTransactionDisplayInfo(transaction);
+              const { sign, amountClass } = amountStyle(amount, split);
           const isSelected = selectedTransactions.has(transaction.id);
           return (
             <div key={transaction.id} className="border border-gray-200 dark:border-darkBorder-light rounded-lg p-4 bg-gray-50 dark:bg-darkBg-interactive">
@@ -554,8 +588,8 @@ const TransactionListInner = ({ transactions: propTransactions, toolbarInHeader 
                     <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{counterpartyEmail}</div>
                   </div>
                 </div>
-                <span className={`text-sm font-semibold shrink-0 ${amount < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                  {amount < 0 ? '-' : '+'}RWF {isNaN(Math.abs(amount)) ? '0' : Math.abs(amount).toLocaleString()}
+                <span className={`text-sm font-semibold shrink-0 ${amountClass}`}>
+                  {sign}RWF {isNaN(Math.abs(amount)) ? '0' : Math.abs(amount).toLocaleString()}
                 </span>
               </div>
               <div className="mt-3 flex items-center justify-between gap-2">
@@ -566,7 +600,7 @@ const TransactionListInner = ({ transactions: propTransactions, toolbarInHeader 
                   }`}>
                     {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
                   </span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">{isOutgoing ? 'Sent' : 'Received'}</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">{split ? (split.sign === '' ? 'Covered for you' : 'Split payment') : isOutgoing ? 'Sent' : 'Received'}</span>
                   <span className="text-xs text-gray-400 dark:text-gray-500">
                     {new Date(transaction.createdAt).toLocaleDateString('en-US', {
                       month: 'short',
@@ -581,7 +615,7 @@ const TransactionListInner = ({ transactions: propTransactions, toolbarInHeader 
                 >
                   View
                 </button>
-                <div className="flex gap-2">
+                <div className={`flex gap-2 ${split ? 'invisible' : ''}`}>
                   <button
                     onClick={() => handleResend(transaction)}
                     className="p-2 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-full"
@@ -606,8 +640,14 @@ const TransactionListInner = ({ transactions: propTransactions, toolbarInHeader 
         )}
       </div>
 
-      <Dialog open={!!selectedTransaction} onOpenChange={(isOpen) => !isOpen && setOpenTransactionId(null)}>
-        {selectedTransaction && selectedTransactionDisplay && (
+      {selectedTransaction && selectedTransactionDisplay?.split && (
+        <SplitBillHistoryDialog transaction={selectedTransaction} onClose={() => setOpenTransactionId(null)} />
+      )}
+      <Dialog
+        open={!!selectedTransaction && !selectedTransactionDisplay?.split}
+        onOpenChange={(isOpen) => !isOpen && setOpenTransactionId(null)}
+      >
+        {selectedTransaction && selectedTransactionDisplay && !selectedTransactionDisplay.split && (
           <DialogContent className="bg-white dark:bg-darkBg-card border dark:border-darkBorder-light">
             <DialogHeader>
               <DialogTitle className="text-gray-900 dark:text-white">Transaction Details</DialogTitle>
