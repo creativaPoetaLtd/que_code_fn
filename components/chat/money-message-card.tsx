@@ -37,7 +37,7 @@ interface MoneyRequestData {
     amount: number;
     currency: string;
     note?: string;
-    status: 'pending' | 'paid' | 'cancelled' | 'expired';
+    status: 'pending' | 'paid' | 'declined' | 'cancelled' | 'expired';
     allowEditAmount?: boolean;
     senderId?: string;
     recipientId?: string;
@@ -103,7 +103,8 @@ function MoneyRequestCard({ data, isMe, chatId }: { data: MoneyRequestData; isMe
     const canAct = isRecipient && status === 'pending';
     const isPending = status === 'pending';
     const isPaid = status === 'paid';
-    const isCancelled = status === 'cancelled' || status === 'expired';
+    // Declined by the payer, cancelled by the requester, or expired unpaid.
+    const isCancelled = status === 'declined' || status === 'cancelled' || status === 'expired';
 
     // ── Status pill ────────────────────────────────────────────────────────────
     const statusPill = () => {
@@ -114,7 +115,7 @@ function MoneyRequestCard({ data, isMe, chatId }: { data: MoneyRequestData; isMe
         );
         if (isCancelled) return (
             <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
-                <Ban className="w-2.5 h-2.5" /> {status === 'expired' ? 'Expired' : 'Declined'}
+                <Ban className="w-2.5 h-2.5" /> {status === 'expired' ? 'Expired' : status === 'declined' ? 'Declined' : 'Cancelled'}
             </span>
         );
         return (
@@ -181,7 +182,7 @@ function MoneyRequestCard({ data, isMe, chatId }: { data: MoneyRequestData; isMe
             const res: any = await declinePaymentRequest(data.requestId, chatId);
             const payload = res?.data ?? res;
             if (payload?.success) {
-                setStatus('cancelled');
+                setStatus('declined');
                 setStep('idle');
                 toast({ title: 'Request declined' });
             } else {
@@ -262,7 +263,7 @@ function MoneyRequestCard({ data, isMe, chatId }: { data: MoneyRequestData; isMe
             {/* Note */}
             {data.note && (
                 <div className="mx-3 mb-2 px-2 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border-l-2 border-amber-400">
-                    <p className="text-[11px] text-gray-600 dark:text-gray-300 italic line-clamp-2">"{data.note}"</p>
+                    <p className="text-[11px] text-gray-600 dark:text-gray-300 italic line-clamp-2">&ldquo;{data.note}&rdquo;</p>
                 </div>
             )}
 
@@ -491,7 +492,7 @@ function MoneyTransferCard({ data, isMe }: { data: MoneyTransferData; isMe: bool
             {/* Note */}
             {data.note && (
                 <div className="mx-3 mb-2 px-2 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border-l-2 border-amber-400">
-                    <p className="text-[11px] text-gray-600 dark:text-gray-300 italic line-clamp-2">"{data.note}"</p>
+                    <p className="text-[11px] text-gray-600 dark:text-gray-300 italic line-clamp-2">&ldquo;{data.note}&rdquo;</p>
                 </div>
             )}
 

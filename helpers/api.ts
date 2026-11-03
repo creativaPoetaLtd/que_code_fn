@@ -331,52 +331,62 @@ export const getAllUsers = async () => {
   return res.data;
 };
 
+// A user's (or organization's) wallet id never changes, so look it up once per account.
+const historyWalletIds = new Map<string, Promise<string>>();
+
+const getHistoryWalletId = (userId: string): Promise<string> => {
+  let walletId = historyWalletIds.get(userId);
+  if (!walletId) {
+    walletId = (async () => {
+      let walletResponse;
+      try {
+        walletResponse = await getUserWallet(userId);
+      } catch {
+        walletResponse = await getOrganizationWallet(userId);
+      }
+      if (!walletResponse.success) {
+        throw new Error('Could not fetch wallet information');
+      }
+      return walletResponse.data.walletId as string;
+    })();
+    // Don't cache a failed lookup.
+    walletId.catch(() => historyWalletIds.delete(userId));
+    historyWalletIds.set(userId, walletId);
+  }
+  return walletId;
+};
+
+export type TransactionHistoryKind = 'sent' | 'received' | 'contribution' | 'topup' | 'withdrawal' | 'split';
+
 export const getTransactionHistory = async (userId: string, params?: {
   page?: number;
   limit?: number;
   type?: string;
+  kind?: TransactionHistoryKind;
   status?: string;
   search?: string;
   startDate?: string;
   endDate?: string;
   contactId?: string;
-}) => {
-  let walletResponse;
-  try {
-    walletResponse = await getUserWallet(userId);
-  } catch {
-    walletResponse = await getOrganizationWallet(userId);
-  }
-
-  if (!walletResponse.success) {
-    throw new Error('Could not fetch wallet information');
-  }
+}, options?: { signal?: AbortSignal }) => {
+  const walletId = await getHistoryWalletId(userId);
 
   const queryParams = new URLSearchParams();
   Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) queryParams.append(key, value.toString());
+    if (value !== undefined && value !== '') queryParams.append(key, value.toString());
   });
 
-  const url = `${baseUrl}/transactions/wallet/${walletResponse.data.walletId}/history${queryParams.toString() ? '?' + queryParams.toString() : ''
+  const url = `${baseUrl}/transactions/wallet/${walletId}/history${queryParams.toString() ? '?' + queryParams.toString() : ''
     }`;
 
-  const res = await axios.get(url, { headers: getAuthHeaders() });
+  const res = await axios.get(url, { headers: getAuthHeaders(), signal: options?.signal });
   return res.data;
 };
 
 export const getContactTransactionStats = async (userId: string, contactId: string) => {
-  let walletResponse;
-  try {
-    walletResponse = await getUserWallet(userId);
-  } catch {
-    walletResponse = await getOrganizationWallet(userId);
-  }
+  const walletId = await getHistoryWalletId(userId);
 
-  if (!walletResponse.success) {
-    throw new Error('Could not fetch wallet information');
-  }
-
-  const url = `${baseUrl}/transactions/wallet/${walletResponse.data.walletId}/contact-stats?contactId=${contactId}`;
+  const url = `${baseUrl}/transactions/wallet/${walletId}/contact-stats?contactId=${contactId}`;
   const res = await axios.get(url, { headers: getAuthHeaders() });
   return res.data;
 };
@@ -612,6 +622,31 @@ export const acceptPaymentRequest = (id: string, pin: string, chatId?: string, c
 
 export const getPaymentRequests = (type: 'sent' | 'received' = 'received') =>
   apiGet(`/transactions/requests?type=${type}`);
+
+export type PaymentRequestTab = 'to_pay' | 'requested' | 'history';
+
+/** One page of a Requests tab, plus waiting counts and totals for the tab badges. */
+export const getPaymentRequestsTab = async (
+  tab: PaymentRequestTab,
+  page = 1,
+  limit = 10,
+  options?: { signal?: AbortSignal },
+) => {
+  const params = new URLSearchParams({ tab, page: String(page), limit: String(limit) });
+  const res = await axios.get(`${baseUrl}/transactions/requests?${params}`, {
+    headers: getAuthHeaders(),
+    signal: options?.signal,
+  });
+  return res.data;
+};
+
+/** The requester withdraws a request they sent. */
+export const cancelPaymentRequest = (id: string, chatId?: string) =>
+  axios.patch(`${baseUrl}/transactions/request/${id}/cancel`, { chatId }, { headers: getAuthHeaders() });
+
+/** Nudges the payer; the server allows one reminder a day. */
+export const remindPaymentRequest = (id: string) =>
+  axios.post(`${baseUrl}/transactions/request/${id}/remind`, {}, { headers: getAuthHeaders() });
 
 export const getRecentSends = async (limit: number = 15) => {
   const params = new URLSearchParams({ limit: limit.toString() });

@@ -674,7 +674,7 @@ class SocketService {
     // Listen for payment request status updates (accepted or declined)
     onPaymentRequestUpdated(callback: (data: {
         requestId: string;
-        status: "paid" | "cancelled";
+        status: "paid" | "declined" | "cancelled" | "expired";
         transactionId?: string;
         referenceId?: string;
         amount: number;

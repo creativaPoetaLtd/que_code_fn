@@ -81,8 +81,8 @@ const ComparisonChart: React.FC<ComparisonChartProps> = ({ dateRange, interval }
     // Loading state
     if (loading) {
         return (
-            <Card className="p-4 lg:p-6 dark:bg-darkBg-card">
-                <div className="flex items-center justify-center h-64">
+            <Card className="p-3.5 lg:p-4 dark:bg-darkBg-card">
+                <div className="flex items-center justify-center h-60 lg:h-72">
                     <div className="flex flex-col items-center gap-3">
                         <Loader2 className="w-8 h-8 animate-spin text-blue-600 dark:text-blue-400" />
                         <p className="text-sm text-gray-600 dark:text-gray-400">Loading comparison data...</p>
@@ -95,8 +95,8 @@ const ComparisonChart: React.FC<ComparisonChartProps> = ({ dateRange, interval }
     // Error state
     if (error) {
         return (
-            <Card className="p-4 lg:p-6 dark:bg-darkBg-card">
-                <div className="flex items-center justify-center h-64">
+            <Card className="p-3.5 lg:p-4 dark:bg-darkBg-card">
+                <div className="flex items-center justify-center h-60 lg:h-72">
                     <div className="text-center">
                         <div className="text-red-500 dark:text-red-400 mb-2 text-lg">⚠️</div>
                         <p className="text-sm font-medium text-red-600 dark:text-red-400 mb-1">Unable to load comparison data</p>
@@ -108,51 +108,34 @@ const ComparisonChart: React.FC<ComparisonChartProps> = ({ dateRange, interval }
     }
 
     return (
-        <Card className="p-4 lg:p-6 transition-all duration-300 ease-in-out dark:bg-darkBg-card">
-            {/* Header with Main Stat */}
-            <div className="mb-6">
-                <div className="flex items-end justify-between gap-4 mb-4">
-                    <div>
-                        <h3 className="text-base lg:text-lg font-bold text-gray-900 dark:text-white">{getComparisonLabel()}</h3>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Period-over-period spending trend</p>
-                    </div>
-                    {/* Large Delta Indicator */}
-                    <div className="text-right">
-                        <div className={`text-2xl lg:text-3xl font-bold ${isPositive ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                            {isPositive ? '+' : '-'}{Math.abs(Number(stats.changePercent)).toFixed(2)}%
-                        </div>
-                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{formatCurrency(Math.abs(stats.change))}</p>
-                    </div>
+        <Card className="p-3.5 lg:p-4 transition-all duration-300 ease-in-out dark:bg-darkBg-card">
+            {/* Header: title on the left, period stats inline on the right */}
+            <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
+                <div>
+                    <h3 className="text-[15px] lg:text-base font-semibold text-gray-900 dark:text-white">{getComparisonLabel()}</h3>
+                    <p className="hidden sm:block text-xs text-gray-500 dark:text-gray-400 mt-0.5">Period-over-period spending trend</p>
                 </div>
-
-                {/* Quick Stats Row */}
-                <div className="grid grid-cols-3 gap-3 text-xs">
+                <div className="flex gap-4 lg:gap-6 text-xs">
                     <div>
-                        <p className="text-gray-500 dark:text-gray-400 mb-1">Previous</p>
-                        <p className="font-bold text-gray-900 dark:text-white">{formatCurrency(stats.previousTotal)}</p>
+                        <p className="text-gray-500 dark:text-gray-400">Previous</p>
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{formatCurrency(stats.previousTotal)}</p>
                     </div>
                     <div>
-                        <p className="text-gray-500 dark:text-gray-400 mb-1">Current</p>
-                        <p className="font-bold text-gray-900 dark:text-white">{formatCurrency(stats.currentTotal)}</p>
+                        <p className="text-gray-500 dark:text-gray-400">Current</p>
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{formatCurrency(stats.currentTotal)}</p>
                     </div>
-                    <div className="text-right">
-                        <p className="text-gray-500 dark:text-gray-400 mb-1">Trend</p>
-                        <div className="flex items-center justify-end gap-1">
-                            {isPositive ? (
-                                <TrendingUp className="w-4 h-4 text-red-600 dark:text-red-400" />
-                            ) : (
-                                <TrendingDown className="w-4 h-4 text-green-600 dark:text-green-400" />
-                            )}
-                            <p className={`font-bold ${isPositive ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                                {isPositive ? 'Up' : 'Down'}
-                            </p>
-                        </div>
+                    <div>
+                        <p className="text-gray-500 dark:text-gray-400">Change</p>
+                        <p className={`flex items-center gap-1 text-sm font-semibold ${isPositive ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                            {isPositive ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+                            {isPositive ? '+' : '-'}{Math.abs(Number(stats.changePercent)).toFixed(1)}%
+                        </p>
                     </div>
                 </div>
             </div>
 
             {/* Line Chart - Overlay */}
-            <div className="h-64 lg:h-80 -mx-4 lg:-mx-6 mb-4">
+            <div className="h-48 lg:h-60 -mx-3.5 lg:-mx-4 mt-3">
                 <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 0 }}>
                         <defs>

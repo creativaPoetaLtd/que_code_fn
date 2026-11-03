@@ -152,6 +152,19 @@ const AmountPageInner = () => {
                     if (payload?.success) {
                         const request = payload.data;
 
+                        // An old link or the back button can land here after the request was
+                        // settled; the server refuses it too, but say so before any input.
+                        if (request.status !== "pending") {
+                            const how: Record<string, string> = {
+                                paid: "already been paid",
+                                declined: "been declined",
+                                cancelled: "been cancelled",
+                                expired: "expired",
+                            };
+                            setError(`This request has ${how[request.status] || request.status}.`);
+                            return;
+                        }
+
                         const recipientData: Recipient = {
                             id: request.sender.id,
                             name: `${request.sender.firstName} ${request.sender.lastName}`,
