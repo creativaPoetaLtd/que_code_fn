@@ -1,751 +1,301 @@
-import React, { Suspense, useEffect, useState } from 'react';
-import { Card } from '@/components/ui/card';
-import { Search, Download, RefreshCcw, MessageCircle, Users, Target } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { Transaction } from '@/types/dashboard';
-import { UserAvatar } from '@/components/UserAvatar';
-import * as XLSX from 'xlsx';
-import { getTransactionHistory } from '@/helpers/api';
-import { useAuthToken } from '@/hooks/use-auth-token';
-import { getUserIdFromToken, isTokenExpired } from '@/utils/jwtUtils';
-import { useGetAcceptedContactsQuery } from '@/states/contactSlice';
-import { Combobox } from '@/components/ui/combobox';
-import { X } from 'lucide-react';
+import React, { Suspense, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import SplitBillHistoryDialog, { splitBillRowInfo } from '@/components/bills/SplitBillHistoryDialog';
+import { AlertCircle, ChevronDown, Download, Loader2, ReceiptText } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useToast } from '@/hooks/use-toast';
+import { Transaction } from '@/types/dashboard';
+import SplitBillHistoryDialog from '@/components/bills/SplitBillHistoryDialog';
+import { TransactionRow } from '@/components/transactions/TransactionRow';
+import { TransactionTable } from '@/components/transactions/TransactionTable';
+import { TransactionDetails } from '@/components/transactions/TransactionDetails';
+import { TransactionFilters } from '@/components/transactions/TransactionFilters';
+import {
+  EMPTY_FILTERS,
+  HistoryFilters,
+  activeFilterCount,
+  exportTransactions,
+  useTransactionHistory,
+} from '@/components/transactions/useTransactionHistory';
+import { TransactionDisplay, describeTransaction, formatMoney, groupByDay } from '@/components/transactions/transactionDisplay';
 
 interface TransactionListProps {
-  transactions?: Transaction[];
-  toolbarInHeader?: boolean;
+  /** Left side of the title row (back button, page title). Full variant only. */
+  heading?: React.ReactNode;
+  /** A short "recent activity" card with a link to the full page, no filters. */
+  compact?: boolean;
 }
 
-// Renders a person/org avatar as before, or a group/campaign icon badge when
-// the counterparty is a group or public-contribution wallet (which has no
-// user profile to show).
-const CounterpartyAvatar = ({
-  type,
-  name,
-  userId,
-  profileImage,
-}: {
-  type: 'user' | 'organization' | 'group' | 'campaign';
-  name: string;
-  userId?: string;
-  profileImage?: string;
-}) => {
-  if (type === 'group' || type === 'campaign') {
-    return (
-      <div className="h-10 w-10 shrink-0 rounded-full overflow-hidden bg-brand-green/10 dark:bg-brand-gold/10 flex items-center justify-center">
-        {profileImage ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={profileImage} alt={name} className="h-full w-full object-cover" />
-        ) : type === 'group' ? (
-          <Users size={18} className="text-brand-green dark:text-brand-gold" />
-        ) : (
-          <Target size={18} className="text-brand-green dark:text-brand-gold" />
-        )}
+const useIsDesktop = () => {
+  // Read it up front so desktop doesn't fetch once as "mobile" and again after mount.
+  const [isDesktop, setIsDesktop] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches,
+  );
+  useEffect(() => {
+    const query = window.matchMedia('(min-width: 768px)');
+    const update = () => setIsDesktop(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+  return isDesktop;
+};
+
+const SkeletonRows = ({ count }: { count: number }) => (
+  <div aria-hidden="true">
+    {Array.from({ length: count }).map((_, i) => (
+      <div key={i} className="flex items-center gap-3 px-4 py-2.5 border-t border-gray-100 dark:border-darkBorder-light first:border-t-0">
+        <div className="h-9 w-9 rounded-full bg-gray-200 dark:bg-white/10 animate-pulse" />
+        <div className="flex-1 space-y-1.5">
+          <div className="h-3.5 w-36 rounded bg-gray-200 dark:bg-white/10 animate-pulse" />
+          <div className="h-3 w-24 rounded bg-gray-100 dark:bg-white/5 animate-pulse" />
+        </div>
+        <div className="h-4 w-20 rounded bg-gray-200 dark:bg-white/10 animate-pulse" />
       </div>
+    ))}
+  </div>
+);
+
+const StateMessage = ({ icon, title, body, action }: { icon: React.ReactNode; title: string; body?: string; action?: React.ReactNode }) => (
+  <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
+    <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-gray-400">{icon}</span>
+    <p className="text-sm font-semibold text-gray-900 dark:text-white">{title}</p>
+    {body && <p className="max-w-xs text-sm text-gray-500 dark:text-gray-400">{body}</p>}
+    {action}
+  </div>
+);
+
+const PAGE_SIZE = 10;
+const COMPACT_PAGE_SIZE = 6;
+
+const secondaryButton =
+  'inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 text-[13px] font-medium text-gray-900 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-darkBorder-medium dark:bg-darkBg-card dark:text-white dark:hover:bg-white/5';
+
+const TransactionListInner = ({ heading, compact = false }: TransactionListProps) => {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { toast } = useToast();
+  const isDesktop = useIsDesktop();
+
+  const [filters, setFilters] = useState<HistoryFilters>(EMPTY_FILTERS);
+  const history = useTransactionHistory({
+    filters: compact ? EMPTY_FILTERS : filters,
+    pageSize: compact ? COMPACT_PAGE_SIZE : PAGE_SIZE,
+    append: !compact && !isDesktop,
+  });
+  const { ownerId, items, summary } = history;
+
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+
+  const rows = useMemo(
+    () => items.map((tx) => ({ tx, display: describeTransaction(tx, ownerId) })),
+    [items, ownerId],
+  );
+  const groups = useMemo(() => groupByDay(rows.map((r) => ({ ...r, createdAt: r.tx.createdAt }))), [rows]);
+  const open = rows.find((r) => r.tx.id === openId) || null;
+
+  // Deep link: ?transactionId=… opens that row once it is on screen, then drops the param.
+  const linkedId = searchParams.get('transactionId');
+  useEffect(() => {
+    if (!linkedId || !rows.some((r) => r.tx.id === linkedId)) return;
+    setOpenId(linkedId);
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('transactionId');
+    router.replace(params.toString() ? `${pathname}?${params}` : pathname, { scroll: false });
+  }, [linkedId, rows, searchParams, pathname, router]);
+
+  const handleSendAgain = (tx: Transaction, d: TransactionDisplay) => {
+    const isOrganization = d.counterpartyType === 'organization';
+    sessionStorage.setItem(
+      'selectedRecipient',
+      JSON.stringify({
+        id: isOrganization ? d.counterpartyOrganizationId : d.counterpartyUserId,
+        name: d.name,
+        phone: '',
+        avatar: d.profileImage || '',
+        type: isOrganization ? 'organization' : 'user',
+      }),
+    );
+    sessionStorage.setItem('initialAmount', String(Number(tx.amount) || 0));
+    router.push('/home/transfer/amount');
+  };
+
+  const handleMessage = (d: TransactionDisplay) => router.push(`/chat?userId=${d.counterpartyUserId}`);
+
+  const handleExport = async (format: 'csv' | 'xlsx') => {
+    if (!ownerId) return;
+    setExporting(true);
+    try {
+      const count = await exportTransactions(ownerId, history.query, format);
+      toast({ title: `Exported ${count} transaction${count === 1 ? '' : 's'}` });
+    } catch (err) {
+      console.error('Transaction export failed:', err);
+      toast({ title: 'Export failed', description: 'Please try again.', variant: 'destructive' });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const filtered = activeFilterCount(filters) > 0 || filters.search.trim() !== '';
+  const firstRow = (history.page - 1) * PAGE_SIZE + 1;
+  const lastRow = Math.min(history.page * PAGE_SIZE, history.total);
+
+  const list = (
+    <>
+      {history.initialLoading ? (
+        <SkeletonRows count={compact ? 4 : 6} />
+      ) : history.error ? (
+        <StateMessage
+          icon={<AlertCircle className="h-5 w-5" />}
+          title="Something went wrong"
+          body={history.error}
+          action={<button type="button" onClick={history.retry} className={`${secondaryButton} mt-2`}>Try again</button>}
+        />
+      ) : rows.length === 0 ? (
+        <StateMessage
+          icon={<ReceiptText className="h-5 w-5" />}
+          title={filtered ? 'Nothing matches these filters' : 'No transactions yet'}
+          body={filtered ? 'Try a different search or clear some filters.' : 'Money you send and receive will show up here.'}
+          action={
+            filtered ? (
+              <button type="button" onClick={() => setFilters(EMPTY_FILTERS)} className={`${secondaryButton} mt-2`}>Clear filters</button>
+            ) : undefined
+          }
+        />
+      ) : (
+        <>
+        {!compact && (
+          <div className="hidden md:block">
+            <TransactionTable rows={rows} selectedId={openId} onOpen={setOpenId} />
+          </div>
+        )}
+        <div className={compact ? undefined : 'md:hidden'}>
+        {groups.map((group, gi) => (
+          <section key={`${group.label}-${gi}`} aria-label={group.label}>
+            <h3 className={`bg-gray-50 px-3.5 md:px-4 pb-1.5 pt-2.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:bg-white/[0.02] dark:text-gray-400 ${gi === 0 ? '' : 'border-t border-gray-100 dark:border-darkBorder-light'}`}>
+              {group.label}
+            </h3>
+            {group.items.map(({ tx, display }) => (
+              <TransactionRow
+                key={tx.id}
+                transaction={tx}
+                display={display}
+                selected={tx.id === openId}
+                onOpen={() => setOpenId(tx.id)}
+              />
+            ))}
+          </section>
+        ))}
+        </div>
+        </>
+      )}
+    </>
+  );
+
+  const details = (
+    <>
+      {open?.display.isSplit && <SplitBillHistoryDialog transaction={open.tx} onClose={() => setOpenId(null)} />}
+      <TransactionDetails
+        transaction={open && !open.display.isSplit ? open.tx : null}
+        display={open && !open.display.isSplit ? open.display : null}
+        onClose={() => setOpenId(null)}
+        onSendAgain={handleSendAgain}
+        onMessage={handleMessage}
+      />
+    </>
+  );
+
+  if (compact) {
+    return (
+      <Card className="overflow-hidden border border-gray-200 bg-white p-0 dark:border-darkBorder-light dark:bg-darkBg-card">
+        <div className="flex items-center justify-between px-4 py-3">
+          <h2 className="text-[15px] font-semibold text-gray-900 dark:text-white">Recent transactions</h2>
+          <Link href="/transactions" className="text-[13px] font-medium text-[#0A7A16] hover:underline dark:text-brand-gold">View all</Link>
+        </div>
+        {list}
+        {details}
+      </Card>
     );
   }
 
   return (
-    <UserAvatar
-      userId={userId}
-      profileImage={profileImage}
-      firstName={name.split(' ')[0]}
-      lastName={name.split(' ')[1] || ''}
-    />
-  );
-};
-
-const TransactionListInner = ({ transactions: propTransactions, toolbarInHeader = false }: TransactionListProps) => {
-  const { getToken } = useAuthToken();
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const [transactions, setTransactions] = useState<Transaction[]>(propTransactions || []);
-  const [loading, setLoading] = useState(!propTransactions);
-  const [error, setError] = useState<string | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState(searchTerm);
-  const [page, setPage] = useState(1);
-  const [startDate, setStartDate] = useState<string | undefined>(undefined);
-  const [endDate, setEndDate] = useState<string | undefined>(undefined);
-  const [selectedTransactions, setSelectedTransactions] = useState<Set<string>>(new Set());
-  const [selectAll, setSelectAll] = useState(false);
-  const [openTransactionId, setOpenTransactionId] = useState<string | null>(null);
-  const [autoOpenedTransactionId, setAutoOpenedTransactionId] = useState<string | null>(null);
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 10,
-    total: 0,
-    totalPages: 1,
-  });
-
-  // Filter states
-  const [selectedContactId, setSelectedContactId] = useState<string | undefined>(undefined);
-
-  // Fetch accepted contacts for filtering
-  const token = getToken();
-  const { data: contactsData } = useGetAcceptedContactsQuery(token || '', {
-    skip: !token
-  });
-
-  const contactOptions = React.useMemo(() => {
-    if (!contactsData?.contacts) return [];
-
-    return contactsData.contacts.map(contact => {
-      const u = contact.otherUser;
-      return {
-        value: u.id,
-        label: `${u.firstName} ${u.lastName}`.trim(),
-        profileImage: u.profile?.profileImage
-      };
-    });
-  }, [contactsData]);
-
-  // Debounce searchTerm to avoid re-render on every keystroke
-  useEffect(() => {
-    const handler = setTimeout(() => setDebouncedSearch(searchTerm), 500);
-    return () => clearTimeout(handler);
-  }, [searchTerm]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch, startDate, endDate, selectedContactId]);
-
-  useEffect(() => {
-    if (!propTransactions) {
-      fetchTransactions();
-    }
-  }, [propTransactions, page, debouncedSearch, startDate, endDate, selectedContactId]); // Trigger fetch when filter changes
-
-  const fetchTransactions = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const token = getToken();
-      let userId: string | null | undefined;
-      if (token && !isTokenExpired(token)) {
-        userId = getUserIdFromToken(token);
-      }
-      if (!userId) throw new Error('User not found');
-      setCurrentUserId(userId);
-      const response = await getTransactionHistory(userId, {
-        page,
-        limit: pagination.limit,
-        search: debouncedSearch || undefined,
-        startDate,
-        endDate,
-        contactId: selectedContactId // Pass the selected contact ID
-      });
-      setTransactions(response.data.transactions || []);
-      const apiPagination = response?.data?.pagination;
-      if (apiPagination) {
-        setPagination({
-          page: Number(apiPagination.page) || page,
-          limit: Number(apiPagination.limit) || 10,
-          total: Number(apiPagination.total) || 0,
-          totalPages: Math.max(1, Number(apiPagination.totalPages) || 1),
-        });
-      }
-    } catch (err) {
-      console.error('TransactionList - fetch error:', err);
-      setError('Could not fetch transactions');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResend = (transaction: Transaction) => {
-    const { isOutgoing, counterpartyName, counterpartyProfileImage } = getTransactionDisplayInfo(transaction);
-    const counterpartyId = isOutgoing ? transaction.receiverWallet?.userId : transaction.senderWallet?.userId;
-    const recipientType = (isOutgoing ? transaction.receiverWallet?.organization : transaction.senderWallet?.organization) ? 'organization' : 'user';
-
-    const recipientData = {
-      id: counterpartyId,
-      name: counterpartyName,
-      phone: '',
-      avatar: counterpartyProfileImage || '',
-      type: recipientType
-    };
-
-    sessionStorage.setItem('selectedRecipient', JSON.stringify(recipientData));
-    sessionStorage.setItem('initialAmount', transaction.amount.toString());
-    router.push('/home/transfer/amount');
-  };
-
-  const handleChat = (transaction: Transaction) => {
-    const { isOutgoing } = getTransactionDisplayInfo(transaction);
-    const counterpartyId = isOutgoing ? transaction.receiverWallet?.userId : transaction.senderWallet?.userId;
-    router.push(`/chat?userId=${counterpartyId}`);
-  };
-
-  const getTransactionDisplayInfo = (transaction: Transaction) => {
-    const split = splitBillRowInfo(transaction);
-    if (split) {
-      return {
-        amount: split.amount,
-        counterpartyName: split.title,
-        counterpartyEmail: split.subtitle,
-        counterpartyProfileImage: undefined as string | undefined,
-        counterpartyType: 'group' as const,
-        isOutgoing: false,
-        split,
-      };
-    }
-
-    // Determine if it's outgoing based on sender ownership matching current identity
-    const isOutgoing =
-      transaction.senderWallet?.userId === currentUserId ||
-      transaction.senderWallet?.organizationId === currentUserId;
-    const transactionAmount = Number(transaction.amount) || 0;
-    const transactionFee = Number(transaction.fee) || 0;
-    const amount = isOutgoing ? -(transactionAmount + transactionFee) : transactionAmount;
-
-    // Get the counterparty info — a counterparty can be a person, an
-    // organization, a group (in-chat contribution), or a campaign (public
-    // contribution) wallet, since money can move into any of those.
-    let counterpartyName = '';
-    let counterpartyEmail = '';
-    let counterpartyProfileImage: string | undefined = undefined;
-    let counterpartyType: 'user' | 'organization' | 'group' | 'campaign' = 'user';
-
-    const counterpartyWallet = isOutgoing ? transaction.receiverWallet : transaction.senderWallet;
-
-    if (counterpartyWallet?.user) {
-      const user = counterpartyWallet.user;
-      counterpartyName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
-      counterpartyEmail = user.email || '';
-      counterpartyProfileImage = user.profile?.profileImage;
-      counterpartyType = 'user';
-    } else if (counterpartyWallet?.organization) {
-      counterpartyName = counterpartyWallet.organization.name || '';
-      counterpartyEmail = counterpartyWallet.organization.email || '';
-      counterpartyProfileImage = counterpartyWallet.organization.profile?.profileImage;
-      counterpartyType = 'organization';
-    } else if (counterpartyWallet?.group) {
-      counterpartyName = counterpartyWallet.group.name || '';
-      counterpartyProfileImage = counterpartyWallet.group.profilePictureUrl || undefined;
-      counterpartyType = 'group';
-    } else if (counterpartyWallet?.publicContribution) {
-      counterpartyName = counterpartyWallet.publicContribution.title || '';
-      counterpartyType = 'campaign';
-    }
-
-    if (!counterpartyName || counterpartyName === '') {
-      counterpartyName = transaction.description || (isOutgoing ? 'Money Sent' : 'Money Received');
-    }
-
-    return { amount, counterpartyName, counterpartyEmail, counterpartyProfileImage, counterpartyType, isOutgoing, split: null };
-  };
-
-  // A covered share was paid from someone else's wallet: shown without +/- in a neutral color.
-  const amountStyle = (amount: number, split: ReturnType<typeof splitBillRowInfo>) => {
-    if (split) {
-      return {
-        sign: split.sign,
-        amountClass: split.sign === '' ? 'text-gray-500 dark:text-gray-400' : 'text-green-600 dark:text-green-400',
-      };
-    }
-    return {
-      sign: amount < 0 ? '-' : '+',
-      amountClass: amount < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400',
-    };
-  };
-
-  useEffect(() => {
-    if (page > pagination.totalPages) {
-      setPage(pagination.totalPages);
-    }
-  }, [page, pagination.totalPages]);
-
-  useEffect(() => {
-    setSelectedTransactions((prev) => {
-      if (prev.size === 0) return prev;
-      const visibleIds = new Set(transactions.map((t) => t.id));
-      const next = new Set(Array.from(prev).filter((id) => visibleIds.has(id)));
-      return next;
-    });
-  }, [transactions]);
-
-  const handleSelectAll = (checked: boolean) => {
-    setSelectAll(checked);
-    if (checked) {
-      const allIds = new Set(filteredTransactions.map(t => t.id));
-      setSelectedTransactions(allIds);
-    } else {
-      setSelectedTransactions(new Set());
-    }
-  };
-
-  const handleSelectTransaction = (id: string, checked: boolean) => {
-    const newSelected = new Set(selectedTransactions);
-    if (checked) {
-      newSelected.add(id);
-    } else {
-      newSelected.delete(id);
-    }
-    setSelectedTransactions(newSelected);
-    setSelectAll(newSelected.size === filteredTransactions.length && filteredTransactions.length > 0);
-  };
-
-  const filteredTransactions = transactions;
-  const selectedTransaction = filteredTransactions.find((tx) => tx.id === openTransactionId) || null;
-  const selectedTransactionDisplay = selectedTransaction ? getTransactionDisplayInfo(selectedTransaction) : null;
-
-  useEffect(() => {
-    const transactionIdFromQuery = searchParams.get('transactionId');
-    if (!transactionIdFromQuery || autoOpenedTransactionId === transactionIdFromQuery) {
-      return;
-    }
-
-    const matchedTransaction = filteredTransactions.find((transaction) => transaction.id === transactionIdFromQuery);
-    if (!matchedTransaction) {
-      return;
-    }
-
-    setOpenTransactionId(transactionIdFromQuery);
-    setAutoOpenedTransactionId(transactionIdFromQuery);
-
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete('transactionId');
-    const nextUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
-    router.replace(nextUrl, { scroll: false });
-  }, [searchParams, filteredTransactions, autoOpenedTransactionId, pathname, router]);
-
-  const getVisiblePages = () => {
-    const totalPages = pagination.totalPages;
-    if (totalPages <= 7) {
-      return Array.from({ length: totalPages }, (_, index) => index + 1);
-    }
-
-    if (page <= 4) return [1, 2, 3, 4, 5, -1, totalPages];
-    if (page >= totalPages - 3) {
-      return [1, -1, totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
-    }
-
-    return [1, -1, page - 1, page, page + 1, -1, totalPages];
-  };
-
-  // Export displayed transactions to Excel
-  const exportToExcel = () => {
-    const headers = ['Transaction', 'Date', 'Type', 'Amount', 'Fee', 'Description', 'Status'];
-    const data = filteredTransactions.map(tx => {
-      const { counterpartyName, amount } = getTransactionDisplayInfo(tx);
-      return {
-        Transaction: counterpartyName,
-        Date: new Date(tx.createdAt).toLocaleString(),
-        Type: tx.type,
-        Amount: amount,
-        Fee: tx.fee,
-        Description: tx.description || '',
-        Status: tx.status,
-      };
-    });
-    const ws = XLSX.utils.json_to_sheet(data, { header: headers });
-    ws['!cols'] = [
-      { wch: 20 },
-      { wch: 20 },
-      { wch: 12 },
-      { wch: 12 },
-      { wch: 12 },
-      { wch: 30 },
-      { wch: 12 },
-    ];
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Transactions');
-    XLSX.writeFile(wb, 'transactions.xlsx');
-  };
-
-  const toolbarContent = (
-    <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
-          <div className="relative flex-grow md:flex-grow-0">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 h-4 w-4" />
-            <input
-              type="text"
-              placeholder="Search transactions..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full md:w-64 pl-10 pr-4 py-2 border border-gray-300 dark:border-darkBorder-light rounded-lg text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          {/* Contact Filter */}
-          <div className="w-full md:w-64 relative">
-            <div className="relative">
-              <Combobox
-                options={contactOptions}
-                value={selectedContactId}
-                onSelect={setSelectedContactId}
-                placeholder="Filter by person..."
-                searchPlaceholder="Search contacts..."
-                emptyText="No contacts found."
-                className="w-full bg-white dark:bg-gray-900 border-gray-300 dark:border-darkBorder-light"
-              />
-              {selectedContactId && (
-                <button
-                  onClick={() => setSelectedContactId(undefined)}
-                  className="absolute -right-2 -top-2 bg-gray-200 dark:bg-gray-700 rounded-full p-1 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors z-10"
-                  title="Clear filter"
-                >
-                  <X size={12} />
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* CSV export */}
-          <button
-            onClick={exportToExcel}
-            className="flex items-center px-3 py-2 bg-[#00B512] dark:bg-[#D4AF37] text-white dark:text-[#00313A] rounded-md text-sm transition-colors"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Export Excel
-          </button>
-
-          {/* Date range filter */}
-          <div className="flex flex-wrap items-center gap-2">
-            <input
-              type="date"
-              value={startDate || ''}
-              onChange={(e) => setStartDate(e.target.value || undefined)}
-              className="border border-gray-300 dark:border-darkBorder-light rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <span className="text-gray-500 dark:text-gray-400">to</span>
-            <input
-              type="date"
-              value={endDate || ''}
-              onChange={(e) => setEndDate(e.target.value || undefined)}
-              className="border border-gray-300 dark:border-darkBorder-light rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-    </div>
-  );
-
-  return (
-    <>
-      {toolbarInHeader && (
-        <div className="mb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          {toolbarContent}
-        </div>
-      )}
-
-      <Card className="p-4 md:p-6 bg-white dark:bg-darkBg-card border border-gray-200 dark:border-darkBorder-light">
-      {!toolbarInHeader && (
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-          <h2 className="text-xl font-semibold mb-4 md:mb-0 text-gray-900 dark:text-white">Transactions</h2>
-          {toolbarContent}
-        </div>
-      )}
-      <div className="hidden md:block overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="text-left text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-darkBg-interactive border-b border-gray-200 dark:border-darkBorder-light">
-              <th className="pb-4 pl-4">
-                <input
-                  type="checkbox"
-                  checked={selectAll}
-                  onChange={(e) => handleSelectAll(e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-300 dark:border-darkBorder-light dark:bg-darkBg-input"
-                />
-              </th>
-              <th className="pb-4 px-4 font-semibold">Transaction ID</th>
-              <th className="pb-4 px-4 font-semibold">User</th>
-              <th className="pb-4 px-4 font-semibold">Type</th>
-              <th className="pb-4 px-4 font-semibold">Amount</th>
-              <th className="pb-4 px-4 font-semibold">Status</th>
-              <th className="pb-4 px-4 font-semibold">Date & Time</th>
-              <th className="pb-4 px-4 font-semibold">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredTransactions.map((transaction) => {
-              const { amount, counterpartyName, counterpartyEmail, counterpartyProfileImage, counterpartyType, isOutgoing, split } = getTransactionDisplayInfo(transaction);
-              const { sign, amountClass } = amountStyle(amount, split);
-              const isSelected = selectedTransactions.has(transaction.id);
-              const sourceLabel = transaction.senderSubActionId ? 'Sub-Action Wallet' : 'Wallet';
-              const destinationLabel = (transaction.resolvedReceiverWalletId || transaction.receiverWalletId) ? 'Wallet' : 'Account';
-              return (
-                <tr key={transaction.id} className="border-t border-gray-200 dark:border-darkBorder-light hover:bg-gray-50 dark:hover:bg-darkBg-interactive transition-colors">
-                  <td className="py-4 pl-4">
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={(e) => handleSelectTransaction(transaction.id, e.target.checked)}
-                      className="w-4 h-4 rounded border-gray-300 dark:border-darkBorder-light dark:bg-darkBg-input"
-                    />
-                  </td>
-                  <td className="py-4 px-4 text-sm font-medium text-gray-900 dark:text-gray-100">{transaction.referenceId}</td>
-                  <td className="py-4 px-4">
-                    <div className="flex items-center gap-3">
-                      <CounterpartyAvatar
-                        type={counterpartyType}
-                        name={counterpartyName}
-                        userId={(isOutgoing ? transaction.receiverWallet?.userId : transaction.senderWallet?.userId) ?? undefined}
-                        profileImage={counterpartyProfileImage}
-                      />
-                      <div className="flex flex-col">
-                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{counterpartyName}</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">{counterpartyEmail}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-4 px-4 text-sm text-gray-600 dark:text-gray-300">{split ? (split.sign === '' ? 'Covered for you' : 'Split payment') : isOutgoing ? 'Payment Sent' : 'Payment Received'}</td>
-                  <td className="py-4 px-4">
-                    <span className={`text-sm font-semibold ${amountClass}`}>
-                      {sign}RWF {isNaN(Math.abs(amount)) ? '0' : Math.abs(amount).toLocaleString()}
-                    </span>
-                  </td>
-                  <td className="py-4 px-4">
-                    <span className={`px-3 py-1 rounded-md text-sm font-medium inline-block ${transaction.status === 'completed' ? 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400' :
-                      transaction.status === 'pending' ? 'bg-yellow-100 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-400' :
-                        'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400'
-                      }`}>
-                      {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
-                    </span>
-                  </td>
-                  <td className="py-4 px-4 text-sm text-gray-600 dark:text-gray-400">
-                    {new Date(transaction.createdAt).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric',
-                    })}
-                  </td>
-                  <td className="py-4 px-4">
-                    <button
-                      onClick={() => setOpenTransactionId(transaction.id)}
-                      className="px-4 py-1 bg-white dark:bg-transparent border border-gray-300 dark:border-white text-gray-700 dark:text-white text-sm font-medium rounded hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
-                    >
-                      View
-                    </button>
-                    {!split && (
-                      <>
-                        <button
-                          onClick={() => handleResend(transaction)}
-                          title="Resend"
-                          className="p-1 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors"
-                        >
-                          <RefreshCcw className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleChat(transaction)}
-                          title="Chat"
-                          className="p-1 text-gray-500 hover:text-green-600 dark:text-gray-400 dark:hover:text-green-400 transition-colors"
-                        >
-                          <MessageCircle className="w-4 h-4" />
-                        </button>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        {filteredTransactions.length === 0 && (
-          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-            {searchTerm ? 'No transactions found matching your search.' : 'No transactions found.'}
-          </div>
-        )}
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">{heading}</div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button type="button" className={secondaryButton} disabled={exporting || !ownerId} aria-label="Export transactions">
+              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              <span className="hidden sm:inline">Export</span>
+              <ChevronDown className="hidden sm:block h-3.5 w-3.5 opacity-60" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-60">
+            <DropdownMenuLabel className="text-xs font-normal text-gray-500 dark:text-gray-400">
+              {filtered ? 'Everything matching your filters' : 'Your whole history'}
+            </DropdownMenuLabel>
+            <DropdownMenuItem onSelect={() => handleExport('csv')}>Download CSV</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => handleExport('xlsx')}>Download Excel (.xlsx)</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
-      {/* Mobile card list */}
-      <div className="block md:hidden space-y-3">
-        {/* Select All on mobile */}
-        <div className="flex items-center gap-2 px-1 pb-2 border-b border-gray-200 dark:border-darkBorder-light">
-          <input
-            type="checkbox"
-            checked={selectAll}
-            onChange={(e) => handleSelectAll(e.target.checked)}
-            className="w-4 h-4 rounded border-gray-300 dark:border-darkBorder-light dark:bg-darkBg-input"
-          />
-          <span className="text-sm text-gray-600 dark:text-gray-400">Select all</span>
-        </div>
-        {filteredTransactions.map((transaction) => {
-          const { amount, counterpartyName, counterpartyEmail, counterpartyProfileImage, counterpartyType, isOutgoing, split } = getTransactionDisplayInfo(transaction);
-              const { sign, amountClass } = amountStyle(amount, split);
-          const isSelected = selectedTransactions.has(transaction.id);
-          return (
-            <div key={transaction.id} className="border border-gray-200 dark:border-darkBorder-light rounded-lg p-4 bg-gray-50 dark:bg-darkBg-interactive">
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-3 min-w-0">
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={(e) => handleSelectTransaction(transaction.id, e.target.checked)}
-                    className="w-4 h-4 shrink-0 rounded border-gray-300 dark:border-darkBorder-light dark:bg-darkBg-input"
-                  />
-                    <CounterpartyAvatar
-                      type={counterpartyType}
-                      name={counterpartyName}
-                      userId={(isOutgoing ? transaction.receiverWallet?.userId : transaction.senderWallet?.userId) ?? undefined}
-                      profileImage={counterpartyProfileImage}
-                    />
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{counterpartyName}</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{counterpartyEmail}</div>
-                  </div>
-                </div>
-                <span className={`text-sm font-semibold shrink-0 ${amountClass}`}>
-                  {sign}RWF {isNaN(Math.abs(amount)) ? '0' : Math.abs(amount).toLocaleString()}
-                </span>
-              </div>
-              <div className="mt-3 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${transaction.status === 'completed' ? 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400' :
-                    transaction.status === 'pending' ? 'bg-yellow-100 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-400' :
-                      'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400'
-                  }`}>
-                    {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
-                  </span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">{split ? (split.sign === '' ? 'Covered for you' : 'Split payment') : isOutgoing ? 'Sent' : 'Received'}</span>
-                  <span className="text-xs text-gray-400 dark:text-gray-500">
-                    {new Date(transaction.createdAt).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric',
-                    })}
-                  </span>
-                </div>
-                <button
-                  onClick={() => setOpenTransactionId(transaction.id)}
-                  className="px-3 py-1 shrink-0 bg-white dark:bg-transparent border border-gray-300 dark:border-white text-gray-700 dark:text-white text-xs font-medium rounded hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
-                >
-                  View
+      <TransactionFilters filters={filters} onChange={setFilters} />
+
+      {summary && !history.error && (
+        <p className="text-xs md:text-[13px] text-gray-600 dark:text-gray-400" aria-live="polite">
+          {summary.count.toLocaleString()} transaction{summary.count === 1 ? '' : 's'}
+          {summary.count > 0 && (
+            <>
+              {' · In '}<b className="font-semibold text-green-700 dark:text-green-400">+RWF {formatMoney(summary.totalIn)}</b>
+              {' · Out '}<b className="font-semibold text-gray-900 dark:text-white">−RWF {formatMoney(summary.totalOut)}</b>
+            </>
+          )}
+        </p>
+      )}
+
+      <Card className="overflow-hidden border border-gray-200 bg-white p-0 dark:border-darkBorder-light dark:bg-darkBg-card">
+        <div aria-busy={history.loading}>{list}</div>
+
+        {!history.initialLoading && !history.error && rows.length > 0 && (
+          <>
+            {/* Desktop: pages */}
+            <div className="hidden md:flex items-center justify-between gap-3 border-t border-gray-200 px-4 py-2.5 dark:border-darkBorder-light">
+              <span className="text-[13px] text-gray-500 dark:text-gray-400">
+                {firstRow}–{lastRow} of {history.total.toLocaleString()}
+              </span>
+              <div className="flex gap-1.5">
+                <button type="button" className={`${secondaryButton} h-8`} disabled={history.page <= 1 || history.loading} onClick={() => history.setPage(history.page - 1)}>
+                  Previous
                 </button>
-                <div className={`flex gap-2 ${split ? 'invisible' : ''}`}>
-                  <button
-                    onClick={() => handleResend(transaction)}
-                    className="p-2 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-full"
-                  >
-                    <RefreshCcw className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={() => handleChat(transaction)}
-                    className="p-2 bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400 rounded-full"
-                  >
-                    <MessageCircle className="w-4 h-4" />
-                  </button>
-                </div>
+                <button type="button" className={`${secondaryButton} h-8`} disabled={history.page >= history.totalPages || history.loading} onClick={() => history.setPage(history.page + 1)}>
+                  Next
+                </button>
               </div>
             </div>
-          );
-        })}
-        {filteredTransactions.length === 0 && (
-          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-            {searchTerm ? 'No transactions found matching your search.' : 'No transactions found.'}
-          </div>
-        )}
-      </div>
-
-      {selectedTransaction && selectedTransactionDisplay?.split && (
-        <SplitBillHistoryDialog transaction={selectedTransaction} onClose={() => setOpenTransactionId(null)} />
-      )}
-      <Dialog
-        open={!!selectedTransaction && !selectedTransactionDisplay?.split}
-        onOpenChange={(isOpen) => !isOpen && setOpenTransactionId(null)}
-      >
-        {selectedTransaction && selectedTransactionDisplay && !selectedTransactionDisplay.split && (
-          <DialogContent className="bg-white dark:bg-darkBg-card border dark:border-darkBorder-light">
-            <DialogHeader>
-              <DialogTitle className="text-gray-900 dark:text-white">Transaction Details</DialogTitle>
-              <p className={`mt-2 text-2xl font-semibold ${selectedTransactionDisplay.amount < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                {selectedTransactionDisplay.amount < 0 ? '-' : '+'}RWF {Math.abs(selectedTransactionDisplay.amount).toLocaleString()}
-              </p>
-            </DialogHeader>
-            <DialogDescription className="dark:text-gray-300">
-              <dl className="divide-y divide-gray-200 dark:divide-darkBorder-light text-sm">
-                <div className="py-2 flex justify-between gap-2">
-                  <dt className="font-bold text-gray-700 dark:text-gray-300 shrink-0">Reference ID</dt>
-                  <dd className="text-gray-900 dark:text-gray-100 text-right break-all">{selectedTransaction.referenceId}</dd>
-                </div>
-                <div className="py-2 flex justify-between gap-2">
-                  <dt className="font-bold text-gray-700 dark:text-gray-300 shrink-0">Date & Time</dt>
-                  <dd className="text-gray-900 dark:text-gray-100 text-right">{new Date(selectedTransaction.createdAt).toLocaleString()}</dd>
-                </div>
-                <div className="py-2 flex justify-between gap-2">
-                  <dt className="font-bold text-gray-700 dark:text-gray-300 shrink-0">Type</dt>
-                  <dd className="text-gray-900 dark:text-gray-100">{selectedTransactionDisplay.isOutgoing ? 'Payment Sent' : 'Payment Received'}</dd>
-                </div>
-                <div className="py-2 flex justify-between gap-2">
-                  <dt className="font-bold text-gray-700 dark:text-gray-300 shrink-0">{selectedTransactionDisplay.isOutgoing ? 'Sent to' : 'Received from'}</dt>
-                  <dd className="text-gray-900 dark:text-gray-100 text-right">{selectedTransactionDisplay.counterpartyName}</dd>
-                </div>
-                <div className="py-2 flex justify-between gap-2">
-                  <dt className="font-bold text-gray-700 dark:text-gray-300 shrink-0">Amount</dt>
-                  <dd className="text-gray-900 dark:text-gray-100">RWF {Number(selectedTransaction.amount).toLocaleString()}</dd>
-                </div>
-                <div className="py-2 flex justify-between gap-2">
-                  <dt className="font-bold text-gray-700 dark:text-gray-300 shrink-0">Fee</dt>
-                  <dd className="text-gray-900 dark:text-gray-100">RWF {Number(selectedTransaction.fee).toLocaleString()}</dd>
-                </div>
-                {selectedTransaction.description && (
-                  <div className="py-2 flex justify-between gap-2">
-                    <dt className="font-bold text-gray-700 dark:text-gray-300 shrink-0">Description</dt>
-                    <dd className="text-gray-900 dark:text-gray-100 text-right">{selectedTransaction.description}</dd>
-                  </div>
-                )}
-                <div className="py-2 flex justify-between gap-2">
-                  <dt className="font-bold text-gray-700 dark:text-gray-300 shrink-0">Status</dt>
-                  <dd className="text-gray-900 dark:text-gray-100">{selectedTransaction.status}</dd>
-                </div>
-              </dl>
-            </DialogDescription>
-            <DialogFooter>
-              <DialogClose className="px-4 py-2 bg-[#00B512] dark:bg-[#D4AF37] text-white dark:text-[#00313A] transition-colors">Close</DialogClose>
-            </DialogFooter>
-          </DialogContent>
-        )}
-      </Dialog>
-
-      {/* Pagination controls */}
-      <div className="flex flex-wrap justify-between items-center mt-6 gap-3 pb-32 md:pb-10">
-        <div className="text-sm text-gray-600 dark:text-gray-400">
-          {pagination.total > 0
-            ? `Page ${page} of ${pagination.totalPages} • ${pagination.total} total`
-            : 'No results'}
-        </div>
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => setPage((currentPage) => Math.max(1, currentPage - 1))}
-            disabled={page === 1}
-            className="px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-darkBorder-light rounded hover:bg-gray-50 dark:hover:bg-darkBg-interactive disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            Previous
-          </button>
-          <div className="flex items-center space-x-1">
-            {getVisiblePages().map((pageNum, index) => {
-              if (pageNum === -1) {
-                return <span key={`ellipsis-${index}`} className="px-2 text-gray-500 dark:text-gray-400">...</span>;
-              }
-
-              return (
-                <button
-                  key={pageNum}
-                  onClick={() => setPage(pageNum)}
-                  className={`px-3 py-2 rounded transition-colors ${page === pageNum
-                    ? 'bg-blue-600 dark:bg-blue-700 text-white'
-                    : 'border border-gray-300 dark:border-darkBorder-light text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-darkBg-interactive'
-                    }`}
-                >
-                  {pageNum}
+            {/* Phone: load more */}
+            {history.page < history.totalPages && (
+              <div className="md:hidden border-t border-gray-200 p-3 dark:border-darkBorder-light">
+                <button type="button" className={`${secondaryButton} h-11 w-full`} disabled={history.loading} onClick={() => history.setPage(history.page + 1)}>
+                  {history.loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Load more'}
                 </button>
-              );
-            })}
-          </div>
-          <button
-            onClick={() => setPage((currentPage) => Math.min(pagination.totalPages, currentPage + 1))}
-            disabled={page >= pagination.totalPages}
-            className="px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-darkBorder-light rounded hover:bg-gray-50 dark:hover:bg-darkBg-interactive disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            Next
-          </button>
-        </div>
-      </div>
+              </div>
+            )}
+          </>
+        )}
       </Card>
-    </>
+
+      {details}
+    </div>
   );
 };
 

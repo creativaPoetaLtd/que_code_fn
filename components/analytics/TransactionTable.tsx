@@ -101,13 +101,14 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ dateRange, activeVi
     )
     
     // Use useMemo to prevent creating new Date objects on every render (which would trigger infinite loop)
-    const periodStartDate = useMemo(() => 
-        selectedPeriod ? new Date(selectedPeriod.date) : null,
-        [selectedPeriod?.date]
+    const periodDate = selectedPeriod?.date
+    const periodStartDate = useMemo(() =>
+        periodDate ? new Date(periodDate) : null,
+        [periodDate]
     )
-    const periodEndDate = useMemo(() => 
-        selectedPeriod ? new Date(new Date(selectedPeriod.date).getTime() + 24 * 60 * 60 * 1000) : null,
-        [selectedPeriod?.date]
+    const periodEndDate = useMemo(() =>
+        periodDate ? new Date(new Date(periodDate).getTime() + 24 * 60 * 60 * 1000) : null,
+        [periodDate]
     )
     const { data: periodTransactions, loading: txnLoading, error: txnError } = usePeriodTransactions(
         periodStartDate,
@@ -180,15 +181,13 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ dateRange, activeVi
 
     if (loading) {
         return (
-            <Card className="p-6 dark:bg-darkBg-card">
-                <div className="space-y-4">
-                    <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-32"></div>
-                    <div className="overflow-x-auto">
-                        <div className="space-y-2">
-                            {[...Array(5)].map((_, i) => (
-                                <div key={i} className="h-12 bg-gray-100 dark:bg-gray-800 rounded animate-pulse"></div>
-                            ))}
-                        </div>
+            <Card className="p-3.5 lg:p-4 dark:bg-darkBg-card">
+                <div className="space-y-3">
+                    <div className="h-7 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-32"></div>
+                    <div className="space-y-1.5">
+                        {[...Array(5)].map((_, i) => (
+                            <div key={i} className="h-10 bg-gray-100 dark:bg-gray-800 rounded animate-pulse"></div>
+                        ))}
                     </div>
                 </div>
             </Card>
@@ -197,7 +196,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ dateRange, activeVi
 
     if (error) {
         return (
-            <Card className="p-6 text-center text-red-600 dark:text-red-400 dark:bg-darkBg-card">
+            <Card className="p-4 text-center text-red-600 dark:text-red-400 dark:bg-darkBg-card">
                 <p>Error loading transaction data</p>
             </Card>
         )
@@ -205,7 +204,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ dateRange, activeVi
 
     if (tableData.length === 0) {
         return (
-            <Card className="p-6 text-center text-gray-500 dark:text-gray-400 dark:bg-darkBg-card">
+            <Card className="p-4 text-center text-gray-500 dark:text-gray-400 dark:bg-darkBg-card">
                 <p>No transaction data available for the selected period</p>
             </Card>
         )
@@ -216,8 +215,8 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ dateRange, activeVi
         // Handle loading state
         if (txnLoading) {
             return (
-                <Card className="p-6 dark:bg-darkBg-card">
-                    <div className="flex items-center justify-between mb-6">
+                <Card className="p-3.5 lg:p-4 dark:bg-darkBg-card">
+                    <div className="flex items-center justify-between mb-2">
                         <button
                             onClick={() => setSelectedPeriod(null)}
                             className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
@@ -226,9 +225,9 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ dateRange, activeVi
                         </button>
                         <h3 className="text-lg font-bold text-gray-900 dark:text-white">Loading transactions...</h3>
                     </div>
-                    <div className="space-y-3">
+                    <div className="space-y-1.5">
                         {[...Array(4)].map((_, i) => (
-                            <div key={i} className="h-24 bg-gray-100 dark:bg-gray-800 rounded animate-pulse"></div>
+                            <div key={i} className="h-12 bg-gray-100 dark:bg-gray-800 rounded animate-pulse"></div>
                         ))}
                     </div>
                 </Card>
@@ -238,8 +237,8 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ dateRange, activeVi
         // Handle error state
         if (txnError) {
             return (
-                <Card className="p-6 dark:bg-darkBg-card">
-                    <div className="flex items-center gap-3 mb-6">
+                <Card className="p-3.5 lg:p-4 dark:bg-darkBg-card">
+                    <div className="flex items-center gap-3">
                         <button
                             onClick={() => setSelectedPeriod(null)}
                             className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
@@ -256,9 +255,9 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ dateRange, activeVi
         }
 
         return (
-            <Card className="p-4 lg:p-6 dark:bg-darkBg-card">
+            <Card className="p-3.5 lg:p-4 dark:bg-darkBg-card">
                 {/* Header with Back Button */}
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => setSelectedPeriod(null)}
@@ -283,73 +282,39 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ dateRange, activeVi
                         <p>No transactions found for this period</p>
                     </div>
                 ) : (
-                    <div className="space-y-3">
+                    <div className="divide-y divide-gray-100 dark:divide-darkBorder-light">
                         {transactions.map((transaction: Transaction) => (
                             <div
                                 key={transaction.id}
-                                className={`border-l-4 rounded-lg p-4 ${
-                                    transaction.type === 'income'
-                                        ? 'border-l-green-500 bg-green-50 dark:bg-green-900/30'
-                                        : 'border-l-red-500 bg-red-50 dark:bg-red-900/30'
-                                }`}
+                                title={transaction.id ? `ID: ${transaction.id}` : undefined}
+                                className="flex items-center gap-3 py-2.5"
                             >
-                                <div className="flex items-start justify-between gap-3 mb-2">
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <span className={`text-sm font-bold ${
-                                                transaction.type === 'income'
-                                                    ? 'text-green-700 dark:text-green-400'
-                                                    : 'text-red-700 dark:text-red-400'
-                                            }`}>
-                                                {transaction.time}
-                                            </span>
-                                            {transaction.category && (
-                                                <span className="text-xs px-2 py-0.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded">
-                                                    {transaction.category}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <p className="text-sm font-medium text-gray-900 dark:text-white">{transaction.description}</p>
-                                    </div>
-                                    <div className={`text-right font-bold ${
-                                        transaction.type === 'income'
-                                            ? 'text-green-700 dark:text-green-400'
-                                            : 'text-red-700 dark:text-red-400'
-                                    }`}>
-                                        {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
-                                    </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{transaction.description}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                        {transaction.time}
+                                        {transaction.category && <> · {transaction.category}</>}
+                                        <span className="hidden sm:inline">
+                                            {' '}· Balance {formatCurrency(transaction.balanceBefore)} → {formatCurrency(transaction.balanceAfter)}
+                                        </span>
+                                    </p>
                                 </div>
-
-                                <div className="text-xs text-gray-600 dark:text-gray-400 mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-                                    Balance: {formatCurrency(transaction.balanceBefore)} → {formatCurrency(transaction.balanceAfter)}
+                                <div className={`text-sm font-semibold whitespace-nowrap ${
+                                    transaction.type === 'income'
+                                        ? 'text-green-700 dark:text-green-400'
+                                        : 'text-red-700 dark:text-red-400'
+                                }`}>
+                                    {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
                                 </div>
-
-                                {transaction.id && (
-                                    <div className="text-xs text-gray-500 dark:text-gray-500 mt-2">
-                                        ID: {transaction.id}
-                                    </div>
-                                )}
                             </div>
                         ))}
                     </div>
                 )}
 
                 {/* Summary Footer */}
-                <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-darkBorder-light">
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                            <p className="text-gray-600 dark:text-gray-400 mb-1">Total Income</p>
-                            <p className="text-lg font-bold text-green-600 dark:text-green-400">
-                                +{formatCurrency(selectedPeriod.income)}
-                            </p>
-                        </div>
-                        <div>
-                            <p className="text-gray-600 dark:text-gray-400 mb-1">Total Expenses</p>
-                            <p className="text-lg font-bold text-red-600 dark:text-red-400">
-                                -{formatCurrency(selectedPeriod.expenses)}
-                            </p>
-                        </div>
-                    </div>
+                <div className="flex flex-wrap gap-x-5 gap-y-1 mt-1 pt-2.5 border-t border-gray-200 dark:border-darkBorder-light text-sm text-gray-600 dark:text-gray-400">
+                    <span>In <b className="text-green-600 dark:text-green-400">+{formatCurrency(selectedPeriod.income)}</b></span>
+                    <span>Out <b className="text-red-600 dark:text-red-400">-{formatCurrency(selectedPeriod.expenses)}</b></span>
                 </div>
             </Card>
         )
@@ -357,57 +322,53 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ dateRange, activeVi
 
     // ===== SUMMARY VIEW =====
     return (
-        <div className="space-y-4">
-            {/* Tabs for View Selection */}
-            <div className="flex gap-2">
-                {(['daily', 'weekly', 'monthly'] as const).map((tab) => (
-                    <button
-                        key={tab}
-                        onClick={() => {
-                            setSelectedTab(tab)
-                            setCurrentPage(1) // Reset pagination when changing tabs
-                        }}
-                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                            selectedTab === tab
-                                ? 'bg-blue-600 dark:bg-blue-700 text-white'
-                                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                        }`}
-                    >
-                        {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                    </button>
-                ))}
-            </div>
-
             <Card className="p-0 overflow-hidden border border-gray-200 dark:border-darkBorder-light dark:bg-darkBg-card">
-                {/* Header Section */}
-                <div className="px-6 py-4 border-b border-gray-200 dark:border-darkBorder-light bg-white dark:bg-darkBg-card">
-                    <h3 className="text-base lg:text-lg font-bold text-gray-900 dark:text-white">
-                        {selectedTab.charAt(0).toUpperCase() + selectedTab.slice(1)} View
-                    </h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Balance flow for each period</p>
-            </div>
+                {/* Header Section: title + view tabs */}
+                <div className="flex items-center justify-between gap-3 px-3.5 lg:px-4 py-2.5 border-b border-gray-200 dark:border-darkBorder-light bg-white dark:bg-darkBg-card">
+                    <h3 className="text-[15px] lg:text-base font-semibold text-gray-900 dark:text-white">Balance flow</h3>
+                    <div role="tablist" aria-label="Group by" className="flex gap-0.5 p-0.5 rounded-lg bg-gray-100 dark:bg-gray-800">
+                        {(['daily', 'weekly', 'monthly'] as const).map((tab) => (
+                            <button
+                                key={tab}
+                                role="tab"
+                                aria-selected={selectedTab === tab}
+                                onClick={() => {
+                                    setSelectedTab(tab)
+                                    setCurrentPage(1) // Reset pagination when changing tabs
+                                }}
+                                className={`px-2.5 lg:px-3 py-1 rounded-md text-xs lg:text-[13px] font-medium transition-colors ${
+                                    selectedTab === tab
+                                        ? 'bg-white dark:bg-darkBg-card text-gray-900 dark:text-white shadow-sm'
+                                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                                }`}
+                            >
+                                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                            </button>
+                        ))}
+                    </div>
+                </div>
 
             {/* Desktop Table */}
             <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-sm">
                     <thead>
                         <tr className="border-b border-gray-200 dark:border-darkBorder-light bg-gray-50 dark:bg-gray-900/40">
-                            <th className="text-left py-4 px-6 font-semibold text-gray-700 dark:text-gray-300">
+                            <th className="text-left py-2.5 px-4 font-semibold text-gray-700 dark:text-gray-300">
                                 Period
                             </th>
-                            <th className="text-right py-4 px-6 font-semibold text-gray-700 dark:text-gray-300">
+                            <th className="text-right py-2.5 px-4 font-semibold text-gray-700 dark:text-gray-300">
                                 Starting Balance
                             </th>
-                            <th className="text-right py-4 px-6 font-semibold text-gray-700 dark:text-gray-300">
+                            <th className="text-right py-2.5 px-4 font-semibold text-gray-700 dark:text-gray-300">
                                 Income
                             </th>
-                            <th className="text-right py-4 px-6 font-semibold text-gray-700 dark:text-gray-300">
+                            <th className="text-right py-2.5 px-4 font-semibold text-gray-700 dark:text-gray-300">
                                 Expenses
                             </th>
-                            <th className="text-right py-4 px-6 font-semibold text-gray-700 dark:text-gray-300">
+                            <th className="text-right py-2.5 px-4 font-semibold text-gray-700 dark:text-gray-300">
                                 Ending Balance
                             </th>
-                            <th className="text-center py-4 px-6 font-semibold text-gray-700 dark:text-gray-300">
+                            <th className="text-center py-2.5 px-4 font-semibold text-gray-700 dark:text-gray-300">
                                 Actions
                             </th>
                         </tr>
@@ -418,23 +379,23 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ dateRange, activeVi
                                 key={index}
                                 className="border-b border-gray-100 dark:border-darkBorder-light hover:bg-gray-50 dark:hover:bg-gray-900/40 transition-colors"
                             >
-                                <td className="py-4 px-6 text-gray-900 dark:text-white font-medium">{row.period}</td>
-                                <td className="py-4 px-6 text-right text-gray-700 dark:text-gray-300">
+                                <td className="py-2.5 px-4 text-gray-900 dark:text-white font-medium">{row.period}</td>
+                                <td className="py-2.5 px-4 text-right text-gray-700 dark:text-gray-300">
                                     {formatCurrency(row.startingBalance)}
                                 </td>
-                                <td className="py-4 px-6 text-right text-green-600 dark:text-green-400 font-semibold">
+                                <td className="py-2.5 px-4 text-right text-green-600 dark:text-green-400 font-semibold">
                                     +{formatCurrency(row.income)}
                                 </td>
-                                <td className="py-4 px-6 text-right text-red-600 dark:text-red-400 font-semibold">
+                                <td className="py-2.5 px-4 text-right text-red-600 dark:text-red-400 font-semibold">
                                     -{formatCurrency(row.expenses)}
                                 </td>
-                                <td className="py-4 px-6 text-right font-bold text-gray-900 dark:text-white">
+                                <td className="py-2.5 px-4 text-right font-bold text-gray-900 dark:text-white">
                                     {formatCurrency(row.endingBalance)}
                                 </td>
-                                <td className="py-4 px-6 text-center">
+                                <td className="py-2.5 px-4 text-center">
                                     <button
                                         onClick={() => setSelectedPeriod(row)}
-                                        className="px-4 py-2 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+                                        className="px-3 py-1 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
                                     >
                                         View Details
                                     </button>
@@ -445,7 +406,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ dateRange, activeVi
                 </table>
 
                 {/* Total Row - Below Table */}
-                <div className="border-t-2 border-gray-300 dark:border-darkBorder-medium bg-gray-50 dark:bg-gray-900/40 px-6 py-4">
+                <div className="border-t border-gray-300 dark:border-darkBorder-medium bg-gray-50 dark:bg-gray-900/40 px-4 py-2.5">
                     <div className="grid grid-cols-6 gap-4 text-sm">
                         <div>
                             <p className="font-semibold text-gray-900 dark:text-white">Total</p>
@@ -465,7 +426,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ dateRange, activeVi
                 </div>
 
                 {/* Pagination */}
-                <div className="px-6 py-4 border-t border-gray-200 dark:border-darkBorder-light bg-white dark:bg-darkBg-card flex items-center justify-between">
+                <div className="px-4 py-2 border-t border-gray-200 dark:border-darkBorder-light bg-white dark:bg-darkBg-card flex items-center justify-between">
                     <div className="text-sm text-gray-600 dark:text-gray-400">
                         Showing <span className="font-semibold">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> to{' '}
                         <span className="font-semibold">
@@ -511,65 +472,40 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ dateRange, activeVi
             <div className="md:hidden">
                 <div className="divide-y divide-gray-200 dark:divide-darkBorder-light">
                     {paginatedData.map((row: TableRow, index: number) => (
-                        <div key={index} className="p-4 space-y-3 hover:bg-gray-50 dark:hover:bg-gray-900/40 transition-colors">
-                            <div className="font-semibold text-gray-900 dark:text-white text-sm">{row.period}</div>
-                            <div className="grid grid-cols-2 gap-3 text-xs">
-                                <div>
-                                    <div className="text-gray-600 dark:text-gray-400 mb-1">Starting Balance</div>
-                                    <div className="font-medium text-gray-900 dark:text-white">
-                                        {formatCurrency(row.startingBalance)}
-                                    </div>
+                        <button
+                            key={index}
+                            onClick={() => setSelectedPeriod(row)}
+                            aria-label={`View details for ${row.period}`}
+                            className="w-full flex items-center gap-2 px-3.5 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-900/40 transition-colors"
+                        >
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-baseline justify-between gap-2">
+                                    <span className="font-medium text-gray-900 dark:text-white text-sm truncate">{row.period}</span>
+                                    <span className="font-semibold text-gray-900 dark:text-white text-sm whitespace-nowrap">{formatCurrency(row.endingBalance)}</span>
                                 </div>
-                                <div>
-                                    <div className="text-gray-600 dark:text-gray-400 mb-1">Ending Balance</div>
-                                    <div className="font-medium text-gray-900 dark:text-white">
-                                        {formatCurrency(row.endingBalance)}
-                                    </div>
-                                </div>
-                                <div>
-                                    <div className="text-gray-600 dark:text-gray-400 mb-1">Income</div>
-                                    <div className="font-medium text-green-600 dark:text-green-400">
-                                        +{formatCurrency(row.income)}
-                                    </div>
-                                </div>
-                                <div>
-                                    <div className="text-gray-600 dark:text-gray-400 mb-1">Expenses</div>
-                                    <div className="font-medium text-red-600 dark:text-red-400">
-                                        -{formatCurrency(row.expenses)}
-                                    </div>
+                                <div className="flex items-baseline justify-between gap-2 text-xs mt-0.5">
+                                    <span>
+                                        <span className="text-green-600 dark:text-green-400">+{formatCurrency(row.income)}</span>
+                                        <span className="text-gray-400"> · </span>
+                                        <span className="text-red-600 dark:text-red-400">-{formatCurrency(row.expenses)}</span>
+                                    </span>
+                                    <span className="text-gray-500 dark:text-gray-400 whitespace-nowrap">from {formatCurrency(row.startingBalance)}</span>
                                 </div>
                             </div>
-                            <button
-                                onClick={() => setSelectedPeriod(row)}
-                                className="w-full px-3 py-2 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
-                            >
-                                View Details
-                            </button>
-                        </div>
+                            <ChevronRight className="w-4 h-4 shrink-0 text-gray-400" aria-hidden="true" />
+                        </button>
                     ))}
                 </div>
 
                 {/* Mobile Totals */}
-                <div className="border-t-2 border-gray-300 dark:border-darkBorder-medium bg-gray-50 dark:bg-gray-900/40 p-4 space-y-3">
-                    <div className="font-bold text-gray-900 dark:text-white text-sm">Total</div>
-                    <div className="grid grid-cols-2 gap-3 text-xs">
-                        <div>
-                            <div className="text-gray-600 dark:text-gray-400 mb-1">Total Income</div>
-                            <div className="font-bold text-green-600 dark:text-green-400">
-                                +{formatCurrency(totals.income)}
-                            </div>
-                        </div>
-                        <div>
-                            <div className="text-gray-600 dark:text-gray-400 mb-1">Total Expenses</div>
-                            <div className="font-bold text-red-600 dark:text-red-400">
-                                -{formatCurrency(totals.expenses)}
-                            </div>
-                        </div>
-                    </div>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 border-t border-gray-300 dark:border-darkBorder-medium bg-gray-50 dark:bg-gray-900/40 px-3.5 py-2.5 text-xs text-gray-600 dark:text-gray-400">
+                    <span className="font-semibold text-gray-900 dark:text-white">Total</span>
+                    <span>In <b className="text-green-600 dark:text-green-400">+{formatCurrency(totals.income)}</b></span>
+                    <span>Out <b className="text-red-600 dark:text-red-400">-{formatCurrency(totals.expenses)}</b></span>
                 </div>
 
                 {/* Mobile Pagination */}
-                <div className="border-t border-gray-200 dark:border-darkBorder-light bg-white dark:bg-darkBg-card p-4 flex items-center justify-between">
+                <div className="border-t border-gray-200 dark:border-darkBorder-light bg-white dark:bg-darkBg-card px-3.5 py-2 flex items-center justify-between">
                     <button
                         onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                         disabled={currentPage === 1}
@@ -590,7 +526,6 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ dateRange, activeVi
                 </div>
             </div>
         </Card>
-        </div>
     )
 }
 

@@ -615,7 +615,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
 
         const handlePaymentRequestUpdated = (data: {
             requestId: string;
-            status: "paid" | "cancelled";
+            status: "paid" | "declined" | "cancelled" | "expired";
             transactionId?: string;
             chatId?: string | null;
         }) => {
