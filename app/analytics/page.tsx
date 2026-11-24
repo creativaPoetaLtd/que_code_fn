@@ -59,7 +59,7 @@ const AnalyticsPage = () => {
 
             {/* Main Content */}
             <main className={cn(
-                "flex-1 flex flex-col p-8 transition-all duration-300",
+                "flex-1 flex flex-col px-4 py-3 lg:px-6 lg:py-5 transition-all duration-300",
                 isExpanded ? "lg:ml-64" : "lg:ml-20"
             )}>
                 <div className="flex-1 overflow-y-auto pb-24 lg:pb-8">
@@ -67,12 +67,13 @@ const AnalyticsPage = () => {
                     <Header />
 
                     {/* Analytics Content */}
-                    <div className="space-y-6">
+                    <div className="space-y-3 lg:space-y-4">
                         {/* Page Title & Filters */}
-                        <div className="mb-8">
-                            <BackButton className="mb-4" />
-                            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-1">Finances</h1>
-                            <p className="text-gray-600 dark:text-gray-300 mb-6">Track your spending patterns and financial insights.</p>
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex items-center gap-2">
+                                <BackButton label="" className="px-2" />
+                                <h1 className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">Finances</h1>
+                            </div>
                             <FiltersBar
                                 dateRange={dateRange}
                                 onDateRangeChange={handleDateRangeChange}
@@ -86,7 +87,7 @@ const AnalyticsPage = () => {
                         <ComparisonChart dateRange={dateRange} interval={interval} />
 
                         {/* Charts Section */}
-                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 lg:gap-4">
                             {/* Category Breakdown */}
                             <div className="lg:col-span-6">
                                 <CategoryBreakdown dateRange={dateRange} />

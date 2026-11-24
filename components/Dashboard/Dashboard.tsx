@@ -33,7 +33,7 @@ const Dashboard = () => {
       <div className="p-4 lg:p-8 lg:ml-20">
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-900">Welcome Back, Raisa 👋</h1>
-          <p className="text-gray-600">Here's what's happening with your store today.</p>
+          <p className="text-gray-600">Here&apos;s what&apos;s happening with your store today.</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -43,7 +43,7 @@ const Dashboard = () => {
               <StatCard title="Total Outcome" amount="632,000" percentage={1.29} type="outcome" />
             </div>
             <AnalyticsChart data={analyticsData} />
-            <TransactionList />
+            <TransactionList compact />
           </div>
 
           <div className="lg:col-span-4 space-y-6">

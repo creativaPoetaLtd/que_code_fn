@@ -53,19 +53,23 @@ const CategoryBreakdown: React.FC<CategoryBreakdownProps> = ({ dateRange }) => {
 
     if (loading) {
         return (
-            <Card className="p-6 animate-pulse dark:bg-darkBg-card">
-                <div className="mb-4">
-                    <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-40 mb-2"></div>
-                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-60"></div>
+            <Card className="p-3.5 lg:p-4 h-full animate-pulse dark:bg-darkBg-card">
+                <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-40"></div>
+                <div className="flex items-center gap-4 mt-3">
+                    <div className="w-[120px] h-[120px] sm:w-[180px] sm:h-[180px] shrink-0 rounded-full bg-gray-200 dark:bg-gray-700"></div>
+                    <div className="flex-1 space-y-2">
+                        {[...Array(4)].map((_, i) => (
+                            <div key={i} className="h-5 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                        ))}
+                    </div>
                 </div>
-                <div className="h-64 bg-gray-200 dark:bg-gray-700 rounded"></div>
             </Card>
         )
     }
 
     if (error) {
         return (
-            <Card className="p-6 text-center text-red-600 dark:text-red-400 dark:bg-darkBg-card">
+            <Card className="p-4 text-center text-red-600 dark:text-red-400 dark:bg-darkBg-card">
                 <p>Error loading category breakdown</p>
             </Card>
         )
@@ -73,63 +77,52 @@ const CategoryBreakdown: React.FC<CategoryBreakdownProps> = ({ dateRange }) => {
 
     if (categoryData.length === 0) {
         return (
-            <Card className="p-6 text-center text-gray-500 dark:text-gray-400 dark:bg-darkBg-card">
+            <Card className="p-4 text-center text-gray-500 dark:text-gray-400 dark:bg-darkBg-card">
                 <p>No category data available for the selected period</p>
             </Card>
         )
     }
 
     return (
-        <Card className="p-6 dark:bg-darkBg-card">
-            <div className="mb-4">
-                <div className="flex justify-between items-start mb-4">
-                    <div>
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Category Breakdown</h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">Spending distribution by categories</p>
-                    </div>
-                    <div className="flex gap-2">
+        <Card className="p-3.5 lg:p-4 h-full dark:bg-darkBg-card">
+            <div className="flex justify-between items-center gap-3">
+                <h3 className="text-[15px] lg:text-base font-semibold text-gray-900 dark:text-white">Spending by category</h3>
+                <div className="flex gap-0.5 p-0.5 rounded-lg bg-gray-100 dark:bg-gray-800">
+                    {(['expenses', 'income'] as const).map((type) => (
                         <button
-                            onClick={() => setFilterType('expenses')}
-                            className={`px-4 py-2 rounded font-medium transition-colors ${
-                                filterType === 'expenses'
-                                    ? 'bg-red-600 dark:bg-red-700 text-white'
-                                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                            key={type}
+                            onClick={() => setFilterType(type)}
+                            aria-pressed={filterType === type}
+                            className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                                filterType === type
+                                    ? 'bg-white dark:bg-darkBg-card text-gray-900 dark:text-white shadow-sm'
+                                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                             }`}
                         >
-                            Expenses
+                            {type === 'expenses' ? 'Expenses' : 'Income'}
                         </button>
-                        <button
-                            onClick={() => setFilterType('income')}
-                            className={`px-4 py-2 rounded font-medium transition-colors ${
-                                filterType === 'income'
-                                    ? 'bg-green-600 dark:bg-green-700 text-white'
-                                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                            }`}
-                        >
-                            Income
-                        </button>
-                    </div>
+                    ))}
                 </div>
             </div>
 
-            <div className="flex flex-col lg:flex-row gap-6" role="region" aria-label="Category spending breakdown">
+            <div className="flex items-center gap-4 lg:gap-5 mt-3" role="region" aria-label="Category spending breakdown">
                 {/* Donut Chart */}
-                <div className="flex-1" role="img" aria-label="Interactive pie chart showing spending by category">
+                <div className="w-[120px] h-[120px] sm:w-[180px] sm:h-[180px] shrink-0" role="img" aria-label="Interactive pie chart showing spending by category">
                     <CategoryTransactionPopover
                         categoryId={selectedCategory}
                         categoryName={categoryData.find(cat => cat.categoryId === selectedCategory)?.name || ''}
                         dateRange={dateRange}
                         transactionCount={categoryData.find(cat => cat.categoryId === selectedCategory)?.transactionCount || 0}
                     >
-                        <div className="cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-lg">
-                            <ResponsiveContainer width="100%" height={300}>
+                        <div className="w-full h-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-lg">
+                            <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
                                     <Pie
                                         data={categoryData}
                                         cx="50%"
                                         cy="50%"
-                                        innerRadius={60}
-                                        outerRadius={120}
+                                        innerRadius="60%"
+                                        outerRadius="100%"
                                         paddingAngle={2}
                                         dataKey="value"
                                         onClick={(_, index) => {
@@ -150,9 +143,8 @@ const CategoryBreakdown: React.FC<CategoryBreakdownProps> = ({ dateRange }) => {
                 </div>
 
                 {/* Category List */}
-                <div className="lg:w-48">
-                    <h4 className="font-medium text-gray-900 dark:text-white mb-3">Top Categories</h4>
-                    <div className="space-y-3" role="list" aria-label="Category list with spending amounts">
+                <div className="flex-1 min-w-0">
+                    <div className="divide-y divide-gray-100 dark:divide-darkBorder-light" role="list" aria-label="Category list with spending amounts">
                         {categoryData.map((category, index) => (
                             <CategoryTransactionPopover
                                 key={index}
@@ -162,13 +154,13 @@ const CategoryBreakdown: React.FC<CategoryBreakdownProps> = ({ dateRange }) => {
                                 transactionCount={category.transactionCount}
                             >
                                 <div
-                                    className="flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/40 focus:bg-gray-50 dark:focus:bg-gray-900/40 rounded-lg p-2 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-darkBg-card"
+                                    className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/40 focus:bg-gray-50 dark:focus:bg-gray-900/40 rounded-md px-1.5 py-1.5 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-offset-darkBg-card"
                                     onClick={() => {
                                         setSelectedCategory(selectedCategory === category.categoryId ? null : category.categoryId)
                                     }}
                                     role="listitem"
                                     tabIndex={0}
-                                    aria-label={`${category.name}: $${category.amount.toLocaleString()} (${category.value}%) - Click to view transactions`}
+                                    aria-label={`${category.name}: RWF ${category.amount.toLocaleString()} (${category.value}%) - Click to view transactions`}
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter' || e.key === ' ') {
                                             e.preventDefault()
@@ -176,20 +168,16 @@ const CategoryBreakdown: React.FC<CategoryBreakdownProps> = ({ dateRange }) => {
                                         }
                                     }}
                                 >
-                                    <div className="flex items-center gap-2">
-                                        <div 
-                                            className="w-3 h-3 rounded-full" 
-                                            style={{ backgroundColor: category.color }}
-                                            aria-hidden="true"
-                                        />
-                                        <span className="text-sm text-gray-700 dark:text-gray-300">{category.name}</span>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-sm font-medium text-gray-900 dark:text-white">
-                                            RWF {category.amount.toLocaleString()}
-                                        </p>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400">{category.value}%</p>
-                                    </div>
+                                    <div
+                                        className="w-2.5 h-2.5 rounded-full shrink-0"
+                                        style={{ backgroundColor: category.color }}
+                                        aria-hidden="true"
+                                    />
+                                    <span className="flex-1 min-w-0 truncate text-sm text-gray-700 dark:text-gray-300">{category.name}</span>
+                                    <span className="hidden sm:inline text-sm font-semibold text-gray-900 dark:text-white whitespace-nowrap">
+                                        RWF {category.amount.toLocaleString()}
+                                    </span>
+                                    <span className="w-10 text-right text-xs font-medium text-gray-500 dark:text-gray-400">{category.value}%</span>
                                 </div>
                             </CategoryTransactionPopover>
                         ))}

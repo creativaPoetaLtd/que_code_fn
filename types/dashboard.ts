@@ -354,8 +354,11 @@ export interface PaymentRequest {
   amount: number;
   currency: string;
   note: string;
-  status: 'pending' | 'paid' | 'cancelled' | 'expired';
+  /** declined: the payer said no. cancelled: the requester withdrew it. */
+  status: 'pending' | 'paid' | 'declined' | 'cancelled' | 'expired';
   allowEditAmount: boolean;
+  transactionId?: string | null;
+  lastRemindedAt?: string | null;
   createdAt: string;
   updatedAt: string;
   sender?: {
@@ -364,6 +367,7 @@ export interface PaymentRequest {
     lastName: string;
     email: string;
     profile?: {
+      profileImage?: string;
       avatar?: string;
     };
   };
@@ -373,6 +377,7 @@ export interface PaymentRequest {
     lastName: string;
     email: string;
     profile?: {
+      profileImage?: string;
       avatar?: string;
     };
   };

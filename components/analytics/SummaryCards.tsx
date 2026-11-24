@@ -20,66 +20,109 @@ interface SummaryCardProps {
     loading?: boolean
 }
 
-const SummaryCard = ({ 
-    title, 
-    amount, 
-    percentage, 
+const GOOD_TEXT = 'text-green-700 dark:text-green-400'
+const BAD_TEXT = 'text-red-700 dark:text-red-400'
+
+// Rising expenses are bad; rising income or balance is good.
+const isGoodChange = (type: SummaryCardProps['type'], percentage: number) =>
+    type === 'expense' ? percentage <= 0 : percentage > 0
+
+const ChangeBadge = ({ type, percentage }: { type: SummaryCardProps['type'], percentage: number }) => (
+    <span className={`shrink-0 px-2 py-0.5 rounded-md text-xs font-semibold ${
+        isGoodChange(type, percentage) ? `bg-green-100 dark:bg-green-900 ${GOOD_TEXT}` : `bg-red-100 dark:bg-red-900 ${BAD_TEXT}`
+    }`}>
+        {percentage > 0 ? '↑' : '↓'} {Math.abs(percentage)}%
+    </span>
+)
+
+const SummaryCard = ({
+    title,
+    amount,
+    percentage,
     comparisonText,
-    type, 
-    icon, 
-    loading 
+    type,
+    icon,
+    loading
 }: SummaryCardProps) => {
-    const isPositive = percentage ? percentage > 0 : false
-    const isBalance = type === 'balance'
-    
     if (loading) {
         return (
-            <Card className="p-6 animate-pulse transition-all duration-300">
-                <div className="flex items-center justify-between mb-3">
-                    <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
-                </div>
-                <div className="space-y-2">
+            <Card className="p-4 animate-pulse transition-all duration-300">
+                <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
                     <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24"></div>
-                    <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-32"></div>
-                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-20"></div>
                 </div>
+                <div className="h-7 bg-gray-200 dark:bg-gray-700 rounded w-32 mt-2"></div>
+                <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-40 mt-1.5"></div>
             </Card>
         )
     }
-    
+
     return (
-        <Card className="p-6 hover:shadow-md dark:hover:shadow-lg transition-shadow dark:bg-darkBg-card">
-            <div className="flex items-start justify-between mb-3">
-                <div className={`p-2.5 rounded-lg ${
+        <Card className="p-4 hover:shadow-md dark:hover:shadow-lg transition-shadow dark:bg-darkBg-card">
+            <div className="flex items-center gap-2">
+                <div className={`w-7 h-7 flex items-center justify-center rounded-lg ${
                     type === 'income' ? 'bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400' :
                     type === 'expense' ? 'bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400' :
                     'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400'
                 }`}>
                     {icon}
                 </div>
-                
-                {percentage !== undefined && (
-                    <div className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold ${
-                        isBalance ? 
-                            (isPositive ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-400') :
-                            type === 'income' ? 
-                                (isPositive ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-400') :
-                                (isPositive ? 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-400' : 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-400')
-                    }`}>
-                        {isPositive ? '↑' : '↓'}
-                        {Math.abs(percentage)}%
-                    </div>
-                )}
+                <p className="flex-1 text-sm font-medium text-gray-600 dark:text-gray-400">{title}</p>
+                {percentage !== undefined && <ChangeBadge type={type} percentage={percentage} />}
             </div>
-            
-            <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">{title}</p>
-                <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">RWF {amount}</h3>
-                {comparisonText && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {comparisonText}
-                    </p>
-                )}
+
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-2">RWF {amount}</h3>
+            {comparisonText && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    {comparisonText}
+                </p>
+            )}
+        </Card>
+    )
+}
+
+type SummaryItem = Omit<SummaryCardProps, 'loading'>
+
+// Phones get one card: net balance on top, expenses and income side by side below it.
+const MobileSummaryCard = ({ items, loading }: { items: SummaryItem[], loading: boolean }) => {
+    if (loading) {
+        return (
+            <Card className="p-3.5 animate-pulse">
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24"></div>
+                <div className="h-7 bg-gray-200 dark:bg-gray-700 rounded w-36 mt-1.5"></div>
+                <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-darkBorder-light">
+                    <div className="h-9 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                    <div className="h-9 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                </div>
+            </Card>
+        )
+    }
+
+    const balance = items.find((item) => item.type === 'balance')
+    const others = items.filter((item) => item.type !== 'balance')
+    if (!balance) return null
+
+    return (
+        <Card className="p-3.5 dark:bg-darkBg-card">
+            <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{balance.title}</p>
+                {balance.percentage !== undefined && <ChangeBadge type="balance" percentage={balance.percentage} />}
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">RWF {balance.amount}</h3>
+            <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-darkBorder-light">
+                {others.map((item) => (
+                    <div key={item.title} className="min-w-0">
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {item.title.replace('Total ', '')}
+                            {item.percentage !== undefined && (
+                                <span className={`ml-1 font-semibold ${isGoodChange(item.type, item.percentage) ? GOOD_TEXT : BAD_TEXT}`}>
+                                    {item.percentage > 0 ? '↑' : '↓'} {Math.abs(item.percentage)}%
+                                </span>
+                            )}
+                        </p>
+                        <p className="text-base font-semibold text-gray-900 dark:text-white mt-0.5 truncate">RWF {item.amount}</p>
+                    </div>
+                ))}
             </div>
         </Card>
     )
@@ -135,8 +178,8 @@ const SummaryCards: React.FC<SummaryCardsProps> = ({ dateRange }) => {
 
     if (error) {
         return (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card className="p-6 text-center text-red-600 dark:text-red-400 dark:bg-darkBg-card">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <Card className="p-4 text-center text-red-600 dark:text-red-400 dark:bg-darkBg-card">
                     Error loading data
                 </Card>
             </div>
@@ -160,7 +203,7 @@ const SummaryCards: React.FC<SummaryCardsProps> = ({ dateRange }) => {
             percentage: expenseChange,
             comparisonText: getComparisonText(data.totalExpenses, previousData?.totalExpenses || 0, 'expense'),
             type: 'expense' as const,
-            icon: <DollarSign className="h-5 w-5" />
+            icon: <DollarSign className="h-4 w-4" />
         },
         {
             title: 'Total Income',
@@ -168,7 +211,7 @@ const SummaryCards: React.FC<SummaryCardsProps> = ({ dateRange }) => {
             percentage: incomeChange,
             comparisonText: getComparisonText(data.totalIncome, previousData?.totalIncome || 0, 'income'),
             type: 'income' as const,
-            icon: <TrendingUp className="h-5 w-5" />
+            icon: <TrendingUp className="h-4 w-4" />
         },
         {
             title: 'Net Balance',
@@ -176,12 +219,16 @@ const SummaryCards: React.FC<SummaryCardsProps> = ({ dateRange }) => {
             percentage: balanceChange,
             comparisonText: getComparisonText(data.netBalance, previousData?.netBalance || 0, 'balance'),
             type: 'balance' as const,
-            icon: <Wallet className="h-5 w-5" />
+            icon: <Wallet className="h-4 w-4" />
         }
     ] : []
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <>
+        <div className="md:hidden">
+            <MobileSummaryCard items={summaryData} loading={loading} />
+        </div>
+        <div className="hidden md:grid grid-cols-3 gap-3 lg:gap-4">
             {loading ? (
                 Array.from({ length: 3 }).map((_, index) => (
                     <SummaryCard
@@ -208,6 +255,7 @@ const SummaryCards: React.FC<SummaryCardsProps> = ({ dateRange }) => {
                 ))
             )}
         </div>
+        </>
     )
 }
 
