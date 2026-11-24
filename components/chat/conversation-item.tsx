@@ -26,12 +26,15 @@ interface ConversationItemProps {
   conversation: Conversation;
   isActive: boolean;
   onClick: () => void;
+  /** Avatar is its own tap target — opens the profile preview instead of the chat */
+  onAvatarClick?: () => void;
 }
 
 export default function ConversationItem({
   conversation,
   isActive,
   onClick,
+  onAvatarClick,
 }: ConversationItemProps) {
   const { getUserId } = useAuthToken();
   const currentUserId = getUserId();
@@ -115,7 +118,17 @@ export default function ConversationItem({
       onClick={onClick}
     >
       <div className='flex items-center gap-3'>
-        <div className='relative h-10 w-10 flex-shrink-0'>
+        <div
+          className={cn('relative h-10 w-10 flex-shrink-0', onAvatarClick && !isSupport && 'cursor-pointer')}
+          onClick={
+            onAvatarClick && !isSupport
+              ? (event) => {
+                  event.stopPropagation();
+                  onAvatarClick();
+                }
+              : undefined
+          }
+        >
           {isSupport ? (
             <div className='flex h-10 w-10 items-center justify-center rounded-full bg-emerald-600 text-white'>
               <Headphones size={18} />

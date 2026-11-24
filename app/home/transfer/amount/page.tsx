@@ -1,6 +1,7 @@
 "use client";
 
 import React, { Suspense, useState, useEffect } from "react";
+import { describeTierError, getTierError, notifyTierError } from "@/utils/tierErrors";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSidebar } from "@/context/SidebarContext";
 import { useAuthToken } from "@/hooks/use-auth-token";
@@ -358,7 +359,10 @@ const AmountPageInner = () => {
                 setError(result.message || "Transfer failed");
             }
         } catch (err: any) {
-            setError(getApiErrorMessage(err));
+            // Account type limits get a friendlier line plus a "See plans" toast.
+            const tierError = getTierError(err);
+            setError(tierError ? describeTierError(tierError) : getApiErrorMessage(err));
+            notifyTierError(err, router.push);
         } finally {
             setLoading(false);
         }

@@ -1,4 +1,5 @@
 'use client';
+import { notifyTierError } from "@/utils/tierErrors";
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import axios from 'axios';
@@ -313,6 +314,7 @@ export default function ActionDetailPage() {
         fetchSubActions();
       }
     } catch (err: any) {
+      notifyTierError(err);
       setPurchaseError(prev => ({
         ...prev,
         [subAction.id]: err.response?.data?.message || err.message || 'Operation failed.',

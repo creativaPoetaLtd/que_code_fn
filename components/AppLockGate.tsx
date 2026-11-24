@@ -27,6 +27,7 @@ const PROTECTED_PREFIXES = [
     "/contacts",
     "/groups",
     "/home",
+    "/onboarding",
     "/profile",
     "/settings",
     "/statistics",

@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils"
 import type { Message, LegacyMessage, ReplyPreview, Reaction } from "@/types/chat.types"
 import { useMemo, useRef, useState, useCallback, useEffect } from "react"
 import MediaMessageContent from "./media-message-content"
+import MediaAlbumContent, { type AlbumItem } from "./media-album-content"
 import { MoneyMessageCard } from "./money-message-card"
 import { EscrowMessageCard } from "./escrow-message-card"
 import { SharedWalletWithdrawalCard } from "./shared-wallet-withdrawal-card"
@@ -35,6 +36,12 @@ interface MessageItemProps {
     isFirstInGroup?: boolean
     /** Closes that run — carries the avatar, the timestamp and the delivery status */
     isLastInGroup?: boolean
+    /**
+     * The photos and videos this message was sent alongside. With more than one
+     * the bubble shows the whole bundle as a grid, and the chrome around it —
+     * reply, pin, reactions, delivery — acts on the bundle as a single unit.
+     */
+    albumItems?: Message[]
 }
 
 const SWIPE_REPLY_TRIGGER = 56
@@ -61,6 +68,7 @@ export default function MessageItem({
     onTogglePin,
     isFirstInGroup = true,
     isLastInGroup = true,
+    albumItems,
 }: MessageItemProps) {
     const isLegacy = isLegacyMessage(message);
     const isMe = isLegacy ? message.isMe : (message as any).isMe || false;
@@ -93,6 +101,24 @@ export default function MessageItem({
 
     const isMediaMessage = !isLegacy && message.messageType &&
         ['image', 'video', 'audio', 'document'].includes(message.messageType);
+
+    /** The bundle this bubble stands for, or nothing when it is a lone attachment */
+    const album = useMemo<AlbumItem[] | null>(() => {
+        if (!albumItems || albumItems.length < 2) return null
+        return albumItems.map((item) => ({
+            id: String(item.id),
+            content: item.content,
+            mediaUrl: item.mediaUrl,
+            mediaType: item.mediaType,
+            thumbnailUrl: item.thumbnailUrl,
+            fileName: item.fileName,
+            duration: item.duration,
+            mimeType: item.mimeType,
+            isSecureMedia: item.isSecureMedia,
+            secureMediaKey: item.secureMediaKey,
+            secureMediaIv: item.secureMediaIv,
+        }))
+    }, [albumItems]);
 
     const isMoneyMessage = !isLegacy && message.messageType === "money";
     const isEscrowMessage = !isLegacy && message.messageType === "escrow";
@@ -866,6 +892,8 @@ export default function MessageItem({
                             </button>
                         </div>
                     </div>
+                ) : isMediaMessage && album ? (
+                    <MediaAlbumContent items={album} />
                 ) : isMediaMessage ? (
                     <MediaMessageContent
                         content={messageContent}

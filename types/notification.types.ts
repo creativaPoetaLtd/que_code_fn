@@ -122,6 +122,14 @@ export enum NotificationType {
   REMINDER = 'REMINDER',
   SYSTEM_MAINTENANCE = 'SYSTEM_MAINTENANCE',
   FEATURE_ANNOUNCEMENT = 'FEATURE_ANNOUNCEMENT',
+
+  // Account type (plan) and wallet top-up
+  PLAN_CHANGED = 'PLAN_CHANGED',
+  PLAN_RENEWED = 'PLAN_RENEWED',
+  PLAN_PAYMENT_FAILED = 'PLAN_PAYMENT_FAILED',
+  PLAN_EXPIRED = 'PLAN_EXPIRED',
+  TOPUP_SUCCESSFUL = 'TOPUP_SUCCESSFUL',
+  TOPUP_FAILED = 'TOPUP_FAILED',
   PAYMENT_REQUEST_RECEIVED = 'PAYMENT_REQUEST_RECEIVED',
 }
 
@@ -253,6 +261,7 @@ export interface NotificationContextType {
   notifications: Notification[];
   unreadCount: number;
   markAsRead: (id: string) => void;
+  markManyAsRead?: (ids: string[]) => void;
   markAllAsRead?: () => void;
   clearAll?: () => void;
   addNotification?: (notification: Notification) => void;

@@ -1,5 +1,6 @@
 "use client"
 
+import { notifyTierError } from "@/utils/tierErrors"
 import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -242,7 +243,9 @@ export default function SendMoneyModal({ isOpen, onClose, recipient = "", curren
         } catch (error: any) {
             const errorData = error?.data || error?.response?.data || {}
 
-            if (errorData.requiresPinSetup) {
+            if (notifyTierError(error)) {
+                // Daily limit / plan restriction - shown with a "See plans" action
+            } else if (errorData.requiresPinSetup) {
                 setShowPinSetup(true)
                 toast({
                     title: "PIN Setup Required",

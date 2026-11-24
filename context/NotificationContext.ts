@@ -133,13 +133,16 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
     const markAsRead = useCallback((notificationId: string) => {
         const target = notifications.find((notif) => notif.id === notificationId)
-        // Already read - nothing to persist, and decrementing again would under-count.
-        if (!target || target.isRead) {
+        if (!target) {
             return
         }
 
-        setNotifications((prev) => prev.map((notif) => (notif.id === notificationId ? { ...notif, isRead: true } : notif)))
-        setUnreadCount((prev) => Math.max(0, prev - 1))
+        // Reading a notification takes it out of the list entirely rather than just
+        // dimming it in place - the list is "what's waiting for me," not a read log.
+        setNotifications((prev) => prev.filter((notif) => notif.id !== notificationId))
+        if (!target.isRead) {
+            setUnreadCount((prev) => Math.max(0, prev - 1))
+        }
 
         // This used to only flip local state - the server's unreadCount (what the
         // badge re-hydrates from on every mount/reload) never actually changed, so
@@ -154,8 +157,37 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         }
     }, [authToken, notifications])
 
+    const markManyAsRead = useCallback((notificationIds: string[]) => {
+        if (!notificationIds.length) return
+
+        const idSet = new Set(notificationIds)
+        const targets = notifications.filter((notif) => idSet.has(notif.id))
+        if (!targets.length) return
+        const unreadTargets = targets.filter((notif) => !notif.isRead)
+
+        // Same as markAsRead - read means gone from the list, not just dimmed.
+        setNotifications((prev) => prev.filter((notif) => !idSet.has(notif.id)))
+        setUnreadCount((prev) => Math.max(0, prev - unreadTargets.length))
+
+        if (authToken) {
+            // No bulk-by-ids endpoint exists server-side - fire the per-id PATCH for
+            // each one that was actually unread, in parallel.
+            Promise.allSettled(
+                unreadTargets.map((notif) =>
+                    fetch(`${baseUrl}/notifications/${notif.id}/read`, {
+                        method: "PATCH",
+                        headers: { Authorization: `Bearer ${authToken}` },
+                    })
+                )
+            ).catch((error) => {
+                console.error("Failed to persist mark-many-as-read:", error)
+            })
+        }
+    }, [authToken, notifications])
+
     const markAllAsRead = useCallback(() => {
-        setNotifications((prev) => prev.map((notif) => ({ ...notif, isRead: true })))
+        // Same as markAsRead - read means gone from the list, not just dimmed.
+        setNotifications([])
         setUnreadCount(0)
 
         if (authToken) {
@@ -501,6 +533,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         unreadCount,
         addNotification,
         markAsRead,
+        markManyAsRead,
         markAllAsRead,
         clearNotifications,
         removeNotification,

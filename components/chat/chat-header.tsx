@@ -192,8 +192,8 @@ export default function ChatHeader({
             <Avatar
               className={
                 conversation.hasGallery
-                  ? 'h-9 w-9'
-                  : 'h-9 w-9 border-2 border-gray-100 dark:border-darkBorder-light'
+                  ? 'h-12 w-12'
+                  : 'h-12 w-12 border-2 border-gray-100 dark:border-darkBorder-light'
               }
             >
               {!isPlaceholderAvatar(conversation.avatar) && (
@@ -216,7 +216,7 @@ export default function ChatHeader({
         </button>
 
         <div className='flex-1 min-w-0'>
-          <div className='flex items-center gap-2'>
+          <div className='flex items-center gap-2 mt-1'>
             <h1 className='text-[15px] font-semibold leading-tight text-gray-900 dark:text-white truncate'>
               {conversation.name || 'Unknown Contact'}
             </h1>
@@ -266,7 +266,7 @@ export default function ChatHeader({
 
           {/* Online Status (only show if not fundraising/shared wallet) */}
           {!(conversation.isGroup && (group?.hasFundraising || group?.sharedWalletId)) && (
-            <p className='text-[11px] leading-tight text-gray-500 dark:text-gray-400 truncate'>
+            <p className='text-[11px] leading-tight text-gray-500 dark:text-gray-400 truncate mb-1'>
               {getOnlineStatus()}
             </p>
           )}

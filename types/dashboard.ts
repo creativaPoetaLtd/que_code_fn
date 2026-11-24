@@ -12,6 +12,10 @@ export interface Transaction {
   spendConstraintType: string;
   constraintCategoryId?: string;
   hasAccount: boolean;
+  // Money from outside QC (wallet top-ups): the provider and payer number
+  externalSenderName?: string | null;
+  externalSenderContact?: string | null;
+  externalSenderProvider?: string | null;
   createdAt: string;
   updatedAt: string;
   category?: {

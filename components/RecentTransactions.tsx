@@ -11,6 +11,8 @@ import { TransactionDetailsModal } from '@/components/TransactionDetailsModal';
 import { cn } from '@/lib/utils';
 import { DASHBOARD_SURFACE } from './Dashboard/DashboardCard';
 import SplitBillHistoryDialog, { splitBillRowInfo } from '@/components/bills/SplitBillHistoryDialog';
+import ProfilePreviewModal from '@/components/chat/profile-preview-modal';
+import GroupProfileModal from '@/components/chat/group-profile-modal';
 
 export const RecentTransactions: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -19,6 +21,8 @@ export const RecentTransactions: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentUserWalletId, setCurrentUserWalletId] = useState<string | null>(null);
+  const [profilePreview, setProfilePreview] = useState<{ userId: string; name?: string } | null>(null);
+  const [groupProfilePreviewId, setGroupProfilePreviewId] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -104,6 +108,8 @@ export const RecentTransactions: React.FC = () => {
         isToOrganization: false,
         status: transaction.status || 'completed',
         counterpartyProfileImage: undefined as string | undefined,
+        counterpartyGroupId: undefined as string | undefined,
+        counterpartyPublicContributionId: undefined as string | undefined,
         split,
       };
     }
@@ -120,6 +126,14 @@ export const RecentTransactions: React.FC = () => {
     let counterpartyName = 'Transaction';
     let isToOrganization = false;
     let counterpartyProfileImage: string | undefined = undefined;
+    // Set when the wallet on the other side belongs to a group fundraiser rather
+    // than an individual - there's no personal profile to preview there, but the
+    // group's own profile is a reasonable thing to open instead.
+    let counterpartyGroupId: string | undefined = undefined;
+    // Same idea for a public (non-group) contribution campaign - its own page is
+    // the reasonable thing to open, same as the group case above.
+    let counterpartyPublicContributionId: string | undefined = undefined;
+    const counterpartyWallet = isOutgoing ? transaction.receiverWallet : transaction.senderWallet;
 
     if (isOutgoing) {
       // Sending money - check receiver first
@@ -130,6 +144,13 @@ export const RecentTransactions: React.FC = () => {
       } else if (transaction.receiverWallet?.user?.firstName || transaction.receiverWallet?.user?.lastName) {
         counterpartyName = `${transaction.receiverWallet.user.firstName || ''} ${transaction.receiverWallet.user.lastName || ''}`.trim();
         counterpartyProfileImage = transaction.receiverWallet.user.profile?.profileImage;
+      } else if (transaction.receiverWallet?.group?.name) {
+        counterpartyName = transaction.receiverWallet.group.name;
+        counterpartyGroupId = transaction.receiverWallet.group.id;
+        counterpartyProfileImage = transaction.receiverWallet.group.profilePictureUrl ?? undefined;
+      } else if (transaction.receiverWallet?.publicContribution?.title) {
+        counterpartyName = transaction.receiverWallet.publicContribution.title;
+        counterpartyPublicContributionId = transaction.receiverWallet.publicContribution.id;
       } else if (transaction.description) {
         counterpartyName = transaction.description;
       } else {
@@ -144,6 +165,16 @@ export const RecentTransactions: React.FC = () => {
       } else if (transaction.senderWallet?.user?.firstName || transaction.senderWallet?.user?.lastName) {
         counterpartyName = `${transaction.senderWallet.user.firstName || ''} ${transaction.senderWallet.user.lastName || ''}`.trim();
         counterpartyProfileImage = transaction.senderWallet.user.profile?.profileImage;
+      } else if (transaction.senderWallet?.group?.name) {
+        counterpartyName = transaction.senderWallet.group.name;
+        counterpartyGroupId = transaction.senderWallet.group.id;
+        counterpartyProfileImage = transaction.senderWallet.group.profilePictureUrl ?? undefined;
+      } else if (transaction.senderWallet?.publicContribution?.title) {
+        counterpartyName = transaction.senderWallet.publicContribution.title;
+        counterpartyPublicContributionId = transaction.senderWallet.publicContribution.id;
+      } else if (transaction.type === 'topup') {
+        // Mobile money top-up: the sender is the provider, not a QC account
+        counterpartyName = transaction.externalSenderName ? `Top-up · ${transaction.externalSenderName}` : 'Top-up';
       } else if (transaction.description) {
         counterpartyName = transaction.description;
       } else {
@@ -154,7 +185,19 @@ export const RecentTransactions: React.FC = () => {
     const status = transaction.status || 'completed'; // 'completed', 'pending', 'failed'
     const transactionType = isOutgoing ? 'Sent' : 'Received';
 
-    return { amount, counterpartyName, transactionType, isOutgoing, isToOrganization, status, counterpartyProfileImage, split: null };
+    return {
+      amount,
+      counterpartyName,
+      transactionType,
+      isOutgoing,
+      isToOrganization,
+      status,
+      counterpartyProfileImage,
+      counterpartyGroupId,
+      counterpartyPublicContributionId,
+      counterpartyUserId: counterpartyWallet?.userId ?? undefined,
+      split: null,
+    };
   };
 
   if (loading) {
@@ -216,7 +259,7 @@ export const RecentTransactions: React.FC = () => {
       {/* Mobile & Desktop List View */}
       <div className="divide-y divide-gray-100 dark:divide-darkBorder-light">
         {displayedTransactions.map((transaction) => {
-          const { amount, counterpartyName, transactionType, isOutgoing, isToOrganization, status, counterpartyProfileImage, split } = getTransactionDisplayInfo(transaction);
+          const { amount, counterpartyName, transactionType, isOutgoing, isToOrganization, status, counterpartyProfileImage, counterpartyGroupId, counterpartyPublicContributionId, counterpartyUserId, split } = getTransactionDisplayInfo(transaction);
           const sign = split ? split.sign : isOutgoing ? '-' : '+';
           const amountColor = split?.sign === ''
             ? 'text-gray-500 dark:text-gray-400'
@@ -257,25 +300,53 @@ export const RecentTransactions: React.FC = () => {
           return (
             <div
               key={transaction.id}
-              className="group/txn px-4 py-2.5 hover:bg-gray-100/50 dark:hover:bg-darkBg-interactive transition-colors duration-200 cursor-pointer"
+              className="group/txn px-4 py-1.5 hover:bg-gray-100/50 dark:hover:bg-darkBg-interactive transition-colors duration-200 cursor-pointer"
               onClick={() => setSelectedTransaction(transaction)}
             >
               {/* Who and when on the left, how much on the right — the amount used
                   to sit on its own line under the name, which doubled the row's
                   height for two short strings. */}
               <div className="flex items-center gap-3">
-                <UserAvatar
-                  userId={(isOutgoing ? transaction.receiverWallet?.userId : transaction.senderWallet?.userId) ?? undefined}
-                  profileImage={counterpartyProfileImage}
-                  firstName={counterpartyName.split(' ')[0]}
-                  lastName={counterpartyName.split(' ')[1] || ''}
-                  className="w-9 h-9 flex-shrink-0"
-                  userType={isToOrganization ? 'organization' : 'user'}
-                />
+                {(() => {
+                  const canPreviewUser = Boolean(counterpartyUserId) && !isToOrganization && !split;
+                  const canPreviewGroup = !canPreviewUser && Boolean(counterpartyGroupId) && !isToOrganization && !split;
+                  const canPreviewContribution = !canPreviewUser && !canPreviewGroup && Boolean(counterpartyPublicContributionId) && !isToOrganization && !split;
+                  const canPreview = canPreviewUser || canPreviewGroup || canPreviewContribution;
+                  return (
+                    <div
+                      className={canPreview ? 'cursor-pointer' : undefined}
+                      onClick={(e) => {
+                        // Only intercept when there's an actual profile/group/contribution
+                        // to show - otherwise let the click fall through to the row's own
+                        // "open transaction details" handler instead of going dead.
+                        if (canPreviewUser && counterpartyUserId) {
+                          e.stopPropagation();
+                          setProfilePreview({ userId: counterpartyUserId, name: counterpartyName });
+                        } else if (canPreviewGroup && counterpartyGroupId) {
+                          e.stopPropagation();
+                          setGroupProfilePreviewId(counterpartyGroupId);
+                        } else if (canPreviewContribution && counterpartyPublicContributionId) {
+                          e.stopPropagation();
+                          router.push(`/contribute/${counterpartyPublicContributionId}`);
+                        }
+                      }}
+                    >
+                      <UserAvatar
+                        userId={counterpartyUserId ?? undefined}
+                        profileImage={counterpartyProfileImage}
+                        firstName={counterpartyName.split(' ')[0]}
+                        lastName={counterpartyName.split(' ')[1] || ''}
+                        className="w-12 h-12 flex-shrink-0"
+                        userType={isToOrganization ? 'organization' : 'user'}
+                        disableClick
+                      />
+                    </div>
+                  );
+                })()}
 
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-gray-900 dark:text-white">{counterpartyName}</p>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                <div className="min-w-0 flex-1 min-h-[3rem] flex flex-col justify-center">
+                  <p className="truncate text-[14px] leading-[16px] font-medium text-gray-900 dark:text-white">{counterpartyName}</p>
+                  <span className="block text-[11px] leading-[14px] text-gray-500 dark:text-gray-400">
                     {getRelativeTime(transaction.createdAt)}
                   </span>
                 </div>
@@ -327,6 +398,20 @@ export const RecentTransactions: React.FC = () => {
           onClose={() => setSelectedTransaction(null)}
         />
       )}
+
+      <ProfilePreviewModal
+        isOpen={Boolean(profilePreview)}
+        onClose={() => setProfilePreview(null)}
+        userId={profilePreview?.userId}
+        name={profilePreview?.name}
+      />
+
+      <GroupProfileModal
+        isOpen={Boolean(groupProfilePreviewId)}
+        onClose={() => setGroupProfilePreviewId(null)}
+        groupId={groupProfilePreviewId}
+        token={getValidToken() || ''}
+      />
     </div>
   );
 };

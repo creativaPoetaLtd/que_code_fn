@@ -1,8 +1,8 @@
 "use client"
 
-import React from "react"
+import React, { useEffect, useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { User, Shield, Bell, CreditCard, Lock } from 'lucide-react'
+import { User, Shield, Bell, CreditCard, Lock, Crown } from 'lucide-react'
 import { Layout } from "antd"
 import Navigation from "@/components/Navigation"
 import { ProfileTab } from "@/components/settings/ProfileTab"
@@ -10,6 +10,7 @@ import { SecurityTab } from "@/components/settings/SecurityTab"
 import { NotificationsTab } from "@/components/settings/NotificationsTab"
 import { PaymentTab } from "@/components/settings/PaymentTab"
 import { PrivacyTab } from "@/components/settings/PrivacyTab"
+import { PlanTab } from "@/components/settings/PlanTab"
 import { useSidebar } from "@/context/SidebarContext"
 import { cn } from "@/lib/utils"
 import { BackButton } from "@/components/shared/BackButton"
@@ -18,6 +19,12 @@ import { useAccent } from "@/hooks/use-accent"
 export default function SettingsPage() {
     const { isExpanded } = useSidebar();
     const accent = useAccent();
+    // ?tab=plan (e.g. from an "upgrade required" prompt) opens that tab directly.
+    const [activeTab, setActiveTab] = useState("profile");
+    useEffect(() => {
+        const tab = new URLSearchParams(window.location.search).get("tab");
+        if (tab) setActiveTab(tab);
+    }, []);
     return (
         <Layout className={`min-h-screen bg-gray-50 dark:bg-darkBg-main ${accent.darkBgPage} transition-colors duration-300 mobile-bottom-padding`}>
             <div className="flex min-h-screen">
@@ -33,8 +40,8 @@ export default function SettingsPage() {
                             <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400">Manage your profile settings and preferences</p>
                         </div>
 
-                        <Tabs defaultValue="profile" className="w-full">
-                            <TabsList className="grid grid-cols-2 sm:grid-cols-5 mb-6 sm:mb-8 w-full bg-white dark:bg-darkBg-card dark:border dark:border-darkBorder-light gap-1 sm:gap-0">
+                        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                            <TabsList className="grid grid-cols-3 sm:grid-cols-6 mb-6 sm:mb-8 w-full bg-white dark:bg-darkBg-card dark:border dark:border-darkBorder-light gap-1 sm:gap-0">
                                 <TabsTrigger
                                     value="profile"
                                     className={`flex items-center gap-1 sm:gap-2 text-xs sm:text-sm dark:text-gray-300 ${accent.tabActive} dark:data-[state=active]:text-white transition-colors`}
@@ -55,6 +62,13 @@ export default function SettingsPage() {
                                 >
                                     <Bell size={16} className="flex-shrink-0" />
                                     <span className="hidden sm:inline">Notifications</span>
+                                </TabsTrigger>
+                                <TabsTrigger
+                                    value="plan"
+                                    className={`flex items-center gap-1 sm:gap-2 text-xs sm:text-sm dark:text-gray-300 ${accent.tabActive} dark:data-[state=active]:text-white transition-colors`}
+                                >
+                                    <Crown size={16} className="flex-shrink-0" />
+                                    <span className="hidden sm:inline">Plan</span>
                                 </TabsTrigger>
                                 <TabsTrigger
                                     value="payment"
@@ -82,6 +96,10 @@ export default function SettingsPage() {
 
                             <TabsContent value="notifications" className="focus-visible:outline-none">
                                 <NotificationsTab />
+                            </TabsContent>
+
+                            <TabsContent value="plan" className="focus-visible:outline-none">
+                                <PlanTab />
                             </TabsContent>
 
                             <TabsContent value="payment" className="focus-visible:outline-none">

@@ -22,7 +22,7 @@ export default function MessageText({ content, isMe, mentions }: MessageTextProp
     return (
         <span
             className={`break-words whitespace-pre-wrap ${
-                isMe ? "text-white dark:text-darkBg-main" : "text-gray-900 dark:text-white"
+                isMe ? "text-gray-950 dark:text-gray-50" : "text-gray-900 dark:text-white"
             }`}
         >
             {segments.map((segment, i) => {
@@ -36,7 +36,7 @@ export default function MessageText({ content, isMe, mentions }: MessageTextProp
                             onClick={(e) => e.stopPropagation()}
                             className={`underline underline-offset-2 break-all ${
                                 isMe
-                                    ? "text-white/90 hover:text-white"
+                                    ? "text-blue-700 hover:text-blue-900 dark:text-blue-300 dark:hover:text-blue-200"
                                     : "text-brand-green dark:text-brand-gold hover:opacity-80"
                             }`}
                         >
@@ -105,7 +105,7 @@ function splitMentions(
                 className={`
                     inline-block font-semibold rounded px-1 py-0.5 text-[0.85em] leading-tight
                     ${isMe
-                        ? "bg-white/20 text-white"
+                        ? "bg-black/10 text-gray-950 dark:bg-white/20 dark:text-gray-50"
                         : "bg-brand-green/10 dark:bg-brand-gold/10 text-brand-green dark:text-brand-gold"
                     }
                 `}

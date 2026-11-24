@@ -7,6 +7,7 @@ import baseUrl from '@/helpers/baseUrl';
 import { useAuthToken } from '@/hooks/use-auth-token';
 import { cn } from '@/lib/utils';
 import { DASHBOARD_SURFACE } from './Dashboard/DashboardCard';
+import TopUpModal from '@/components/Wallet/TopUpModal';
 
 interface AccountInfoProps {
     userId: string;
@@ -16,9 +17,12 @@ interface AccountInfoProps {
      * the actions, so this is just the code and the link to share it.
      */
     variant?: 'full' | 'compact';
+    /** Drops the standalone card chrome — the caller (the mobile wallet hero)
+     *  already provides the surrounding card, so this would otherwise double it up. */
+    embedded?: boolean;
 }
 
-const AccountInfo: React.FC<AccountInfoProps> = ({ userId, variant = 'full' }) => {
+const AccountInfo: React.FC<AccountInfoProps> = ({ userId, variant = 'full', embedded = false }) => {
     const isCompact = variant === 'compact';
     const router = useRouter();
     const { getToken } = useAuthToken();
@@ -27,6 +31,7 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId, variant = 'full' }) =
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
+    const [isTopUpOpen, setIsTopUpOpen] = useState(false);
 
     useEffect(() => {
         const fetchUserData = async () => {
@@ -136,40 +141,46 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId, variant = 'full' }) =
     };
 
     if (loading) {
-        return (
+        const loadingContent = (
+            <div className="flex justify-center items-center h-32">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-green dark:border-brand-gold"></div>
+                <p className="ml-4 text-gray-600 dark:text-gray-400">Loading user data...</p>
+            </div>
+        );
+        return embedded ? loadingContent : (
             <div className="bg-white dark:bg-darkBg-card rounded-lg shadow-sm p-4 sm:p-6 md:p-8 border border-gray-100 dark:border-darkBorder-light">
-                <div className="flex justify-center items-center h-64">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-green dark:border-brand-gold"></div>
-                    <p className="ml-4 text-gray-600 dark:text-gray-400">Loading user data...</p>
-                </div>
+                {loadingContent}
             </div>
         );
     }
 
     if (error) {
-        return (
-            <div className="bg-white dark:bg-darkBg-card rounded-lg shadow-sm p-4 sm:p-6 md:p-8 border border-gray-100 dark:border-darkBorder-light">
-                <div className="flex justify-center items-center h-64">
-                    <div className="text-center">
-                        <p className="text-red-500 dark:text-red-400 mb-4 font-medium">{error}</p>
-                        <div className="space-x-2">
-                            <button
-                                onClick={() => window.location.reload()}
-                                className="px-4 py-2 bg-brand-green dark:bg-brand-gold text-white dark:text-darkBg-main rounded hover:opacity-90 transition font-medium"
-                            >
-                                Retry
-                            </button>
-                            <button
-                                onClick={() => {
-                                    router.push('/logout');
-                                }}
-                                className="px-4 py-2 bg-red-500 dark:bg-red-600 text-white rounded hover:opacity-90 transition font-medium"
-                            >
-                                Re-login
-                            </button>
-                        </div>
+        const errorContent = (
+            <div className="flex justify-center items-center py-6">
+                <div className="text-center">
+                    <p className="text-red-500 dark:text-red-400 mb-4 font-medium">{error}</p>
+                    <div className="space-x-2">
+                        <button
+                            onClick={() => window.location.reload()}
+                            className="px-4 py-2 bg-brand-green dark:bg-brand-gold text-white dark:text-darkBg-main rounded hover:opacity-90 transition font-medium"
+                        >
+                            Retry
+                        </button>
+                        <button
+                            onClick={() => {
+                                router.push('/logout');
+                            }}
+                            className="px-4 py-2 bg-red-500 dark:bg-red-600 text-white rounded hover:opacity-90 transition font-medium"
+                        >
+                            Re-login
+                        </button>
                     </div>
                 </div>
+            </div>
+        );
+        return embedded ? errorContent : (
+            <div className="bg-white dark:bg-darkBg-card rounded-lg shadow-sm p-4 sm:p-6 md:p-8 border border-gray-100 dark:border-darkBorder-light">
+                {errorContent}
             </div>
         );
     }
@@ -178,7 +189,7 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId, variant = 'full' }) =
 
 
     return (
-        <div className={cn(DASHBOARD_SURFACE, "overflow-hidden")}>
+        <div className={embedded ? "" : cn(DASHBOARD_SURFACE, "overflow-hidden")}>
             {/* Header with Profile Link */}
             {!isCompact && (
             <div className="px-4 py-3 border-b border-gray-100 dark:border-darkBorder-light flex justify-end">
@@ -278,14 +289,18 @@ const AccountInfo: React.FC<AccountInfoProps> = ({ userId, variant = 'full' }) =
                         <span className="text-[10px] sm:text-sm font-normal text-gray-700 dark:text-gray-300">Scan QR</span>
                     </button>
 
-                    <button className="flex flex-col items-center justify-center gap-1 p-2 sm:p-3 rounded-xl border-2 border-gray-200 dark:border-darkBorder-light hover:border-brand-green dark:hover:border-brand-gold hover:bg-brand-green/5 dark:hover:bg-brand-gold/5 transition-colors group">
+                    <button
+                        onClick={() => setIsTopUpOpen(true)}
+                        className="flex flex-col items-center justify-center gap-1 p-2 sm:p-3 rounded-xl border-2 border-gray-200 dark:border-darkBorder-light hover:border-brand-green dark:hover:border-brand-gold hover:bg-brand-green/5 dark:hover:bg-brand-gold/5 transition-colors group"
+                    >
                         <Plus size={24} className="text-green-500 dark:text-brand-gold group-hover:text-brand-green dark:group-hover:text-brand-gold" />
                         <span className="text-[10px] sm:text-sm font-normal text-gray-700 dark:text-gray-300 whitespace-nowrap">Top up</span>
                     </button>
                 </div>
                 )}
             </div>
-            
+
+            <TopUpModal isOpen={isTopUpOpen} onClose={() => setIsTopUpOpen(false)} />
         </div>
     );
 };

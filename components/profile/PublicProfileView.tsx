@@ -1,4 +1,5 @@
 'use client';
+import { notifyTierError } from "@/utils/tierErrors";
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Input, Button } from 'antd';
@@ -844,6 +845,7 @@ const PublicProfileView: React.FC<PublicProfileViewProps> = ({
       }
     } catch (error: any) {
       console.error('Purchase error:', error);
+      notifyTierError(error);
       const errorMessage =
         error.response?.data?.message ||
         error.message ||
@@ -913,6 +915,7 @@ const PublicProfileView: React.FC<PublicProfileViewProps> = ({
         if (selectedAction) await fetchSubActions(selectedAction.id);
       }
     } catch (error: any) {
+      notifyTierError(error);
       const errorMessage =
         error.response?.data?.message || error.message || 'Operation failed. Please try again.';
       setPurchaseError(prev => ({ ...prev, [subAction.id]: errorMessage }));

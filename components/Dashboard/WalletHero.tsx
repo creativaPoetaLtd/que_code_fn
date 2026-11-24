@@ -9,16 +9,22 @@ import { getEntityBalance } from "@/helpers/api";
 import { useAuthToken } from "@/hooks/use-auth-token";
 import { DASHBOARD_SURFACE } from "./DashboardCard";
 import { cn } from "@/lib/utils";
+import AccountInfo from "@/components/AccountInfo";
+import TopUpModal from "@/components/Wallet/TopUpModal";
+import { onWalletUpdated } from "@/utils/walletEvents";
 
 interface WalletHeroProps {
     userId: string;
+    /** Below the `lg` breakpoint, the QR/receive card renders in here instead of
+     *  its own separate card further down the page — see HomePageLayout. */
+    isMobile?: boolean;
 }
 
 const ACTIONS = [
     { label: "Send", icon: Send, href: "/home/transfer" },
     { label: "Request", icon: Download, href: "/home/request" },
     { label: "Scan QR", icon: QrCode, href: "/home/scan" },
-    { label: "Top up", icon: Plus, href: null },
+    { label: "Top up", icon: Plus, href: null }, // opens TopUpModal
 ] as const;
 
 /**
@@ -27,7 +33,7 @@ const ACTIONS = [
  * buried under a full-size QR code, so the page's primary job sat below its least
  * urgent one.
  */
-export const WalletHero: React.FC<WalletHeroProps> = ({ userId }) => {
+export const WalletHero: React.FC<WalletHeroProps> = ({ userId, isMobile = false }) => {
     const router = useRouter();
     const { getToken } = useAuthToken();
     const [userName, setUserName] = useState<string>("");
@@ -35,6 +41,12 @@ export const WalletHero: React.FC<WalletHeroProps> = ({ userId }) => {
     const [isBalanceVisible, setIsBalanceVisible] = useState(true);
     const [balanceLoading, setBalanceLoading] = useState(true);
     const [balanceError, setBalanceError] = useState<string | null>(null);
+    const [userPhone, setUserPhone] = useState<string | undefined>(undefined);
+    const [isTopUpOpen, setIsTopUpOpen] = useState(false);
+    // Bumped when a balance changes elsewhere (e.g. a finished top-up) to refetch it.
+    const [balanceVersion, setBalanceVersion] = useState(0);
+
+    useEffect(() => onWalletUpdated(() => setBalanceVersion((v) => v + 1)), []);
 
     useEffect(() => {
         if (!userId) return;
@@ -47,6 +59,7 @@ export const WalletHero: React.FC<WalletHeroProps> = ({ userId }) => {
                 const res = await axios.get(`${baseUrl}/users/${userId}`, { headers });
                 if (cancelled) return;
                 setUserName(res.data?.firstName || res.data?.name || "");
+                setUserPhone(res.data?.phone || undefined);
             } catch {
                 // A missing first name just means a shorter greeting
             }
@@ -89,7 +102,7 @@ export const WalletHero: React.FC<WalletHeroProps> = ({ userId }) => {
         return () => {
             cancelled = true;
         };
-    }, [userId]);
+    }, [userId, balanceVersion]);
 
     const greeting = (() => {
         const hour = new Date().getHours();
@@ -97,6 +110,28 @@ export const WalletHero: React.FC<WalletHeroProps> = ({ userId }) => {
         if (hour < 18) return "Good afternoon";
         return "Good evening";
     })();
+
+    /**
+     * The four things this page exists for. On mobile these sit under the share
+     * link at the bottom of the QR block; on desktop they sit beside the balance.
+     */
+    const actionsGrid = (
+        <div className="grid flex-shrink-0 grid-cols-4 gap-2 sm:w-auto">
+            {ACTIONS.map(({ label, icon: Icon, href }) => (
+                <button
+                    key={label}
+                    type="button"
+                    onClick={() => (href ? router.push(href) : setIsTopUpOpen(true))}
+                    className="group flex flex-col items-center justify-center gap-1 rounded-xl border border-gray-200 px-1.5 py-2.5 transition-colors hover:border-brand-green hover:bg-brand-green/5 dark:border-darkBorder-light dark:hover:border-brand-gold dark:hover:bg-brand-gold/5 sm:px-3 sm:min-w-[76px]"
+                >
+                    <Icon size={20} className="text-brand-green dark:text-brand-gold" />
+                    <span className="whitespace-nowrap text-[10px] font-medium text-gray-700 dark:text-gray-300 sm:text-[11px]">
+                        {label}
+                    </span>
+                </button>
+            ))}
+        </div>
+    );
 
     return (
         <section className={cn(DASHBOARD_SURFACE, "p-4 sm:p-5")}>
@@ -137,23 +172,22 @@ export const WalletHero: React.FC<WalletHeroProps> = ({ userId }) => {
                     </p>
                 </div>
 
-                {/* Primary actions — the four things this page exists for */}
-                <div className="grid flex-shrink-0 grid-cols-4 gap-2 sm:w-auto">
-                    {ACTIONS.map(({ label, icon: Icon, href }) => (
-                        <button
-                            key={label}
-                            type="button"
-                            onClick={() => href && router.push(href)}
-                            className="group flex flex-col items-center justify-center gap-1 rounded-xl border border-gray-200 px-1.5 py-2.5 transition-colors hover:border-brand-green hover:bg-brand-green/5 dark:border-darkBorder-light dark:hover:border-brand-gold dark:hover:bg-brand-gold/5 sm:px-3 sm:min-w-[76px]"
-                        >
-                            <Icon size={20} className="text-brand-green dark:text-brand-gold" />
-                            <span className="whitespace-nowrap text-[10px] font-medium text-gray-700 dark:text-gray-300 sm:text-[11px]">
-                                {label}
-                            </span>
-                        </button>
-                    ))}
-                </div>
+                {/* Primary actions, unless this is mobile — there they belong below
+                    the QR block, so the balance keeps the full width here. */}
+                {!isMobile && actionsGrid}
             </div>
+
+            {/* QR/receive card lives here on mobile instead of further down the page —
+                see the `embedded` AccountInfo variant and HomePageLayout's isMobile gate.
+                The actions follow the share link that closes it, so the block reads
+                code → link → what you can do. */}
+            {isMobile && (
+                <div className="-mx-4 -mb-4 mt-4 border-t border-gray-100 dark:border-darkBorder-light sm:-mx-5 sm:-mb-5">
+                    <AccountInfo userId={userId} variant="compact" embedded />
+                    <div className="px-4 pb-4 sm:px-5 sm:pb-5">{actionsGrid}</div>
+                </div>
+            )}
+            <TopUpModal isOpen={isTopUpOpen} onClose={() => setIsTopUpOpen(false)} defaultPhone={userPhone} />
         </section>
     );
 };

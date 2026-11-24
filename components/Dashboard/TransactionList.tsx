@@ -235,7 +235,10 @@ const TransactionListInner = ({ transactions: propTransactions, toolbarInHeader 
     }
 
     if (!counterpartyName || counterpartyName === '') {
-      counterpartyName = transaction.description || (isOutgoing ? 'Money Sent' : 'Money Received');
+      counterpartyName =
+        !isOutgoing && transaction.type === 'topup'
+          ? (transaction.externalSenderName ? `Top-up · ${transaction.externalSenderName}` : 'Top-up')
+          : transaction.description || (isOutgoing ? 'Money Sent' : 'Money Received');
     }
 
     return { amount, counterpartyName, counterpartyEmail, counterpartyProfileImage, counterpartyType, isOutgoing, split: null };

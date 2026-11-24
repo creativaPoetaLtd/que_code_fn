@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import { Bell, Users, UserPlus, Check, X, Clock, AlertCircle, Info, Loader2, MessageCircle, Image as ImageIcon, Video, Music, File, DollarSign, UserMinus, UserCheck, UserX, ShieldCheck, ShieldAlert, Settings, Trash2, HandCoins, WalletCards, Receipt } from "lucide-react"
@@ -29,6 +30,7 @@ import {
 } from "@/states/sharedWalletSlice"
 import type { Notification } from "@/types/notification.types"
 import { formatDistanceToNow } from "date-fns"
+import GroupProfileModal from "@/components/chat/group-profile-modal"
 
 interface NotificationCenterProps {
     isOpen: boolean
@@ -36,7 +38,20 @@ interface NotificationCenterProps {
 }
 
 const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose }) => {
-    const { notifications, unreadCount, markAsRead, markAllAsRead, removeContactRequestNotification } = useNotifications()
+    const { notifications, unreadCount, markAsRead, markManyAsRead, markAllAsRead, removeContactRequestNotification } = useNotifications()
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+
+    const toggleSelected = (notificationId: string) => {
+        setSelectedIds((prev) => {
+            const next = new Set(prev)
+            if (next.has(notificationId)) {
+                next.delete(notificationId)
+            } else {
+                next.add(notificationId)
+            }
+            return next
+        })
+    }
     const { getToken } = useAuthToken()
     const token = getToken()
     const router = useRouter()
@@ -47,6 +62,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
     const [respondToGroupInvitation, { isLoading: isRespondingToInvitation }] = useRespondToGroupInvitationMutation()
     const [respondToSharedWalletInvitation, { isLoading: isRespondingToSharedWalletInvitation }] = useRespondToSharedWalletInvitationMutation()
     const [selectedTab, setSelectedTab] = useState<'all' | 'invitations' | 'requests' | 'contacts' | 'groups' | 'messages'>('all')
+    const [groupProfilePreviewId, setGroupProfilePreviewId] = useState<string | null>(null)
     const [processingRequestId, setProcessingRequestId] = useState<string | null>(null)
     const [rejectionReason, setRejectionReason] = useState<string>("")
     const [showRejectionInput, setShowRejectionInput] = useState<string | null>(null)
@@ -230,6 +246,14 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
             case 'PUBLIC_CONTRIBUTION_CLOSED':
             case 'public_contribution_closed':
                 return <ShieldAlert className="h-4 w-4 text-orange-500" />
+            case 'TOPUP_SUCCESSFUL':
+            case 'PLAN_RENEWED':
+            case 'PLAN_CHANGED':
+                return <WalletCards className="h-4 w-4 text-[#00B512]" />
+            case 'TOPUP_FAILED':
+            case 'PLAN_PAYMENT_FAILED':
+            case 'PLAN_EXPIRED':
+                return <AlertCircle className="h-4 w-4 text-red-500" />
 
             default:
                 return <Bell className="h-4 w-4 text-gray-500" />
@@ -434,9 +458,9 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
     }
 
     const handleNotificationClick = (notification: Notification) => {
-        if (!notification.isRead) {
-            markAsRead(notification.id)
-        }
+        // markAsRead now removes it from the list either way - call it unconditionally
+        // so clicking an already-read one still tidies it away.
+        markAsRead(notification.id)
 
         // Handle navigation for chat notifications
         if (notification.data?.chatId && (
@@ -450,13 +474,14 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
             onClose()
         } 
         // Handle navigation for group notifications - GROUP_INVITATION is excluded here
-        // since it has its own inline Accept/Decline buttons below and /groups/{groupId}
-        // has no page (would 404); this only covers other GROUP_* types.
+        // since it has its own inline Accept/Decline buttons below. /groups/{groupId} has
+        // no page of its own (would 404), so this opens the same group profile modal the
+        // chat header and conversation list avatar use instead of routing to a dead page.
         else if (notification.data?.groupId && (
             notification.type.startsWith('GROUP_') ||
             notification.type.startsWith('group_')
         ) && notification.type !== 'GROUP_INVITATION' && notification.type !== 'group_invitation') {
-            router.push(`/groups/${notification.data.groupId}`)
+            setGroupProfilePreviewId(notification.data.groupId)
             onClose()
         }
         // Handle navigation for shared wallet notifications - SHARED_WALLET_INVITATION is
@@ -519,6 +544,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
     const pendingContactRequestsList = pendingContactRequests?.invitations || []
 
     return (
+        <>
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl h-[85vh] sm:h-auto sm:max-h-[85vh] flex flex-col bg-white dark:bg-darkBg-card border-gray-200 dark:border-darkBorder-light p-0 gap-0">
                 <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b border-gray-200 dark:border-darkBorder-light">
@@ -532,15 +558,38 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
                                 </Badge>
                             )}
                         </span>
-                        {unreadCount > 0 && markAllAsRead && (
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => markAllAsRead()}
-                                className="text-xs font-normal text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-                            >
-                                Mark all read
-                            </Button>
+                        {selectedIds.size > 0 ? (
+                            <div className="flex items-center gap-1 sm:gap-2">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setSelectedIds(new Set())}
+                                    className="text-xs font-normal text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    onClick={() => {
+                                        markManyAsRead?.(Array.from(selectedIds))
+                                        setSelectedIds(new Set())
+                                    }}
+                                    className="text-xs"
+                                >
+                                    Mark {selectedIds.size} read
+                                </Button>
+                            </div>
+                        ) : (
+                            unreadCount > 0 && markAllAsRead && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => markAllAsRead()}
+                                    className="text-xs font-normal text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+                                >
+                                    Mark all read
+                                </Button>
+                            )
                         )}
                     </DialogTitle>
                 </DialogHeader>
@@ -818,6 +867,16 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
                                         }`}
                                     onClick={() => handleNotificationClick(notification)}
                                 >
+                                    <div
+                                        className="flex-shrink-0 mt-0.5 sm:mt-1"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <Checkbox
+                                            checked={selectedIds.has(notification.id)}
+                                            onCheckedChange={() => toggleSelected(notification.id)}
+                                            aria-label={selectedIds.has(notification.id) ? 'Deselect notification' : 'Select notification'}
+                                        />
+                                    </div>
                                     <div className="flex-shrink-0 mt-0.5 sm:mt-1">
                                         {getNotificationIcon(notification.type)}
                                     </div>
@@ -833,6 +892,20 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
                                                 {!notification.isRead && (
                                                     <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-blue-500 rounded-full"></div>
                                                 )}
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        markAsRead(notification.id)
+                                                    }}
+                                                    aria-label="Mark as read"
+                                                    title="Mark as read"
+                                                    className="h-5 w-5 sm:h-6 sm:w-6 text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-200"
+                                                >
+                                                    <Check className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                                                </Button>
                                             </div>
                                         </div>
                                         <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mt-0.5 sm:mt-1 line-clamp-2">
@@ -958,6 +1031,14 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
                 </div>
             </DialogContent>
         </Dialog>
+
+        <GroupProfileModal
+            isOpen={Boolean(groupProfilePreviewId)}
+            onClose={() => setGroupProfilePreviewId(null)}
+            groupId={groupProfilePreviewId}
+            token={token || ''}
+        />
+        </>
     )
 }
 

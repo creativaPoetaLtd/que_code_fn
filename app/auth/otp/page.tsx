@@ -134,7 +134,8 @@ const OTPVerification: React.FC = () => {
                 description: response.message || 'Your account has been successfully verified.',
                 placement: 'topRight' as NotificationPlacement,
             });
-            router.push('/auth/login');
+            // New accounts pick their plan right after their first login.
+            router.push(`/auth/login?returnUrl=${encodeURIComponent('/onboarding/plan')}`);
         } catch (error: any) {
             notification.error({
                 message: 'Verification Failed',

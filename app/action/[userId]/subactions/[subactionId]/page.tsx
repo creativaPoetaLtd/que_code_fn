@@ -1,5 +1,6 @@
 'use client';
 
+import { notifyTierError } from "@/utils/tierErrors";
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
@@ -279,6 +280,7 @@ export default function SubActionDetailPage() {
                 toast({ title: 'Success!', description: `Completed for ${subAction.name}.` });
             }
         } catch (err: any) {
+            notifyTierError(err);
             setPurchaseError(err?.response?.data?.message || err?.message || 'Operation failed.');
         } finally {
             setIsPurchasing(false);

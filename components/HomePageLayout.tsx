@@ -10,6 +10,7 @@ import RecentActions from "./RecentActions";
 import Navigation from "./Navigation";
 import { useAuthToken } from '@/hooks/use-auth-token';
 import { useSidebar } from '@/context/SidebarContext';
+import { useIsMobile } from '@/hooks/use-is-mobile';
 import { cn } from '@/lib/utils';
 
 export const HomePageLayout = () => {
@@ -17,6 +18,7 @@ export const HomePageLayout = () => {
     const router = useRouter();
     const { getToken } = useAuthToken();
     const { isExpanded } = useSidebar();
+    const isMobile = useIsMobile();
     const [userId, setUserId] = useState<string>("");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string>("");
@@ -209,8 +211,10 @@ export const HomePageLayout = () => {
                         <Header />
                     </div>
 
-                    {/* Balance and the four primary actions, full width */}
-                    <WalletHero userId={userId} />
+                    {/* Balance and the four primary actions, full width. Below `lg`,
+                        the QR/receive card renders inside this same hero instead of
+                        its own card further down — see the isMobile gate below. */}
+                    <WalletHero userId={userId} isMobile={isMobile} />
 
                     {/*
                       Activity takes two thirds; the QR and messages are utilities,
@@ -219,11 +223,13 @@ export const HomePageLayout = () => {
                     */}
                     <div className="mt-4 grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
                         <div className="space-y-4 lg:col-span-2">
-                            <RecentTransactions />
                             <RecentActions userId={userId} />
+                            <RecentTransactions />
                         </div>
                         <div className="space-y-4">
-                            <AccountInfo userId={userId} variant="compact" />
+                            {/* On mobile this already rendered inside WalletHero above -
+                                mounting it here too would double-fetch its data. */}
+                            {!isMobile && <AccountInfo userId={userId} variant="compact" />}
                             <RecentMessages />
                         </div>
                     </div>

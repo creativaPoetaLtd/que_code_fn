@@ -31,23 +31,23 @@ export default function LinkPreviewCard({ url, isMe }: LinkPreviewCardProps) {
                 onClick={(e) => e.stopPropagation()}
                 className={`mt-2 flex gap-3 rounded-lg border p-3 transition-opacity hover:opacity-90 ${
                     isMe
-                        ? "border-white/20 bg-white/10 text-white"
+                        ? "border-emerald-900/10 bg-black/5 text-gray-950 dark:border-white/20 dark:bg-white/10 dark:text-white"
                         : "border-gray-200 bg-gray-50 text-gray-900 dark:border-darkBorder-light dark:bg-darkBg-interactive dark:text-white"
                 }`}
             >
                 <div className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full ${
-                    isMe ? "bg-white/15" : "bg-brand-green/10 dark:bg-brand-gold/10"
+                    isMe ? "bg-black/10 dark:bg-white/15" : "bg-brand-green/10 dark:bg-brand-gold/10"
                 }`}>
-                    <Users size={22} className={isMe ? "text-white" : "text-brand-green dark:text-brand-gold"} />
+                    <Users size={22} className={isMe ? "text-gray-950 dark:text-white" : "text-brand-green dark:text-brand-gold"} />
                 </div>
                 <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold leading-snug">Join a QiewCode Group</p>
                     <p className={`mt-1 line-clamp-2 text-xs leading-relaxed ${
-                        isMe ? "text-white/75" : "text-gray-500 dark:text-gray-400"
+                        isMe ? "text-gray-700 dark:text-white/75" : "text-gray-500 dark:text-gray-400"
                     }`}>
                         Open this secure invitation link to request access to the group.
                     </p>
-                    <p className={`mt-1 truncate text-[11px] ${isMe ? "text-white/55" : "text-gray-400"}`}>
+                    <p className={`mt-1 truncate text-[11px] ${isMe ? "text-gray-500 dark:text-white/55" : "text-gray-400"}`}>
                         qc-dev2.netlify.app
                     </p>
                 </div>
@@ -61,20 +61,20 @@ export default function LinkPreviewCard({ url, isMe }: LinkPreviewCardProps) {
             <div
                 className={`mt-2 rounded-lg overflow-hidden border animate-pulse ${
                     isMe
-                        ? "border-white/20 bg-white/10"
+                        ? "border-emerald-900/10 bg-black/5 dark:border-white/20 dark:bg-white/10"
                         : "border-gray-200 dark:border-darkBorder-light bg-gray-50 dark:bg-darkBg-interactive"
                 }`}
             >
                 <div className="flex gap-3 p-3">
                     <div
                         className={`flex-shrink-0 w-16 h-16 rounded ${
-                            isMe ? "bg-white/20" : "bg-gray-200 dark:bg-gray-700"
+                            isMe ? "bg-black/10 dark:bg-white/20" : "bg-gray-200 dark:bg-gray-700"
                         }`}
                     />
                     <div className="flex-1 space-y-2 py-1">
-                        <div className={`h-3 rounded w-3/4 ${isMe ? "bg-white/20" : "bg-gray-200 dark:bg-gray-700"}`} />
-                        <div className={`h-2 rounded w-full  ${isMe ? "bg-white/20" : "bg-gray-200 dark:bg-gray-700"}`} />
-                        <div className={`h-2 rounded w-1/2  ${isMe ? "bg-white/20" : "bg-gray-200 dark:bg-gray-700"}`} />
+                        <div className={`h-3 rounded w-3/4 ${isMe ? "bg-black/10 dark:bg-white/20" : "bg-gray-200 dark:bg-gray-700"}`} />
+                        <div className={`h-2 rounded w-full  ${isMe ? "bg-black/10 dark:bg-white/20" : "bg-gray-200 dark:bg-gray-700"}`} />
+                        <div className={`h-2 rounded w-1/2  ${isMe ? "bg-black/10 dark:bg-white/20" : "bg-gray-200 dark:bg-gray-700"}`} />
                     </div>
                 </div>
             </div>
@@ -94,7 +94,7 @@ export default function LinkPreviewCard({ url, isMe }: LinkPreviewCardProps) {
                 onClick={(e) => e.stopPropagation()}
                 className={`mt-2 flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-opacity hover:opacity-80 ${
                     isMe
-                        ? "bg-white/15 text-white"
+                        ? "bg-black/10 text-gray-950 dark:bg-white/15 dark:text-white"
                         : "bg-gray-100 dark:bg-darkBg-interactive text-brand-green dark:text-brand-gold border border-gray-200 dark:border-darkBorder-light"
                 }`}
             >
@@ -114,7 +114,7 @@ export default function LinkPreviewCard({ url, isMe }: LinkPreviewCardProps) {
             onClick={(e) => e.stopPropagation()}
             className={`mt-2 block w-full rounded-lg overflow-hidden border transition-opacity hover:opacity-90 ${
                 isMe
-                    ? "border-white/20 bg-white/10"
+                    ? "border-emerald-900/10 bg-black/5 dark:border-white/20 dark:bg-white/10"
                     : "border-gray-200 dark:border-darkBorder-light bg-gray-50 dark:bg-darkBg-interactive"
             }`}
         >
@@ -137,7 +137,7 @@ export default function LinkPreviewCard({ url, isMe }: LinkPreviewCardProps) {
                 {/* Domain row */}
                 <div
                     className={`flex items-center gap-1.5 mb-1.5 ${
-                        isMe ? "text-white/60" : "text-gray-500 dark:text-gray-400"
+                        isMe ? "text-gray-600 dark:text-white/60" : "text-gray-500 dark:text-gray-400"
                     }`}
                 >
                     {data.favicon ? (
@@ -164,7 +164,7 @@ export default function LinkPreviewCard({ url, isMe }: LinkPreviewCardProps) {
                 {data.title && (
                     <p
                         className={`text-sm font-semibold leading-snug line-clamp-2 ${
-                            isMe ? "text-white" : "text-gray-900 dark:text-white"
+                            isMe ? "text-gray-950 dark:text-white" : "text-gray-900 dark:text-white"
                         }`}
                     >
                         {data.title}
@@ -175,7 +175,7 @@ export default function LinkPreviewCard({ url, isMe }: LinkPreviewCardProps) {
                 {data.description && (
                     <p
                         className={`text-xs leading-relaxed mt-1 line-clamp-2 ${
-                            isMe ? "text-white/70" : "text-gray-500 dark:text-gray-400"
+                            isMe ? "text-gray-700 dark:text-white/70" : "text-gray-500 dark:text-gray-400"
                         }`}
                     >
                         {data.description}

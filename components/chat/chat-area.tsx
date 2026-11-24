@@ -79,9 +79,35 @@ function isStandaloneMessage(message: Message | LegacyMessage): boolean {
     return typeof content === "string" && content.trimStart().startsWith("{")
 }
 
+/**
+ * Photos and videos sent in one go arrive as separate messages a second apart.
+ * Within this window a run of them is treated as one bundle, the way WhatsApp
+ * collapses a batch into a single album bubble.
+ */
+const ALBUM_WINDOW_MS = 60 * 1000
+
+/**
+ * Whether a message may be folded into a bundle. Anything carrying its own
+ * context — a reply, reactions, a tombstone — keeps its own bubble, because a
+ * grid tile has nowhere to show that.
+ */
+function isAlbumableMessage(message: Message | LegacyMessage): message is Message {
+    const messageType = (message as any).messageType
+    if (messageType !== "image" && messageType !== "video") return false
+    if (!(message as any).mediaUrl) return false
+    if ((message as any).deletedAt) return false
+    if ((message as any).replyToMessageId || (message as any).replyTo) return false
+    const reactions = (message as any).reactions
+    return !Array.isArray(reactions) || reactions.length === 0
+}
+
 interface MessageRow {
     message: Message | LegacyMessage
     key: string
+    /** Every message this row stands for — one id, or a whole bundle's worth */
+    memberKeys: string[]
+    /** Set only for a bundle of photos and videos sent together */
+    album?: Message[]
     date: Date
     showDateSeparator: boolean
     isFirstInGroup: boolean
@@ -230,15 +256,53 @@ export default function ChatArea({
     }
 
     // Precompute where each message sits in its sender's run, so a burst of messages
-    // reads as one turn instead of a stack of identical islands.
+    // reads as one turn instead of a stack of identical islands. Photos and videos
+    // sent together collapse into a single album row along the way.
     const rows = useMemo<MessageRow[]>(() => {
         const list = messages as Array<Message | LegacyMessage>
-        return list.map((message, index) => {
+
+        // ── Pass 1: fold runs of together-sent media into bundles ─────────────
+        type Unit = { messages: Array<Message | LegacyMessage>; isAlbum: boolean }
+        const units: Unit[] = []
+
+        for (let index = 0; index < list.length; index++) {
+            const message = list[index]
+
+            if (!isAlbumableMessage(message)) {
+                units.push({ messages: [message], isAlbum: false })
+                continue
+            }
+
+            // Take every following photo or video from the same sender that was
+            // sent within a breath of the one before it
+            const bundle: Message[] = [message]
+            while (index + 1 < list.length) {
+                const candidate = list[index + 1]
+                const previous = bundle[bundle.length - 1]
+                const sameSender = getSenderKey(candidate) === getSenderKey(previous)
+                const closeEnough =
+                    getMessageDate(candidate).getTime() - getMessageDate(previous).getTime() < ALBUM_WINDOW_MS
+                if (!isAlbumableMessage(candidate) || !sameSender || !closeEnough) break
+                bundle.push(candidate)
+                index++
+            }
+
+            units.push({ messages: bundle, isAlbum: bundle.length > 1 })
+        }
+
+        // ── Pass 2: date separators and sender runs, now per unit ─────────────
+        return units.map((unit, unitIndex) => {
+            // A bundle answers for its first message: that is where its day, its
+            // place in the thread and its reply target all come from
+            const message = unit.messages[0]
             const date = getMessageDate(message)
             const dateKey = getDateKey(date)
-            const previous = list[index - 1]
-            const next = list[index + 1]
-            const standalone = isStandaloneMessage(message)
+            const previousUnit = units[unitIndex - 1]
+            const nextUnit = units[unitIndex + 1]
+            const previous = previousUnit?.messages[previousUnit.messages.length - 1]
+            const next = nextUnit?.messages[0]
+            // An album is a card of its own, like a transfer or a poll
+            const standalone = unit.isAlbum || isStandaloneMessage(message)
 
             const showDateSeparator =
                 !previous || getDateKey(getMessageDate(previous)) !== dateKey
@@ -258,6 +322,7 @@ export default function ChatArea({
                 Boolean(next) &&
                 !nextStartsNewDay &&
                 !standalone &&
+                !nextUnit.isAlbum &&
                 !isStandaloneMessage(next) &&
                 getSenderKey(next) === getSenderKey(message) &&
                 getMessageDate(next).getTime() - date.getTime() < GROUP_WINDOW_MS
@@ -266,6 +331,8 @@ export default function ChatArea({
                 message,
                 // LegacyMessage ids can be numeric; pins are keyed by string
                 key: String(message.id),
+                memberKeys: unit.messages.map(member => String(member.id)),
+                album: unit.isAlbum ? (unit.messages as Message[]) : undefined,
                 date,
                 showDateSeparator,
                 isFirstInGroup: !joinsPrevious,
@@ -373,23 +440,26 @@ export default function ChatArea({
                 >
                     {messages.length > 0 ? (
                         <>
-                            {rows.map(({ message, key, date, showDateSeparator, isFirstInGroup, isLastInGroup }) => (
+                            {rows.map(({ message, key, memberKeys, album, date, showDateSeparator, isFirstInGroup, isLastInGroup }) => (
                                 // Separator and message are siblings, not nested: sticky
                                 // positioning is bounded by the parent element's box.
                                 <Fragment key={key}>
                                     {showDateSeparator && <DateSeparator date={date} />}
                                     <div
-                                        ref={node => { messageRefs.current[key] = node }}
+                                        // Every message of a bundle resolves to the bundle's
+                                        // node, so jumping to a pinned photo still lands
+                                        ref={node => { memberKeys.forEach(member => { messageRefs.current[member] = node }) }}
                                         className={`rounded-lg transition-colors duration-500 ${
-                                            highlightedId === key
+                                            highlightedId && memberKeys.includes(highlightedId)
                                                 ? "bg-emerald-100/60 dark:bg-emerald-900/20"
                                                 : ""
                                         }`}
                                     >
                                         <MessageItem
                                             message={message}
+                                            albumItems={album}
                                             onReply={(reply) => setReplyToMessage(reply)}
-                                            isPinned={pinnedIds.has(key)}
+                                            isPinned={memberKeys.some(member => pinnedIds.has(member))}
                                             onTogglePin={canPin ? handleTogglePin : undefined}
                                             isFirstInGroup={isFirstInGroup}
                                             isLastInGroup={isLastInGroup}

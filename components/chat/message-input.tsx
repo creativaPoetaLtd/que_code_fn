@@ -28,6 +28,12 @@ function escapeRegExp(value: string): string {
 
 const MAX_HEIGHT = 160
 
+/** Photos and videos, and everything the document picker takes */
+const MEDIA_ACCEPT = "image/*,video/*"
+const DOCUMENT_ACCEPT = ".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain"
+/** Matches the modal tray cap, and keeps a batch of uploads sane */
+const MAX_ATTACHMENTS = 10
+
 // CSS variable overrides injected into the emoji picker's host div
 const pickerVars = (isDark: boolean): React.CSSProperties => ({
     "--epr-bg-color":                isDark ? "#0c2418"                  : "#ffffff",
@@ -96,13 +102,15 @@ export default function MessageInput({
     const [showOptions, setShowOptions]       = useState<boolean>(false)
     const [showEmojiPicker, setShowEmojiPicker] = useState<boolean>(false)
     const [showMediaModal, setShowMediaModal] = useState<boolean>(false)
-    /** The file taken straight from the OS picker, awaiting a caption */
-    const [pickedFile, setPickedFile]         = useState<File | null>(null)
+    /** The files taken straight from the OS picker, awaiting captions */
+    const [pickedFiles, setPickedFiles]       = useState<File[] | null>(null)
     const [pickedKind, setPickedKind]         = useState<"media" | "document">("media")
     const [showShareToGroupModal, setShowShareToGroupModal] = useState<boolean>(false)
     const [showShareLocationModal, setShowShareLocationModal] = useState<boolean>(false)
     const [uploading, setUploading]           = useState<boolean>(false)
     const [uploadProgress, setUploadProgress] = useState<number>(0)
+    /** "Sending 2 of 5" while a batch is in flight */
+    const [uploadLabel, setUploadLabel]       = useState<string>("")
     const [cursorPos, setCursorPos]           = useState<number>(0)
 
     // ── @Mention state ────────────────────────────────────────────────────────
@@ -497,76 +505,114 @@ export default function MessageInput({
         toast({ title: "Coming soon", description: option })
     }
 
-    /** A file came back from the OS picker — move on to preview and caption */
+    /** Files came back from the OS picker — move on to preview and captions */
     const handleFilePicked = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0]
+        const files = Array.from(e.target.files || [])
         // Reset the input so picking the same file twice still fires a change
         e.target.value = ""
-        if (!file) return
-        setPickedFile(file)
+        if (!files.length) return
+        setPickedFiles(files)
         setShowMediaModal(true)
     }
 
     const closeMediaModal = () => {
         setShowMediaModal(false)
-        setPickedFile(null)
+        setPickedFiles(null)
     }
 
-    const handleMediaUpload = async (file: File, caption: string) => {
-        if (isSecureChat) {
-            if (!currentChatId || !token || !userId || !secureConversation) {
-                toast({
-                    title: "Secure media unavailable",
-                    description: "Your secure session is not ready yet.",
-                    variant: "destructive",
-                })
-                return
-            }
-
-            setUploading(true); setUploadProgress(10)
-            try {
-                const message = await sendSecureMediaMessage({
-                    token,
-                    userId,
-                    chatId: currentChatId,
-                    conversation: secureConversation,
-                    file,
-                    caption,
-                })
-                if (addMessage) addMessage(message as any)
-                toast({ title: "Secure media sent", description: "Your encrypted media has been sent successfully" })
-                closeMediaModal()
-            } catch (error: any) {
-                toast({
-                    title: "Secure media failed",
-                    description: error?.message || "Failed to send encrypted media",
-                    variant: "destructive",
-                })
-            } finally {
-                setUploading(false); setUploadProgress(0)
-            }
-            return
-        }
+    /**
+     * Send a tray of attachments as one message each, in the order shown, so a
+     * batch behaves like several sends rather than one all-or-nothing upload.
+     * Resolves with the files that failed, which the modal keeps for a retry.
+     */
+    const handleMediaUploadMany = async (
+        entries: { file: File; caption: string }[]
+    ): Promise<File[]> => {
+        const allFiles = entries.map((entry) => entry.file)
+        if (!entries.length) return []
 
         if (!currentChatId) {
             toast({ title: "Error", description: "No active chat selected", variant: "destructive" })
-            return
+            return allFiles
         }
-        setUploading(true); setUploadProgress(0)
+
+        // Captured once so the loop keeps a checked secure context throughout
+        const secureCtx =
+            isSecureChat && token && userId && secureConversation
+                ? { token, userId, conversation: secureConversation }
+                : null
+        if (isSecureChat && !secureCtx) {
+            toast({
+                title: "Secure media unavailable",
+                description: "Your secure session is not ready yet.",
+                variant: "destructive",
+            })
+            return allFiles
+        }
+
+        const total = entries.length
+        const failed: File[] = []
+
+        setUploading(true)
+        setUploadProgress(0)
         try {
-            const result = await uploadMediaMessage(currentChatId, file, caption, (p) => setUploadProgress(p.percentage))
-            if (result.success && result.data) {
-                if (addMessage) addMessage(result.data as any)
-                toast({ title: "Media sent", description: "Your media has been sent successfully" })
-                closeMediaModal()
-            } else {
-                toast({ title: "Upload failed", description: result.message || "Failed to upload media", variant: "destructive" })
+            for (let i = 0; i < total; i++) {
+                const { file, caption } = entries[i]
+                setUploadLabel(total > 1 ? `Sending ${i + 1} of ${total}` : "Uploading...")
+                // Progress spans the whole batch, not just the file in flight
+                const batchProgress = (fraction: number) =>
+                    setUploadProgress(Math.round(((i + fraction) / total) * 100))
+                batchProgress(0)
+
+                try {
+                    if (secureCtx) {
+                        const message = await sendSecureMediaMessage({
+                            ...secureCtx,
+                            chatId: currentChatId,
+                            file,
+                            caption,
+                        })
+                        if (addMessage) addMessage(message as any)
+                        batchProgress(1)
+                    } else {
+                        const result = await uploadMediaMessage(currentChatId, file, caption, (p) =>
+                            batchProgress(p.percentage / 100)
+                        )
+                        if (result.success && result.data) {
+                            if (addMessage) addMessage(result.data as any)
+                            batchProgress(1)
+                        } else {
+                            failed.push(file)
+                        }
+                    }
+                } catch {
+                    failed.push(file)
+                }
             }
-        } catch {
-            toast({ title: "Upload failed", description: "An error occurred while uploading", variant: "destructive" })
         } finally {
-            setUploading(false); setUploadProgress(0)
+            setUploading(false)
+            setUploadProgress(0)
+            setUploadLabel("")
         }
+
+        const sent = total - failed.length
+        if (sent > 0) {
+            toast({
+                title: isSecureChat ? "Secure media sent" : "Media sent",
+                description: sent === 1 ? "Your media has been sent successfully" : `${sent} files sent successfully`,
+            })
+        }
+        if (failed.length) {
+            toast({
+                title: failed.length === 1 ? "Upload failed" : `${failed.length} uploads failed`,
+                description: `${failed.map((file) => file.name).slice(0, 3).join(", ")} — tap Send to try again`,
+                variant: "destructive",
+            })
+        } else {
+            closeMediaModal()
+        }
+
+        return failed
     }
 
     const canSend = !!messageText.trim() && isConnected
@@ -724,30 +770,42 @@ export default function MessageInput({
             </div>
 
             {/* Hidden pickers — "Photo / video" and "Document" open these straight
-                away, and the modal below only handles the caption afterwards. */}
+                away, and the modal below only handles the captions afterwards.
+                Both take several files at once, as WhatsApp does. */}
             <input
                 ref={mediaInputRef}
                 type="file"
                 className="hidden"
-                accept="image/*,video/*"
+                multiple
+                accept={MEDIA_ACCEPT}
                 onChange={handleFilePicked}
             />
             <input
                 ref={documentInputRef}
                 type="file"
                 className="hidden"
-                accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain"
+                multiple
+                accept={DOCUMENT_ACCEPT}
                 onChange={handleFilePicked}
             />
 
             <MediaUploadModal
                 isOpen={showMediaModal}
                 onClose={closeMediaModal}
-                onUpload={handleMediaUpload}
+                onUpload={(file, caption) => { void handleMediaUploadMany([{ file, caption }]) }}
+                onUploadMany={handleMediaUploadMany}
                 uploading={uploading}
                 uploadProgress={uploadProgress}
-                initialFile={pickedFile}
-                title={pickedKind === "document" ? "Send document" : "Send photo or video"}
+                uploadLabel={uploadLabel}
+                initialFiles={pickedFiles}
+                multiple
+                accept={pickedKind === "document" ? DOCUMENT_ACCEPT : MEDIA_ACCEPT}
+                maxFiles={MAX_ATTACHMENTS}
+                title={
+                    pickedKind === "document"
+                        ? (pickedFiles && pickedFiles.length > 1 ? "Send documents" : "Send document")
+                        : (pickedFiles && pickedFiles.length > 1 ? "Send photos or videos" : "Send photo or video")
+                }
             />
 
             {shareTargetUserId && (

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { describeTierError, getTierError, notifyTierError } from "@/utils/tierErrors";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, Users, CalendarClock } from "lucide-react";
 import { useSidebar } from "@/context/SidebarContext";
@@ -280,7 +281,10 @@ const BatchTransferPage = () => {
                 setError(result.message || "Batch transfer failed");
             }
         } catch (err: any) {
-            setError(getApiErrorMessage(err));
+            // Account type limits get a friendlier line plus a "See plans" toast.
+            const tierError = getTierError(err);
+            setError(tierError ? describeTierError(tierError) : getApiErrorMessage(err));
+            notifyTierError(err, router.push);
         } finally {
             setLoading(false);
         }

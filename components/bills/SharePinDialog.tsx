@@ -1,5 +1,6 @@
 "use client"
 
+import { notifyTierError } from "@/utils/tierErrors"
 import React, { useEffect, useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -54,7 +55,9 @@ export default function SharePinDialog({
             onClose()
         } catch (error: any) {
             const errorData = error?.data || {}
-            if (errorData.requiresPinSetup) {
+            if (notifyTierError(error)) {
+                setPinError(errorData.message)
+            } else if (errorData.requiresPinSetup) {
                 setShowPinSetup(true)
                 toast({
                     title: "PIN Setup Required",

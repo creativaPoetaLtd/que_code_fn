@@ -27,6 +27,7 @@ interface ConversationListLayoutProps {
   onAddContact: () => void;
   onViewContactRequests: () => void;
   onQuickSendMoney: (conversation: Conversation) => void;
+  onAvatarClick?: (conversation: Conversation) => void;
   onStartNewChat?: (contact: any) => void;
   onJoinGroup?: (group: any) => void;
   isLoading?: boolean;
@@ -42,6 +43,7 @@ export default function ConversationListLayout({
   onAddContact,
   onViewContactRequests,
   onQuickSendMoney,
+  onAvatarClick,
   onStartNewChat,
   onJoinGroup,
   isLoading = false,
@@ -188,6 +190,11 @@ export default function ConversationListLayout({
                                 onClick={() =>
                                   onConversationSelect(conversation)
                                 }
+                                onAvatarClick={
+                                  onAvatarClick
+                                    ? () => onAvatarClick(conversation)
+                                    : undefined
+                                }
                               />
                             </div>
                           ))}
@@ -265,6 +272,11 @@ export default function ConversationListLayout({
                       conversation={conversation}
                       isActive={activeConversation.id === conversation.id}
                       onClick={() => onConversationSelect(conversation)}
+                      onAvatarClick={
+                        onAvatarClick
+                          ? () => onAvatarClick(conversation)
+                          : undefined
+                      }
                     />
 
                     {/* Quick Send Money — takes over the timestamp column on hover,

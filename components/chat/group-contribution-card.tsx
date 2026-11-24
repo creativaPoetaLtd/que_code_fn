@@ -1,5 +1,6 @@
 "use client";
 
+import { notifyTierError } from "@/utils/tierErrors";
 import React from "react";
 import {
   Users,
@@ -254,7 +255,7 @@ export function GroupContributionCard({ data, isMe, chatId }: Props) {
     } catch (err: any) {
       const msg =
         err?.response?.data?.message || "Contribution failed. Try again.";
-      toast({ variant: "destructive", description: msg });
+      if (!notifyTierError(err)) toast({ variant: "destructive", description: msg });
       setStep(
         data.contributionType === "flexible" ? "enter_amount" : "enter_pin"
       );

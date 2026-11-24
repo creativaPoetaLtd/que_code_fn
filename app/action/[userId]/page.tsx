@@ -1,5 +1,6 @@
 'use client';
 
+import { notifyTierError } from "@/utils/tierErrors";
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
@@ -175,7 +176,7 @@ function ContributeFlow({ contribution, onSuccess }: { contribution: MyContribut
             onSuccess(payAmount);
             setStep('idle'); setPin(''); setAmount(''); setIsAnonymous(false);
         } catch (err: any) {
-            alert(err?.response?.data?.message || 'Contribution failed');
+            if (!notifyTierError(err)) alert(err?.response?.data?.message || 'Contribution failed');
             setStep(contribution.type === 'fixed' ? 'enter_pin' : 'enter_amount');
         }
     };

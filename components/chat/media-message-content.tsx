@@ -3,7 +3,8 @@
 import { useState, useRef, useEffect } from "react"
 import { Download, Lock, Play, Pause, Volume2, VolumeX } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { decryptSecureMediaBlob } from "@/lib/e2ee/secureMediaCrypto"
+import ImageLightbox from "@/components/ui/image-lightbox"
+import { downloadMedia, resolveMediaObjectUrl, type MediaSource } from "@/utils/mediaSource"
 import { formatDuration, formatFileSize, getFileIcon } from "@/services/mediaService"
 import type { MediaData } from "@/types/chat.types"
 import { getChatPreviewText } from "@/utils/chatPreview"
@@ -28,6 +29,7 @@ export default function MediaMessageContent({
     const [decryptedMediaUrl, setDecryptedMediaUrl] = useState<string | null>(null)
     const [isDecryptingPreview, setIsDecryptingPreview] = useState(false)
     const [previewError, setPreviewError] = useState<string | null>(null)
+    const [isLightboxOpen, setIsLightboxOpen] = useState(false)
     const mediaPreviewText = getChatPreviewText({ messageType: mediaType })
     const showCaption = Boolean(
         content &&
@@ -43,27 +45,10 @@ export default function MediaMessageContent({
         }
     }, [decryptedMediaUrl])
 
-    const fetchMediaBlob = async (url: string) => {
-        const response = await fetch(url)
-        if (!response.ok) {
-            throw new Error(`Download failed with status ${response.status}`)
-        }
+    /** What this bubble needs to fetch, decrypt and save its own media */
+    const mediaSource: MediaSource = { mediaUrl, mimeType, isSecureMedia, secureMediaKey, secureMediaIv }
 
-        return response.blob()
-    }
-
-    const decryptMediaBlobIfNeeded = async (blob: Blob) => {
-        if (!isSecureMedia || !secureMediaKey || !secureMediaIv) {
-            return blob
-        }
-
-        return decryptSecureMediaBlob({
-            encryptedBlob: blob,
-            key: secureMediaKey,
-            iv: secureMediaIv,
-            originalType: mimeType || "application/octet-stream",
-        })
-    }
+    const handleDownload = (filename: string) => { void downloadMedia(mediaSource, filename) }
 
     const loadSecurePreview = async () => {
         if (!mediaUrl || decryptedMediaUrl || isDecryptingPreview) return
@@ -71,9 +56,7 @@ export default function MediaMessageContent({
         setIsDecryptingPreview(true)
         setPreviewError(null)
         try {
-            const encryptedBlob = await fetchMediaBlob(mediaUrl)
-            const blob = await decryptMediaBlobIfNeeded(encryptedBlob)
-            setDecryptedMediaUrl(window.URL.createObjectURL(blob))
+            setDecryptedMediaUrl(await resolveMediaObjectUrl(mediaSource))
         } catch (error) {
             console.error("Secure media preview failed:", error)
             setPreviewError("Preview unavailable")
@@ -93,26 +76,6 @@ export default function MediaMessageContent({
         void loadSecurePreview()
     }, [isSecureMedia, mediaType, mediaUrl, decryptedMediaUrl, isDecryptingPreview])
 
-    const handleDownload = async (url: string, filename: string) => {
-        try {
-            const encryptedBlob = await fetchMediaBlob(url);
-            const blob = await decryptMediaBlobIfNeeded(encryptedBlob);
-            const blobUrl = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = blobUrl;
-            link.download = filename;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            window.URL.revokeObjectURL(blobUrl);
-        } catch (error) {
-            console.error('Download failed:', error);
-            if (!isSecureMedia) {
-                window.open(url, '_blank');
-            }
-        }
-    };
-
     if (isSecureMedia && mediaUrl) {
         const canPreview = mediaType === "image" || mediaType === "video" || mediaType === "audio"
 
@@ -124,7 +87,7 @@ export default function MediaMessageContent({
                             src={decryptedMediaUrl}
                             alt={fileName || "Secure image"}
                             className="w-full h-auto cursor-pointer hover:opacity-90 transition-opacity"
-                            onClick={() => window.open(decryptedMediaUrl, "_blank")}
+                            onClick={() => setIsLightboxOpen(true)}
                         />
                         <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <Button
@@ -133,7 +96,7 @@ export default function MediaMessageContent({
                                 className="h-8 w-8 rounded-full bg-white/90 hover:bg-white"
                                 onClick={(e) => {
                                     e.stopPropagation()
-                                    handleDownload(mediaUrl, fileName || "secure-image")
+                                    handleDownload(fileName || "secure-image")
                                 }}
                                 title="Download decrypted file"
                             >
@@ -143,6 +106,15 @@ export default function MediaMessageContent({
                     </div>
                     {showCaption && (
                         <p className="text-sm">{content}</p>
+                    )}
+                    {isLightboxOpen && (
+                        <ImageLightbox
+                            images={[decryptedMediaUrl]}
+                            index={0}
+                            alt={fileName || "Secure image"}
+                            onClose={() => setIsLightboxOpen(false)}
+                            onIndexChange={() => { }}
+                        />
                     )}
                 </div>
             )
@@ -167,7 +139,7 @@ export default function MediaMessageContent({
                                 className="h-8 w-8 rounded-full bg-white/90 hover:bg-white"
                                 onClick={(e) => {
                                     e.stopPropagation()
-                                    handleDownload(mediaUrl, fileName || "secure-video")
+                                    handleDownload(fileName || "secure-video")
                                 }}
                                 title="Download decrypted file"
                             >
@@ -190,7 +162,7 @@ export default function MediaMessageContent({
                     content={content}
                     mediaType={mediaType}
                     fileName={fileName}
-                    onDownload={() => handleDownload(mediaUrl, fileName || "secure-audio")}
+                    onDownload={() => handleDownload(fileName || "secure-audio")}
                 />
             )
         }
@@ -227,7 +199,7 @@ export default function MediaMessageContent({
                         size="icon"
                         variant="ghost"
                         className="h-8 w-8 flex-shrink-0"
-                        onClick={() => handleDownload(mediaUrl, fileName || "secure-file")}
+                        onClick={() => handleDownload(fileName || "secure-file")}
                         title="Download decrypted file"
                     >
                         <Download className="h-4 w-4" />
@@ -252,7 +224,7 @@ export default function MediaMessageContent({
                         src={mediaUrl}
                         alt={fileName || "Image"}
                         className="w-full h-auto cursor-pointer hover:opacity-90 transition-opacity"
-                        onClick={() => window.open(mediaUrl, '_blank')}
+                        onClick={() => setIsLightboxOpen(true)}
                     />
                     <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Button
@@ -261,7 +233,7 @@ export default function MediaMessageContent({
                             className="h-8 w-8 rounded-full bg-white/90 hover:bg-white"
                             onClick={(e) => {
                                 e.stopPropagation();
-                                handleDownload(mediaUrl, fileName || 'image.jpg');
+                                handleDownload(fileName || 'image.jpg');
                             }}
                         >
                             <Download className="h-4 w-4" />
@@ -270,6 +242,15 @@ export default function MediaMessageContent({
                 </div>
                 {showCaption && (
                     <p className="text-sm">{content}</p>
+                )}
+                {isLightboxOpen && (
+                    <ImageLightbox
+                        images={[mediaUrl]}
+                        index={0}
+                        alt={fileName || "Image"}
+                        onClose={() => setIsLightboxOpen(false)}
+                        onIndexChange={() => { }}
+                    />
                 )}
             </div>
         )
@@ -296,7 +277,7 @@ export default function MediaMessageContent({
                             className="h-8 w-8 rounded-full bg-white/90 hover:bg-white"
                             onClick={(e) => {
                                 e.stopPropagation();
-                                handleDownload(mediaUrl, fileName || 'video.mp4');
+                                handleDownload(fileName || 'video.mp4');
                             }}
                         >
                             <Download className="h-4 w-4" />
@@ -322,7 +303,7 @@ export default function MediaMessageContent({
                 content={content} 
                 mediaType={mediaType}
                 fileName={fileName}
-                onDownload={() => handleDownload(mediaUrl, fileName || 'audio.mp3')}
+                onDownload={() => handleDownload(fileName || 'audio.mp3')}
             />
         )
     }
@@ -350,7 +331,7 @@ export default function MediaMessageContent({
                         )}
                     </a>
                     <button
-                        onClick={() => handleDownload(mediaUrl, fileName || 'document')}
+                        onClick={() => handleDownload(fileName || 'document')}
                         className="flex-shrink-0 p-1 rounded hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
                         title="Download"
                     >
@@ -377,7 +358,7 @@ export default function MediaMessageContent({
                         )}
                     </a>
                     <button
-                        onClick={() => handleDownload(mediaUrl, fileName || 'file')}
+                        onClick={() => handleDownload(fileName || 'file')}
                         className="flex-shrink-0 p-1 rounded hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
                         title="Download"
                     >

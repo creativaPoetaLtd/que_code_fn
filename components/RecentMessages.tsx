@@ -9,6 +9,7 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { parseMessageContent } from '@/utils/messageUtils';
 import { cn } from '@/lib/utils';
 import { DASHBOARD_SURFACE } from './Dashboard/DashboardCard';
+import ProfilePreviewModal from '@/components/chat/profile-preview-modal';
 
 interface ChatMessage {
     id: string;
@@ -25,9 +26,11 @@ interface ChatMessage {
 
 export const RecentMessages: React.FC = () => {
     const router = useRouter();
-    const { getToken } = useAuthToken();
+    const { getToken, getUserId } = useAuthToken();
     const token = getToken();
+    const currentUserId = getUserId();
     const [conversations, setConversations] = useState<ChatMessage[]>([]);
+    const [profilePreview, setProfilePreview] = useState<{ userId: string; name?: string } | null>(null);
 
     const { data: chatsData, isLoading, error } = useGetUserChatsQuery(undefined, {
         skip: !token
@@ -35,9 +38,16 @@ export const RecentMessages: React.FC = () => {
 
     useEffect(() => {
         if (chatsData?.data) {
-            const formattedChats = chatsData.data.slice(0, 5).map((chat: any) => ({
+            const formattedChats = chatsData.data.slice(0, 5).map((chat: any) => {
+                // The API returns `participants`, not a convenience `otherUser` field -
+                // the other person's id has to be picked out by elimination.
+                const otherParticipant = !chat.isGroup
+                    ? (chat.participants || []).find((p: any) => p.userId !== currentUserId)
+                    : null;
+
+                return {
                 id: chat.id,
-                userId: chat.otherUser?.id,
+                userId: otherParticipant?.userId,
                 name: chat.name || 'Unknown Chat',
                 lastMessage: chat.lastMessage ? {
                     content: parseMessageContent(
@@ -49,10 +59,11 @@ export const RecentMessages: React.FC = () => {
                     messageType: chat.lastMessage.messageType || 'text'
                 } : undefined,
                 avatar: chat.avatar
-            }));
+                };
+            });
             setConversations(formattedChats);
         }
-    }, [chatsData]);
+    }, [chatsData, currentUserId]);
 
     const getTimeDisplay = (createdAt: string) => {
         const messageDate = new Date(createdAt);
@@ -156,26 +167,36 @@ export const RecentMessages: React.FC = () => {
                 {conversations.map((chat) => (
                     <div
                         key={chat.id}
-                        className="px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-darkBg-interactive transition-colors duration-200 cursor-pointer"
+                        className="px-4 py-1.5 hover:bg-gray-50 dark:hover:bg-darkBg-interactive transition-colors duration-200 cursor-pointer"
                         onClick={() => router.push('/chat')}
                     >
-                        <div className="flex items-start gap-2.5">
-                            <UserAvatar
-                                userId={chat.userId}
-                                profileImage={chat.avatar}
-                                firstName={chat.name.split(' ')[0]}
-                                lastName={chat.name.split(' ')[1] || ''}
-                                className="w-9 h-9"
-                                userType="user"
-                            />
-                            <div className="flex-1 min-w-0">
-                                <div className="flex justify-between items-start gap-0">
-                                    <p className="font-medium text-gray-900 dark:text-white truncate text-sm">{chat.name}</p>
-                                    <span className="text-sm text-gray-500 dark:text-gray-400 flex-shrink-0">
+                        <div className="flex items-center gap-2.5">
+                            <div
+                                className={chat.userId ? 'cursor-pointer' : undefined}
+                                onClick={(e) => {
+                                    if (!chat.userId) return;
+                                    e.stopPropagation();
+                                    setProfilePreview({ userId: chat.userId, name: chat.name });
+                                }}
+                            >
+                                <UserAvatar
+                                    userId={chat.userId}
+                                    profileImage={chat.avatar}
+                                    firstName={chat.name.split(' ')[0]}
+                                    lastName={chat.name.split(' ')[1] || ''}
+                                    className="w-12 h-12 flex-shrink-0"
+                                    userType="user"
+                                    disableClick
+                                />
+                            </div>
+                            <div className="flex-1 min-w-0 min-h-[3rem] flex flex-col justify-center">
+                                <div className="flex justify-between items-baseline gap-0">
+                                    <p className="font-medium text-gray-900 dark:text-white truncate text-[14px] leading-[16px]">{chat.name}</p>
+                                    <span className="text-[11px] leading-[14px] text-gray-500 dark:text-gray-400 flex-shrink-0">
                                         {chat.lastMessage ? getTimeDisplay(chat.lastMessage.createdAt) : ''}
                                     </span>
                                 </div>
-                                <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-1">
+                                <p className="text-[12px] leading-[14px] text-gray-600 dark:text-gray-400 line-clamp-1">
                                     {chat.lastMessage ? truncateText(chat.lastMessage.content) : 'No messages yet'}
                                 </p>
                             </div>
@@ -183,6 +204,13 @@ export const RecentMessages: React.FC = () => {
                     </div>
                 ))}
             </div>
+
+            <ProfilePreviewModal
+                isOpen={Boolean(profilePreview)}
+                onClose={() => setProfilePreview(null)}
+                userId={profilePreview?.userId}
+                name={profilePreview?.name}
+            />
         </div>
     );
 };

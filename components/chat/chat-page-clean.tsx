@@ -113,6 +113,15 @@ export default function ChatPageClean() {
   const [isWhiteboardDialogOpen, setIsWhiteboardDialogOpen] =
     useState(false);
   const [isProfilePreviewOpen, setIsProfilePreviewOpen] = useState(false);
+  // Decoupled from `selectedChat` so a conversation-list avatar can open a preview
+  // for someone other than whoever's chat is currently open.
+  const [profilePreviewTarget, setProfilePreviewTarget] = useState<{
+    userId: string;
+    name?: string;
+  } | null>(null);
+  const [groupProfilePreviewId, setGroupProfilePreviewId] = useState<
+    string | null
+  >(null);
   const [selectedOutsideMessage, setSelectedOutsideMessage] =
     useState<OutsideMessage | null>(null);
   const [isGroupSettingsModalOpen, setIsGroupSettingsModalOpen] =
@@ -321,12 +330,33 @@ export default function ChatPageClean() {
 
   const handleViewProfile = () => {
     if (selectedChat?.isGroup) {
+      setGroupProfilePreviewId(selectedChat.groupId || null);
       setIsGroupProfileModalOpen(true);
     } else if (dmParticipantId) {
+      setProfilePreviewTarget({ userId: dmParticipantId, name: selectedChat?.name });
       setIsProfilePreviewOpen(true);
     } else {
       // No resolvable participant (e.g. support chats) — fall back to the basic card
       setIsUserProfileModalOpen(true);
+    }
+  };
+
+  /** Clicking a conversation's avatar in the list previews that profile instead of
+   *  opening the chat — independent of whichever chat happens to be active. */
+  const handleConversationAvatarClick = (conversation: Conversation) => {
+    if (conversation.isGroup) {
+      setGroupProfilePreviewId(conversation.groupId || null);
+      setIsGroupProfileModalOpen(true);
+      return;
+    }
+
+    const otherParticipantId = conversation.participants?.find(
+      p => p.userId !== currentUserId
+    )?.userId;
+
+    if (otherParticipantId) {
+      setProfilePreviewTarget({ userId: otherParticipantId, name: conversation.name });
+      setIsProfilePreviewOpen(true);
     }
   };
 
@@ -460,6 +490,7 @@ export default function ChatPageClean() {
             onQuickSendMoney={conversation =>
               openSendMoneyModal(conversation.name)
             }
+            onAvatarClick={handleConversationAvatarClick}
             onStartNewChat={handleStartNewChat}
             onJoinGroup={handleJoinGroup}
             isLoading={isLoading}
@@ -581,8 +612,8 @@ export default function ChatPageClean() {
       <ProfilePreviewModal
         isOpen={isProfilePreviewOpen}
         onClose={() => setIsProfilePreviewOpen(false)}
-        userId={dmParticipantId}
-        name={selectedChat?.name}
+        userId={profilePreviewTarget?.userId ?? null}
+        name={profilePreviewTarget?.name}
       />
 
       <ShareActionModal
@@ -624,7 +655,7 @@ export default function ChatPageClean() {
       <GroupProfileModal
         isOpen={isGroupProfileModalOpen}
         onClose={() => setIsGroupProfileModalOpen(false)}
-        groupId={selectedChat?.isGroup ? selectedChat.groupId || null : null}
+        groupId={groupProfilePreviewId}
         token={token || ''}
       />
 

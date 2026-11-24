@@ -4,6 +4,10 @@ import { useEffect } from 'react';
 import { socketService } from '@/services/socketService';
 import { notificationService } from '@/services/notificationService';
 import { useAuthToken } from '@/hooks/use-auth-token';
+import { notifyWalletUpdated } from '@/utils/walletEvents';
+
+// Notifications that mean this account's wallet balance just changed.
+const BALANCE_CHANGING_NOTIFICATIONS = ['TOPUP_SUCCESSFUL', 'PLAN_RENEWED'];
 
 export const useNotificationListener = () => {
   const { getUserId } = useAuthToken();
@@ -46,13 +50,20 @@ export const useNotificationListener = () => {
     // chat-header.tsx) purely to update the progress bar UI. Notifying on both would
     // show the user two toasts/sounds for one donation.
 
+    // A top-up approved after its modal was closed still refreshes the balance.
+    const handleNotification = (notification: any) => {
+      if (BALANCE_CHANGING_NOTIFICATIONS.includes(notification?.type)) notifyWalletUpdated();
+    };
+
     // Register socket listeners
+    socketService.onNotification(handleNotification);
     socketService.onContactRequest(handleContactRequest);
     socketService.onGroupInvitation(handleGroupInvitation);
     socketService.onGroupDonation(handleGroupDonation);
 
     // Cleanup
     return () => {
+      socketService.offNotification(handleNotification);
       socketService.offContactRequest(handleContactRequest);
       socketService.offGroupInvitation(handleGroupInvitation);
       socketService.offGroupDonation(handleGroupDonation);

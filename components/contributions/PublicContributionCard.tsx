@@ -1,5 +1,6 @@
 "use client";
 
+import { notifyTierError } from "@/utils/tierErrors";
 import React from "react";
 import {
   Users,
@@ -261,7 +262,7 @@ export function PublicContributionCard({ data, onUpdated, isAuthenticated = true
       }
     } catch (err: any) {
       const msg = err?.response?.data?.message || "Contribution failed. Try again.";
-      toast({ variant: "destructive", description: msg });
+      if (!notifyTierError(err)) toast({ variant: "destructive", description: msg });
       setStep(data.type === "flexible" ? "enter_amount" : "enter_pin");
     }
   };

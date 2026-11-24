@@ -1,5 +1,6 @@
 "use client";
 
+import { notifyTierError } from "@/utils/tierErrors";
 import React from "react";
 import {
     Download, CheckCircle, ArrowRight, Heart, TrendingUp,
@@ -164,11 +165,13 @@ function MoneyRequestCard({ data, isMe, chatId }: { data: MoneyRequestData; isMe
                 setPin('');
             }
         } catch (err: any) {
-            toast({
-                title: 'Payment failed',
-                description: err?.response?.data?.message || 'Could not process payment.',
-                variant: 'destructive',
-            });
+            if (!notifyTierError(err)) {
+                toast({
+                    title: 'Payment failed',
+                    description: err?.response?.data?.message || 'Could not process payment.',
+                    variant: 'destructive',
+                });
+            }
             setPin('');
         } finally {
             setIsAccepting(false);

@@ -60,6 +60,7 @@ const protectedRoutes = [
     '/home',
     '/groups/',
     '/contacts/',
+    '/onboarding',
 ];
 
 const publicInvitationRoutes = [
